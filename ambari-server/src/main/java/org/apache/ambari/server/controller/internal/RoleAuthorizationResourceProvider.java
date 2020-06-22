@@ -18,7 +18,14 @@
 
 package org.apache.ambari.server.controller.internal;
 
-import com.google.inject.Inject;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.StaticallyInject;
 import org.apache.ambari.server.controller.AmbariManagementController;
 import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
@@ -30,26 +37,23 @@ import org.apache.ambari.server.controller.spi.Resource.Type;
 import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
-import org.apache.ambari.server.orm.dao.RoleAuthorizationDAO;
 import org.apache.ambari.server.orm.dao.PermissionDAO;
-import org.apache.ambari.server.orm.entities.RoleAuthorizationEntity;
+import org.apache.ambari.server.orm.dao.RoleAuthorizationDAO;
 import org.apache.ambari.server.orm.entities.PermissionEntity;
+import org.apache.ambari.server.orm.entities.RoleAuthorizationEntity;
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
+import com.google.inject.Inject;
 
 /**
  * A write-only resource provider for securely stored credentials
  */
 @StaticallyInject
 public class RoleAuthorizationResourceProvider extends ReadOnlyResourceProvider {
+
+  private static final Logger LOG = LoggerFactory.getLogger(RoleAuthorizationResourceProvider.class);
 
   // ----- Property ID constants ---------------------------------------------
 
@@ -63,18 +67,18 @@ public class RoleAuthorizationResourceProvider extends ReadOnlyResourceProvider 
 
   static {
     Set<String> set;
-    set = new HashSet<String>();
+    set = new HashSet<>();
     set.add(AUTHORIZATION_ID_PROPERTY_ID);
     set.add(PERMISSION_ID_PROPERTY_ID);
     PK_PROPERTY_IDS = Collections.unmodifiableSet(set);
 
-    set = new HashSet<String>();
+    set = new HashSet<>();
     set.add(AUTHORIZATION_ID_PROPERTY_ID);
     set.add(PERMISSION_ID_PROPERTY_ID);
     set.add(AUTHORIZATION_NAME_PROPERTY_ID);
     PROPERTY_IDS = Collections.unmodifiableSet(set);
 
-    HashMap<Type, String> map = new HashMap<Type, String>();
+    HashMap<Type, String> map = new HashMap<>();
     map.put(Type.Permission, PERMISSION_ID_PROPERTY_ID);
     map.put(Type.RoleAuthorization, AUTHORIZATION_ID_PROPERTY_ID);
     KEY_PROPERTY_IDS = Collections.unmodifiableMap(map);
@@ -96,7 +100,7 @@ public class RoleAuthorizationResourceProvider extends ReadOnlyResourceProvider 
    * Create a new resource provider.
    */
   public RoleAuthorizationResourceProvider(AmbariManagementController managementController) {
-    super(PROPERTY_IDS, KEY_PROPERTY_IDS, managementController);
+    super(Type.RoleAuthorization, PROPERTY_IDS, KEY_PROPERTY_IDS, managementController);
   }
 
   @Override
@@ -104,7 +108,7 @@ public class RoleAuthorizationResourceProvider extends ReadOnlyResourceProvider 
       throws SystemException, UnsupportedPropertyException, NoSuchResourceException, NoSuchParentResourceException {
 
     Set<String> requestedIds = getRequestPropertyIds(request, predicate);
-    Set<Resource> resources = new HashSet<Resource>();
+    Set<Resource> resources = new HashSet<>();
 
     Set<Map<String, Object>> propertyMaps;
 

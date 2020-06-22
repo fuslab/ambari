@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,15 +18,21 @@
 
 package org.apache.ambari.server.api.services;
 
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
-import com.google.inject.persist.Transactional;
-import org.apache.ambari.server.orm.dao.KeyValueDAO;
-import org.apache.ambari.server.orm.entities.KeyValueEntity;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
-import java.util.*;
+
+import org.apache.ambari.server.orm.dao.KeyValueDAO;
+import org.apache.ambari.server.orm.entities.KeyValueEntity;
+
+import com.google.inject.Inject;
+import com.google.inject.Singleton;
 
 @Singleton
 public class PersistKeyValueImpl {
@@ -39,7 +45,7 @@ public class PersistKeyValueImpl {
   }
 
   public Collection<String> generateKeys(int number) {
-    List<String> keys = new ArrayList<String>(number);
+    List<String> keys = new ArrayList<>(number);
     for (int i = 0; i < number; i++) {
       keys.add(generateKey());
     }
@@ -74,7 +80,7 @@ public class PersistKeyValueImpl {
   }
   
   public synchronized Map<String, String> getAllKeyValues() {
-    Map<String, String> map = new HashMap<String, String>();
+    Map<String, String> map = new HashMap<>();
     for (KeyValueEntity keyValueEntity : keyValueDAO.findAll()) {
       map.put(keyValueEntity.getKey(), keyValueEntity.getValue());
     }

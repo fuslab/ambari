@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,11 +17,20 @@
  */
 package org.apache.ambari.server.controller.metrics.timeline;
 
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.isNull;
+import static org.easymock.EasyMock.replay;
+
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.util.TreeMap;
+
 import org.apache.ambari.server.controller.internal.URLStreamProvider;
-import org.apache.http.HttpStatus;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.metrics2.sink.timeline.TimelineMetric;
 import org.apache.hadoop.metrics2.sink.timeline.TimelineMetrics;
+import org.apache.http.HttpStatus;
 import org.apache.http.client.utils.URIBuilder;
 import org.codehaus.jackson.map.AnnotationIntrospector;
 import org.codehaus.jackson.map.ObjectMapper;
@@ -30,17 +39,6 @@ import org.codehaus.jackson.xc.JaxbAnnotationIntrospector;
 import org.easymock.EasyMock;
 import org.easymock.EasyMockSupport;
 import org.junit.Test;
-
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.TreeMap;
-
-import static org.easymock.EasyMock.createMock;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.isNull;
-import static org.easymock.EasyMock.replay;
 
 public class MetricsRequestHelperTest {
 
@@ -53,7 +51,7 @@ public class MetricsRequestHelperTest {
     TimelineMetric timelineMetric = new TimelineMetric();
     timelineMetric.setMetricName("cpu_user");
     timelineMetric.setAppId("app1");
-    TreeMap<Long, Double> metricValues = new TreeMap<Long, Double>();
+    TreeMap<Long, Double> metricValues = new TreeMap<>();
     metricValues.put(now + 100, 1.0);
     metricValues.put(now + 200, 2.0);
     metricValues.put(now + 300, 3.0);
@@ -73,7 +71,7 @@ public class MetricsRequestHelperTest {
 
     URLStreamProvider urlStreamProviderMock = createMock(URLStreamProvider.class);
     expect(urlStreamProviderMock.processURL(EasyMock.isA(String.class), EasyMock.isA(String.class),
-      isNull(String.class), EasyMock.isA(Map.class))).andReturn(httpURLConnectionMock).once();
+      isNull(String.class), EasyMock.anyObject())).andReturn(httpURLConnectionMock).once();
 
     replay(httpURLConnectionMock, urlStreamProviderMock);
 
@@ -104,7 +102,7 @@ public class MetricsRequestHelperTest {
 
     urlStreamProviderMock = createMock(URLStreamProvider.class);
     expect(urlStreamProviderMock.processURL(EasyMock.isA(String.class), EasyMock.isA(String.class),
-      isNull(String.class), EasyMock.isA(Map.class))).andReturn(httpURLConnectionMock).times(2);
+      isNull(String.class), EasyMock.anyObject())).andReturn(httpURLConnectionMock).times(2);
 
     replay(httpURLConnectionMock, urlStreamProviderMock);
 

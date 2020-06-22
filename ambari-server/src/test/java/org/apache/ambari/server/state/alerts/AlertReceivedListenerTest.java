@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,15 +24,14 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import javax.persistence.EntityManager;
 
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.H2DatabaseCleaner;
-import org.apache.ambari.server.controller.RootServiceResponseFactory.Components;
-import org.apache.ambari.server.controller.RootServiceResponseFactory.Services;
+import org.apache.ambari.server.controller.RootComponent;
+import org.apache.ambari.server.controller.RootService;
 import org.apache.ambari.server.events.AlertReceivedEvent;
 import org.apache.ambari.server.events.AlertStateChangeEvent;
 import org.apache.ambari.server.events.listeners.alerts.AlertReceivedListener;
@@ -74,6 +73,7 @@ import com.google.inject.persist.UnitOfWork;
 public class AlertReceivedListenerTest {
 
   private static final String ALERT_DEFINITION = "alert_definition_";
+  private static final String AMBARI_ALERT_DEFINITION = "ambari_server_alert";
   private static final String HOST1 = "h1";
   private static final String ALERT_LABEL = "My Label";
   private Injector m_injector;
@@ -132,6 +132,18 @@ public class AlertReceivedListenerTest {
       definition.setSourceType(SourceType.SCRIPT);
       m_definitionDao.create(definition);
     }
+
+    AlertDefinitionEntity definition = new AlertDefinitionEntity();
+    definition.setDefinitionName(AMBARI_ALERT_DEFINITION);
+    definition.setServiceName(RootService.AMBARI.name());
+    definition.setComponentName(RootComponent.AMBARI_SERVER.name());
+    definition.setClusterId(m_cluster.getClusterId());
+    definition.setHash(UUID.randomUUID().toString());
+    definition.setScheduleInterval(Integer.valueOf(60));
+    definition.setScope(Scope.SERVICE);
+    definition.setSource("{\"type\" : \"SCRIPT\"}");
+    definition.setSourceType(SourceType.SCRIPT);
+    m_definitionDao.create(definition);
   }
 
   @After
@@ -145,14 +157,14 @@ public class AlertReceivedListenerTest {
    * Tests that a disabled definition doesn't record alert events.
    */
   @Test
-  public void testDisabledAlert() {
+  public void testDisabledAlert() throws AmbariException {
     String definitionName = ALERT_DEFINITION + "1";
     String componentName = "DATANODE";
 
     Alert alert1 = new Alert(definitionName, null, "HDFS", componentName,
         HOST1, AlertState.OK);
 
-    alert1.setCluster(m_cluster.getClusterName());
+    alert1.setClusterId(m_cluster.getClusterId());
     alert1.setLabel(ALERT_LABEL);
     alert1.setText("HDFS " + componentName + " is OK");
     alert1.setTimestamp(1L);
@@ -187,14 +199,14 @@ public class AlertReceivedListenerTest {
    * Tests an invalid host is being reported in an alert.
    */
   @Test
-  public void testInvalidHost() {
+  public void testInvalidHost() throws AmbariException {
     String definitionName = ALERT_DEFINITION + "1";
     String componentName = "DATANODE";
 
     Alert alert = new Alert(definitionName, null, "HDFS", componentName,
         HOST1, AlertState.OK);
 
-    alert.setCluster(m_cluster.getClusterName());
+    alert.setClusterId(m_cluster.getClusterId());
     alert.setLabel(ALERT_LABEL);
     alert.setText("HDFS " + componentName + " is OK");
     alert.setTimestamp(1L);
@@ -225,7 +237,7 @@ public class AlertReceivedListenerTest {
    * Tests that a disabled definition doesn't record alert events.
    */
   @Test
-  public void testInvalidAlertDefinition() {
+  public void testInvalidAlertDefinition() throws AmbariException {
     String componentName = "DATANODE";
 
     Alert alert = new Alert("missing_alert_definition_name", null, "HDFS",
@@ -249,14 +261,14 @@ public class AlertReceivedListenerTest {
    * Tests an invalid pairing of component to host.
    */
   @Test
-  public void testInvalidServiceComponentHost() {
+  public void testInvalidServiceComponentHost() throws AmbariException {
     String definitionName = ALERT_DEFINITION + "1";
     String componentName = "DATANODE";
 
     Alert alert = new Alert(definitionName, null, "HDFS", componentName,
         HOST1, AlertState.OK);
 
-    alert.setCluster(m_cluster.getClusterName());
+    alert.setClusterId(m_cluster.getClusterId());
     alert.setLabel(ALERT_LABEL);
     alert.setText("HDFS " + componentName + " is OK");
     alert.setTimestamp(1L);
@@ -271,7 +283,7 @@ public class AlertReceivedListenerTest {
     assertEquals(1, allCurrent.size());
 
     // invalid host
-    alert.setComponent("INVALID");
+    alert.setHostName("invalid_host_name");
 
     // remove all
     m_dao.removeCurrentByHost(HOST1);
@@ -295,7 +307,7 @@ public class AlertReceivedListenerTest {
     Alert alert1 = new Alert(definitionName, null, "HDFS", componentName, HOST1,
         AlertState.CRITICAL);
 
-    alert1.setCluster(m_cluster.getClusterName());
+    alert1.setClusterId(m_cluster.getClusterId());
     alert1.setLabel(ALERT_LABEL);
     alert1.setText("HDFS " + componentName + " is OK");
     alert1.setTimestamp(1L);
@@ -334,15 +346,15 @@ public class AlertReceivedListenerTest {
    * Tests that an invalid host from a host-level agent alert is rejected.
    */
   @Test
-  public void testAgentAlertFromInvalidHost() {
+  public void testAgentAlertFromInvalidHost() throws AmbariException {
     String definitionName = ALERT_DEFINITION + "1";
-    String serviceName = Services.AMBARI.name();
-    String componentName = Components.AMBARI_AGENT.name();
+    String serviceName = RootService.AMBARI.name();
+    String componentName = RootComponent.AMBARI_AGENT.name();
 
     Alert alert = new Alert(definitionName, null, serviceName, componentName, HOST1,
         AlertState.OK);
 
-    alert.setCluster(m_cluster.getClusterName());
+    alert.setClusterId(m_cluster.getClusterId());
     alert.setLabel(ALERT_LABEL);
     alert.setText(serviceName + " " + componentName + " is OK");
     alert.setTimestamp(1L);
@@ -373,15 +385,15 @@ public class AlertReceivedListenerTest {
    * Tests that an alert for AMBARI/AMBARI_SERVER is always valid.
    */
   @Test
-  public void testAmbariServerValidAlerts() {
-    String definitionName = ALERT_DEFINITION + "1";
-    String serviceName = Services.AMBARI.name();
-    String componentName = Components.AMBARI_SERVER.name();
+  public void testAmbariServerValidAlerts() throws AmbariException {
+    String definitionName = AMBARI_ALERT_DEFINITION;
+    String serviceName = RootService.AMBARI.name();
+    String componentName = RootComponent.AMBARI_SERVER.name();
 
     Alert alert = new Alert(definitionName, null, serviceName, componentName, HOST1,
         AlertState.OK);
 
-    alert.setCluster(m_cluster.getClusterName());
+    alert.setClusterId(m_cluster.getClusterId());
     alert.setLabel(ALERT_LABEL);
     alert.setText(serviceName + " " + componentName + " is OK");
     alert.setTimestamp(1L);
@@ -396,7 +408,7 @@ public class AlertReceivedListenerTest {
 
     // invalid host, invalid cluster
     alert.setHostName("INVALID");
-    alert.setCluster("INVALID");
+    alert.setClusterId(null);
 
     // remove all
     m_dao.removeCurrentByHost(HOST1);
@@ -414,15 +426,15 @@ public class AlertReceivedListenerTest {
    * alert.
    */
   @Test
-  public void testMissingClusterAndInvalidHost() {
+  public void testMissingClusterAndInvalidHost() throws AmbariException {
     String definitionName = ALERT_DEFINITION + "1";
-    String serviceName = Services.AMBARI.name();
-    String componentName = Components.AMBARI_AGENT.name();
+    String serviceName = RootService.AMBARI.name();
+    String componentName = RootComponent.AMBARI_AGENT.name();
 
     Alert alert1 = new Alert(definitionName, null, serviceName, componentName, HOST1,
         AlertState.OK);
 
-    alert1.setCluster(m_cluster.getClusterName());
+    alert1.setClusterId(m_cluster.getClusterId());
     alert1.setLabel(ALERT_LABEL);
     alert1.setText(serviceName + " " + componentName + " is OK");
     alert1.setTimestamp(1L);
@@ -436,7 +448,7 @@ public class AlertReceivedListenerTest {
     assertEquals(1, allCurrent.size());
 
     // missing cluster, invalid host
-    alert1.setCluster(null);
+    alert1.setClusterId(null);
     alert1.setHostName("INVALID");
 
     // remove all
@@ -455,14 +467,14 @@ public class AlertReceivedListenerTest {
    * if there is currently no current alert.
    */
   @Test
-  public void testSkippedAlertWithNoCurrentAlert() {
+  public void testSkippedAlertWithNoCurrentAlert() throws AmbariException {
     String definitionName = ALERT_DEFINITION + "1";
     String serviceName = "HDFS";
     String componentName = "NAMENODE";
 
     Alert alert = new Alert(definitionName, null, serviceName, componentName, HOST1, AlertState.SKIPPED);
 
-    alert.setCluster(m_cluster.getClusterName());
+    alert.setClusterId(m_cluster.getClusterId());
     alert.setLabel(ALERT_LABEL);
     alert.setText(serviceName + " " + componentName + " is OK");
     alert.setTimestamp(1L);
@@ -481,7 +493,7 @@ public class AlertReceivedListenerTest {
    * create an entry if there is currently no current alert.
    */
   @Test
-  public void testSkippedAlertUpdatesTimestampAndText() {
+  public void testSkippedAlertUpdatesTimestampAndText() throws AmbariException {
     String definitionName = ALERT_DEFINITION + "1";
     String serviceName = "HDFS";
     String componentName = "NAMENODE";
@@ -489,7 +501,7 @@ public class AlertReceivedListenerTest {
 
     Alert alert = new Alert(definitionName, null, serviceName, componentName, HOST1, AlertState.OK);
 
-    alert.setCluster(m_cluster.getClusterName());
+    alert.setClusterId(m_cluster.getClusterId());
     alert.setLabel(ALERT_LABEL);
     alert.setText(text);
     alert.setTimestamp(1L);
@@ -538,7 +550,7 @@ public class AlertReceivedListenerTest {
    * Tests that we correctly record alert occurance information.
    */
   @Test
-  public void testAlertOccurrences() {
+  public void testAlertOccurrences() throws AmbariException {
     String definitionName = ALERT_DEFINITION + "1";
     String serviceName = "HDFS";
     String componentName = "NAMENODE";
@@ -546,7 +558,7 @@ public class AlertReceivedListenerTest {
 
     Alert alert = new Alert(definitionName, null, serviceName, componentName, HOST1, AlertState.OK);
 
-    alert.setCluster(m_cluster.getClusterName());
+    alert.setClusterId(m_cluster.getClusterId());
     alert.setLabel(ALERT_LABEL);
     alert.setText(text);
     alert.setTimestamp(1L);
@@ -603,7 +615,7 @@ public class AlertReceivedListenerTest {
     Alert alert = new Alert(definitionName, null, serviceName, componentName, HOST1,
         AlertState.CRITICAL);
 
-    alert.setCluster(m_cluster.getClusterName());
+    alert.setClusterId(m_cluster.getClusterId());
     alert.setLabel(ALERT_LABEL);
     alert.setText(text);
     alert.setTimestamp(1L);
@@ -667,7 +679,7 @@ public class AlertReceivedListenerTest {
     String text = serviceName + " " + componentName + " is OK";
 
     Alert alert = new Alert(definitionName, null, serviceName, componentName, HOST1, AlertState.OK);
-    alert.setCluster(m_cluster.getClusterName());
+    alert.setClusterId(m_cluster.getClusterId());
     alert.setLabel(ALERT_LABEL);
     alert.setText(text);
     alert.setTimestamp(1L);
@@ -751,7 +763,7 @@ public class AlertReceivedListenerTest {
     Alert alert = new Alert(definition.getDefinitionName(), null, definition.getServiceName(),
         definition.getComponentName(), HOST1, AlertState.OK);
 
-    alert.setCluster(m_cluster.getClusterName());
+    alert.setClusterId(m_cluster.getClusterId());
     alert.setLabel(ALERT_LABEL);
     alert.setText("Aggregate alerts are always HARD");
     alert.setTimestamp(1L);
@@ -798,7 +810,7 @@ public class AlertReceivedListenerTest {
     String text = serviceName + " " + componentName + " is OK";
 
     Alert alert = new Alert(definitionName, null, serviceName, componentName, HOST1, AlertState.OK);
-    alert.setCluster(m_cluster.getClusterName());
+    alert.setClusterId(m_cluster.getClusterId());
     alert.setLabel(ALERT_LABEL);
     alert.setText(text);
     alert.setTimestamp(1L);
@@ -844,7 +856,7 @@ public class AlertReceivedListenerTest {
           {
             put(ConfigHelper.CLUSTER_ENV_ALERT_REPEAT_TOLERANCE, "3");
           }
-        }, new HashMap<String, Map<String, String>>());
+        }, new HashMap<>());
 
     m_cluster.addDesiredConfig("user", Collections.singleton(config));
 
@@ -854,7 +866,7 @@ public class AlertReceivedListenerTest {
     String text = serviceName + " " + componentName + " is OK";
 
     Alert alert = new Alert(definitionName, null, serviceName, componentName, HOST1, AlertState.OK);
-    alert.setCluster(m_cluster.getClusterName());
+    alert.setClusterId(m_cluster.getClusterId());
     alert.setLabel(ALERT_LABEL);
     alert.setText(text);
     alert.setTimestamp(1L);
@@ -913,13 +925,17 @@ public class AlertReceivedListenerTest {
         @Override
         public void run() {
           Alert alert = new Alert(definitionName, null, "HDFS", null, HOST1, AlertState.OK);
-          alert.setCluster(m_cluster.getClusterName());
+          alert.setClusterId(m_cluster.getClusterId());
           alert.setLabel(ALERT_LABEL);
           alert.setText("HDFS is OK ");
           alert.setTimestamp(System.currentTimeMillis());
 
           final AlertReceivedEvent event = new AlertReceivedEvent(m_cluster.getClusterId(), alert);
-          listener.onAlertEvent(event);
+          try {
+            listener.onAlertEvent(event);
+          } catch (AmbariException e) {
+            e.printStackTrace();
+          }
         }
       };
 

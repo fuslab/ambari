@@ -85,9 +85,13 @@ def metadata(type='server'):
                 group=params.user_group,
                 create_parents = True
       )
-      File(format("{expanded_war_dir}/atlas.war"),
-           content = StaticFile(format('{metadata_home}/server/webapp/atlas.war'))
-      )
+
+      war_source = format('{metadata_home}/server/webapp/atlas.war')
+      war_target = format("{expanded_war_dir}/atlas.war")
+      Execute(('cp', war_source, war_target),
+              sudo = True,
+              not_if = war_source == war_target)
+
       File(format("{conf_dir}/atlas-log4j.xml"),
            mode=0644,
            owner=params.metadata_user,
@@ -114,7 +118,7 @@ def metadata(type='server'):
           Execute(('chown', format('{metadata_user}:{user_group}'), file),
                   sudo=True
                   )
-          Execute(('chmod', '644', file),
+          Execute(('chmod', '640', file),
                   sudo=True
                   )
 
@@ -129,7 +133,7 @@ def metadata(type='server'):
     # Needed by both Server and Client
     PropertiesFile(format('{conf_dir}/{conf_file}'),
          properties = params.application_properties,
-         mode=0644,
+         mode=0600,
          owner=params.metadata_user,
          group=params.user_group
     )
@@ -189,7 +193,7 @@ def metadata(type='server'):
       XmlConfig("hdfs-site.xml",
                 conf_dir=params.conf_dir,
                 configurations=params.config['configurations']['hdfs-site'],
-                configuration_attributes=params.config['configuration_attributes']['hdfs-site'],
+                configuration_attributes=params.config['configurationAttributes']['hdfs-site'],
                 owner=params.metadata_user,
                 group=params.user_group,
                 mode=0644
@@ -208,7 +212,7 @@ def metadata(type='server'):
       XmlConfig("core-site.xml",
         conf_dir=params.conf_dir,
         configurations=params.config['configurations']['core-site'],
-        configuration_attributes=params.config['configuration_attributes']['core-site'],
+        configuration_attributes=params.config['configurationAttributes']['core-site'],
         owner=params.metadata_user,
         group=params.user_group,
         mode=0644
@@ -229,7 +233,7 @@ def upload_conf_set(config_set, jaasFile):
       config_set_dir=format("{conf_dir}/solr"),
       config_set=config_set,
       tmp_dir=params.tmp_dir,
-      java64_home=params.java64_home,
+      java64_home=params.ambari_java_home,
       solrconfig_content=InlineTemplate(params.metadata_solrconfig_content),
       jaas_file=jaasFile,
       retry=30, interval=5)
@@ -242,7 +246,7 @@ def create_collection(collection, config_set, jaasFile):
       solr_znode=params.infra_solr_znode,
       collection = collection,
       config_set=config_set,
-      java64_home=params.java64_home,
+      java64_home=params.ambari_java_home,
       jaas_file=jaasFile,
       shards=params.atlas_solr_shards,
       replication_factor = params.infra_solr_replication_factor)
@@ -252,7 +256,7 @@ def secure_znode(znode, jaasFile):
   solr_cloud_util.secure_znode(config=params.config, zookeeper_quorum=params.zookeeper_quorum,
                                solr_znode=znode,
                                jaas_file=jaasFile,
-                               java64_home=params.java64_home, sasl_users=[params.atlas_jaas_principal])
+                               java64_home=params.ambari_java_home, sasl_users=[params.atlas_jaas_principal])
 
 
 
@@ -262,4 +266,4 @@ def check_znode():
   solr_cloud_util.check_znode(
     zookeeper_quorum=params.zookeeper_quorum,
     solr_znode=params.infra_solr_znode,
-    java64_home=params.java64_home)
+    java64_home=params.ambari_java_home)

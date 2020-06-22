@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,13 +17,14 @@
  */
 package org.apache.ambari.server.controller.predicate;
 
-import junit.framework.Assert;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.internal.ResourceImpl;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.junit.Test;
 
-import java.util.Set;
+import junit.framework.Assert;
 
 /**
  *
@@ -34,7 +35,7 @@ public class NotPredicateTest {
   public void testApply() {
     Resource resource = new ResourceImpl(Resource.Type.HostComponent);
     String propertyId = PropertyHelper.getPropertyId("category1", "foo");
-    EqualsPredicate predicate = new EqualsPredicate<String>(propertyId, "bar");
+    EqualsPredicate predicate = new EqualsPredicate<>(propertyId, "bar");
     NotPredicate notPredicate = new NotPredicate(predicate);
 
     resource.setProperty(propertyId, "monkey");
@@ -47,7 +48,7 @@ public class NotPredicateTest {
   @Test
   public void testGetProperties() {
     String propertyId = PropertyHelper.getPropertyId("category1", "foo");
-    EqualsPredicate predicate = new EqualsPredicate<String>(propertyId, "bar");
+    EqualsPredicate predicate = new EqualsPredicate<>(propertyId, "bar");
 
     Set<String> ids = predicate.getPropertyIds();
 

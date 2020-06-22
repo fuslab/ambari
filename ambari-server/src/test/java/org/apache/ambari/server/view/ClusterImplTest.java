@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,23 +18,21 @@
 
 package org.apache.ambari.server.view;
 
-import org.apache.ambari.server.state.Cluster;
-import org.apache.ambari.server.state.Config;
-import org.apache.ambari.server.state.ServiceComponentHost;
-import org.apache.ambari.server.view.configuration.InstanceConfig;
-import org.junit.Assert;
-import org.junit.Test;
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.verify;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.easymock.EasyMock.createNiceMock;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.verify;
-import static org.junit.Assert.*;
+import org.apache.ambari.server.state.Cluster;
+import org.apache.ambari.server.state.Config;
+import org.apache.ambari.server.state.ServiceComponentHost;
+import org.junit.Assert;
+import org.junit.Test;
 
 /**
  * ClusterImpl tests.
@@ -61,7 +59,7 @@ public class ClusterImplTest {
     Cluster cluster = createNiceMock(Cluster.class);
     Config config = createNiceMock(Config.class);
 
-    Map<String, String> properties = new HashMap<String, String>();
+    Map<String, String> properties = new HashMap<>();
 
     properties.put("foo", "bar");
 
@@ -84,7 +82,7 @@ public class ClusterImplTest {
     String service = "SERVICE";
     String component = "COMPONENT";
 
-    List<ServiceComponentHost> components = new ArrayList<ServiceComponentHost>();
+    List<ServiceComponentHost> components = new ArrayList<>();
 
     ServiceComponentHost component1 = createNiceMock(ServiceComponentHost.class);
     expect(component1.getHostName()).andReturn("host1");

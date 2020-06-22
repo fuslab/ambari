@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,11 +17,28 @@
  */
 package org.apache.ambari.server.controller.internal;
 
-import com.google.inject.Binder;
-import com.google.inject.Guice;
-import com.google.inject.Injector;
-import com.google.inject.Module;
-import com.google.inject.util.Modules;
+import static org.easymock.EasyMock.anyLong;
+import static org.easymock.EasyMock.anyObject;
+import static org.easymock.EasyMock.capture;
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.createStrictMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.resetToStrict;
+import static org.easymock.EasyMock.verify;
+import static org.junit.Assert.assertEquals;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.AmbariManagementController;
 import org.apache.ambari.server.controller.spi.Predicate;
 import org.apache.ambari.server.controller.spi.Request;
@@ -44,27 +61,11 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import static org.easymock.EasyMock.anyLong;
-import static org.easymock.EasyMock.anyObject;
-import static org.easymock.EasyMock.capture;
-import static org.easymock.EasyMock.createMock;
-import static org.easymock.EasyMock.createStrictMock;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.expectLastCall;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.resetToStrict;
-import static org.easymock.EasyMock.verify;
-import static org.junit.Assert.assertEquals;
+import com.google.inject.Binder;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import com.google.inject.Module;
+import com.google.inject.util.Modules;
 
 /**
  * WidgetLayout tests
@@ -157,28 +158,28 @@ public class WidgetLayoutResourceProviderTest {
     expect(clusters.getCluster((String) anyObject())).andReturn(cluster).atLeastOnce();
     expect(cluster.getClusterId()).andReturn(Long.valueOf(1)).anyTimes();
 
-    Capture<WidgetLayoutEntity> entityCapture = new Capture<WidgetLayoutEntity>();
+    Capture<WidgetLayoutEntity> entityCapture = EasyMock.newCapture();
     dao.create(capture(entityCapture));
     expectLastCall();
 
     WidgetEntity widgetEntity = new WidgetEntity();
     widgetEntity.setId(1l);
-    widgetEntity.setListWidgetLayoutUserWidgetEntity(new ArrayList<WidgetLayoutUserWidgetEntity>());
+    widgetEntity.setListWidgetLayoutUserWidgetEntity(new ArrayList<>());
     expect(widgetDAO.findById(anyLong())).andReturn(widgetEntity).anyTimes();
 
     replay(amc, clusters, cluster, dao, widgetDAO);
 
     WidgetLayoutResourceProvider provider = createProvider(amc);
 
-    Map<String, Object> requestProps = new HashMap<String, Object>();
+    Map<String, Object> requestProps = new HashMap<>();
     requestProps.put(WidgetLayoutResourceProvider.WIDGETLAYOUT_CLUSTER_NAME_PROPERTY_ID, "c1");
     requestProps.put(WidgetLayoutResourceProvider.WIDGETLAYOUT_LAYOUT_NAME_PROPERTY_ID, "layout_name");
     requestProps.put(WidgetLayoutResourceProvider.WIDGETLAYOUT_DISPLAY_NAME_PROPERTY_ID, "display_name");
     requestProps.put(WidgetLayoutResourceProvider.WIDGETLAYOUT_SECTION_NAME_PROPERTY_ID, "section_name");
     requestProps.put(WidgetLayoutResourceProvider.WIDGETLAYOUT_USERNAME_PROPERTY_ID, "admin");
     requestProps.put(WidgetLayoutResourceProvider.WIDGETLAYOUT_SCOPE_PROPERTY_ID, "CLUSTER");
-    Set widgetsInfo = new LinkedHashSet();
-    Map<String, String> widget = new HashMap<String, String>();
+    Set<Map<String, String>> widgetsInfo = new LinkedHashSet<>();
+    Map<String, String> widget = new HashMap<>();
     widget.put("id","1");
     widgetsInfo.add(widget);
     requestProps.put(WidgetLayoutResourceProvider.WIDGETLAYOUT_WIDGETS_PROPERTY_ID, widgetsInfo);
@@ -217,29 +218,29 @@ public class WidgetLayoutResourceProviderTest {
     expect(clusters.getCluster((String) anyObject())).andReturn(cluster).atLeastOnce();
     expect(cluster.getClusterId()).andReturn(Long.valueOf(1)).atLeastOnce();
 
-    Capture<WidgetLayoutEntity> entityCapture = new Capture<WidgetLayoutEntity>();
+    Capture<WidgetLayoutEntity> entityCapture = EasyMock.newCapture();
     dao.create(capture(entityCapture));
     expectLastCall();
 
     WidgetEntity widgetEntity = new WidgetEntity();
     widgetEntity.setId(1L);
-    widgetEntity.setListWidgetLayoutUserWidgetEntity(new ArrayList<WidgetLayoutUserWidgetEntity>());
+    widgetEntity.setListWidgetLayoutUserWidgetEntity(new ArrayList<>());
     WidgetEntity widgetEntity2 = new WidgetEntity();
     widgetEntity2.setId(2L);
-    widgetEntity2.setListWidgetLayoutUserWidgetEntity(new ArrayList<WidgetLayoutUserWidgetEntity>());
+    widgetEntity2.setListWidgetLayoutUserWidgetEntity(new ArrayList<>());
     expect(widgetDAO.findById(1L)).andReturn(widgetEntity).atLeastOnce();
 
     replay(amc, clusters, cluster, dao, widgetDAO);
 
-    Map<String, Object> requestProps = new HashMap<String, Object>();
+    Map<String, Object> requestProps = new HashMap<>();
     requestProps.put(WidgetLayoutResourceProvider.WIDGETLAYOUT_CLUSTER_NAME_PROPERTY_ID, "c1");
     requestProps.put(WidgetLayoutResourceProvider.WIDGETLAYOUT_LAYOUT_NAME_PROPERTY_ID, "layout_name");
     requestProps.put(WidgetLayoutResourceProvider.WIDGETLAYOUT_DISPLAY_NAME_PROPERTY_ID, "display_name");
     requestProps.put(WidgetLayoutResourceProvider.WIDGETLAYOUT_SECTION_NAME_PROPERTY_ID, "section_name");
     requestProps.put(WidgetLayoutResourceProvider.WIDGETLAYOUT_USERNAME_PROPERTY_ID, "admin");
     requestProps.put(WidgetLayoutResourceProvider.WIDGETLAYOUT_SCOPE_PROPERTY_ID, "CLUSTER");
-    Set widgetsInfo = new LinkedHashSet();
-    Map<String, String> widget = new HashMap<String, String>();
+    Set<Map<String, String>> widgetsInfo = new LinkedHashSet<>();
+    Map<String, String> widget = new HashMap<>();
     widget.put("id","1");
     widgetsInfo.add(widget);
     requestProps.put(WidgetLayoutResourceProvider.WIDGETLAYOUT_WIDGETS_PROPERTY_ID, widgetsInfo);
@@ -273,7 +274,7 @@ public class WidgetLayoutResourceProviderTest {
     expect(widgetDAO.findById(2L)).andReturn(widgetEntity2).anyTimes();
     replay(dao, widgetDAO);
 
-    requestProps = new HashMap<String, Object>();
+    requestProps = new HashMap<>();
     requestProps.put(WidgetLayoutResourceProvider.WIDGETLAYOUT_LAYOUT_NAME_PROPERTY_ID, "layout_name_new");
     requestProps.put(WidgetLayoutResourceProvider.WIDGETLAYOUT_SCOPE_PROPERTY_ID, "USER");
     requestProps.put(WidgetLayoutResourceProvider.WIDGETLAYOUT_ID_PROPERTY_ID, "1");
@@ -303,7 +304,7 @@ public class WidgetLayoutResourceProviderTest {
     expect(clusters.getCluster((String) anyObject())).andReturn(cluster).atLeastOnce();
     expect(cluster.getClusterId()).andReturn(Long.valueOf(1)).anyTimes();
 
-    Capture<WidgetLayoutEntity> entityCapture = new Capture<WidgetLayoutEntity>();
+    Capture<WidgetLayoutEntity> entityCapture = EasyMock.newCapture();
     dao.create(capture(entityCapture));
     expectLastCall();
 
@@ -311,7 +312,7 @@ public class WidgetLayoutResourceProviderTest {
 
     WidgetLayoutResourceProvider provider = createProvider(amc);
 
-    Map<String, Object> requestProps = new HashMap<String, Object>();
+    Map<String, Object> requestProps = new HashMap<>();
     requestProps.put(WidgetLayoutResourceProvider.WIDGETLAYOUT_CLUSTER_NAME_PROPERTY_ID, "c1");
     requestProps.put(WidgetLayoutResourceProvider.WIDGETLAYOUT_LAYOUT_NAME_PROPERTY_ID, "layout_name");
     requestProps.put(WidgetLayoutResourceProvider.WIDGETLAYOUT_DISPLAY_NAME_PROPERTY_ID, "display_name");
@@ -371,7 +372,7 @@ public class WidgetLayoutResourceProviderTest {
     widgetLayoutEntity.setUserName("username");
     widgetLayoutEntity.setScope("CLUSTER");
     widgetLayoutEntity.setDisplayName("displ_name");
-    List<WidgetLayoutUserWidgetEntity> layoutUserWidgetEntityList = new LinkedList<WidgetLayoutUserWidgetEntity>();
+    List<WidgetLayoutUserWidgetEntity> layoutUserWidgetEntityList = new LinkedList<>();
     widgetLayoutEntity.setListWidgetLayoutUserWidgetEntity(layoutUserWidgetEntityList);
     return Arrays.asList(widgetLayoutEntity);
   }

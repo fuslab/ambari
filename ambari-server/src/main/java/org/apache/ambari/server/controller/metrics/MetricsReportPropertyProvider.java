@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,6 +17,8 @@
  */
 package org.apache.ambari.server.controller.metrics;
 
+import java.util.Map;
+
 import org.apache.ambari.server.configuration.ComponentSSLConfiguration;
 import org.apache.ambari.server.controller.internal.AbstractPropertyProvider;
 import org.apache.ambari.server.controller.internal.PropertyInfo;
@@ -25,7 +27,6 @@ import org.apache.ambari.server.controller.metrics.timeline.cache.TimelineMetric
 import org.apache.ambari.server.controller.utilities.StreamProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.util.Map;
 
 public abstract class MetricsReportPropertyProvider extends AbstractPropertyProvider {
 
@@ -42,7 +43,7 @@ public abstract class MetricsReportPropertyProvider extends AbstractPropertyProv
 
   // ----- Constants --------------------------------------------------------
 
-  protected final static Logger LOG =
+  private static final Logger LOG =
     LoggerFactory.getLogger(MetricsReportPropertyProvider.class);
 
 

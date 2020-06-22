@@ -184,7 +184,7 @@
     <name>ranger.authentication.method</name>
     <value>UNIX</value>
     <display-name>Authentication method</display-name>
-    <description>Ranger admin Authentication - UNIX/LDAP/AD/NONE</description>
+    <description>Ranger admin Authentication - UNIX/PAM/LDAP/AD/NONE</description>
     <value-attributes>
       <overridable>false</overridable>
     </value-attributes>
@@ -484,8 +484,8 @@
     </value-attributes>
     <depends-on>
       <property>
-       <type>gateway-site</type>
-       <name>gateway.port</name>
+        <type>gateway-site</type>
+        <name>gateway.port</name>
       </property>
     </depends-on>
     <on-ambari-upgrade add="true"/>
@@ -530,6 +530,12 @@
     <value-attributes>
       <empty-value-valid>true</empty-value-valid>
     </value-attributes>
+    <depends-on>
+      <property>
+       <type>gateway-site</type>
+       <name>gateway.port</name>
+      </property>
+    </depends-on>
     <on-ambari-upgrade add="true"/>
   </property>
   <property>

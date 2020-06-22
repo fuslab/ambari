@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,16 +17,17 @@
  */
 package org.apache.ambari.server.controller.internal;
 
-import org.codehaus.jackson.annotate.JsonProperty;
-import org.codehaus.jackson.map.annotate.JsonSerialize;
-
 import java.util.ArrayList;
 import java.util.List;
 
-public class RequestResourceFilter {
+import org.apache.ambari.server.controller.ApiModel;
+import org.codehaus.jackson.annotate.JsonProperty;
+import org.codehaus.jackson.map.annotate.JsonSerialize;
+
+public class RequestResourceFilter implements ApiModel {
   private String serviceName;
   private String componentName;
-  private final List<String> hostNames = new ArrayList<String>();
+  private final List<String> hostNames = new ArrayList<>();
 
   public RequestResourceFilter() {
 

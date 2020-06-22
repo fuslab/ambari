@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,7 +17,6 @@
  */
 package org.apache.ambari.server.controller.internal;
 
-import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -39,7 +38,11 @@ import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.apache.ambari.server.security.authorization.RoleAuthorization;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 import com.google.inject.persist.Transactional;
@@ -49,29 +52,37 @@ import com.google.inject.persist.Transactional;
  */
 public class MemberResourceProvider extends AbstractControllerResourceProvider {
 
+  private static final Logger LOG = LoggerFactory.getLogger(MemberResourceProvider.class);
+
   // ----- Property ID constants ---------------------------------------------
 
   // Members
   public static final String MEMBER_GROUP_NAME_PROPERTY_ID = PropertyHelper.getPropertyId("MemberInfo", "group_name");
   public static final String MEMBER_USER_NAME_PROPERTY_ID  = PropertyHelper.getPropertyId("MemberInfo", "user_name");
 
-  private static Set<String> pkPropertyIds =
-      new HashSet<String>(Arrays.asList(new String[]{
-          MEMBER_GROUP_NAME_PROPERTY_ID,
-          MEMBER_USER_NAME_PROPERTY_ID}));
+  /**
+   * The key property ids for a Member resource.
+   */
+  private static Map<Resource.Type, String> keyPropertyIds = ImmutableMap.<Resource.Type, String>builder()
+      .put(Resource.Type.Group, MEMBER_GROUP_NAME_PROPERTY_ID)
+      .put(Resource.Type.Member, MEMBER_USER_NAME_PROPERTY_ID)
+      .build();
+
+  /**
+   * The property ids for a Member resource.
+   */
+  private static Set<String> propertyIds = Sets.newHashSet(
+      MEMBER_GROUP_NAME_PROPERTY_ID,
+      MEMBER_USER_NAME_PROPERTY_ID);
 
   /**
    * Create a  new resource provider for the given management controller.
    *
-   * @param propertyIds           the property ids
-   * @param keyPropertyIds        the key property ids
    * @param managementController  the management controller
    */
   @AssistedInject
-  public MemberResourceProvider(@Assisted Set<String> propertyIds,
-                          @Assisted Map<Resource.Type, String> keyPropertyIds,
-                          @Assisted AmbariManagementController managementController) {
-    super(propertyIds, keyPropertyIds, managementController);
+  public MemberResourceProvider(@Assisted AmbariManagementController managementController) {
+    super(Resource.Type.Member, propertyIds, keyPropertyIds, managementController);
 
     EnumSet<RoleAuthorization> manageUserAuthorizations = EnumSet.of(RoleAuthorization.AMBARI_MANAGE_USERS);
     setRequiredCreateAuthorizations(manageUserAuthorizations);
@@ -87,7 +98,7 @@ public class MemberResourceProvider extends AbstractControllerResourceProvider {
              ResourceAlreadyExistsException,
              NoSuchParentResourceException {
 
-    final Set<MemberRequest> requests = new HashSet<MemberRequest>();
+    final Set<MemberRequest> requests = new HashSet<>();
     for (Map<String, Object> propertyMap : request.getProperties()) {
       requests.add(getRequest(propertyMap));
     }
@@ -107,7 +118,7 @@ public class MemberResourceProvider extends AbstractControllerResourceProvider {
   protected Set<Resource> getResourcesAuthorized(Request request, Predicate predicate) throws
       SystemException, UnsupportedPropertyException, NoSuchResourceException, NoSuchParentResourceException {
 
-    final Set<MemberRequest> requests = new HashSet<MemberRequest>();
+    final Set<MemberRequest> requests = new HashSet<>();
     for (Map<String, Object> propertyMap : getPropertyMaps(predicate)) {
       requests.add(getRequest(propertyMap));
     }
@@ -119,12 +130,10 @@ public class MemberResourceProvider extends AbstractControllerResourceProvider {
       }
     });
 
-    LOG.debug("Found member responses matching get members request"
-        + ", membersRequestSize=" + requests.size() + ", membersResponseSize="
-        + responses.size());
+    LOG.debug("Found member responses matching get members request, membersRequestSize={}, membersResponseSize={}", requests.size(), responses.size());
 
     Set<String>   requestedIds = getRequestPropertyIds(request, predicate);
-    Set<Resource> resources    = new HashSet<Resource>();
+    Set<Resource> resources    = new HashSet<>();
 
     for (MemberResponse memberResponse : responses) {
       ResourceImpl resource = new ResourceImpl(Resource.Type.Member);
@@ -145,13 +154,13 @@ public class MemberResourceProvider extends AbstractControllerResourceProvider {
   protected RequestStatus updateResourcesAuthorized(final Request request, Predicate predicate)
       throws SystemException, UnsupportedPropertyException, NoSuchResourceException, NoSuchParentResourceException {
 
-    final Set<MemberRequest> requests = new HashSet<MemberRequest>();
+    final Set<MemberRequest> requests = new HashSet<>();
     for (Map<String, Object> propertyMap : request.getProperties()) {
       requests.add(getRequest(propertyMap));
     }
     if (requests.isEmpty()) {
       // request for removing all users from group
-      Map<String, Object> propertyMap = new HashMap<String, Object>();
+      Map<String, Object> propertyMap = new HashMap<>();
       propertyMap.put(MEMBER_GROUP_NAME_PROPERTY_ID, getQueryParameterValue(MEMBER_GROUP_NAME_PROPERTY_ID, predicate));
       requests.add(getRequest(propertyMap));
     }
@@ -171,7 +180,7 @@ public class MemberResourceProvider extends AbstractControllerResourceProvider {
   protected RequestStatus deleteResourcesAuthorized(Request request, Predicate predicate)
       throws SystemException, UnsupportedPropertyException, NoSuchResourceException, NoSuchParentResourceException {
 
-    final Set<MemberRequest> requests = new HashSet<MemberRequest>();
+    final Set<MemberRequest> requests = new HashSet<>();
 
     for (Map<String, Object> propertyMap : getPropertyMaps(predicate)) {
       final MemberRequest req = getRequest(propertyMap);
@@ -191,7 +200,7 @@ public class MemberResourceProvider extends AbstractControllerResourceProvider {
 
   @Override
   protected Set<String> getPKPropertyIds() {
-    return pkPropertyIds;
+    return new HashSet<>(keyPropertyIds.values());
   }
 
   private MemberRequest getRequest(Map<String, Object> properties) {

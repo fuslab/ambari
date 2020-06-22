@@ -536,7 +536,8 @@
             "oozie-server"
           ],
           "PATCH": [
-            "oozie-server"
+            "oozie-server",
+            "oozie-client"
           ],
           "STANDARD": [
             "oozie-client",
@@ -864,6 +865,20 @@
           ],
           "STANDARD": [
             "hadoop-client"
+          ]
+        }
+      },
+      "SUPERSET": {
+        "SUPERSET": {
+          "STACK-SELECT-PACKAGE": "superset",
+          "INSTALL": [
+            "superset"
+          ],
+          "PATCH": [
+            "superset"
+          ],
+          "STANDARD": [
+            "superset"
           ]
         }
       },

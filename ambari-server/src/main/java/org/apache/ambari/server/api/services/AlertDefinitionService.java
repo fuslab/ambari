@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,6 +32,7 @@ import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 
+import org.apache.ambari.annotations.ApiIgnore;
 import org.apache.ambari.server.api.resources.ResourceInstance;
 import org.apache.ambari.server.controller.spi.Resource;
 
@@ -46,7 +47,7 @@ public class AlertDefinitionService extends BaseService {
     this.clusterName = clusterName;
   }
 
-  @GET
+  @GET @ApiIgnore // until documented
   @Produces("text/plain")
   public Response getDefinitions(@Context HttpHeaders headers,
       @Context UriInfo ui) {
@@ -54,7 +55,7 @@ public class AlertDefinitionService extends BaseService {
       createResourceInstance(clusterName, null));
   }
 
-  @POST
+  @POST @ApiIgnore // until documented
   @Produces("text/plain")
   public Response createDefinition(String body,
       @Context HttpHeaders headers,
@@ -63,7 +64,7 @@ public class AlertDefinitionService extends BaseService {
       createResourceInstance(clusterName, null));
   }
 
-  @PUT
+  @PUT @ApiIgnore // until documented
   @Path("{alertDefinitionId}")
   @Produces("text/plain")
   public Response updateDefinition(String body,
@@ -74,7 +75,7 @@ public class AlertDefinitionService extends BaseService {
       createResourceInstance(clusterName, id));
   }
 
-  @DELETE
+  @DELETE @ApiIgnore // until documented
   @Path("{alertDefinitionId}")
   @Produces("text/plain")
   public Response deleteDefinition(String body,
@@ -85,8 +86,7 @@ public class AlertDefinitionService extends BaseService {
       createResourceInstance(clusterName, id));
   }
 
-
-  @GET
+  @GET @ApiIgnore // until documented
   @Path("{alertDefinitionId}")
   @Produces("text/plain")
   public Response getDefinitions(@Context HttpHeaders headers,
@@ -96,16 +96,12 @@ public class AlertDefinitionService extends BaseService {
       createResourceInstance(clusterName, id));
   }
 
-
   /**
    * Create a request schedule resource instance
-   * @param clusterName
-   * @param requestScheduleId
-   * @return
    */
   private ResourceInstance createResourceInstance(String clusterName,
       Long definitionId) {
-    Map<Resource.Type, String> mapIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type, String> mapIds = new HashMap<>();
     mapIds.put(Resource.Type.Cluster, clusterName);
     mapIds.put(Resource.Type.AlertDefinition, null == definitionId ? null : definitionId.toString());
 

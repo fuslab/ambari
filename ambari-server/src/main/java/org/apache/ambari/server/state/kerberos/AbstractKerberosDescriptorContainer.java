@@ -18,6 +18,8 @@
 
 package org.apache.ambari.server.state.kerberos;
 
+import static java.util.stream.Collectors.toList;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -97,7 +99,6 @@ public abstract class AbstractKerberosDescriptorContainer extends AbstractKerber
   static final String KEY_IDENTITIES = Type.IDENTITY.getDescriptorPluralName();
   static final String KEY_CONFIGURATIONS = Type.CONFIGURATION.getDescriptorPluralName();
   static final String KEY_AUTH_TO_LOCAL_PROPERTIES = Type.AUTH_TO_LOCAL_PROPERTY.getDescriptorPluralName();
-
 
   /**
    * Regular expression pattern used to parse auth_to_local property specifications into the following
@@ -213,7 +214,7 @@ public abstract class AbstractKerberosDescriptorContainer extends AbstractKerber
   public void setIdentities(List<KerberosIdentityDescriptor> identities) {
     this.identities = (identities == null)
         ? null
-        : new ArrayList<KerberosIdentityDescriptor>(identities);
+        : new ArrayList<>(identities);
   }
 
   /**
@@ -243,7 +244,7 @@ public abstract class AbstractKerberosDescriptorContainer extends AbstractKerber
     if (identities == null) {
       return null;
     } else {
-      List<KerberosIdentityDescriptor> list = new ArrayList<KerberosIdentityDescriptor>();
+      List<KerberosIdentityDescriptor> list = new ArrayList<>();
 
       for (KerberosIdentityDescriptor identity : identities) {
         KerberosIdentityDescriptor identityToAdd;
@@ -316,7 +317,7 @@ public abstract class AbstractKerberosDescriptorContainer extends AbstractKerber
       String name = identity.getName();
 
       if (identities == null) {
-        identities = new ArrayList<KerberosIdentityDescriptor>();
+        identities = new ArrayList<>();
       }
 
       // If the identity has a name, ensure that one one with that name is in the List
@@ -364,7 +365,7 @@ public abstract class AbstractKerberosDescriptorContainer extends AbstractKerber
   public void setConfigurations(Map<String, KerberosConfigurationDescriptor> configurations) {
     this.configurations = (configurations == null)
         ? null
-        : new TreeMap<String, KerberosConfigurationDescriptor>(configurations);
+        : new TreeMap<>(configurations);
   }
 
   /**
@@ -404,8 +405,8 @@ public abstract class AbstractKerberosDescriptorContainer extends AbstractKerber
    */
   public Map<String, KerberosConfigurationDescriptor> getConfigurations(boolean includeInherited) {
     if (includeInherited) {
-      Map<String, KerberosConfigurationDescriptor> mergedConfigurations = new TreeMap<String, KerberosConfigurationDescriptor>();
-      List<Map<String, KerberosConfigurationDescriptor>> configurationSets = new ArrayList<Map<String, KerberosConfigurationDescriptor>>();
+      Map<String, KerberosConfigurationDescriptor> mergedConfigurations = new TreeMap<>();
+      List<Map<String, KerberosConfigurationDescriptor>> configurationSets = new ArrayList<>();
       AbstractKerberosDescriptor currentDescriptor = this;
 
       // Walk up the hierarchy and collect the configuration sets.
@@ -468,7 +469,7 @@ public abstract class AbstractKerberosDescriptorContainer extends AbstractKerber
       }
 
       if (configurations == null) {
-        configurations = new TreeMap<String, KerberosConfigurationDescriptor>();
+        configurations = new TreeMap<>();
       }
 
       configurations.put(type, configuration);
@@ -499,7 +500,7 @@ public abstract class AbstractKerberosDescriptorContainer extends AbstractKerber
   public void putAuthToLocalProperty(String authToLocalProperty) {
     if (authToLocalProperty != null) {
       if (authToLocalProperties == null) {
-        authToLocalProperties = new TreeSet<String>();
+        authToLocalProperties = new TreeSet<>();
       }
 
       authToLocalProperties.add(authToLocalProperty);
@@ -514,7 +515,7 @@ public abstract class AbstractKerberosDescriptorContainer extends AbstractKerber
   public void setAuthToLocalProperties(Set<String> authToLocalProperties) {
     this.authToLocalProperties = (authToLocalProperties == null)
         ? null
-        : new TreeSet<String>(authToLocalProperties);
+        : new TreeSet<>(authToLocalProperties);
   }
 
   /**
@@ -758,7 +759,7 @@ public abstract class AbstractKerberosDescriptorContainer extends AbstractKerber
     if (identities != null) {
       // Use a TreeMap to force the identities definitions to be ordered by name, alphebetically.
       // This helps with readability and comparisons.
-      Map<String, Map<String, Object>> list = new TreeMap<String, Map<String, Object>>();
+      Map<String, Map<String, Object>> list = new TreeMap<>();
       for (KerberosIdentityDescriptor identity : identities) {
         list.put(identity.getName(), identity.toMap());
       }
@@ -768,7 +769,7 @@ public abstract class AbstractKerberosDescriptorContainer extends AbstractKerber
     if (configurations != null) {
       // Use a TreeMap to force the configurations to be ordered by configuration type, alphebetically.
       // This helps with readability and comparisons.
-      Map<String, Map<String, Object>> list = new TreeMap<String, Map<String, Object>>();
+      Map<String, Map<String, Object>> list = new TreeMap<>();
       for (KerberosConfigurationDescriptor configuration : configurations.values()) {
         list.put(configuration.getType(), configuration.toMap());
       }
@@ -780,6 +781,16 @@ public abstract class AbstractKerberosDescriptorContainer extends AbstractKerber
     }
 
     return map;
+  }
+
+  /**
+   * @return identities which are not references to other identities
+   */
+  public List<KerberosIdentityDescriptor> getIdentitiesSkipReferences() {
+    return nullToEmpty(getIdentities())
+      .stream()
+      .filter(identity -> !identity.getReferencedServiceName().isPresent() && !identity.isReference())
+      .collect(toList());
   }
 
   @Override
@@ -851,22 +862,9 @@ public abstract class AbstractKerberosDescriptorContainer extends AbstractKerber
           referencedIdentity = getReferencedIdentityDescriptor(identity.getName());
 
           if(referencedIdentity != null) {
-            // Calculate the path to this identity descriptor for logging purposes.
-            // Examples:
-            //   /
-            //   /SERVICE
-            //   /SERVICE/COMPONENT
-            StringBuilder path = new StringBuilder();
-            AbstractKerberosDescriptor parent = identity.getParent();
-            while(parent != null && (parent.getName() != null)) {
-              path.insert(0, parent.getName());
-              path.insert(0, '/');
-              parent = parent.getParent();
-            }
-
             // Log this since it is deprecated...
             LOG.warn("Referenced identities should be declared using the identity's \"reference\" attribute, not the identity's \"name\" attribute." +
-                " This is a deprecated feature. Problems may occur in the future unless this is corrected: {}:{}", path, identity.getName());
+                " This is a deprecated feature. Problems may occur in the future unless this is corrected: {}:{}", identity.getPath(), identity.getName());
           }
         }
       } catch (AmbariException e) {
@@ -885,6 +883,9 @@ public abstract class AbstractKerberosDescriptorContainer extends AbstractKerber
       } else {
         dereferencedIdentity = new KerberosIdentityDescriptor(identity.toMap());
       }
+
+      // Force the path for this identity descriptor to be the same as the original identity descriptor's.
+      dereferencedIdentity.setPath(identity.getPath());
     }
 
     return dereferencedIdentity;

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,15 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.verify;
+
+import java.util.HashSet;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.AmbariManagementController;
-import org.apache.ambari.server.controller.StackRequest;
 import org.apache.ambari.server.controller.StackResponse;
 import org.apache.ambari.server.controller.spi.Request;
 import org.apache.ambari.server.controller.spi.Resource;
@@ -28,14 +35,6 @@ import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.easymock.EasyMock;
 import org.junit.Assert;
 import org.junit.Test;
-
-import java.util.HashSet;
-import java.util.Set;
-
-import static org.easymock.EasyMock.createMock;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.verify;
 
 /**
  * StackResourceProvider Test
@@ -47,23 +46,21 @@ public class StackResourceProviderTest {
 
     AmbariManagementController managementController = createMock(AmbariManagementController.class);
 
-    Set<StackResponse> allResponse = new HashSet<StackResponse>();
+    Set<StackResponse> allResponse = new HashSet<>();
     allResponse.add(new StackResponse("Stack1"));
     allResponse.add(new StackResponse("Stack2"));
 
     // set expectations
-    expect(managementController.getStacks(EasyMock.<Set<StackRequest>>anyObject())).andReturn(allResponse).once();
+    expect(managementController.getStacks(EasyMock.anyObject())).andReturn(allResponse).once();
 
     // replay
     replay(managementController);
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
         type,
-        PropertyHelper.getPropertyIds(type),
-        PropertyHelper.getKeyPropertyIds(type),
         managementController);
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     propertyIds.add(StackResourceProvider.STACK_NAME_PROPERTY_ID);
 
@@ -76,7 +73,7 @@ public class StackResourceProviderTest {
     Assert.assertEquals(2, resources.size());
 
 
-    Set<String> stackNames = new HashSet<String>();
+    Set<String> stackNames = new HashSet<>();
     stackNames.add("Stack1");
     stackNames.add("Stack2");
 

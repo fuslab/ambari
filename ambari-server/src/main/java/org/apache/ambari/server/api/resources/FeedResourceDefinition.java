@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,10 +18,10 @@
 
 package org.apache.ambari.server.api.resources;
 
-import org.apache.ambari.server.controller.spi.Resource;
-
 import java.util.HashSet;
 import java.util.Set;
+
+import org.apache.ambari.server.controller.spi.Resource;
 
 /**
  * DR feed resource definition.
@@ -47,7 +47,7 @@ public class FeedResourceDefinition extends BaseResourceDefinition {
 
   @Override
   public Set<SubResourceDefinition> getSubResourceDefinitions() {
-    Set<SubResourceDefinition> setChildren = new HashSet<SubResourceDefinition>();
+    Set<SubResourceDefinition> setChildren = new HashSet<>();
     setChildren.add(new SubResourceDefinition(Resource.Type.DRInstance));
 
     return setChildren;

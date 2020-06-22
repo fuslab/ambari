@@ -60,6 +60,7 @@ public class TaskStatusAuditEvent extends AbstractUserAuditEvent {
     private String details;
 
     private TaskStatusAuditEventBuilder() {
+      super(TaskStatusAuditEventBuilder.class);
     }
 
     @Override
@@ -75,8 +76,12 @@ public class TaskStatusAuditEvent extends AbstractUserAuditEvent {
     @Override
     protected void buildAuditMessage(StringBuilder builder) {
       super.buildAuditMessage(builder);
+      builder
+        .append(", Operation(")
+        .append(this.operation);
+
       if (details != null) {
-        builder.append(", Details(")
+        builder.append("), Details(")
           .append(this.details);
       }
 

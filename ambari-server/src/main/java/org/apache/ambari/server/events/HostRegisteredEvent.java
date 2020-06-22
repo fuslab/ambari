@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,13 +22,20 @@ package org.apache.ambari.server.events;
  * the server.
  */
 public class HostRegisteredEvent extends HostEvent {
+
+  private Long hostId;
   /**
    * Constructor.
    *
    * @param hostName
    */
-  public HostRegisteredEvent(String hostName) {
+  public HostRegisteredEvent(String hostName, Long hostId) {
     super(AmbariEventType.HOST_REGISTERED, hostName);
+    this.hostId = hostId;
+  }
+
+  public Long getHostId() {
+    return hostId;
   }
 
   /**

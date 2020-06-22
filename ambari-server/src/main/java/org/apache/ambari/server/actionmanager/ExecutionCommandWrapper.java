@@ -18,10 +18,8 @@
 package org.apache.ambari.server.actionmanager;
 
 import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.HOOKS_FOLDER;
-import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.SERVICE_PACKAGE_FOLDER;
 import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.VERSION;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -32,11 +30,11 @@ import org.apache.ambari.server.ServiceNotFoundException;
 import org.apache.ambari.server.agent.AgentCommand.AgentCommandType;
 import org.apache.ambari.server.agent.CommandRepository;
 import org.apache.ambari.server.agent.ExecutionCommand;
-import org.apache.ambari.server.agent.ExecutionCommand.KeyNames;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
+import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.ambari.server.orm.dao.HostRoleCommandDAO;
-import org.apache.ambari.server.orm.entities.OperatingSystemEntity;
+import org.apache.ambari.server.orm.entities.RepoOsEntity;
 import org.apache.ambari.server.orm.entities.RepositoryVersionEntity;
 import org.apache.ambari.server.orm.entities.UpgradeEntity;
 import org.apache.ambari.server.state.Cluster;
@@ -46,14 +44,10 @@ import org.apache.ambari.server.state.DesiredConfig;
 import org.apache.ambari.server.state.Host;
 import org.apache.ambari.server.state.Service;
 import org.apache.ambari.server.state.ServiceComponent;
-import org.apache.ambari.server.state.ServiceInfo;
-import org.apache.ambari.server.state.StackId;
-import org.apache.ambari.server.state.StackInfo;
 import org.apache.ambari.server.state.UpgradeContext;
 import org.apache.ambari.server.state.UpgradeContext.UpgradeSummary;
 import org.apache.ambari.server.state.UpgradeContextFactory;
 import org.apache.ambari.server.state.stack.upgrade.RepositoryVersionHelper;
-import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,6 +87,9 @@ public class ExecutionCommandWrapper {
   @Inject
   private AmbariMetaInfo ambariMetaInfo;
 
+  @Inject
+  private Configuration configuration;
+
   @AssistedInject
   public ExecutionCommandWrapper(@Assisted String jsonExecutionCommand) {
     this.jsonExecutionCommand = jsonExecutionCommand;
@@ -131,7 +128,7 @@ public class ExecutionCommandWrapper {
 
       // sanity; if no configurations, just initialize to prevent NPEs
       if (null == executionCommand.getConfigurations()) {
-        executionCommand.setConfigurations(new TreeMap<String, Map<String, String>>());
+        executionCommand.setConfigurations(new TreeMap<>());
       }
 
       Map<String, Map<String, String>> configurations = executionCommand.getConfigurations();
@@ -174,47 +171,9 @@ public class ExecutionCommandWrapper {
       // now that the tags have been updated (if necessary), fetch the
       // configurations
       Map<String, Map<String, String>> configurationTags = executionCommand.getConfigurationTags();
-
-      if (MapUtils.isNotEmpty(configurationTags)) {
-        Map<String, Map<String, String>> configProperties = configHelper
-            .getEffectiveConfigProperties(cluster, configurationTags);
-
-        // Apply the configurations saved with the Execution Cmd on top of
-        // derived configs - This will take care of all the hacks
-        for (Map.Entry<String, Map<String, String>> entry : configProperties.entrySet()) {
-          String type = entry.getKey();
-          Map<String, String> allLevelMergedConfig = entry.getValue();
-
-          if (configurations.containsKey(type)) {
-            Map<String, String> mergedConfig = configHelper.getMergedConfig(allLevelMergedConfig,
-                configurations.get(type));
-
-            configurations.get(type).clear();
-            configurations.get(type).putAll(mergedConfig);
-
-          } else {
-            configurations.put(type, new HashMap<String, String>());
-            configurations.get(type).putAll(allLevelMergedConfig);
-          }
-        }
-
-        Map<String, Map<String, Map<String, String>>> configAttributes = configHelper.getEffectiveConfigAttributes(
-            cluster, executionCommand.getConfigurationTags());
-
-        for (Map.Entry<String, Map<String, Map<String, String>>> attributesOccurrence : configAttributes.entrySet()) {
-          String type = attributesOccurrence.getKey();
-          Map<String, Map<String, String>> attributes = attributesOccurrence.getValue();
-
-          if (executionCommand.getConfigurationAttributes() != null) {
-            if (!executionCommand.getConfigurationAttributes().containsKey(type)) {
-              executionCommand.getConfigurationAttributes().put(type,
-                  new TreeMap<String, Map<String, String>>());
-            }
-            configHelper.cloneAttributesMap(attributes,
-                executionCommand.getConfigurationAttributes().get(type));
-            }
-        }
-      }
+      configHelper.getAndMergeHostConfigs(configurations, configurationTags, cluster);
+      configHelper.getAndMergeHostConfigAttributes(executionCommand.getConfigurationAttributes(),
+          configurationTags, cluster);
 
       setVersions(cluster);
 
@@ -238,19 +197,19 @@ public class ExecutionCommandWrapper {
         final String componentName = executionCommand.getComponentName();
 
         try {
-
           if (null != componentName) {
             ServiceComponent serviceComponent = service.getServiceComponent(componentName);
-            commandRepository = repoVersionHelper.getCommandRepository(null, serviceComponent, host);
+            commandRepository = repoVersionHelper.getCommandRepository(cluster, serviceComponent, host);
           } else {
             RepositoryVersionEntity repoVersion = service.getDesiredRepositoryVersion();
-            OperatingSystemEntity osEntity = repoVersionHelper.getOSEntityForHost(host, repoVersion);
+            RepoOsEntity osEntity = repoVersionHelper.getOSEntityForHost(host, repoVersion);
             commandRepository = repoVersionHelper.getCommandRepository(repoVersion, osEntity);
           }
           executionCommand.setRepositoryFile(commandRepository);
 
         } catch (SystemException e) {
-          throw new RuntimeException(e);
+          LOG.debug("Unable to find command repository with a correct operating system for host {}",
+              host, e);
         }
       }
 
@@ -269,12 +228,6 @@ public class ExecutionCommandWrapper {
     return executionCommand;
   }
 
-  /**
-   * Sets the repository version and hooks information on the execution command.
-   *
-   * @param cluster
-   *          the cluster (not {@code null}).
-   */
   public void setVersions(Cluster cluster) {
     // set the repository version for the component this command is for -
     // always use the current desired version
@@ -297,7 +250,6 @@ public class ExecutionCommandWrapper {
       }
 
       Map<String, String> commandParams = executionCommand.getCommandParams();
-      Map<String, String> hostParams = executionCommand.getHostLevelParams();
 
       if (null != repositoryVersion) {
         // only set the version if it's not set and this is NOT an install
@@ -312,28 +264,8 @@ public class ExecutionCommandWrapper {
           commandParams.put(VERSION, repositoryVersion.getVersion());
         }
 
-        // !!! although not used anymore since the cluster has more than 1 version, this
-        // property might be needed by legacy mpacks or extension services, so
-        // continue to include it for backward compatibility
-        if (repositoryVersion.isResolved()) {
-          hostParams.put(KeyNames.CURRENT_VERSION, repositoryVersion.getVersion());
-        }
-
-        StackId stackId = repositoryVersion.getStackId();
-        StackInfo stackInfo = ambariMetaInfo.getStack(stackId.getStackName(),
-          stackId.getStackVersion());
-
         if (!commandParams.containsKey(HOOKS_FOLDER)) {
-          commandParams.put(HOOKS_FOLDER, stackInfo.getStackHooksFolder());
-        }
-
-        if (!commandParams.containsKey(SERVICE_PACKAGE_FOLDER)) {
-          if (!StringUtils.isEmpty(serviceName)) {
-            ServiceInfo serviceInfo = ambariMetaInfo.getService(stackId.getStackName(),
-              stackId.getStackVersion(), serviceName);
-
-            commandParams.put(SERVICE_PACKAGE_FOLDER, serviceInfo.getServicePackageFolder());
-          }
+          commandParams.put(HOOKS_FOLDER,configuration.getProperty(Configuration.HOOKS_FOLDER));
         }
       }
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,15 +18,16 @@
 
 package org.apache.ambari.server.controller.predicate;
 
-import junit.framework.Assert;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.ambari.server.controller.internal.ResourceImpl;
 import org.apache.ambari.server.controller.spi.Predicate;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.junit.Test;
 
-import java.util.HashMap;
-import java.util.Map;
+import junit.framework.Assert;
 
 /**
  * Tests for CategoryIsEmptyPredicate.
@@ -57,7 +58,7 @@ public class CategoryIsEmptyPredicateTest {
 
     Assert.assertTrue(predicate.evaluate(resource));
 
-    Map<String, String> mapProperty = new HashMap<String, String>();
+    Map<String, String> mapProperty = new HashMap<>();
 
     resource.setProperty(propertyId, mapProperty);
     Assert.assertTrue(predicate.evaluate(resource));

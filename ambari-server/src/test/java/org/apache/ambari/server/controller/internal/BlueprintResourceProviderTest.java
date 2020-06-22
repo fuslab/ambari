@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,60 +18,6 @@
 
 package org.apache.ambari.server.controller.internal;
 
-import com.google.gson.Gson;
-import org.apache.ambari.server.api.services.AmbariMetaInfo;
-import org.apache.ambari.server.controller.AmbariManagementController;
-import org.apache.ambari.server.controller.internal.BlueprintResourceProvider.BlueprintConfigPopulationStrategy;
-import org.apache.ambari.server.controller.internal.BlueprintResourceProvider.BlueprintConfigPopulationStrategyV1;
-import org.apache.ambari.server.controller.internal.BlueprintResourceProvider.BlueprintConfigPopulationStrategyV2;
-import org.apache.ambari.server.controller.predicate.EqualsPredicate;
-import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
-import org.apache.ambari.server.controller.spi.NoSuchResourceException;
-import org.apache.ambari.server.controller.spi.Predicate;
-import org.apache.ambari.server.controller.spi.Request;
-import org.apache.ambari.server.controller.spi.Resource;
-import org.apache.ambari.server.controller.spi.ResourceAlreadyExistsException;
-import org.apache.ambari.server.controller.spi.ResourceProvider;
-import org.apache.ambari.server.controller.spi.SystemException;
-import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
-import org.apache.ambari.server.controller.utilities.PropertyHelper;
-import org.apache.ambari.server.orm.dao.BlueprintDAO;
-import org.apache.ambari.server.orm.dao.StackDAO;
-import org.apache.ambari.server.orm.entities.BlueprintConfigEntity;
-import org.apache.ambari.server.orm.entities.BlueprintConfiguration;
-import org.apache.ambari.server.orm.entities.BlueprintEntity;
-import org.apache.ambari.server.orm.entities.BlueprintSettingEntity;
-import org.apache.ambari.server.orm.entities.HostGroupComponentEntity;
-import org.apache.ambari.server.orm.entities.HostGroupConfigEntity;
-import org.apache.ambari.server.orm.entities.HostGroupEntity;
-import org.apache.ambari.server.orm.entities.StackEntity;
-import org.apache.ambari.server.state.PropertyInfo;
-import org.apache.ambari.server.state.StackInfo;
-import org.apache.ambari.server.state.SecurityType;
-import org.apache.ambari.server.topology.Blueprint;
-import org.apache.ambari.server.topology.BlueprintFactory;
-import org.apache.ambari.server.topology.InvalidTopologyException;
-import org.apache.ambari.server.topology.SecurityConfiguration;
-import org.apache.ambari.server.topology.SecurityConfigurationFactory;
-import org.apache.ambari.server.topology.Setting;
-import org.apache.ambari.server.utils.StageUtils;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import org.apache.ambari.server.AmbariException;
 import static org.easymock.EasyMock.anyBoolean;
 import static org.easymock.EasyMock.anyObject;
 import static org.easymock.EasyMock.createMock;
@@ -89,6 +35,63 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.apache.ambari.server.AmbariException;
+import org.apache.ambari.server.api.services.AmbariMetaInfo;
+import org.apache.ambari.server.controller.AmbariManagementController;
+import org.apache.ambari.server.controller.internal.BlueprintResourceProvider.BlueprintConfigPopulationStrategy;
+import org.apache.ambari.server.controller.internal.BlueprintResourceProvider.BlueprintConfigPopulationStrategyV1;
+import org.apache.ambari.server.controller.internal.BlueprintResourceProvider.BlueprintConfigPopulationStrategyV2;
+import org.apache.ambari.server.controller.predicate.EqualsPredicate;
+import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
+import org.apache.ambari.server.controller.spi.NoSuchResourceException;
+import org.apache.ambari.server.controller.spi.Predicate;
+import org.apache.ambari.server.controller.spi.Request;
+import org.apache.ambari.server.controller.spi.Resource;
+import org.apache.ambari.server.controller.spi.ResourceAlreadyExistsException;
+import org.apache.ambari.server.controller.spi.ResourceProvider;
+import org.apache.ambari.server.controller.spi.SystemException;
+import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
+import org.apache.ambari.server.orm.dao.BlueprintDAO;
+import org.apache.ambari.server.orm.dao.StackDAO;
+import org.apache.ambari.server.orm.dao.TopologyRequestDAO;
+import org.apache.ambari.server.orm.entities.BlueprintConfigEntity;
+import org.apache.ambari.server.orm.entities.BlueprintConfiguration;
+import org.apache.ambari.server.orm.entities.BlueprintEntity;
+import org.apache.ambari.server.orm.entities.BlueprintSettingEntity;
+import org.apache.ambari.server.orm.entities.HostGroupComponentEntity;
+import org.apache.ambari.server.orm.entities.HostGroupEntity;
+import org.apache.ambari.server.orm.entities.StackEntity;
+import org.apache.ambari.server.orm.entities.TopologyRequestEntity;
+import org.apache.ambari.server.state.PropertyInfo;
+import org.apache.ambari.server.state.SecurityType;
+import org.apache.ambari.server.state.StackInfo;
+import org.apache.ambari.server.topology.Blueprint;
+import org.apache.ambari.server.topology.BlueprintFactory;
+import org.apache.ambari.server.topology.InvalidTopologyException;
+import org.apache.ambari.server.topology.SecurityConfiguration;
+import org.apache.ambari.server.topology.SecurityConfigurationFactory;
+import org.apache.ambari.server.topology.Setting;
+import org.apache.ambari.server.utils.StageUtils;
+import org.easymock.EasyMock;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
+
+import com.google.common.collect.ImmutableList;
+import com.google.gson.Gson;
+
 /**
  * BlueprintResourceProvider unit tests.
  */
@@ -100,7 +103,8 @@ public class BlueprintResourceProviderTest {
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
 
-  private final static BlueprintDAO dao = createStrictMock(BlueprintDAO.class);
+  private final static BlueprintDAO blueprintDao = createStrictMock(BlueprintDAO.class);
+  private final static TopologyRequestDAO topologyRequestDAO = createMock(TopologyRequestDAO.class);
   private final static StackDAO stackDAO = createNiceMock(StackDAO.class);
   private final static BlueprintEntity entity = createStrictMock(BlueprintEntity.class);
   private final static Blueprint blueprint = createMock(Blueprint.class);
@@ -112,7 +116,7 @@ public class BlueprintResourceProviderTest {
 
   @BeforeClass
   public static void initClass() {
-    BlueprintResourceProvider.init(blueprintFactory, dao, securityFactory, gson, metaInfo);
+    BlueprintResourceProvider.init(blueprintFactory, blueprintDao, topologyRequestDAO, securityFactory, gson, metaInfo);
 
     StackEntity stackEntity = new StackEntity();
     stackEntity.setStackName("test-stack-name");
@@ -126,12 +130,12 @@ public class BlueprintResourceProviderTest {
   }
 
   private Map<String, Set<HashMap<String, String>>> getSettingProperties() {
-    return new HashMap<String, Set<HashMap<String, String>>>();
+    return new HashMap<>();
   }
 
   @Before
   public void resetGlobalMocks() {
-    reset(dao, metaInfo, blueprintFactory, securityFactory, blueprint, entity);
+    reset(blueprintDao, topologyRequestDAO, metaInfo, blueprintFactory, securityFactory, blueprint, entity);
   }
 
   @Test
@@ -156,16 +160,14 @@ public class BlueprintResourceProviderTest {
     expect(blueprint.getName()).andReturn(BLUEPRINT_NAME).atLeastOnce();
     expect(request.getProperties()).andReturn(setProperties);
     expect(request.getRequestInfoProperties()).andReturn(requestInfoProperties);
-    expect(dao.findByName(BLUEPRINT_NAME)).andReturn(null);
-    dao.create(entity);
+    expect(blueprintDao.findByName(BLUEPRINT_NAME)).andReturn(null);
+    blueprintDao.create(entity);
 
-    replay(dao, entity, metaInfo, blueprintFactory, securityFactory, blueprint, setting, request, managementController);
+    replay(blueprintDao, entity, metaInfo, blueprintFactory, securityFactory, blueprint, setting, request, managementController);
     // end expectations
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
         Resource.Type.Blueprint,
-        PropertyHelper.getPropertyIds(Resource.Type.Blueprint),
-        PropertyHelper.getKeyPropertyIds(Resource.Type.Blueprint),
         managementController);
 
     AbstractResourceProviderTest.TestObserver observer = new AbstractResourceProviderTest.TestObserver();
@@ -180,7 +182,7 @@ public class BlueprintResourceProviderTest {
     assertEquals(request, lastEvent.getRequest());
     assertNull(lastEvent.getPredicate());
 
-    verify(dao, entity, blueprintFactory, securityFactory, metaInfo, request, managementController);
+    verify(blueprintDao, entity, blueprintFactory, securityFactory, metaInfo, request, managementController);
   }
 
   @Test()
@@ -189,7 +191,7 @@ public class BlueprintResourceProviderTest {
     Request request = createMock(Request.class);
 
     Set<Map<String, Object>> setProperties = getBlueprintTestProperties();
-    Map<String, String> requestInfoProperties = new HashMap<String, String>();
+    Map<String, String> requestInfoProperties = new HashMap<>();
     requestInfoProperties.put(Request.REQUEST_INFO_BODY_PROPERTY, null);
 
     // set expectations
@@ -201,8 +203,6 @@ public class BlueprintResourceProviderTest {
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
       Resource.Type.Blueprint,
-      PropertyHelper.getPropertyIds(Resource.Type.Blueprint),
-      PropertyHelper.getKeyPropertyIds(Resource.Type.Blueprint),
       managementController);
 
     try {
@@ -236,16 +236,14 @@ public class BlueprintResourceProviderTest {
     expect(blueprint.getName()).andReturn(BLUEPRINT_NAME).atLeastOnce();
     expect(request.getProperties()).andReturn(setProperties);
     expect(request.getRequestInfoProperties()).andReturn(requestInfoProperties);
-    expect(dao.findByName(BLUEPRINT_NAME)).andReturn(null);
-    dao.create(entity);
+    expect(blueprintDao.findByName(BLUEPRINT_NAME)).andReturn(null);
+    blueprintDao.create(entity);
 
-    replay(dao, entity, metaInfo, blueprintFactory, blueprint, setting, request, managementController);
+    replay(blueprintDao, entity, metaInfo, blueprintFactory, blueprint, setting, request, managementController);
     // end expectations
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
         Resource.Type.Blueprint,
-        PropertyHelper.getPropertyIds(Resource.Type.Blueprint),
-        PropertyHelper.getKeyPropertyIds(Resource.Type.Blueprint),
         managementController);
 
     AbstractResourceProviderTest.TestObserver observer = new AbstractResourceProviderTest.TestObserver();
@@ -260,7 +258,7 @@ public class BlueprintResourceProviderTest {
     assertEquals(request, lastEvent.getRequest());
     assertNull(lastEvent.getPredicate());
 
-    verify(dao, entity, blueprintFactory, metaInfo, request, managementController);
+    verify(blueprintDao, entity, blueprintFactory, metaInfo, request, managementController);
   }
 
   @Test
@@ -279,15 +277,13 @@ public class BlueprintResourceProviderTest {
 
     expect(request.getProperties()).andReturn(setProperties);
     expect(request.getRequestInfoProperties()).andReturn(requestInfoProperties);
-    expect(dao.findByName(BLUEPRINT_NAME)).andReturn(null);
+    expect(blueprintDao.findByName(BLUEPRINT_NAME)).andReturn(null);
 
-    replay(dao, entity, metaInfo, blueprintFactory, blueprint, request);
+    replay(blueprintDao, entity, metaInfo, blueprintFactory, blueprint, request);
     // end expectations
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
         Resource.Type.Blueprint,
-        PropertyHelper.getPropertyIds(Resource.Type.Blueprint),
-        PropertyHelper.getKeyPropertyIds(Resource.Type.Blueprint),
         createMock(AmbariManagementController.class));
 
     AbstractResourceProviderTest.TestObserver observer = new AbstractResourceProviderTest.TestObserver();
@@ -300,7 +296,7 @@ public class BlueprintResourceProviderTest {
       // expected
     }
 
-    verify(dao, entity, blueprintFactory, metaInfo, request);
+    verify(blueprintDao, entity, blueprintFactory, metaInfo, request);
   }
 
 
@@ -325,16 +321,14 @@ public class BlueprintResourceProviderTest {
     expect(blueprint.getName()).andReturn(BLUEPRINT_NAME).atLeastOnce();
     expect(request.getProperties()).andReturn(setProperties);
     expect(request.getRequestInfoProperties()).andReturn(requestInfoProperties);
-    expect(dao.findByName(BLUEPRINT_NAME)).andReturn(null);
-    dao.create(entity);
+    expect(blueprintDao.findByName(BLUEPRINT_NAME)).andReturn(null);
+    blueprintDao.create(entity);
 
-    replay(dao, entity, metaInfo, blueprintFactory, blueprint, setting, request, managementController);
+    replay(blueprintDao, entity, metaInfo, blueprintFactory, blueprint, setting, request, managementController);
     // end expectations
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
         Resource.Type.Blueprint,
-        PropertyHelper.getPropertyIds(Resource.Type.Blueprint),
-        PropertyHelper.getKeyPropertyIds(Resource.Type.Blueprint),
         managementController);
 
     AbstractResourceProviderTest.TestObserver observer = new AbstractResourceProviderTest.TestObserver();
@@ -349,7 +343,7 @@ public class BlueprintResourceProviderTest {
     assertEquals(request, lastEvent.getRequest());
     assertNull(lastEvent.getPredicate());
 
-    verify(dao, entity, blueprintFactory, metaInfo, request, managementController);
+    verify(blueprintDao, entity, blueprintFactory, metaInfo, request, managementController);
   }
 
   @Test
@@ -369,7 +363,7 @@ public class BlueprintResourceProviderTest {
     expect(request.getProperties()).andReturn(setProperties);
     expect(request.getRequestInfoProperties()).andReturn(requestInfoProperties);
 
-    replay(dao, entity, metaInfo, blueprintFactory, securityFactory, blueprint, request);
+    replay(blueprintDao, entity, metaInfo, blueprintFactory, securityFactory, blueprint, request);
     // end expectations
 
     try {
@@ -378,7 +372,7 @@ public class BlueprintResourceProviderTest {
     } catch (IllegalArgumentException e) {
       // expected
     }
-    verify(dao, entity, blueprintFactory, metaInfo, request);
+    verify(blueprintDao, entity, blueprintFactory, metaInfo, request);
   }
 
   @Test
@@ -393,7 +387,7 @@ public class BlueprintResourceProviderTest {
     SecurityConfiguration securityConfiguration = new SecurityConfiguration(SecurityType.KERBEROS, "testRef", null);
 
     // set expectations
-    expect(securityFactory.createSecurityConfigurationFromRequest(anyObject(HashMap.class), anyBoolean())).andReturn
+    expect(securityFactory.createSecurityConfigurationFromRequest(EasyMock.anyObject(), anyBoolean())).andReturn
       (securityConfiguration).once();
     expect(blueprintFactory.createBlueprint(setProperties.iterator().next(), securityConfiguration)).andReturn(blueprint).once();
     blueprint.validateRequiredProperties();
@@ -404,16 +398,14 @@ public class BlueprintResourceProviderTest {
     expect(blueprint.getName()).andReturn(BLUEPRINT_NAME).atLeastOnce();
     expect(request.getProperties()).andReturn(setProperties);
     expect(request.getRequestInfoProperties()).andReturn(requestInfoProperties);
-    expect(dao.findByName(BLUEPRINT_NAME)).andReturn(null);
-    dao.create(entity);
+    expect(blueprintDao.findByName(BLUEPRINT_NAME)).andReturn(null);
+    blueprintDao.create(entity);
 
-    replay(dao, entity, metaInfo, blueprintFactory, securityFactory, blueprint, setting, request, managementController);
+    replay(blueprintDao, entity, metaInfo, blueprintFactory, securityFactory, blueprint, setting, request, managementController);
     // end expectations
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
       Resource.Type.Blueprint,
-      PropertyHelper.getPropertyIds(Resource.Type.Blueprint),
-      PropertyHelper.getKeyPropertyIds(Resource.Type.Blueprint),
       managementController);
 
     AbstractResourceProviderTest.TestObserver observer = new AbstractResourceProviderTest.TestObserver();
@@ -428,7 +420,7 @@ public class BlueprintResourceProviderTest {
     assertEquals(request, lastEvent.getRequest());
     assertNull(lastEvent.getPredicate());
 
-    verify(dao, entity, blueprintFactory, metaInfo, request, managementController);
+    verify(blueprintDao, entity, blueprintFactory, metaInfo, request, managementController);
   }
 
   @Test
@@ -438,17 +430,17 @@ public class BlueprintResourceProviderTest {
 
     BlueprintEntity entity = createEntity(getBlueprintTestProperties().iterator().next());
 
-    List<BlueprintEntity> results = new ArrayList<BlueprintEntity>();
+    List<BlueprintEntity> results = new ArrayList<>();
     results.add(entity);
 
     // set expectations
-    expect(dao.findAll()).andReturn(results);
-    replay(dao, request);
+    expect(blueprintDao.findAll()).andReturn(results);
+    replay(blueprintDao, request);
 
     Set<Resource> setResults = provider.getResources(request, null);
     assertEquals(1, setResults.size());
 
-    verify(dao);
+    verify(blueprintDao);
     validateResource(setResults.iterator().next(), false);
   }
 
@@ -457,7 +449,7 @@ public class BlueprintResourceProviderTest {
       NoSuchParentResourceException, NoSuchResourceException, AmbariException {
 
     StackInfo info = createMock(StackInfo.class);
-    expect(info.getConfigPropertiesTypes("core-site")).andReturn(new HashMap<PropertyInfo.PropertyType, Set<String>>()).anyTimes();
+    expect(info.getConfigPropertiesTypes("core-site")).andReturn(new HashMap<>()).anyTimes();
     expect(metaInfo.getStack("test-stack-name", "test-stack-version")).andReturn(info).anyTimes();
     replay(info, metaInfo);
     Request request = createNiceMock(Request.class);
@@ -466,17 +458,17 @@ public class BlueprintResourceProviderTest {
     setConfigurationProperties(testProperties);
     BlueprintEntity entity = createEntity(testProperties.iterator().next());
 
-    List<BlueprintEntity> results = new ArrayList<BlueprintEntity>();
+    List<BlueprintEntity> results = new ArrayList<>();
     results.add(entity);
 
     // set expectations
-    expect(dao.findAll()).andReturn(results);
-    replay(dao, request);
+    expect(blueprintDao.findAll()).andReturn(results);
+    replay(blueprintDao, request);
 
     Set<Resource> setResults = provider.getResources(request, null);
     assertEquals(1, setResults.size());
 
-    verify(dao);
+    verify(blueprintDao);
     validateResource(setResults.iterator().next(), true);
   }
 
@@ -488,13 +480,14 @@ public class BlueprintResourceProviderTest {
     BlueprintEntity blueprintEntity = createEntity(getBlueprintTestProperties().iterator().next());
 
     // set expectations
-    expect(dao.findByName(BLUEPRINT_NAME)).andReturn(blueprintEntity);
-    dao.removeByName(blueprintEntity.getBlueprintName());
+    expect(blueprintDao.findByName(BLUEPRINT_NAME)).andReturn(blueprintEntity);
+    blueprintDao.removeByName(blueprintEntity.getBlueprintName());
     expectLastCall();
-    replay(dao);
+    expect(topologyRequestDAO.findAllProvisionRequests()).andReturn(ImmutableList.of());
+    replay(blueprintDao, topologyRequestDAO);
 
-    Predicate predicate = new EqualsPredicate<String>(
-        BlueprintResourceProvider.BLUEPRINT_NAME_PROPERTY_ID, BLUEPRINT_NAME);
+    Predicate predicate = new EqualsPredicate<>(
+      BlueprintResourceProvider.BLUEPRINT_NAME_PROPERTY_ID, BLUEPRINT_NAME);
 
     AbstractResourceProviderTest.TestObserver observer = new AbstractResourceProviderTest.TestObserver();
     provider.addObserver(observer);
@@ -507,8 +500,34 @@ public class BlueprintResourceProviderTest {
     assertEquals(ResourceProviderEvent.Type.Delete, lastEvent.getType());
     assertNotNull(lastEvent.getPredicate());
 
-    verify(dao);
+    verify(blueprintDao);
   }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testDeleteResources_clusterAlreadyProvisioned() throws SystemException, UnsupportedPropertyException,
+    NoSuchParentResourceException, NoSuchResourceException {
+
+    BlueprintEntity blueprintEntity = createEntity(getBlueprintTestProperties().iterator().next());
+
+    // set expectations
+    expect(blueprintDao.findByName(BLUEPRINT_NAME)).andReturn(blueprintEntity);
+    blueprintDao.removeByName(blueprintEntity.getBlueprintName());
+    expectLastCall();
+    TopologyRequestEntity topologyRequestEntity = new TopologyRequestEntity();
+    topologyRequestEntity.setBlueprintName(BLUEPRINT_NAME);
+    expect(topologyRequestDAO.findAllProvisionRequests()).andReturn(ImmutableList.of(topologyRequestEntity));
+    replay(blueprintDao, topologyRequestDAO);
+
+
+    Predicate predicate = new EqualsPredicate<>(
+      BlueprintResourceProvider.BLUEPRINT_NAME_PROPERTY_ID, BLUEPRINT_NAME);
+
+    AbstractResourceProviderTest.TestObserver observer = new AbstractResourceProviderTest.TestObserver();
+    provider.addObserver(observer);
+
+    provider.deleteResources(new RequestImpl(null, null, null, null), predicate);
+  }
+
 
   @Test
   public void testCreateResources_withEmptyConfiguration() throws Exception {
@@ -516,7 +535,7 @@ public class BlueprintResourceProviderTest {
     Set<Map<String, Object>> setProperties = getBlueprintTestProperties();
     setConfigurationProperties(setProperties);
     AmbariManagementController managementController = createMock(AmbariManagementController.class);
-    Map<String, String> requestInfoProperties = new HashMap<String, String>();
+    Map<String, String> requestInfoProperties = new HashMap<>();
     Map<String, Set<HashMap<String, String>>> settingProperties = getSettingProperties();
     requestInfoProperties.put(Request.REQUEST_INFO_BODY_PROPERTY, "{\"configurations\":[]}");
     Request request = createMock(Request.class);
@@ -532,16 +551,14 @@ public class BlueprintResourceProviderTest {
     expect(blueprint.getName()).andReturn(BLUEPRINT_NAME).atLeastOnce();
     expect(request.getProperties()).andReturn(setProperties);
     expect(request.getRequestInfoProperties()).andReturn(requestInfoProperties);
-    expect(dao.findByName(BLUEPRINT_NAME)).andReturn(null);
-    dao.create(entity);
+    expect(blueprintDao.findByName(BLUEPRINT_NAME)).andReturn(null);
+    blueprintDao.create(entity);
 
-    replay(dao, entity, metaInfo, blueprintFactory, blueprint, setting, request, managementController);
+    replay(blueprintDao, entity, metaInfo, blueprintFactory, blueprint, setting, request, managementController);
     // end expectations
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
         Resource.Type.Blueprint,
-        PropertyHelper.getPropertyIds(Resource.Type.Blueprint),
-        PropertyHelper.getKeyPropertyIds(Resource.Type.Blueprint),
         managementController);
 
     AbstractResourceProviderTest.TestObserver observer = new AbstractResourceProviderTest.TestObserver();
@@ -556,7 +573,7 @@ public class BlueprintResourceProviderTest {
     assertEquals(request, lastEvent.getRequest());
     assertNull(lastEvent.getPredicate());
 
-    verify(dao, entity, blueprintFactory, metaInfo, request, managementController);
+    verify(blueprintDao, entity, blueprintFactory, metaInfo, request, managementController);
   }
 
   @Test
@@ -565,7 +582,7 @@ public class BlueprintResourceProviderTest {
     Set<Map<String, Object>> setProperties = getBlueprintTestProperties();
     setConfigurationProperties(setProperties);
     AmbariManagementController managementController = createMock(AmbariManagementController.class);
-    Map<String, String> requestInfoProperties = new HashMap<String, String>();
+    Map<String, String> requestInfoProperties = new HashMap<>();
     Map<String, Set<HashMap<String, String>>> settingProperties = getSettingProperties();
     requestInfoProperties.put(Request.REQUEST_INFO_BODY_PROPERTY, "{\"configurations\":[{\"configuration-type\":{\"properties\":{\"property\":\"value\"}}}]}");
     Request request = createMock(Request.class);
@@ -581,16 +598,14 @@ public class BlueprintResourceProviderTest {
     expect(blueprint.getName()).andReturn(BLUEPRINT_NAME).atLeastOnce();
     expect(request.getProperties()).andReturn(setProperties);
     expect(request.getRequestInfoProperties()).andReturn(requestInfoProperties);
-    expect(dao.findByName(BLUEPRINT_NAME)).andReturn(null);
-    dao.create(entity);
+    expect(blueprintDao.findByName(BLUEPRINT_NAME)).andReturn(null);
+    blueprintDao.create(entity);
 
-    replay(dao, entity, metaInfo, blueprintFactory, blueprint, setting, request, managementController);
+    replay(blueprintDao, entity, metaInfo, blueprintFactory, blueprint, setting, request, managementController);
     // end expectations
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
         Resource.Type.Blueprint,
-        PropertyHelper.getPropertyIds(Resource.Type.Blueprint),
-        PropertyHelper.getKeyPropertyIds(Resource.Type.Blueprint),
         managementController);
 
     AbstractResourceProviderTest.TestObserver observer = new AbstractResourceProviderTest.TestObserver();
@@ -605,7 +620,7 @@ public class BlueprintResourceProviderTest {
     assertEquals(request, lastEvent.getRequest());
     assertNull(lastEvent.getPredicate());
 
-    verify(dao, entity, blueprintFactory, metaInfo, request, managementController);
+    verify(blueprintDao, entity, blueprintFactory, metaInfo, request, managementController);
   }
 
   @Test
@@ -616,7 +631,7 @@ public class BlueprintResourceProviderTest {
 
     Set<Map<String, Object>> setProperties = getBlueprintTestProperties();
 
-    Map<String, String> requestInfoProperties = new HashMap<String, String>();
+    Map<String, String> requestInfoProperties = new HashMap<>();
     String configurationData = "{\"configurations\":[{\"config-type1\":{\"properties\" :{\"property\":\"property-value\"}},"
         + "\"config-type2\" : {\"properties_attributes\" : {\"property\" : \"property-value\"}, \"properties\" : {\"property\" : \"property-value\"}}}"
         + "]}";
@@ -626,7 +641,7 @@ public class BlueprintResourceProviderTest {
     expect(request.getProperties()).andReturn(setProperties);
     expect(request.getRequestInfoProperties()).andReturn(requestInfoProperties);
 
-    replay(dao, metaInfo, request);
+    replay(blueprintDao, metaInfo, request);
     // end expectations
 
     try {
@@ -636,7 +651,7 @@ public class BlueprintResourceProviderTest {
       //expected exception
       assertEquals(BlueprintResourceProvider.CONFIGURATION_MAP_SIZE_CHECK_ERROR_MESSAGE, e.getMessage());
     }
-    verify(dao, metaInfo, request);
+    verify(blueprintDao, metaInfo, request);
   }
 
   @Test
@@ -647,7 +662,7 @@ public class BlueprintResourceProviderTest {
 
     Set<Map<String, Object>> setProperties = getBlueprintTestProperties();
 
-    Map<String, String> requestInfoProperties = new HashMap<String, String>();
+    Map<String, String> requestInfoProperties = new HashMap<>();
     String configurationData = "{\"configurations\":[\"config-type1\", \"config-type2\"]}";
     requestInfoProperties.put(Request.REQUEST_INFO_BODY_PROPERTY, configurationData);
 
@@ -655,7 +670,7 @@ public class BlueprintResourceProviderTest {
     expect(request.getProperties()).andReturn(setProperties);
     expect(request.getRequestInfoProperties()).andReturn(requestInfoProperties);
 
-    replay(dao, metaInfo, request);
+    replay(blueprintDao, metaInfo, request);
     // end expectations
 
     try {
@@ -665,7 +680,7 @@ public class BlueprintResourceProviderTest {
       //expected exception
       assertEquals(BlueprintResourceProvider.CONFIGURATION_MAP_CHECK_ERROR_MESSAGE, e.getMessage());
     }
-    verify(dao, metaInfo, request);
+    verify(blueprintDao, metaInfo, request);
   }
 
   @Test
@@ -676,7 +691,7 @@ public class BlueprintResourceProviderTest {
 
     Set<Map<String, Object>> setProperties = getBlueprintTestProperties();
 
-    Map<String, String> requestInfoProperties = new HashMap<String, String>();
+    Map<String, String> requestInfoProperties = new HashMap<>();
     String configurationData = "{\"configurations\":{\"config-type1\": \"properties\", \"config-type2\": \"properties\"}}";
     requestInfoProperties.put(Request.REQUEST_INFO_BODY_PROPERTY, configurationData);
 
@@ -684,7 +699,7 @@ public class BlueprintResourceProviderTest {
     expect(request.getProperties()).andReturn(setProperties);
     expect(request.getRequestInfoProperties()).andReturn(requestInfoProperties);
 
-    replay(dao, metaInfo, request);
+    replay(blueprintDao, metaInfo, request);
     // end expectations
 
     try {
@@ -694,38 +709,38 @@ public class BlueprintResourceProviderTest {
       //expected exception
       assertEquals(BlueprintResourceProvider.CONFIGURATION_LIST_CHECK_ERROR_MESSAGE, e.getMessage());
     }
-    verify(dao, metaInfo, request);
+    verify(blueprintDao, metaInfo, request);
   }
 
   public static Set<Map<String, Object>> getBlueprintTestProperties() {
-    Map<String, String> mapHostGroupComponentProperties = new HashMap<String, String>();
+    Map<String, String> mapHostGroupComponentProperties = new HashMap<>();
     mapHostGroupComponentProperties.put(BlueprintResourceProvider.COMPONENT_NAME_PROPERTY_ID, "component1");
 
-    Map<String, String> mapHostGroupComponentProperties2 = new HashMap<String, String>();
+    Map<String, String> mapHostGroupComponentProperties2 = new HashMap<>();
     mapHostGroupComponentProperties2.put(BlueprintResourceProvider.COMPONENT_NAME_PROPERTY_ID, "component2");
 
-    Set<Map<String, String>> setComponentProperties = new HashSet<Map<String, String>>();
+    Set<Map<String, String>> setComponentProperties = new HashSet<>();
     setComponentProperties.add(mapHostGroupComponentProperties);
     setComponentProperties.add(mapHostGroupComponentProperties2);
 
-    Set<Map<String, String>> setComponentProperties2 = new HashSet<Map<String, String>>();
+    Set<Map<String, String>> setComponentProperties2 = new HashSet<>();
     setComponentProperties2.add(mapHostGroupComponentProperties);
 
-    Map<String, Object> mapHostGroupProperties = new HashMap<String, Object>();
+    Map<String, Object> mapHostGroupProperties = new HashMap<>();
     mapHostGroupProperties.put(BlueprintResourceProvider.HOST_GROUP_NAME_PROPERTY_ID, "group1");
     mapHostGroupProperties.put(BlueprintResourceProvider.HOST_GROUP_CARDINALITY_PROPERTY_ID, "1");
     mapHostGroupProperties.put(BlueprintResourceProvider.COMPONENT_PROPERTY_ID, setComponentProperties);
 
-    Map<String, Object> mapHostGroupProperties2 = new HashMap<String, Object>();
+    Map<String, Object> mapHostGroupProperties2 = new HashMap<>();
     mapHostGroupProperties2.put(BlueprintResourceProvider.HOST_GROUP_NAME_PROPERTY_ID, "group2");
     mapHostGroupProperties2.put(BlueprintResourceProvider.HOST_GROUP_CARDINALITY_PROPERTY_ID, "2");
     mapHostGroupProperties2.put(BlueprintResourceProvider.COMPONENT_PROPERTY_ID, setComponentProperties2);
 
-    Set<Map<String, Object>> setHostGroupProperties = new HashSet<Map<String, Object>>();
+    Set<Map<String, Object>> setHostGroupProperties = new HashSet<>();
     setHostGroupProperties.add(mapHostGroupProperties);
     setHostGroupProperties.add(mapHostGroupProperties2);
 
-    Map<String, Object> mapProperties = new HashMap<String, Object>();
+    Map<String, Object> mapProperties = new HashMap<>();
     mapProperties.put(BlueprintResourceProvider.BLUEPRINT_NAME_PROPERTY_ID, BLUEPRINT_NAME);
     mapProperties.put(BlueprintResourceProvider.STACK_NAME_PROPERTY_ID, "test-stack-name");
     mapProperties.put(BlueprintResourceProvider.STACK_VERSION_PROPERTY_ID, "test-stack-version");
@@ -735,22 +750,22 @@ public class BlueprintResourceProviderTest {
   }
 
   public static Map<String, Object> getBlueprintRawBodyProperties() {
-    return new HashMap<String, Object>();
+    return new HashMap<>();
   }
 
   public static void setConfigurationProperties(Set<Map<String, Object>> properties ) {
-    Map<String, String> clusterProperties = new HashMap<String, String>();
+    Map<String, String> clusterProperties = new HashMap<>();
     clusterProperties.put("core-site/properties/fs.trash.interval", "480");
     clusterProperties.put("core-site/properties/ipc.client.idlethreshold", "8500");
     clusterProperties.put("core-site/properties_attributes/final/ipc.client.idlethreshold", "true");
 
     // single entry in set which was created in getTestProperties
     Map<String, Object> mapProperties = properties.iterator().next();
-    Set<Map<String, String>> configurations = new HashSet<Map<String, String>>();
+    Set<Map<String, String>> configurations = new HashSet<>();
     configurations.add(clusterProperties);
     mapProperties.put("configurations", configurations);
 
-    Map<String, Object> hostGroupProperties = new HashMap<String, Object>();
+    Map<String, Object> hostGroupProperties = new HashMap<>();
     hostGroupProperties.put("core-site/my.custom.hg.property", "anything");
 
     Collection<Map<String, Object>> hostGroups = (Collection<Map<String, Object>>) mapProperties.get
@@ -827,9 +842,7 @@ public class BlueprintResourceProviderTest {
   }
 
   private static BlueprintResourceProvider createProvider() {
-    return new BlueprintResourceProvider(
-        PropertyHelper.getPropertyIds(Resource.Type.Blueprint),
-        PropertyHelper.getKeyPropertyIds(Resource.Type.Blueprint), null);
+    return new BlueprintResourceProvider(null);
   }
 
   private BlueprintEntity createEntity(Map<String, Object> properties) {
@@ -847,18 +860,18 @@ public class BlueprintResourceProviderTest {
     Set<Map<String, Object>> hostGroupProperties = (Set<Map<String, Object>>) properties.get(
         BlueprintResourceProvider.HOST_GROUP_PROPERTY_ID);
 
-    Collection<HostGroupEntity> hostGroups = new ArrayList<HostGroupEntity>();
+    Collection<HostGroupEntity> hostGroups = new ArrayList<>();
     for (Map<String, Object> groupProperties : hostGroupProperties) {
       HostGroupEntity hostGroup = new HostGroupEntity();
       hostGroups.add(hostGroup);
       hostGroup.setName((String) groupProperties.get(BlueprintResourceProvider.HOST_GROUP_NAME_PROPERTY_ID));
       hostGroup.setCardinality((String) groupProperties.get(BlueprintResourceProvider.HOST_GROUP_CARDINALITY_PROPERTY_ID));
-      hostGroup.setConfigurations(new ArrayList<HostGroupConfigEntity>());
+      hostGroup.setConfigurations(new ArrayList<>());
 
       Set<Map<String, String>> setComponentProperties = (Set<Map<String, String>>) groupProperties.get(
           BlueprintResourceProvider.COMPONENT_PROPERTY_ID);
 
-      Collection<HostGroupComponentEntity> components = new ArrayList<HostGroupComponentEntity>();
+      Collection<HostGroupComponentEntity> components = new ArrayList<>();
       for (Map<String, String> compProperties : setComponentProperties) {
         HostGroupComponentEntity component = new HostGroupComponentEntity();
         components.add(component);
@@ -877,7 +890,7 @@ public class BlueprintResourceProviderTest {
   }
 
   private Map<String, String> getTestRequestInfoProperties() {
-    Map<String, String> setPropertiesInfo = new HashMap<String, String>();
+    Map<String, String> setPropertiesInfo = new HashMap<>();
     String configurationData = "{\"configurations\":[{\"config-type1\":{\"properties\" :{\"property\":\"property-value\"}}},"
         + "{\"config-type2\" : {\"properties_attributes\" : {\"property\" : \"property-value\"}, \"properties\" : {\"property\" : \"property-value\"}}}"
         + "]}";
@@ -887,7 +900,7 @@ public class BlueprintResourceProviderTest {
 
   @Test
   public void testPopulateConfigurationEntity_oldSchema() throws Exception {
-    Map<String, String> configuration = new HashMap<String, String>();
+    Map<String, String> configuration = new HashMap<>();
     configuration.put("global/property1", "val1");
     configuration.put("global/property2", "val2");
     BlueprintConfiguration config = new BlueprintConfigEntity();
@@ -910,7 +923,7 @@ public class BlueprintResourceProviderTest {
 
   @Test
   public void testPopulateConfigurationEntity_newSchema() throws Exception {
-    Map<String, String> configuration = new HashMap<String, String>();
+    Map<String, String> configuration = new HashMap<>();
     configuration.put("global/properties/property1", "val1");
     configuration.put("global/properties/property2", "val2");
     configuration.put("global/properties_attributes/final/property1", "true");
@@ -962,7 +975,7 @@ public class BlueprintResourceProviderTest {
 
   @Test
   public void testPopulateConfigurationEntity_configIsEmpty() throws Exception {
-    Map<String, String> configuration = new HashMap<String, String>();
+    Map<String, String> configuration = new HashMap<>();
     BlueprintConfiguration config = new BlueprintConfigEntity();
 
     provider.populateConfigurationEntity(configuration, config);
@@ -973,7 +986,7 @@ public class BlueprintResourceProviderTest {
 
   @Test
   public void testDecidePopulationStrategy_configIsEmpty() throws Exception {
-    Map<String, String> configMap = new HashMap<String, String>();
+    Map<String, String> configMap = new HashMap<>();
 
     BlueprintConfigPopulationStrategy provisioner =
         provider.decidePopulationStrategy(configMap);
@@ -995,7 +1008,7 @@ public class BlueprintResourceProviderTest {
 
   @Test
   public void testDecidePopulationStrategy_withOldSchema() throws Exception {
-    Map<String, String> configMap = new HashMap<String, String>();
+    Map<String, String> configMap = new HashMap<>();
     configMap.put("global/hive_database", "db");
 
     BlueprintConfigPopulationStrategy provisioner =
@@ -1007,7 +1020,7 @@ public class BlueprintResourceProviderTest {
 
   @Test
   public void testDecidePopulationStrategy_withNewSchema_attributes() throws Exception {
-    Map<String, String> configMap = new HashMap<String, String>();
+    Map<String, String> configMap = new HashMap<>();
     configMap.put("global/properties_attributes/final/foo_contact", "true");
 
     BlueprintConfigPopulationStrategy provisioner =
@@ -1019,7 +1032,7 @@ public class BlueprintResourceProviderTest {
 
   @Test
   public void testDecidePopulationStrategy_withNewSchema_properties() throws Exception {
-    Map<String, String> configMap = new HashMap<String, String>();
+    Map<String, String> configMap = new HashMap<>();
     configMap.put("global/properties/foo_contact", "foo@ffl.dsfds");
 
     BlueprintConfigPopulationStrategy provisioner =
@@ -1031,7 +1044,7 @@ public class BlueprintResourceProviderTest {
 
   @Test
   public void testDecidePopulationStrategy_unsupportedSchema() throws Exception {
-    Map<String, String> configMap = new HashMap<String, String>();
+    Map<String, String> configMap = new HashMap<>();
     configMap.put("global/properties/lot/foo_contact", "foo@ffl.dsfds");
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(BlueprintResourceProvider.SCHEMA_IS_NOT_SUPPORTED_MESSAGE);
@@ -1054,8 +1067,8 @@ public class BlueprintResourceProviderTest {
     }};
 
     StackInfo info = createMock(StackInfo.class);
-    expect(info.getConfigPropertiesTypes("type1")).andReturn(new HashMap<PropertyInfo.PropertyType, Set<String>>()).anyTimes();
-    expect(info.getConfigPropertiesTypes("type2")).andReturn(new HashMap<PropertyInfo.PropertyType, Set<String>>()).anyTimes();
+    expect(info.getConfigPropertiesTypes("type1")).andReturn(new HashMap<>()).anyTimes();
+    expect(info.getConfigPropertiesTypes("type2")).andReturn(new HashMap<>()).anyTimes();
     expect(info.getConfigPropertiesTypes("type3")).andReturn(pwdProperties).anyTimes();
     expect(metaInfo.getStack("test-stack-name", "test-stack-version")).andReturn(info).anyTimes();
 
@@ -1155,8 +1168,8 @@ public class BlueprintResourceProviderTest {
     }};
 
     StackInfo info = createMock(StackInfo.class);
-    expect(info.getConfigPropertiesTypes("type1")).andReturn(new HashMap<PropertyInfo.PropertyType, Set<String>>()).anyTimes();
-    expect(info.getConfigPropertiesTypes("type2")).andReturn(new HashMap<PropertyInfo.PropertyType, Set<String>>()).anyTimes();
+    expect(info.getConfigPropertiesTypes("type1")).andReturn(new HashMap<>()).anyTimes();
+    expect(info.getConfigPropertiesTypes("type2")).andReturn(new HashMap<>()).anyTimes();
     expect(info.getConfigPropertiesTypes("type3")).andReturn(pwdProperties).anyTimes();
     expect(metaInfo.getStack("test-stack-name", "test-stack-version")).andReturn(info).anyTimes();
 

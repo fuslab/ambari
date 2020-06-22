@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,13 +22,13 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import org.codehaus.jackson.annotate.JsonIgnoreProperties;
-@JsonIgnoreProperties(ignoreUnknown = true)
 
+import org.codehaus.jackson.annotate.JsonIgnoreProperties;
 
 /**
  * Data structure for temporal data returned from Ganglia Web.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class GangliaMetric {
 
   // Note that the member names correspond to the names in the JSON returned from Ganglia Web.
@@ -69,7 +69,7 @@ public class GangliaMetric {
   //BUG-3386 Cluster CPU Chart is off the charts
   // Here can be added other percentage metrics
   static {
-    Set<String> temp = new HashSet<String>();
+    Set<String> temp = new HashSet<>();
     temp.add("cpu_wio");
     temp.add("cpu_idle");
     temp.add("cpu_nice");

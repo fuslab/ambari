@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,12 @@
 
 package org.apache.ambari.server.security;
 
+import java.util.Collection;
+
 import org.apache.ambari.server.orm.entities.PrincipalEntity;
 import org.apache.ambari.server.orm.entities.UserEntity;
-import org.apache.ambari.server.security.authorization.AmbariUserAuthentication;
+import org.apache.ambari.server.security.authentication.AmbariUserAuthentication;
+import org.apache.ambari.server.security.authentication.AmbariUserDetailsImpl;
 import org.apache.ambari.server.security.authorization.User;
 import org.apache.ambari.server.security.authorization.UserName;
 import org.junit.Assert;
@@ -32,8 +35,6 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import java.util.Collection;
-
 public class SecurityHelperImplTest {
 
   private final String USER_FROM_PRINCIPAL = "user from principal";
@@ -44,13 +45,14 @@ public class SecurityHelperImplTest {
     SecurityContext ctx = SecurityContextHolder.getContext();
     UserEntity userEntity = new UserEntity();
     userEntity.setPrincipal(new PrincipalEntity());
-    userEntity.setUserName(UserName.fromString("userName"));
+    userEntity.setUserName(UserName.fromString("userName").toString());
     userEntity.setUserId(1);
     User user = new User(userEntity);
-    Authentication auth = new AmbariUserAuthentication(null, user, null);
+    Authentication auth = new AmbariUserAuthentication(null, new AmbariUserDetailsImpl(user, null, null));
     ctx.setAuthentication(auth);
 
-    Assert.assertEquals("userName", SecurityHelperImpl.getInstance().getCurrentUserName());
+    // Username is expected to be lowercase
+    Assert.assertEquals("username", SecurityHelperImpl.getInstance().getCurrentUserName());
   }
 
   @Test

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,18 +17,15 @@
  */
 package org.apache.ambari.server.api.resources;
 
-import org.apache.ambari.server.api.services.Request;
-import org.apache.ambari.server.api.util.TreeNode;
-import org.apache.ambari.server.controller.spi.Resource;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.ambari.server.api.services.Request;
+import org.apache.ambari.server.api.util.TreeNode;
+import org.apache.ambari.server.controller.spi.Resource;
+
 public class RequestScheduleResourceDefinition extends BaseResourceDefinition {
-  /**
-   * Constructor.
-   *
-   * @param resourceType resource type
-   */
+
   public RequestScheduleResourceDefinition() {
     super(Resource.Type.RequestSchedule);
   }
@@ -45,7 +42,7 @@ public class RequestScheduleResourceDefinition extends BaseResourceDefinition {
 
   @Override
   public List<PostProcessor> getPostProcessors() {
-    return Collections.<PostProcessor>singletonList(new
+    return Collections.singletonList(new
       RequestScheduleHrefPostProcessor());
   }
 

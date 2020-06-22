@@ -17,9 +17,16 @@
  */
 package org.apache.ambari.server.controller.internal;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
+import java.util.Collection;
+import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
+
+import org.apache.ambari.server.controller.PrivilegeResponse;
+import org.apache.ambari.server.controller.UserPrivilegeResponse;
 import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
 import org.apache.ambari.server.controller.spi.NoSuchResourceException;
 import org.apache.ambari.server.controller.spi.Predicate;
@@ -27,6 +34,7 @@ import org.apache.ambari.server.controller.spi.Request;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
+import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.apache.ambari.server.orm.dao.ClusterDAO;
 import org.apache.ambari.server.orm.dao.GroupDAO;
 import org.apache.ambari.server.orm.dao.UserDAO;
@@ -43,34 +51,32 @@ import org.apache.ambari.server.security.authorization.AuthorizationException;
 import org.apache.ambari.server.security.authorization.AuthorizationHelper;
 import org.apache.ambari.server.security.authorization.ResourceType;
 import org.apache.ambari.server.security.authorization.RoleAuthorization;
-import org.apache.ambari.server.security.authorization.UserType;
 import org.apache.ambari.server.security.authorization.Users;
 
-import java.util.Collection;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.concurrent.TimeUnit;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 
 /**
  * Resource provider for user privilege resources.
  */
 public class UserPrivilegeResourceProvider extends ReadOnlyResourceProvider {
 
-  protected static final String PRIVILEGE_PRIVILEGE_ID_PROPERTY_ID = PrivilegeResourceProvider.PRIVILEGE_ID_PROPERTY_ID;
-  protected static final String PRIVILEGE_PERMISSION_NAME_PROPERTY_ID = PrivilegeResourceProvider.PERMISSION_NAME_PROPERTY_ID;
-  protected static final String PRIVILEGE_PERMISSION_LABEL_PROPERTY_ID = PrivilegeResourceProvider.PERMISSION_LABEL_PROPERTY_ID;
-  protected static final String PRIVILEGE_PRINCIPAL_NAME_PROPERTY_ID = PrivilegeResourceProvider.PRINCIPAL_NAME_PROPERTY_ID;
-  protected static final String PRIVILEGE_PRINCIPAL_TYPE_PROPERTY_ID = PrivilegeResourceProvider.PRINCIPAL_TYPE_PROPERTY_ID;
-  protected static final String PRIVILEGE_VIEW_NAME_PROPERTY_ID = ViewPrivilegeResourceProvider.PRIVILEGE_VIEW_NAME_PROPERTY_ID;
-  protected static final String PRIVILEGE_VIEW_VERSION_PROPERTY_ID = ViewPrivilegeResourceProvider.PRIVILEGE_VIEW_VERSION_PROPERTY_ID;
-  protected static final String PRIVILEGE_INSTANCE_NAME_PROPERTY_ID = ViewPrivilegeResourceProvider.PRIVILEGE_INSTANCE_NAME_PROPERTY_ID;
-  protected static final String PRIVILEGE_CLUSTER_NAME_PROPERTY_ID = ClusterPrivilegeResourceProvider.PRIVILEGE_CLUSTER_NAME_PROPERTY_ID;
-  protected static final String PRIVILEGE_TYPE_PROPERTY_ID = AmbariPrivilegeResourceProvider.PRIVILEGE_TYPE_PROPERTY_ID;
-  protected static final String PRIVILEGE_USER_NAME_PROPERTY_ID = "PrivilegeInfo/user_name";
+  protected static final String USER_NAME_PROPERTY_ID = "user_name";
+
+  protected static final String PRIVILEGE_ID = PrivilegeResourceProvider.PRIVILEGE_ID;
+  protected static final String PERMISSION_NAME = PrivilegeResourceProvider.PERMISSION_NAME;
+  protected static final String PERMISSION_LABEL = PrivilegeResourceProvider.PERMISSION_LABEL;
+  protected static final String PRINCIPAL_NAME = PrivilegeResourceProvider.PRINCIPAL_NAME;
+  protected static final String PRINCIPAL_TYPE = PrivilegeResourceProvider.PRINCIPAL_TYPE;
+  protected static final String VIEW_NAME = ViewPrivilegeResourceProvider.VIEW_NAME;
+  protected static final String VIEW_VERSION = ViewPrivilegeResourceProvider.VERSION;
+  protected static final String INSTANCE_NAME = ViewPrivilegeResourceProvider.INSTANCE_NAME;
+  protected static final String CLUSTER_NAME = ClusterPrivilegeResourceProvider.CLUSTER_NAME;
+  protected static final String TYPE = AmbariPrivilegeResourceProvider.TYPE;
+  protected static final String USER_NAME = PrivilegeResourceProvider.PRIVILEGE_INFO + PropertyHelper.EXTERNAL_PATH_SEP + USER_NAME_PROPERTY_ID;
 
   /**
    * Data access object used to obtain user entities.
@@ -100,20 +106,18 @@ public class UserPrivilegeResourceProvider extends ReadOnlyResourceProvider {
   /**
    * The property ids for a privilege resource.
    */
-  private static Set<String> propertyIds = new HashSet<String>();
-  static {
-    propertyIds.add(PRIVILEGE_PRIVILEGE_ID_PROPERTY_ID);
-    propertyIds.add(PRIVILEGE_PERMISSION_NAME_PROPERTY_ID);
-    propertyIds.add(PRIVILEGE_PERMISSION_LABEL_PROPERTY_ID);
-    propertyIds.add(PRIVILEGE_PRINCIPAL_NAME_PROPERTY_ID);
-    propertyIds.add(PRIVILEGE_PRINCIPAL_TYPE_PROPERTY_ID);
-    propertyIds.add(PRIVILEGE_VIEW_NAME_PROPERTY_ID);
-    propertyIds.add(PRIVILEGE_VIEW_VERSION_PROPERTY_ID);
-    propertyIds.add(PRIVILEGE_INSTANCE_NAME_PROPERTY_ID);
-    propertyIds.add(PRIVILEGE_CLUSTER_NAME_PROPERTY_ID);
-    propertyIds.add(PRIVILEGE_TYPE_PROPERTY_ID);
-    propertyIds.add(PRIVILEGE_USER_NAME_PROPERTY_ID);
-  }
+  private static Set<String> propertyIds = Sets.newHashSet(
+      PRIVILEGE_ID,
+      PERMISSION_NAME,
+      PERMISSION_LABEL,
+      PRINCIPAL_NAME,
+      PRINCIPAL_TYPE,
+      VIEW_NAME,
+      VIEW_VERSION,
+      INSTANCE_NAME,
+      CLUSTER_NAME,
+      TYPE,
+      USER_NAME);
 
   /**
    * Static initialization.
@@ -135,18 +139,17 @@ public class UserPrivilegeResourceProvider extends ReadOnlyResourceProvider {
   @SuppressWarnings("serial")
   private static Set<String> pkPropertyIds = new HashSet<String>() {
     {
-      add(PRIVILEGE_PRIVILEGE_ID_PROPERTY_ID);
+      add(PRIVILEGE_ID);
     }
   };
 
   /**
    * The key property ids for a privilege resource.
    */
-  private static Map<Resource.Type, String> keyPropertyIds = new HashMap<Resource.Type, String>();
-  static {
-    keyPropertyIds.put(Resource.Type.User, PRIVILEGE_USER_NAME_PROPERTY_ID);
-    keyPropertyIds.put(Resource.Type.UserPrivilege, PRIVILEGE_PRIVILEGE_ID_PROPERTY_ID);
-  }
+  private static Map<Resource.Type, String> keyPropertyIds = ImmutableMap.<Resource.Type, String>builder()
+      .put(Resource.Type.User, USER_NAME)
+      .put(Resource.Type.UserPrivilege, PRIVILEGE_ID)
+      .build();
 
   private ThreadLocal<LoadingCache<Long, ClusterEntity>> clusterCache =
       new ThreadLocal<LoadingCache<Long, ClusterEntity>>(){
@@ -184,14 +187,7 @@ public class UserPrivilegeResourceProvider extends ReadOnlyResourceProvider {
             @Override
             public UserEntity load(String key) throws Exception {
               //fallback mechanism, mostly for unit tests
-              UserEntity userEntity = userDAO.findLocalUserByName(key);
-              if (userEntity == null) {
-                userEntity = userDAO.findLdapUserByName(key);
-              }
-              if (userEntity == null) {
-                userEntity = userDAO.findUserByNameAndType(key, UserType.JWT);
-              }
-              return userEntity;
+              return userDAO.findUserByName(key);
             }
           };
 
@@ -234,7 +230,7 @@ public class UserPrivilegeResourceProvider extends ReadOnlyResourceProvider {
    * Constructor.
    */
   public UserPrivilegeResourceProvider() {
-    super(propertyIds, keyPropertyIds, null);
+    super(Resource.Type.UserPrivilege, propertyIds, keyPropertyIds, null);
 
     EnumSet<RoleAuthorization> requiredAuthorizations = EnumSet.of(RoleAuthorization.AMBARI_ASSIGN_ROLES);
     setRequiredCreateAuthorizations(requiredAuthorizations);
@@ -254,7 +250,7 @@ public class UserPrivilegeResourceProvider extends ReadOnlyResourceProvider {
   public Set<Resource> getResources(Request request, Predicate predicate)
       throws SystemException, UnsupportedPropertyException,
       NoSuchResourceException, NoSuchParentResourceException {
-    final Set<Resource> resources = new HashSet<Resource>();
+    final Set<Resource> resources = new HashSet<>();
     final Set<String> requestedIds = getRequestPropertyIds(request, predicate);
 
 
@@ -262,7 +258,7 @@ public class UserPrivilegeResourceProvider extends ReadOnlyResourceProvider {
         RoleAuthorization.AMBARI_MANAGE_USERS);
 
     for (Map<String, Object> propertyMap : getPropertyMaps(predicate)) {
-      final String userName = (String) propertyMap.get(PRIVILEGE_USER_NAME_PROPERTY_ID);
+      final String userName = (String) propertyMap.get(USER_NAME);
 
       // Ensure that the authenticated user has authorization to get this information
       if (!isUserAdministrator && !AuthorizationHelper.getAuthenticatedName().equalsIgnoreCase(userName)) {
@@ -278,62 +274,57 @@ public class UserPrivilegeResourceProvider extends ReadOnlyResourceProvider {
           Map<String, UserEntity> userNames = new TreeMap<>();
           for (UserEntity entity : userDAO.findAll()) {
             UserEntity existing = userNames.get(entity.getUserName());
-            if (existing == null ||
-                entity.getUserType() == UserType.LOCAL ||
-                existing.getUserType() == UserType.JWT) {
+            if (existing == null) {
               userNames.put(entity.getUserName(), entity);
             }
           }
           usersCache.get().putAll(userNames);
-          userEntity = usersCache.get().getUnchecked(userName);
+          userEntity = usersCache.get().getIfPresent(userName);
         }
 
         if (userEntity == null) {
-            userEntity = userDAO.findUserByNameAndType(userName, UserType.PAM);
+            userEntity = userDAO.findUserByName(userName);
         }
+
         if (userEntity == null) {
-          throw new SystemException("User " + userName + " was not found");
+          throw new NoSuchParentResourceException("User was not found");
         }
 
         final Collection<PrivilegeEntity> privileges = users.getUserPrivileges(userEntity);
 
         for (PrivilegeEntity privilegeEntity : privileges) {
-          resources.add(toResource(privilegeEntity, userName, requestedIds));
+          UserPrivilegeResponse response = getResponse(privilegeEntity, userName);
+          resources.add(toResource(response, requestedIds));
         }
       }
     }
     return resources;
   }
 
-
   /**
-   * Translate the found data into a Resource
-   *
-   * @param privilegeEntity the privilege data
-   * @param userName        the username
-   * @param requestedIds    the relevant request ids
-   * @return a resource
+   * Returns response schema instance for /users/{userName}/privileges REST endpoint
+   * @param privilegeEntity {@link PrivilegeEntity}
+   * @param userName   user name
+   * @return {@link UserPrivilegeResponse}
    */
-  protected Resource toResource(PrivilegeEntity privilegeEntity, Object userName, Set<String> requestedIds){
-    final ResourceImpl resource = new ResourceImpl(Resource.Type.UserPrivilege);
+  protected UserPrivilegeResponse getResponse(PrivilegeEntity privilegeEntity, String userName) {
+    String permissionLabel = privilegeEntity.getPermission().getPermissionLabel();
+    String permissionName =  privilegeEntity.getPermission().getPermissionName();
+    String principalTypeName = privilegeEntity.getPrincipal().getPrincipalType().getName();
+    UserPrivilegeResponse userPrivilegeResponse = new UserPrivilegeResponse(userName, permissionLabel , permissionName,
+      privilegeEntity.getId(), PrincipalTypeEntity.PrincipalType.valueOf(principalTypeName));
 
-    setResourceProperty(resource, PRIVILEGE_USER_NAME_PROPERTY_ID, userName, requestedIds);
-    setResourceProperty(resource, PRIVILEGE_PRIVILEGE_ID_PROPERTY_ID, privilegeEntity.getId(), requestedIds);
-    setResourceProperty(resource, PRIVILEGE_PERMISSION_NAME_PROPERTY_ID, privilegeEntity.getPermission().getPermissionName(), requestedIds);
-    setResourceProperty(resource, PRIVILEGE_PERMISSION_LABEL_PROPERTY_ID, privilegeEntity.getPermission().getPermissionLabel(), requestedIds);
-    setResourceProperty(resource, PRIVILEGE_PRINCIPAL_TYPE_PROPERTY_ID, privilegeEntity.getPrincipal().getPrincipalType().getName(), requestedIds);
-
-    final String principalTypeName = privilegeEntity.getPrincipal().getPrincipalType().getName();
     if (principalTypeName.equals(PrincipalTypeEntity.USER_PRINCIPAL_TYPE_NAME)) {
       final UserEntity user = userDAO.findUserByPrincipal(privilegeEntity.getPrincipal());
-      setResourceProperty(resource, PRIVILEGE_PRINCIPAL_NAME_PROPERTY_ID, user.getUserName(), requestedIds);
+      userPrivilegeResponse.setPrincipalName(user.getUserName());
     } else if (principalTypeName.equals(PrincipalTypeEntity.GROUP_PRINCIPAL_TYPE_NAME)) {
       final GroupEntity groupEntity = getCachedGroupByPrincipal(privilegeEntity.getPrincipal());
-      setResourceProperty(resource, PRIVILEGE_PRINCIPAL_NAME_PROPERTY_ID, groupEntity.getGroupName(), requestedIds);
+      userPrivilegeResponse.setPrincipalName(groupEntity.getGroupName());
     }
 
     String typeName = privilegeEntity.getResource().getResourceType().getName();
     ResourceType resourceType = ResourceType.translate(typeName);
+
     if(resourceType != null) {
       switch (resourceType) {
         case AMBARI:
@@ -341,21 +332,57 @@ public class UserPrivilegeResourceProvider extends ReadOnlyResourceProvider {
           break;
         case CLUSTER:
           final ClusterEntity clusterEntity = clusterCache.get().getUnchecked(privilegeEntity.getResource().getId());
-          setResourceProperty(resource, PRIVILEGE_CLUSTER_NAME_PROPERTY_ID, clusterEntity.getClusterName(), requestedIds);
+          userPrivilegeResponse.setClusterName(clusterEntity.getClusterName());
           break;
         case VIEW:
           final ViewInstanceEntity viewInstanceEntity = viewInstanceCache.get().getUnchecked(privilegeEntity.getResource().getId());
           final ViewEntity viewEntity = viewInstanceEntity.getViewEntity();
 
-          setResourceProperty(resource, PRIVILEGE_VIEW_NAME_PROPERTY_ID, viewEntity.getCommonName(), requestedIds);
-          setResourceProperty(resource, PRIVILEGE_VIEW_VERSION_PROPERTY_ID, viewEntity.getVersion(), requestedIds);
-          setResourceProperty(resource, PRIVILEGE_INSTANCE_NAME_PROPERTY_ID, viewInstanceEntity.getName(), requestedIds);
+          userPrivilegeResponse.setViewName(viewEntity.getCommonName());
+          userPrivilegeResponse.setVersion(viewEntity.getVersion());
+          userPrivilegeResponse.setInstanceName(viewInstanceEntity.getName());
           break;
       }
 
-      setResourceProperty(resource, PRIVILEGE_TYPE_PROPERTY_ID, resourceType.name(), requestedIds);
+      userPrivilegeResponse.setType(resourceType);
     }
 
+    return userPrivilegeResponse;
+  }
+
+  /**
+   * Translate the Response into a Resource
+   * @param response        {@link PrivilegeResponse}
+   * @param requestedIds    the relevant request ids
+   * @return a resource
+   */
+  protected Resource toResource(UserPrivilegeResponse response, Set<String> requestedIds){
+    final ResourceImpl resource = new ResourceImpl(Resource.Type.UserPrivilege);
+
+
+
+    setResourceProperty(resource, USER_NAME, response.getUserName(), requestedIds);
+    setResourceProperty(resource, PRIVILEGE_ID, response.getPrivilegeId(), requestedIds);
+    setResourceProperty(resource, PERMISSION_NAME, response.getPermissionName(), requestedIds);
+    setResourceProperty(resource, PERMISSION_LABEL, response.getPermissionLabel(), requestedIds);
+    setResourceProperty(resource, PRINCIPAL_TYPE, response.getPrincipalType().name(), requestedIds);
+    if (response.getPrincipalName() != null) {
+      setResourceProperty(resource, PRINCIPAL_NAME, response.getPrincipalName(), requestedIds);
+    }
+    if (response.getType() != null) {
+      setResourceProperty(resource, TYPE, response.getType().name(), requestedIds);
+      switch (response.getType()) {
+        case CLUSTER:
+          setResourceProperty(resource, CLUSTER_NAME, response.getClusterName(), requestedIds);
+          break;
+        case VIEW:
+          setResourceProperty(resource, VIEW_NAME, response.getViewName(), requestedIds);
+          setResourceProperty(resource, VIEW_VERSION, response.getVersion(), requestedIds);
+          setResourceProperty(resource, INSTANCE_NAME, response.getInstanceName(), requestedIds);
+          break;
+      }
+
+    }
     return resource;
   }
 }

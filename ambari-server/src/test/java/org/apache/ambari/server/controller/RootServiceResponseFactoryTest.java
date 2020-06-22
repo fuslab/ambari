@@ -20,8 +20,8 @@ package org.apache.ambari.server.controller;
 
 import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.assertTrue;
-import static org.apache.ambari.server.controller.RootServiceResponseFactory.Components.AMBARI_SERVER;
-import static org.apache.ambari.server.controller.RootServiceResponseFactory.Services.AMBARI;
+import static org.apache.ambari.server.controller.RootComponent.AMBARI_SERVER;
+import static org.apache.ambari.server.controller.RootService.AMBARI;
 
 import java.sql.SQLException;
 import java.util.Collections;
@@ -32,7 +32,6 @@ import org.apache.ambari.server.H2DatabaseCleaner;
 import org.apache.ambari.server.ObjectNotFoundException;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
 import org.apache.ambari.server.configuration.Configuration;
-import org.apache.ambari.server.controller.RootServiceResponseFactory.Components;
 import org.apache.ambari.server.orm.GuiceJpaInitializer;
 import org.apache.ambari.server.orm.InMemoryDefaultTestModule;
 import org.junit.After;
@@ -73,14 +72,14 @@ public class RootServiceResponseFactoryTest {
     // Request a null service name
     RootServiceRequest request = new RootServiceRequest(null);
     Set<RootServiceResponse> rootServices = responseFactory.getRootServices(request);
-    assertEquals(RootServiceResponseFactory.Services.values().length, rootServices.size());
+    assertEquals(RootService.values().length, rootServices.size());
   }
 
   @Test
   public void getReturnsAllServicesForNullRequest() throws Exception {
     // null request
     Set<RootServiceResponse> rootServices = responseFactory.getRootServices(null);
-    assertEquals(RootServiceResponseFactory.Services.values().length, rootServices.size());
+    assertEquals(RootService.values().length, rootServices.size());
   }
 
   @Test(expected = ObjectNotFoundException.class)
@@ -123,7 +122,7 @@ public class RootServiceResponseFactoryTest {
     assertEquals(AMBARI.getComponents().length, rootServiceComponents.size());
 
     for (int i = 0; i < AMBARI.getComponents().length; i++) {
-      Components component = AMBARI.getComponents()[i];
+      RootComponent component = AMBARI.getComponents()[i];
 
       if (component.name().equals(AMBARI_SERVER.name())) {
         for (RootServiceComponentResponse response : rootServiceComponents) {
@@ -134,7 +133,7 @@ public class RootServiceResponseFactoryTest {
       } else {
         assertTrue(rootServiceComponents.contains(new RootServiceComponentResponse(
             AMBARI.name(), component.name(), RootServiceResponseFactory.NOT_APPLICABLE,
-            Collections.<String, String> emptyMap())));
+            Collections.emptyMap())));
       }
     }
   }
@@ -142,7 +141,7 @@ public class RootServiceResponseFactoryTest {
   @Test
   public void getReturnsSingleComponentForValidServiceAndComponentName() throws Exception {
     // Request existent service name, existent component name
-    RootServiceComponentRequest request = new RootServiceComponentRequest(AMBARI.name(), Components.AMBARI_SERVER.name());
+    RootServiceComponentRequest request = new RootServiceComponentRequest(AMBARI.name(), AMBARI_SERVER.name());
 
     Set<RootServiceComponentResponse> rootServiceComponents = responseFactory.getRootServiceComponents(request);
 

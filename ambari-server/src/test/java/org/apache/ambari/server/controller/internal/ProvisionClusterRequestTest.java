@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -33,6 +33,7 @@ import static org.powermock.api.easymock.PowerMock.reset;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -43,6 +44,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.ambari.server.controller.spi.ResourceProvider;
+import org.apache.ambari.server.security.encryption.CredentialStoreType;
 import org.apache.ambari.server.state.quicklinksprofile.QuickLinksProfileBuilderTest;
 import org.apache.ambari.server.topology.Blueprint;
 import org.apache.ambari.server.topology.BlueprintFactory;
@@ -52,7 +54,9 @@ import org.apache.ambari.server.topology.InvalidTopologyTemplateException;
 import org.apache.ambari.server.topology.TopologyRequest;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import com.google.common.collect.Sets;
 
@@ -69,8 +73,11 @@ public class ProvisionClusterRequestTest {
   private static final Blueprint blueprint = createNiceMock(Blueprint.class);
   private static final ResourceProvider hostResourceProvider = createMock(ResourceProvider.class);
   private static final Configuration blueprintConfig = new Configuration(
-      Collections.<String, Map<String, String>>emptyMap(),
-      Collections.<String, Map<String, Map<String, String>>>emptyMap());
+      Collections.emptyMap(),
+      Collections.emptyMap());
+
+  @Rule
+  public ExpectedException expectedException = ExpectedException.none();
 
   @Before
   public void setUp() throws Exception {
@@ -85,7 +92,7 @@ public class ProvisionClusterRequestTest {
     expect(blueprintFactory.getBlueprint(BLUEPRINT_NAME)).andReturn(blueprint).once();
     expect(blueprint.getConfiguration()).andReturn(blueprintConfig).anyTimes();
     expect(hostResourceProvider.checkPropertyIds(Collections.singleton("Hosts/host_name"))).
-        andReturn(Collections.<String>emptySet()).once();
+        andReturn(Collections.emptySet()).once();
 
     replay(blueprintFactory, blueprint, hostResourceProvider);
   }
@@ -141,9 +148,9 @@ public class ProvisionClusterRequestTest {
     assertEquals(1, clusterScopedAttributes.size());
     Map<String, Map<String, String>> clusterScopedTypeAttributes = clusterScopedAttributes.get("someType");
     assertEquals(1, clusterScopedTypeAttributes.size());
-    Map<String, String> clusterScopedTypePropertyAttributes = clusterScopedTypeAttributes.get("property1");
+    Map<String, String> clusterScopedTypePropertyAttributes = clusterScopedTypeAttributes.get("attribute1");
     assertEquals(1, clusterScopedTypePropertyAttributes.size());
-    assertEquals("someAttributePropValue", clusterScopedTypePropertyAttributes.get("attribute1"));
+    assertEquals("someAttributePropValue", clusterScopedTypePropertyAttributes.get("property1"));
   }
 
   @Test
@@ -180,9 +187,9 @@ public class ProvisionClusterRequestTest {
     assertEquals(1, group2Attributes.size());
     Map<String, Map<String, String>> group2Type1Attributes = group2Attributes.get("foo-type");
     assertEquals(1, group2Type1Attributes.size());
-    Map<String, String> group2Type1Prop1Attributes = group2Type1Attributes.get("hostGroup2Prop10");
+    Map<String, String> group2Type1Prop1Attributes = group2Type1Attributes.get("attribute1");
     assertEquals(1, group2Type1Prop1Attributes.size());
-    assertEquals("attribute1Prop10-value", group2Type1Prop1Attributes.get("attribute1"));
+    assertEquals("attribute1Prop10-value", group2Type1Prop1Attributes.get("hostGroup2Prop10"));
 
     // cluster scoped configuration
     Configuration clusterScopeConfiguration = provisionClusterRequest.getConfiguration();
@@ -196,9 +203,9 @@ public class ProvisionClusterRequestTest {
     assertEquals(1, clusterScopedAttributes.size());
     Map<String, Map<String, String>> clusterScopedTypeAttributes = clusterScopedAttributes.get("someType");
     assertEquals(1, clusterScopedTypeAttributes.size());
-    Map<String, String> clusterScopedTypePropertyAttributes = clusterScopedTypeAttributes.get("property1");
+    Map<String, String> clusterScopedTypePropertyAttributes = clusterScopedTypeAttributes.get("attribute1");
     assertEquals(1, clusterScopedTypePropertyAttributes.size());
-    assertEquals("someAttributePropValue", clusterScopedTypePropertyAttributes.get("attribute1"));
+    assertEquals("someAttributePropValue", clusterScopedTypePropertyAttributes.get("property1"));
   }
 
   @Test
@@ -249,9 +256,9 @@ public class ProvisionClusterRequestTest {
     assertEquals(1, group2Attributes.size());
     Map<String, Map<String, String>> group2Type1Attributes = group2Attributes.get("foo-type");
     assertEquals(1, group2Type1Attributes.size());
-    Map<String, String> group2Type1Prop1Attributes = group2Type1Attributes.get("hostGroup2Prop10");
+    Map<String, String> group2Type1Prop1Attributes = group2Type1Attributes.get("attribute1");
     assertEquals(1, group2Type1Prop1Attributes.size());
-    assertEquals("attribute1Prop10-value", group2Type1Prop1Attributes.get("attribute1"));
+    assertEquals("attribute1Prop10-value", group2Type1Prop1Attributes.get("hostGroup2Prop10"));
 
     // cluster scoped configuration
     Configuration clusterScopeConfiguration = provisionClusterRequest.getConfiguration();
@@ -265,9 +272,9 @@ public class ProvisionClusterRequestTest {
     assertEquals(1, clusterScopedAttributes.size());
     Map<String, Map<String, String>> clusterScopedTypeAttributes = clusterScopedAttributes.get("someType");
     assertEquals(1, clusterScopedTypeAttributes.size());
-    Map<String, String> clusterScopedTypePropertyAttributes = clusterScopedTypeAttributes.get("property1");
+    Map<String, String> clusterScopedTypePropertyAttributes = clusterScopedTypeAttributes.get("attribute1");
     assertEquals(1, clusterScopedTypePropertyAttributes.size());
-    assertEquals("someAttributePropValue", clusterScopedTypePropertyAttributes.get("attribute1"));
+    assertEquals("someAttributePropValue", clusterScopedTypePropertyAttributes.get("property1"));
   }
 
   @Test(expected= InvalidTopologyTemplateException.class)
@@ -303,8 +310,12 @@ public class ProvisionClusterRequestTest {
   }
 
 
-  @Test(expected=InvalidTopologyTemplateException.class)
+  @Test
   public void test_CreditentialsInvalidType() throws Exception {
+    expectedException.expect(InvalidTopologyTemplateException.class);
+    expectedException.expectMessage("credential.type [TESTTYPE] is invalid. acceptable values: " +
+        Arrays.toString(CredentialStoreType.values()));
+
     Map<String, Object> properties = createBlueprintRequestProperties(CLUSTER_NAME, BLUEPRINT_NAME);
     HashMap<String, String> credentialHashMap = new HashMap<>();
     credentialHashMap.put("alias", "testAlias");
@@ -415,7 +426,7 @@ public class ProvisionClusterRequestTest {
 
     ProvisionClusterRequest request = new ProvisionClusterRequest(properties, null);
     assertEquals("Quick links profile doesn't match expected",
-        "{\"filters\":[{\"visible\":true}],\"services\":[]}",
+        "{\"filters\":[{\"visible\":true}]}",
         request.getQuickLinksProfileJson());
   }
 
@@ -430,7 +441,7 @@ public class ProvisionClusterRequestTest {
 
     ProvisionClusterRequest request = new ProvisionClusterRequest(properties, null);
     assertEquals("Quick links profile doesn't match expected",
-        "{\"filters\":[],\"services\":[{\"name\":\"HDFS\",\"components\":[],\"filters\":[{\"visible\":true}]}]}",
+        "{\"services\":[{\"name\":\"HDFS\",\"filters\":[{\"visible\":true}]}]}",
         request.getQuickLinksProfileJson());
   }
 
@@ -449,7 +460,7 @@ public class ProvisionClusterRequestTest {
     ProvisionClusterRequest request = new ProvisionClusterRequest(properties, null);
     System.out.println(request.getQuickLinksProfileJson());
     assertEquals("Quick links profile doesn't match expected",
-        "{\"filters\":[{\"visible\":true}],\"services\":[{\"name\":\"HDFS\",\"components\":[],\"filters\":[{\"visible\":true}]}]}",
+        "{\"filters\":[{\"visible\":true}],\"services\":[{\"name\":\"HDFS\",\"filters\":[{\"visible\":true}]}]}",
         request.getQuickLinksProfileJson());
   }
 
@@ -463,34 +474,34 @@ public class ProvisionClusterRequestTest {
   }
 
   public static Map<String, Object> createBlueprintRequestProperties(String clusterName, String blueprintName) {
-    Map<String, Object> properties = new LinkedHashMap<String, Object>();
+    Map<String, Object> properties = new LinkedHashMap<>();
 
     properties.put(ClusterResourceProvider.CLUSTER_NAME_PROPERTY_ID, clusterName);
-    properties.put(ClusterResourceProvider.BLUEPRINT_PROPERTY_ID, blueprintName);
+    properties.put(ClusterResourceProvider.BLUEPRINT, blueprintName);
 
-    Collection<Map<String, Object>> hostGroups = new ArrayList<Map<String, Object>>();
+    Collection<Map<String, Object>> hostGroups = new ArrayList<>();
     properties.put("host_groups", hostGroups);
 
     // host group 1
-    Map<String, Object> hostGroup1Properties = new HashMap<String, Object>();
+    Map<String, Object> hostGroup1Properties = new HashMap<>();
     hostGroups.add(hostGroup1Properties);
     hostGroup1Properties.put("name", "group1");
-    Collection<Map<String, String>> hostGroup1Hosts = new ArrayList<Map<String, String>>();
+    Collection<Map<String, String>> hostGroup1Hosts = new ArrayList<>();
     hostGroup1Properties.put("hosts", hostGroup1Hosts);
-    Map<String, String> hostGroup1HostProperties = new HashMap<String, String>();
+    Map<String, String> hostGroup1HostProperties = new HashMap<>();
     hostGroup1HostProperties.put("fqdn", "host1.myDomain.com");
     hostGroup1Hosts.add(hostGroup1HostProperties);
     // host group 1 scoped configuration
     // version 1 configuration syntax
-    Collection<Map<String, String>> hostGroup1Configurations = new ArrayList<Map<String, String>>();
+    Collection<Map<String, String>> hostGroup1Configurations = new ArrayList<>();
     hostGroup1Properties.put("configurations", hostGroup1Configurations);
-    Map<String, String> hostGroup1Configuration1 = new HashMap<String, String>();
+    Map<String, String> hostGroup1Configuration1 = new HashMap<>();
     hostGroup1Configuration1.put("foo-type/hostGroup1Prop1", "prop1Value");
     hostGroup1Configuration1.put("foo-type/hostGroup1Prop2", "prop2Value");
     hostGroup1Configurations.add(hostGroup1Configuration1);
 
     // host group 2
-    Map<String, Object> hostGroup2Properties = new HashMap<String, Object>();
+    Map<String, Object> hostGroup2Properties = new HashMap<>();
     hostGroups.add(hostGroup2Properties);
     hostGroup2Properties.put("name", "group2");
     hostGroup2Properties.put("host_count", "5");
@@ -498,18 +509,18 @@ public class ProvisionClusterRequestTest {
 
     // host group 2 scoped configuration
     // version 2 configuration syntax
-    Collection<Map<String, String>> hostGroup2Configurations = new ArrayList<Map<String, String>>();
+    Collection<Map<String, String>> hostGroup2Configurations = new ArrayList<>();
     hostGroup2Properties.put("configurations", hostGroup2Configurations);
-    Map<String, String> hostGroup2Configuration1 = new HashMap<String, String>();
+    Map<String, String> hostGroup2Configuration1 = new HashMap<>();
     hostGroup2Configuration1.put("foo-type/properties/hostGroup2Prop1", "prop1Value");
     hostGroup2Configuration1.put("foo-type/properties_attributes/attribute1/hostGroup2Prop10", "attribute1Prop10-value");
     hostGroup2Configurations.add(hostGroup2Configuration1);
 
     // cluster scoped configuration
-    Collection<Map<String, String>> clusterConfigurations = new ArrayList<Map<String, String>>();
+    Collection<Map<String, String>> clusterConfigurations = new ArrayList<>();
     properties.put("configurations", clusterConfigurations);
 
-    Map<String, String> clusterConfigurationProperties = new HashMap<String, String>();
+    Map<String, String> clusterConfigurationProperties = new HashMap<>();
     clusterConfigurations.add(clusterConfigurationProperties);
     clusterConfigurationProperties.put("someType/properties/property1", "someValue");
     clusterConfigurationProperties.put("someType/properties_attributes/attribute1/property1", "someAttributePropValue");
@@ -518,37 +529,37 @@ public class ProvisionClusterRequestTest {
   }
 
   public static Map<String, Object> createBlueprintRequestPropertiesNameOnly(String clusterName, String blueprintName) {
-    Map<String, Object> properties = new LinkedHashMap<String, Object>();
+    Map<String, Object> properties = new LinkedHashMap<>();
 
     properties.put(ClusterResourceProvider.CLUSTER_NAME_PROPERTY_ID, clusterName);
-    properties.put(ClusterResourceProvider.BLUEPRINT_PROPERTY_ID, blueprintName);
+    properties.put(ClusterResourceProvider.BLUEPRINT, blueprintName);
 
-    Collection<Map<String, Object>> hostGroups = new ArrayList<Map<String, Object>>();
+    Collection<Map<String, Object>> hostGroups = new ArrayList<>();
     properties.put("host_groups", hostGroups);
 
     // host group 1
-    Map<String, Object> hostGroup1Properties = new HashMap<String, Object>();
+    Map<String, Object> hostGroup1Properties = new HashMap<>();
     hostGroups.add(hostGroup1Properties);
     hostGroup1Properties.put("name", "group1");
-    Collection<Map<String, String>> hostGroup1Hosts = new ArrayList<Map<String, String>>();
+    Collection<Map<String, String>> hostGroup1Hosts = new ArrayList<>();
     hostGroup1Properties.put("hosts", hostGroup1Hosts);
-    Map<String, String> hostGroup1HostProperties = new HashMap<String, String>();
+    Map<String, String> hostGroup1HostProperties = new HashMap<>();
     hostGroup1HostProperties.put("fqdn", "host1.myDomain.com");
     hostGroup1Hosts.add(hostGroup1HostProperties);
     // host group 1 scoped configuration
     // version 1 configuration syntax
-    Collection<Map<String, String>> hostGroup1Configurations = new ArrayList<Map<String, String>>();
+    Collection<Map<String, String>> hostGroup1Configurations = new ArrayList<>();
     hostGroup1Properties.put("configurations", hostGroup1Configurations);
-    Map<String, String> hostGroup1Configuration1 = new HashMap<String, String>();
+    Map<String, String> hostGroup1Configuration1 = new HashMap<>();
     hostGroup1Configuration1.put("foo-type/hostGroup1Prop1", "prop1Value");
     hostGroup1Configuration1.put("foo-type/hostGroup1Prop2", "prop2Value");
     hostGroup1Configurations.add(hostGroup1Configuration1);
 
     // cluster scoped configuration
-    Collection<Map<String, String>> clusterConfigurations = new ArrayList<Map<String, String>>();
+    Collection<Map<String, String>> clusterConfigurations = new ArrayList<>();
     properties.put("configurations", clusterConfigurations);
 
-    Map<String, String> clusterConfigurationProperties = new HashMap<String, String>();
+    Map<String, String> clusterConfigurationProperties = new HashMap<>();
     clusterConfigurations.add(clusterConfigurationProperties);
     clusterConfigurationProperties.put("someType/properties/property1", "someValue");
     clusterConfigurationProperties.put("someType/properties_attributes/attribute1/property1", "someAttributePropValue");
@@ -557,16 +568,16 @@ public class ProvisionClusterRequestTest {
   }
 
   public static Map<String, Object> createBlueprintRequestPropertiesCountOnly(String clusterName, String blueprintName) {
-    Map<String, Object> properties = new LinkedHashMap<String, Object>();
+    Map<String, Object> properties = new LinkedHashMap<>();
 
     properties.put(ClusterResourceProvider.CLUSTER_NAME_PROPERTY_ID, clusterName);
-    properties.put(ClusterResourceProvider.BLUEPRINT_PROPERTY_ID, blueprintName);
+    properties.put(ClusterResourceProvider.BLUEPRINT, blueprintName);
 
-    Collection<Map<String, Object>> hostGroups = new ArrayList<Map<String, Object>>();
+    Collection<Map<String, Object>> hostGroups = new ArrayList<>();
     properties.put("host_groups", hostGroups);
 
     // host group 2
-    Map<String, Object> hostGroup2Properties = new HashMap<String, Object>();
+    Map<String, Object> hostGroup2Properties = new HashMap<>();
     hostGroups.add(hostGroup2Properties);
     hostGroup2Properties.put("name", "group2");
     // count with no predicate
@@ -574,18 +585,18 @@ public class ProvisionClusterRequestTest {
 
     // host group 2 scoped configuration
     // version 2 configuration syntax
-    Collection<Map<String, String>> hostGroup2Configurations = new ArrayList<Map<String, String>>();
+    Collection<Map<String, String>> hostGroup2Configurations = new ArrayList<>();
     hostGroup2Properties.put("configurations", hostGroup2Configurations);
-    Map<String, String> hostGroup2Configuration1 = new HashMap<String, String>();
+    Map<String, String> hostGroup2Configuration1 = new HashMap<>();
     hostGroup2Configuration1.put("foo-type/properties/hostGroup2Prop1", "prop1Value");
     hostGroup2Configuration1.put("foo-type/properties_attributes/attribute1/hostGroup2Prop10", "attribute1Prop10-value");
     hostGroup2Configurations.add(hostGroup2Configuration1);
 
     // cluster scoped configuration
-    Collection<Map<String, String>> clusterConfigurations = new ArrayList<Map<String, String>>();
+    Collection<Map<String, String>> clusterConfigurations = new ArrayList<>();
     properties.put("configurations", clusterConfigurations);
 
-    Map<String, String> clusterConfigurationProperties = new HashMap<String, String>();
+    Map<String, String> clusterConfigurationProperties = new HashMap<>();
     clusterConfigurations.add(clusterConfigurationProperties);
     clusterConfigurationProperties.put("someType/properties/property1", "someValue");
     clusterConfigurationProperties.put("someType/properties_attributes/attribute1/property1", "someAttributePropValue");

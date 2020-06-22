@@ -21,6 +21,22 @@ var App = require('app');
 App.DependentConfigsTableView = Em.View.extend({
   templateName: require('templates/common/modal_popups/dependent_configs_table'),
   recommendations: [],
+  isClickable: false,
+  showPopovers: true,
+  elementsWithPopover: function () {
+    return this.$('td.config-dependency-name');
+  }.property(),
+  hideMessage: function () {
+    return this.get('controller.isInstallWizard');
+  }.property('controller.isInstallWizard'),
+  updateRecommendedDefault: function () {
+    if (this.get('controller.isInstallWizard')) {
+      var applyRecommendations = this.get('recommendations').filterProperty('saveRecommended');
+      var dontApplyRecommendations = this.get('recommendations').filterProperty('saveRecommended', false);
+      this.get('controller').undoRedoRecommended(applyRecommendations, true);
+      this.get('controller').undoRedoRecommended(dontApplyRecommendations, false);
+    }
+  }.observes('recommendations.@each.saveRecommended'),
   isEditable: true,
   title: Em.computed.ifThenElse('isEditable', Em.I18n.t('popup.dependent.configs.table.recommended'), Em.I18n.t('popup.dependent.configs.table.required')),
   message: function () {
@@ -34,16 +50,35 @@ App.DependentConfigsTableView = Em.View.extend({
       message += Em.I18n.t('popup.dependent.configs.title.required');
     }
     return message;
-  }.property('isEditable')
+  }.property('isEditable'),
+  didInsertElement: function () {
+    if (this.get('showPopovers')) {
+      App.popover(this.get('elementsWithPopover'), {
+        placement: 'auto right',
+        trigger: 'hover',
+        html: true
+      });
+    }
+  },
+  willDestroyElement: function () {
+    if (this.get('showPopovers')) {
+      this.get('elementsWithPopover').popover('destroy');
+    }
+  }
 });
 
 App.DependentConfigsListView = Em.View.extend({
   templateName: require('templates/common/modal_popups/dependent_configs_list'),
   isAfterRecommendation: true,
+  isRecommendationsClickable: false,
+  showRecommendationsPopovers: true,
   recommendations: [],
   requiredChanges: [],
-  toggleAll: Em.Checkbox.extend({
+  allConfigsWithErrors: [],
+  toggleAllId: '',
+  toggleAll: App.CheckboxView.extend({
     didInsertElement: function () {
+      this.set('parentView.toggleAllId', this.get('elementId'));
       this.updateCheckbox();
     },
     click: function () {
@@ -59,35 +94,57 @@ App.DependentConfigsListView = Em.View.extend({
     updateSaveRecommended: function() {
       this.get('parentView.recommendations').setEach('saveRecommended', this.get('checked'));
     }
-  })
+  }),
+  setAllConfigsWithErrors: function () {
+    if (this.get('state') === 'inBuffer' || Em.isNone(this.get('controller.stepConfigs'))) {
+      return;
+    }
+    this.set('allConfigsWithErrors', this.get('controller.stepConfigs').reduce(function (result, stepConfig) {
+      if (stepConfig.get('configsWithErrors.length')) {
+        result = result.concat(stepConfig.get('configsWithErrors'));
+      }
+      return result;
+    }, []));
+  }.observes('controller.stepConfigs.@each.configsWithErrors'),
+  didInsertElement: function () {
+    $('span.dropdown-toggle').dropdown();
+    this.setAllConfigsWithErrors();
+    this._super();
+  }
 });
 
 /**
  * Show confirmation popup
- * @param {[Object]} recommendedChanges
+ * @param {[Object]} recommendations
  * @param {[Object]} requiredChanges
  * @param {function} [primary=null]
  * @param {function} [secondary=null]
+ * @param {boolean} [isRecommendationsClickable=false]
+ * @param {boolean} [isRecommendationsClickable=true]
  * we use this parameter to defer saving configs before we make some decisions.
  * @return {App.ModalPopup}
  */
-App.showDependentConfigsPopup = function (recommendedChanges, requiredChanges, primary, secondary) {
+App.showDependentConfigsPopup = function (recommendations, requiredChanges, primary, secondary, controller, isRecommendationsClickable = false, showRecommendationsPopovers = true) {
   return App.ModalPopup.show({
     encodeBody: false,
     header: Em.I18n.t('popup.dependent.configs.header'),
-    classNames: ['sixty-percent-width-modal','modal-full-width'],
+    classNames: ['common-modal-wrapper'],
+    modalDialogClasses: ['modal-xlg'],
     secondaryClass: 'cancel-button',
     bodyClass: App.DependentConfigsListView.extend({
-      recommendations: recommendedChanges,
-      requiredChanges: requiredChanges
+      recommendations,
+      requiredChanges,
+      controller,
+      isRecommendationsClickable,
+      showRecommendationsPopovers
     }),
     saveChanges: function() {
-      recommendedChanges.forEach(function (c) {
+      recommendations.forEach(function (c) {
         Em.set(c, 'saveRecommendedDefault', Em.get(c, 'saveRecommended'));
-      })
+      });
     },
     discardChanges: function() {
-      recommendedChanges.forEach(function(c) {
+      recommendations.forEach(function(c) {
         Em.set(c, 'saveRecommended', Em.get(c, 'saveRecommendedDefault'));
       });
     },

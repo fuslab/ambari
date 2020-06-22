@@ -24,9 +24,9 @@ module.exports = {
     var STR_PAD_RIGHT = 2;
     var STR_PAD_BOTH = 3;
 
-    if (typeof(len) == "undefined") { var len = 0; }
-    if (typeof(pad) == "undefined") { var pad = ' '; }
-    if (typeof(dir) == "undefined") { var dir = STR_PAD_RIGHT; }
+    if (typeof(len) == "undefined") { len = 0; }
+    if (typeof(pad) == "undefined") { pad = ' '; }
+    if (typeof(dir) == "undefined") { dir = STR_PAD_RIGHT; }
 
     if (len + 1 >= str.length) {
 
@@ -201,11 +201,8 @@ module.exports = {
    * @method pluralize
    */
   pluralize: function(count, singular, plural) {
-    plural = plural || singular + 's';
-    if (count > 1) {
-      return plural;
-    }
-    return singular;
+    var _plural = plural || pluralize(singular);
+    return count > 1 ? _plural : singular;
   },
 
   /**
@@ -258,5 +255,16 @@ module.exports = {
     return string.split('_').map(function(word) {
       return word.toLowerCase().capitalize();
     }).join(' ');
+  },
+
+  /**
+   *
+   * @param {string} string
+   * @param {RegExp} regexp
+   */
+  unicodeEscape: function (string, regexp = /[\s\S]/g) {
+    return string.replace(regexp, function (escape) {
+      return '\\u' + ('0000' + escape.charCodeAt().toString(16)).slice(-4);
+    });
   }
 };

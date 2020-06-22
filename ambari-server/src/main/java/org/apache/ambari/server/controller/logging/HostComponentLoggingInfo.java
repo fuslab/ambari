@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,9 +19,9 @@
 package org.apache.ambari.server.controller.logging;
 
 
-import org.codehaus.jackson.annotate.JsonProperty;
-
 import java.util.List;
+
+import org.codehaus.jackson.annotate.JsonProperty;
 
 public class HostComponentLoggingInfo {
 

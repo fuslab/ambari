@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,10 +18,11 @@
 
 package org.apache.ambari.server.view.validation;
 
-import com.google.gson.Gson;
+import java.util.Map;
+
 import org.apache.ambari.view.validation.ValidationResult;
 
-import java.util.Map;
+import com.google.gson.Gson;
 
 /**
  * View instance validation result.  This result includes the validation results

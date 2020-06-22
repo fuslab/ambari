@@ -17,21 +17,26 @@
  */
 package org.apache.ambari.server.serveraction.kerberos;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentMap;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.actionmanager.HostRoleStatus;
 import org.apache.ambari.server.agent.CommandReport;
 import org.apache.ambari.server.controller.internal.ArtifactResourceProvider;
 import org.apache.ambari.server.controller.internal.RequestImpl;
-import org.apache.ambari.server.controller.spi.*;
+import org.apache.ambari.server.controller.spi.ClusterController;
+import org.apache.ambari.server.controller.spi.NoSuchResourceException;
+import org.apache.ambari.server.controller.spi.Predicate;
+import org.apache.ambari.server.controller.spi.Resource;
+import org.apache.ambari.server.controller.spi.ResourceProvider;
 import org.apache.ambari.server.controller.utilities.ClusterControllerHelper;
 import org.apache.ambari.server.controller.utilities.PredicateBuilder;
+import org.apache.ambari.server.serveraction.kerberos.stageutils.ResolvedKerberosPrincipal;
 import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.SecurityType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Map;
-import java.util.concurrent.ConcurrentMap;
 
 /**
  * Used to perform Kerberos Cleanup Operations as part of the Unkerberization process
@@ -40,26 +45,33 @@ public class CleanupServerAction extends KerberosServerAction {
 
   private final static Logger LOG = LoggerFactory.getLogger(CleanupServerAction.class);
 
+  @Override
+  protected boolean pruneServiceFilter() {
+    return false;
+  }
+
   /**
    * Processes an identity as necessary.
    * <p/>
    * This method is not used since the {@link #processIdentities(java.util.Map)} is not invoked
    *
-   * @param identityRecord           a Map containing the data for the current identity record
-   * @param evaluatedPrincipal       a String indicating the relevant principal
+   * @param resolvedPrincipal        a ResolvedKerberosPrincipal object to process
    * @param operationHandler         a KerberosOperationHandler used to perform Kerberos-related
    *                                 tasks for specific Kerberos implementations
    *                                 (MIT, Active Directory, etc...)
    * @param kerberosConfiguration    a Map of configuration properties from kerberos-env
+   * @param includedInFilter         a Boolean value indicating whather the principal is included in
+   *                                 the current filter or not
    * @param requestSharedDataContext a Map to be used a shared data among all ServerActions related
    *                                 to a given request
    * @return null, always
    * @throws AmbariException if an error occurs while processing the identity record
    */
   @Override
-  protected CommandReport processIdentity(Map<String, String> identityRecord, String evaluatedPrincipal,
+  protected CommandReport processIdentity(ResolvedKerberosPrincipal resolvedPrincipal,
                                           KerberosOperationHandler operationHandler,
                                           Map<String, String> kerberosConfiguration,
+                                          boolean includedInFilter,
                                           Map<String, Object> requestSharedDataContext)
       throws AmbariException {
     return null;
@@ -81,7 +93,6 @@ public class CleanupServerAction extends KerberosServerAction {
     }
 
     return createCommandReport(0, HostRoleStatus.COMPLETED, "{}", actionLog.getStdOut(), actionLog.getStdErr());
-
   }
 
   /**
@@ -98,8 +109,7 @@ public class CleanupServerAction extends KerberosServerAction {
 
     ClusterController clusterController = ClusterControllerHelper.getClusterController();
 
-    ResourceProvider artifactProvider =
-      clusterController.ensureResourceProvider(Resource.Type.Artifact);
+    ResourceProvider artifactProvider = clusterController.ensureResourceProvider(Resource.Type.Artifact);
 
     try {
       artifactProvider.deleteResources(new RequestImpl(null, null, null, null), predicate);

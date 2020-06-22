@@ -49,7 +49,7 @@ App.RMHighAvailabilityWizardStep3Controller = Em.Controller.extend(App.Blueprint
    */
   renderConfigs: function () {
 
-    var configs = $.extend(true, {}, require('data/HDP2/rm_ha_properties').haConfig);
+    var configs = $.extend(true, {}, require('data/configs/wizards/rm_ha_properties').haConfig);
 
     var serviceConfig = App.ServiceConfig.create({
       serviceName: configs.serviceName,
@@ -126,9 +126,11 @@ App.RMHighAvailabilityWizardStep3Controller = Em.Controller.extend(App.Blueprint
     var portValue = zooCfg && Em.get(zooCfg, 'properties.clientPort');
     var webAddressPort = yarnSite && yarnSite.properties ? yarnSite.properties['yarn.resourcemanager.webapp.address'] : '';
     var httpsWebAddressPort = yarnSite && yarnSite.properties ? yarnSite. properties['yarn.resourcemanager.webapp.https.address'] : '';
+    const trackerAddressPort = yarnSite && yarnSite.properties ? yarnSite.properties['yarn.resourcemanager.resource-tracker.address'] : '';
 
     ret.webAddressPort = webAddressPort && webAddressPort.contains(':') ? webAddressPort.split(':')[1] : '8088';
     ret.httpsWebAddressPort = httpsWebAddressPort && httpsWebAddressPort.contains(':') ? httpsWebAddressPort.split(':')[1] : '8090';
+    ret.trackerAddressPort = trackerAddressPort && trackerAddressPort.contains(':') ? trackerAddressPort.split(':')[1]: '8025';
     ret.zkClientPort = portValue ? portValue : '2181';
     return ret;
   },
@@ -182,7 +184,6 @@ App.RMHighAvailabilityWizardStep3Controller = Em.Controller.extend(App.Blueprint
   },
 
   loadRecommendations: function(blueprintConfigurations) {
-    var dfd = $.Deferred();
     var blueprint = this.getCurrentMasterSlaveBlueprint();
     // host group where new ResourceManager will be added
     var hostGroupName = blueprintUtils.getHostGroupByFqdn(blueprint, this.get('content.rmHosts.additionalRM'));

@@ -17,22 +17,88 @@
  */
 
 var App = require('app');
-var filters = require('views/common/filter_view');
 
-App.MainDashboardWidgetsView = Em.View.extend(App.UserPref, App.LocalStorage, App.TimeRangeMixin, {
+const WidgetObject = Em.Object.extend({
+  id: '',
+  threshold: '',
+  viewClass: null,
+  sourceName: '',
+  title: '',
+  checked: false,
+  isVisible: true
+});
 
+const plusButtonFilterView = Ember.View.extend({
+  tagName: 'ul',
+  classNames: ['dropdown-menu'],
+  templateName: require('templates/main/dashboard/plus_button_filter'),
+  valueBinding: '',
+  widgetCheckbox: App.CheckboxView.extend({
+    didInsertElement: function () {
+      $('.checkbox').click(function (event) {
+        event.stopPropagation();
+      });
+    }
+  }),
+  applyFilter: function () {
+    const parent = this.get('parentView'),
+      hiddenWidgets = this.get('hiddenWidgets');
+    hiddenWidgets.filterProperty('checked').setEach('isVisible', true);
+    parent.saveWidgetsSettings();
+  }
+});
+
+App.MainDashboardWidgetsView = Em.View.extend(App.Persist, App.LocalStorage, App.TimeRangeMixin, {
   name: 'mainDashboardWidgetsView',
-
   templateName: require('templates/main/dashboard/widgets'),
 
-  didInsertElement: function () {
-    this._super();
-    this.setWidgetsDataModel();
-    this.setInitPrefObject();
-    this.setOnLoadVisibleWidgets();
-    this.set('isDataLoaded', true);
-    App.loadTimer.finish('Dashboard Metrics Page');
-    Em.run.next(this, 'makeSortable');
+  widgetsDefinition: require('data/dashboard_widgets'),
+
+  widgetsDefinitionMap: function () {
+    return this.get('widgetsDefinition').toMapByProperty('id');
+  }.property('widgetsDefinition.[]'),
+
+  widgetGroups: [],
+
+  widgetGroupsDeferred: $.Deferred(),
+
+  displayedWidgetGroups: Em.computed.filterBy('widgetGroups', 'isDisplayed', true),
+
+  setWidgetGroups: function () {
+    if (App.get('router.clusterController.isHDFSNameSpacesLoaded')) {
+      let groups = [];
+      const hdfsService = App.HDFSService.find().objectAt(0),
+        hdfsMasterGroups = hdfsService ? hdfsService.get('masterComponentGroups') : [];
+      this.removeObserver('App.router.clusterController.isHDFSNameSpacesLoaded', this, 'setWidgetGroups');
+      if (hdfsMasterGroups.length) {
+        const nameSpacesListItems = hdfsMasterGroups.map(nameSpace => {
+          const {name, title} = nameSpace;
+          return {
+            name,
+            title,
+            isActive: false
+          };
+        });
+        groups.push(Em.Object.create({
+          name: 'nn',
+          title: Em.I18n.t('dashboard.widgets.nameSpace'),
+          serviceName: 'HDFS',
+          subGroups: [
+            {
+              name: '*',
+              title: Em.I18n.t('common.all'),
+              isActive: true
+            },
+            ...nameSpacesListItems
+          ],
+          activeSubGroup: Em.computed.findBy('subGroups', 'isActive', true),
+          allWidgets: this.get('allNameNodeWidgets'),
+          isDisplayed: App.get('hasNameNodeFederation')
+        }));
+      }
+      this.set('widgetGroups', groups);
+      this.get('widgetGroupsDeferred').resolve();
+    }
   },
 
   /**
@@ -40,6 +106,12 @@ App.MainDashboardWidgetsView = Em.View.extend(App.UserPref, App.LocalStorage, Ap
    * @type {Ember.Enumerable}
    */
   content: [],
+
+  /**
+   * Key-name to store data in Local Storage and Persist
+   * @type {string}
+   */
+  persistKey: Em.computed.format('user-pref-{0}-dashboard', 'App.router.loginName'),
 
   /**
    * @type {boolean}
@@ -52,504 +124,632 @@ App.MainDashboardWidgetsView = Em.View.extend(App.UserPref, App.LocalStorage, Ap
    */
   isMoving: false,
 
-  timeRangeClassName: 'pull-left',
-
   /**
-   * Make widgets' list sortable on New Dashboard style
+   * @type {WidgetObject[]}
    */
-  makeSortable: function () {
-    var self = this;
-    $("#sortable").sortable({
-      items: "> div",
-      //placeholder: "sortable-placeholder",
-      cursor: "move",
-      tolerance: "pointer",
-      scroll: false,
-      update: function (event, ui) {
-        if (!App.get('testMode')) {
-          // update persist then translate to real
-          var widgetsArray = $('div[viewid]'); // get all in DOM
-          self.getUserPref(self.get('persistKey')).complete(function () {
-            var oldValue = self.get('currentPrefObject') || self.getDBProperty(self.get('persistKey'));
-            var newValue = Em.Object.create({
-              dashboardVersion: oldValue.dashboardVersion,
-              visible: [],
-              hidden: oldValue.hidden,
-              threshold: oldValue.threshold
-            });
-            var size = oldValue.visible.length;
-            for (var j = 0; j <= size - 1; j++) {
-              var viewID = widgetsArray.get(j).getAttribute('viewid');
-              var id = viewID.split("-").get(1);
-              newValue.visible.push(id);
-            }
-            self.postUserPref(self.get('persistKey'), newValue);
-            self.setDBProperty(self.get('persistKey'), newValue);
-            //self.translateToReal(newValue);
-          });
-        }
-      },
-      activate: function (event, ui) {
-        self.set('isMoving', true);
-      },
-      deactivate: function (event, ui) {
-        self.set('isMoving', false);
-      }
-    }).disableSelection();
-  },
+  allWidgets: [],
 
-  /**
-   * Set Service model values
-   */
-  setWidgetsDataModel: function () {
-    if (App.get('services.hostMetrics').length > 0) {
-      this.set('host_metrics_model', App.get('services.hostMetrics'));
-    }
-    App.Service.find().forEach(function (item) {
-      var extendedModel = App.Service.extendedModel[item.get('serviceName')];
-      var key = item.get('serviceName').toLowerCase() + '_model';
-      if (extendedModel && App[extendedModel].find(item.get('id'))) {
-        this.set(key, App[extendedModel].find(item.get('id')));
-      } else {
-        this.set(key, item);
-      }
-    }, this);
-  },
-
-  resolveConfigDependencies: function(visibleFull, hiddenFull) {
-    var clusterEnv = App.router.get('clusterController.clusterEnv').properties;
-
-    if (clusterEnv['hide_yarn_memory_widget'] === 'true') {
-      hiddenFull.push(['20', 'YARN Memory']);
-    } else {
-      visibleFull.splice(visibleFull.indexOf('19'), 0, '20');
-    }
-  },
-
-  /**
-   * Load widget statuses to <code>initPrefObject</code>
-   */
-  setInitPrefObject: function () {
-    //in case of some service not installed
-    var visibleFull = [
-      '2', '4', '11', //hdfs
-      '6', '7', '8', '9', //host metrics
-      '1', '5', '3', '10', //hdfs
-      '13', '12', '14', '16', //hbase
-      '17', '18', '19', '23', // all yarn
-      '21', // storm
-      '22', // flume
-      '24', // hawq
-      '25' // pxf
-    ]; // all in order
-    var hiddenFull = [
-      ['15', 'Region In Transition']
-    ];
-    this.resolveConfigDependencies(visibleFull, hiddenFull);
-
-    // Display widgets for host metrics if the stack definition has a host metrics service to display it.
-    if (this.get('host_metrics_model') == null) {
-      var hostMetrics = ['6', '7', '8', '9'];
-      hostMetrics.forEach(function (item) {
-        visibleFull = visibleFull.without(item);
-      }, this);
-    }
-
-    if (this.get('hdfs_model') == null) {
-      var hdfs = ['1', '2', '3', '4', '5', '10', '11'];
-      hdfs.forEach(function (item) {
-        visibleFull = visibleFull.without(item);
-      }, this);
-    }
-    if (this.get('hbase_model') == null) {
-      var hbase = ['12', '13', '14', '16'];
-      hbase.forEach(function (item) {
-        visibleFull = visibleFull.without(item);
-      }, this);
-      hiddenFull = hiddenFull.filter(function(item) {
-        return item[0] !== '15';
-      });
-    }
-    if (this.get('yarn_model') == null) {
-      var yarn = ['17', '18', '19', '20', '23'];
-      yarn.forEach(function (item) {
-        visibleFull = visibleFull.without(item);
-      }, this);
-    }
-    if (this.get('storm_model') == null) {
-      var storm = ['21'];
-      storm.forEach(function (item) {
-        visibleFull = visibleFull.without(item);
-      }, this);
-    }
-    if (this.get('flume_model') == null) {
-      var flume = ['22'];
-      flume.forEach(function (item) {
-        visibleFull = visibleFull.without(item);
-      }, this);
-    }
-    if (this.get('hawq_model') == null) {
-      var hawq = ['24'];
-      hawq.forEach(function (item) {
-        visibleFull = visibleFull.without(item);
-      }, this);
-    }
-    if (this.get('pxf_model') == null) {
-      var pxf = ['25'];
-      pxf.forEach(function (item) {
-        visibleFull = visibleFull.without(item);
-      }, this);
-    }
-    var obj = this.get('initPrefObject');
-    obj.set('visible', visibleFull);
-    obj.set('hidden', hiddenFull);
-  },
-
-  host_metrics_model: null,
-
-  hdfs_model: null,
-
-  mapreduce2_model: null,
-
-  yarn_model: null,
-
-  hbase_model: null,
-
-  storm_model: null,
-
-  flume_model: null,
-
-  hawq_model: null,
-
-  pxf_model: null,
+  allNameNodeWidgets: [],
 
   /**
    * List of visible widgets
-   * @type {Ember.Enumerable}
+   *
+   * @type {WidgetObject[]}
    */
-  visibleWidgets: [],
+  visibleWidgets: Em.computed.filterBy('allWidgets', 'isVisible', true),
 
   /**
    * List of hidden widgets
-   * @type {Ember.Enumerable}
+   *
+   * @type {WidgetObject[]}
    */
-  hiddenWidgets: [], // widget child view will push object in this array if deleted
+  hiddenWidgets: Em.computed.filterBy('allWidgets', 'isVisible', false),
+
+  timeRangeClassName: 'pull-left',
 
   /**
-   * Submenu view for New Dashboard style
-   * @type {Ember.View}
-   * @class
+   * Example:
+   * {
+   *   visible: [1, 2, 4],
+   *   hidden: [3, 5],
+   *   threshold: {
+   *     1: [80, 90],
+   *     2: [],
+   *     3: [1, 2]
+   *   }
+   * }
+   * @type {Object|null}
    */
-  plusButtonFilterView: Ember.View.extend({
-    templateName: require('templates/main/dashboard/plus_button_filter'),
-    hiddenWidgetsBinding: 'parentView.hiddenWidgets',
-    visibleWidgetsBinding: 'parentView.visibleWidgets',
-    valueBinding: '',
-    widgetCheckbox: Em.Checkbox.extend({
-      didInsertElement: function () {
-        $('.checkbox').click(function (event) {
-          event.stopPropagation();
-        });
-      }
-    }),
-    closeFilter: Em.K,
-    applyFilter: function () {
-      var self = this;
-      var parent = this.get('parentView');
-      var hiddenWidgets = this.get('hiddenWidgets');
-      var checkedWidgets = hiddenWidgets.filterProperty('checked', true);
+  userPreferences: null,
 
-      if (App.get('testMode')) {
-        var visibleWidgets = this.get('visibleWidgets');
-        checkedWidgets.forEach(function (item) {
-          var newObj = parent.widgetsMapper(item.id);
-          visibleWidgets.pushObject(newObj);
-          hiddenWidgets.removeObject(item);
-        }, this);
-      } else {
-        //save in persist
-        parent.getUserPref(parent.get('persistKey')).complete(function(){
-          self.applyFilterComplete.apply(self);
-        });
-      }
-    },
-    applyFilterComplete: function () {
-      var parent = this.get('parentView'),
-        hiddenWidgets = this.get('hiddenWidgets'),
-        oldValue = parent.get('currentPrefObject'),
-        newValue = Em.Object.create({
-          dashboardVersion: oldValue.dashboardVersion,
-          visible: oldValue.visible,
-          hidden: [],
-          threshold: oldValue.threshold
-        });
-      hiddenWidgets.filterProperty('checked').forEach(function (item) {
-        newValue.visible.push(item.id);
-        hiddenWidgets.removeObject(item);
-      }, this);
-      hiddenWidgets.forEach(function (item) {
-        newValue.hidden.push([item.id, item.displayName]);
-      }, this);
-      parent.postUserPref(parent.get('persistKey'), newValue);
-      parent.translateToReal(newValue);
+  didInsertElement: function () {
+    this._super();
+    if (App.get('router.clusterController.isHDFSNameSpacesLoaded')) {
+      this.setWidgetGroups();
+    } else {
+      this.addObserver('App.router.clusterController.isHDFSNameSpacesLoaded', this, 'setWidgetGroups');
     }
-  }),
-
-  /**
-   * Translate from Json value got from persist to real widgets view
-   */
-  translateToReal: function (value) {
-    var version = value.dashboardVersion;
-    var visible = value.visible;
-    var hidden = value.hidden;
-    var threshold = value.threshold;
-
-    if (version === 'new') {
-      var visibleWidgets = [];
-      var hiddenWidgets = [];
-      // re-construct visibleWidgets and hiddenWidgets
-      for (var i = 0; i < visible.length; i++) {
-        var id = visible[i];
-        var widgetClass = this.widgetsMapper(id);
-        //override with new threshold
-        if (threshold[id].length > 0) {
-          widgetClass.reopen({
-            thresh1: threshold[id][0],
-            thresh2: threshold[id][1]
-          });
+    this.loadWidgetsSettings().complete(() => {
+      this.get('widgetGroupsDeferred').done(() => {
+        if (this.get('isDestroyed')) return;
+        this.checkServicesChange();
+        this.renderWidgets();
+        this.set('isDataLoaded', true);
+        App.loadTimer.finish('Dashboard Metrics Page');
+        Em.run.next(this, 'makeSortable');
+        if (this.get('displayedWidgetGroups.length')) {
+          Em.run.next(this, 'makeGroupedWidgetsSortable');
         }
-        visibleWidgets.pushObject(widgetClass);
-      }
-      for (var j = 0; j < hidden.length; j++) {
-        var title = hidden[j][1];
-        hiddenWidgets.pushObject(Em.Object.create({displayName: title, id: hidden[j][0], checked: false}));
-      }
-      this.set('visibleWidgets', visibleWidgets);
-      this.set('hiddenWidgets', hiddenWidgets);
-    }
+      });
+    });
   },
 
   /**
    * Set visibility-status for widgets
    */
-  setOnLoadVisibleWidgets: function () {
-    var self = this;
-    if (App.get('testMode')) {
-      this.translateToReal(this.get('initPrefObject'));
-    } else {
-      // called when first load/refresh/jump back page
-      this.getUserPref(this.get('persistKey')).complete(function () {
-        if (self.get('state') === 'inDOM') {
-          self.setOnLoadVisibleWidgetsComplete.apply(self);
-        }
-      });
-    }
+  loadWidgetsSettings: function () {
+    return this.getUserPref(this.get('persistKey'));
   },
 
   /**
-   * complete load of visible widgets
+   * make POST call to save settings
+   * format settings if they are not provided
+   *
+   * @param {object} [settings]
    */
-  setOnLoadVisibleWidgetsComplete: function () {
-    var currentPrefObject = this.get('currentPrefObject') || this.getDBProperty(this.get('persistKey'));
-    if (currentPrefObject) { // fit for no dashboard version
-      if (!currentPrefObject.dashboardVersion) {
-        currentPrefObject.dashboardVersion = 'new';
-        this.postUserPref(this.get('persistKey'), currentPrefObject);
-        this.setDBProperty(this.get('persistKey'), currentPrefObject);
-      }
-      this.set('currentPrefObject', this.checkServicesChange(currentPrefObject));
-      this.translateToReal(this.get('currentPrefObject'));
+  saveWidgetsSettings: function (settings) {
+    let userPreferences = this.get('userPreferences');
+    let newSettings = {
+      visible: [],
+      hidden: [],
+      threshold: {},
+      groups: {}
+    };
+    if (arguments.length === 1) {
+      newSettings = settings;
     }
     else {
-      // post persist then translate init object
-      this.postUserPref(this.get('persistKey'), this.get('initPrefObject'));
-      this.setDBProperty(this.get('persistKey'), this.get('initPrefObject'));
-      this.translateToReal(this.get('initPrefObject'));
+      newSettings.threshold = userPreferences.threshold;
+      this.get('allWidgets').forEach(widget => {
+        const key = widget.get('isVisible') ? 'visible' : 'hidden';
+        newSettings[key].push(widget.get('id'));
+      });
+      this.get('widgetGroups').forEach(group => {
+        const groupName = group.get('name');
+        if (!newSettings.groups[groupName]) {
+          newSettings.groups[groupName] = {};
+        }
+        group.get('allWidgets').forEach(widgetsSubGroup => {
+          const subGroupName = widgetsSubGroup.get('subGroupName'),
+            widgets = widgetsSubGroup.get('widgets'),
+            subGroupSettings = {
+              visible: [],
+              hidden: [],
+              threshold: {}
+            };
+          newSettings.groups[groupName][subGroupName] = subGroupSettings;
+          widgets.forEach(widget => {
+            const key = widget.get('isVisible') ? 'visible' : 'hidden',
+              threshold = widget.get('threshold'),
+              widgetId = widget.get('id'),
+              id = parseInt(widgetId);
+            if (subGroupName === '*') {
+              const regExp = new RegExp(`\\d+\\-${groupName}\\-([\\W\\w]+)\\-\\*`),
+                regExpMatch = widgetId.match(regExp),
+                subGroup = regExpMatch && regExpMatch[1];
+              if (subGroup) {
+                subGroupSettings[key].push({
+                  id,
+                  subGroup
+                });
+                $.extend(true, subGroupSettings.threshold, {
+                  [subGroup]: {
+                    [id]: threshold
+                  }
+                });
+              }
+            } else {
+              subGroupSettings[key].push(id);
+              subGroupSettings.threshold[id] = threshold;
+            }
+          });
+        });
+      });
+    }
+    this.get('widgetGroups').forEach(group => {
+      const groupName = group.get('name');
+      group.get('allWidgets').forEach(widgetsSubGroup => {
+        const subGroupName = widgetsSubGroup.get('subGroupName'),
+          widgets = widgetsSubGroup.get('widgets'),
+          arrayFromSettings = newSettings.groups[groupName][subGroupName].visible,
+          isSubGroupForAll = subGroupName === '*',
+          orderedArray = isSubGroupForAll
+            ? arrayFromSettings.map(widget => `${widget.id}-${groupName}-${widget.subGroup}-*`)
+            : arrayFromSettings;
+        widgetsSubGroup.set('widgets', widgets.sort((widgetA, widgetB) => {
+          const idA = isSubGroupForAll ? widgetA.get('id') : parseInt(widgetA.get('id')),
+            idB = isSubGroupForAll ? widgetB.get('id') : parseInt(widgetB.get('id')),
+            indexA = orderedArray.indexOf(idA),
+            indexB = orderedArray.indexOf(idB);
+          return indexA > -1 && indexB > -1 ? indexA - indexB : 0;
+        }));
+      });
+    });
+    this.set('userPreferences', newSettings);
+    this.setDBProperty(this.get('persistKey'), newSettings);
+    this.postUserPref(this.get('persistKey'), newSettings);
+  },
+
+  getUserPrefSuccessCallback: function (response) {
+    if (response) {
+      this.set('userPreferences', response);
+    } else {
+      this.getUserPrefErrorCallback();
     }
   },
 
-  /**
-   * Remove widget from visible and hidden lists
-   * @param {Object} value
-   * @param {Object} widget
-   * @returns {*}
-   */
-  removeWidget: function (value, widget) {
-    value.visible = value.visible.without(widget);
-    for (var j = 0; j < value.hidden.length; j++) {
-      if (value.hidden[j][0] == widget) {
-        value.hidden.splice(j, 1);
-      }
+  getUserPrefErrorCallback: function () {
+    var userPreferences = this.generateDefaultUserPreferences();
+    this.saveWidgetsSettings(userPreferences);
+  },
+
+  resolveConfigDependencies: function(widgetsDefinition) {
+    var clusterEnv = App.router.get('clusterController.clusterEnv.properties') || {};
+    if (clusterEnv.hide_yarn_memory_widget === 'true') {
+      widgetsDefinition.findProperty('id', 20).isHiddenByDefault = true;
     }
-    return value;
+    return widgetsDefinition;
+  },
+
+  getWidgetSubGroupsObject: function (subGroups) {
+    return subGroups.reduce((current, subGroup) => {
+      return Object.assign({}, current, {
+        [subGroup.name]: {
+          visible: [],
+          hidden: [],
+          threshold: {}
+        }
+      });
+    }, {});
+  },
+
+  generateDefaultUserPreferences: function() {
+    var widgetsDefinition = this.get('widgetsDefinition');
+    var preferences = {
+      visible: [],
+      hidden: [],
+      threshold: {},
+      groups: {}
+    };
+
+    this.resolveConfigDependencies(widgetsDefinition);
+    widgetsDefinition.forEach(widget => {
+      const {sourceName, id, groupName} = widget,
+        widgetGroups = this.get('displayedWidgetGroups');
+      if (App.Service.find(sourceName).get('isLoaded') || sourceName === 'HOST_METRICS') {
+        const state = widget.isHiddenByDefault ? 'hidden' : 'visible',
+          {threshold} = widget,
+          widgetGroup = widgetGroups.find(group => {
+            return group.get('serviceName') === sourceName && group.get('name') === groupName;
+          });
+        if (widgetGroup) {
+          const widgetGroupName = widgetGroup.get('name'),
+            allSubGroups = widgetGroup.get('subGroups'),
+            subGroupForAllItems = allSubGroups.findProperty('name', '*'),
+            subGroups = allSubGroups.rejectProperty('name', '*'),
+            existingEntry = preferences.groups[widgetGroupName],
+            currentEntry = existingEntry || this.getWidgetSubGroupsObject(allSubGroups);
+          subGroups.forEach(subGroup => {
+            const {name} = subGroup;
+            currentEntry[name][state].push(id);
+            currentEntry[name].threshold[id] = threshold;
+            if (subGroupForAllItems) {
+              currentEntry['*'][state].push({
+                id,
+                subGroup: name
+              });
+              currentEntry['*'].threshold[name] = Object.assign({}, currentEntry['*'].threshold[name], {
+                [id]: threshold
+              });
+            }
+          });
+          if (!existingEntry) {
+            preferences.groups[widgetGroupName] = currentEntry;
+          }
+        } else {
+          preferences[state].push(id);
+        }
+      }
+      preferences.threshold[id] = widget.threshold;
+    });
+
+    return preferences;
   },
 
   /**
-   * Check if widget is in visible or hidden list
-   * @param {Object} value
-   * @param {Object} widget
-   * @returns {bool}
+   * Don't show widget on the Dashboard
+   *
+   * @param {number|string} id
+   * @param {string} [groupId]
+   * @param {string} [subGroupId]
+   * @param {boolean} [isAllItemsSubGroup]
    */
-  containsWidget: function (value, widget) {
-    var flag = value.visible.contains(widget);
-    for (var j = 0; j < value.hidden.length; j++) {
-      if (!flag && value.hidden[j][0] == widget) {
-        flag = true;
-        break;
+  hideWidget(id, groupId, subGroupId, isAllItemsSubGroup) {
+    const idToNumber = Number(id);
+    if (isNaN(idToNumber)) {
+      const subGroupToFilter = isAllItemsSubGroup ? '*' : subGroupId,
+        groupWidgets = this.get('displayedWidgetGroups').findProperty('name', groupId).get('allWidgets'),
+        subGroupWidgets = groupWidgets && groupWidgets.findProperty('subGroupName', subGroupToFilter).get('widgets'),
+        targetWidget = subGroupWidgets && subGroupWidgets.findProperty('id', id);
+      if (targetWidget) {
+        targetWidget.set('isVisible', false);
       }
+    } else {
+      this.get('allWidgets').findProperty('id', id).set('isVisible', false);
     }
-    return flag;
+    this.saveWidgetsSettings();
+  },
+
+  /**
+   *
+   * @param {number} id
+   * @param {boolean} isVisible
+   * @param {string} subGroupId
+   * @returns {WidgetObject}
+   * @private
+   */
+  _createWidgetObj(id, isVisible, subGroupId) {
+    var widget = this.get('widgetsDefinitionMap')[id];
+    return WidgetObject.create({
+      id,
+      threshold: this.get('userPreferences.threshold')[id],
+      viewClass: App[widget.viewName].extend({
+        subGroupId
+      }),
+      sourceName: widget.sourceName,
+      title: widget.title,
+      isVisible
+    });
+  },
+
+  /**
+   *
+   * @param {number} id
+   * @param {boolean} isVisible
+   * @param {string} groupId
+   * @param {string} subGroupId
+   * @param {boolean} isAllSubGroupsDisplay
+   * @returns {WidgetObject}
+   * @private
+   */
+  _createGroupWidgetObj(id, isVisible, groupId, subGroupId, isAllSubGroupsDisplay = false) {
+    const widget = this.get('widgetsDefinitionMap')[id];
+    subGroupId = subGroupId || 'default';
+    return WidgetObject.create({
+      id: `${id}-${groupId}-${subGroupId}${isAllSubGroupsDisplay ? '-*' : ''}`,
+      threshold: isAllSubGroupsDisplay ?
+        this.get('userPreferences.groups')[groupId]['*'].threshold[subGroupId][id] :
+        this.get('userPreferences.groups')[groupId][subGroupId].threshold[id],
+      viewClass: App[widget.viewName].extend({
+        subGroupId,
+        isAllItemsSubGroup: isAllSubGroupsDisplay
+      }),
+      sourceName: widget.sourceName,
+      title: `${widget.title} - ${subGroupId}`,
+      isVisible
+    });
+  },
+
+  findWidgetInAllItemsSubGroup: function (id, subGroup) {
+    return widget => widget.id === id && widget.subGroup === subGroup;
+  },
+
+  /**
+   * set widgets to view in order to render
+   */
+  renderWidgets: function () {
+    const userPreferences = this.get('userPreferences'),
+      widgetsDefinition = this.get('widgetsDefinition'),
+      widgetGroups = this.get('widgetGroups');
+    let newVisibleWidgets = [],
+      newHiddenWidgets = [];
+    widgetGroups.forEach(group => group.get('allWidgets').clear());
+    widgetsDefinition.forEach(widget => {
+      const {id, groupName} = widget,
+        widgetGroup = widgetGroups.findProperty('name', groupName);
+      if (groupName && widgetGroup && widgetGroup.get('isDisplayed')) {
+        const groupPreferences = userPreferences.groups[groupName];
+        if (groupPreferences) {
+          const subGroupNames = widgetGroup.get('subGroups').mapProperty('name').without('*'),
+            subGroupForAllItems = widgetGroup.get('subGroups').findProperty('name', '*');
+          let allWidgets = widgetGroup.get('allWidgets');
+          subGroupNames.forEach(subGroupName => {
+            const subGroupPreferences = groupPreferences[subGroupName],
+              existingSubGroup = allWidgets.findProperty('subGroupName', subGroupName),
+              currentSubGroup = existingSubGroup || Em.Object.create({
+                  subGroupName,
+                  title: subGroupName,
+                  parentGroup: widgetGroup,
+                  isActive: Em.computed.equal('parentGroup.activeSubGroup.name', subGroupName),
+                  widgets: [],
+                  hiddenWidgets: Em.computed.filterBy('widgets', 'isVisible', false)
+                }),
+              visibleIndex = subGroupPreferences.visible.indexOf(id),
+              hiddenIndex = subGroupPreferences.hidden.indexOf(id),
+              visibleCount = subGroupPreferences.visible.length;
+            if (!existingSubGroup) {
+              allWidgets.pushObject(currentSubGroup);
+            }
+            if (visibleIndex > -1) {
+              currentSubGroup.get('widgets')[visibleIndex] = this._createGroupWidgetObj(id, true, groupName, subGroupName);
+            }
+            if (hiddenIndex > -1) {
+              currentSubGroup.get('widgets')[hiddenIndex + visibleCount] = this._createGroupWidgetObj(id, false, groupName, subGroupName);
+            }
+          });
+          if (subGroupForAllItems) {
+            const subGroupPreferences = groupPreferences['*'],
+              existingSubGroup = allWidgets.findProperty('subGroupName', '*'),
+              currentSubGroup = existingSubGroup || Em.Object.create({
+                  subGroupName: '*',
+                  title: Em.I18n.t('common.all'),
+                  parentGroup: widgetGroup,
+                  isActive: Em.computed.equal('parentGroup.activeSubGroup.name', '*'),
+                  widgets: [],
+                  hiddenWidgets: Em.computed.filterBy('widgets', 'isVisible', false)
+                });
+            if (!existingSubGroup) {
+              allWidgets.pushObject(currentSubGroup);
+            }
+            const visibleItems = subGroupPreferences.visible.filterProperty('id', id),
+              hiddenItems = subGroupPreferences.hidden.filterProperty('id', id),
+              visibleCount = subGroupPreferences.visible.length;
+            let widgets = [];
+            visibleItems.forEach(widget => {
+              const subgroupName = widget.subGroup,
+                findFunction = this.findWidgetInAllItemsSubGroup(id, subgroupName),
+                index = subGroupPreferences.visible.findIndex(findFunction);
+              currentSubGroup.get('widgets')[index] = this._createGroupWidgetObj(id, true, groupName, subgroupName, true);
+            });
+            hiddenItems.forEach(widget => {
+              const subgroupName = widget.subGroup,
+                findFunction = this.findWidgetInAllItemsSubGroup(id, subgroupName),
+                index = subGroupPreferences.hidden.findIndex(findFunction);
+              currentSubGroup.get('widgets')[index + visibleCount] = this._createGroupWidgetObj(id, false, groupName, subgroupName, true);
+            });
+          }
+          allWidgets.forEach(subGroup => {
+            const widgets = subGroup.get('widgets');
+          });
+        }
+      } else {
+        const subGroupId = widgetGroup ? widgetGroup.get('subGroups.lastObject.name') : 'default',
+          visibleIndex = userPreferences.visible.indexOf(id),
+          hiddenIndex = userPreferences.hidden.indexOf(id);
+        if (visibleIndex > -1) {
+          newVisibleWidgets[visibleIndex] = this._createWidgetObj(id, true, subGroupId);
+        }
+        if (hiddenIndex > -1) {
+          newHiddenWidgets[hiddenIndex] = this._createWidgetObj(id, false, subGroupId);
+        }
+      }
+    });
+    newVisibleWidgets = newVisibleWidgets.filter(widget => !Em.isNone(widget));
+    newHiddenWidgets = newHiddenWidgets.filter(widget => !Em.isNone(widget));
+    this.set('allWidgets', newVisibleWidgets.concat(newHiddenWidgets));
   },
 
   /**
    * check if stack has upgraded from HDP 1.0 to 2.0 OR add/delete services.
    * Update the value on server if true.
-   * @param {Object} currentPrefObject
-   * @return {Object}
    */
-  checkServicesChange: function (currentPrefObject) {
-    var toDelete = $.extend(true, {}, currentPrefObject);
-    var toAdd = [];
-    var serviceWidgetsMap = {
-      hdfs_model: ['1', '2', '3', '4', '5', '10', '11'],
-      host_metrics_model: ['6', '7', '8', '9'],
-      hbase_model: ['12', '13', '14', '15', '16'],
-      yarn_model: ['17', '18', '19', '20', '23'],
-      storm_model: ['21'],
-      flume_model: ['22'],
-      hawq_model: ['24'],
-      pxf_model: ['25']
-    };
+  checkServicesChange: function () {
+    const userPreferences = this.get('userPreferences'),
+      defaultPreferences = this.generateDefaultUserPreferences();
+    let newValue = {
+        visible: userPreferences.visible.slice(0),
+        hidden: userPreferences.hidden.slice(0),
+        threshold: userPreferences.threshold,
+        groups: $.extend(true, {}, userPreferences.groups)
+      },
+      isChanged = false;
 
-    // check each service, find out the newly added service and already deleted service
-    Em.keys(serviceWidgetsMap).forEach(function (modelName) {
-      if (!Em.isNone(this.get(modelName))) {
-        var ids = serviceWidgetsMap[modelName];
-        var flag = this.containsWidget(toDelete, ids[0]);
-        if (flag) {
-          ids.forEach(function (item) {
-            toDelete = this.removeWidget(toDelete, item);
-          }, this);
-        } else {
-          toAdd = toAdd.concat(ids);
+    ['visible', 'hidden'].forEach(state => {
+      defaultPreferences[state].forEach(id => {
+        if (!userPreferences.visible.contains(id) && !userPreferences.hidden.contains(id)) {
+          isChanged = true;
+          newValue[state].push(id);
         }
-      }
-    }, this);
-
-    var value = currentPrefObject;
-    if (toDelete.visible.length || toDelete.hidden.length) {
-      toDelete.visible.forEach(function (item) {
-        value = this.removeWidget(value, item);
-      }, this);
-      toDelete.hidden.forEach(function (item) {
-        value = this.removeWidget(value, item[0]);
-      }, this);
-    }
-    if (toAdd.length) {
-      value.visible = value.visible.concat(toAdd);
-      var allThreshold = this.get('initPrefObject').threshold;
-      // add new threshold OR override with default value
-      toAdd.forEach(function (item) {
-        value.threshold[item] = allThreshold[item];
-      }, this);
-    }
-    return value;
-  },
-
-  /**
-   * Get view for widget by widget's id
-   * @param {string} id
-   * @returns {Ember.View}
-   */
-  widgetsMapper: function (id) {
-    return Em.get({
-      '1': App.NameNodeHeapPieChartView,
-      '2': App.NameNodeCapacityPieChartView,
-      '3': App.NameNodeCpuPieChartView,
-      '4': App.DataNodeUpView,
-      '5': App.NameNodeRpcView,
-      '6': App.ChartClusterMetricsMemoryWidgetView,
-      '7': App.ChartClusterMetricsNetworkWidgetView,
-      '8': App.ChartClusterMetricsCPUWidgetView,
-      '9': App.ChartClusterMetricsLoadWidgetView,
-      '10': App.NameNodeUptimeView,
-      '11': App.HDFSLinksView,
-      '12': App.HBaseLinksView,
-      '13': App.HBaseMasterHeapPieChartView,
-      '14': App.HBaseAverageLoadView,
-      '15': App.HBaseRegionsInTransitionView,
-      '16': App.HBaseMasterUptimeView,
-      '17': App.ResourceManagerHeapPieChartView,
-      '18': App.ResourceManagerUptimeView,
-      '19': App.NodeManagersLiveView,
-      '20': App.YARNMemoryPieChartView,
-      '21': App.SuperVisorUpView,
-      '22': App.FlumeAgentUpView,
-      '23': App.YARNLinksView,
-      '24': App.HawqSegmentUpView,
-      '25': App.PxfUpView
-    }, id);
-  },
-
-  /**
-   * @type {Object|null}
-   */
-  currentPrefObject: null,
-
-  /**
-   * @type {Ember.Object}
-   */
-  initPrefObject: Em.Object.create({
-    dashboardVersion: 'new',
-    visible: [],
-    hidden: [],
-    threshold: {1: [80, 90], 2: [85, 95], 3: [90, 95], 4: [80, 90], 5: [1000, 3000], 6: [], 7: [], 8: [], 9: [], 10: [], 11: [], 12: [], 13: [70, 90], 14: [150, 250], 15: [3, 10], 16: [],
-      17: [70, 90], 18: [], 19: [50, 75], 20: [50, 75], 21: [85, 95], 22: [85, 95], 23: [], 24: [75, 90], 25: []} // id:[thresh1, thresh2]
-  }),
-
-  /**
-   * Key-name to store data in Local Storage and Persist
-   * @type {string}
-   */
-  persistKey: Em.computed.format('user-pref-{0}-dashboard', 'App.router.loginName'),
-
-  getUserPrefSuccessCallback: function (response, request, data) {
-    if (response) {
-      var initPrefObject = this.get('initPrefObject');
-      initPrefObject.get('threshold');
-      for(var k in response.threshold) {
-        if (response.threshold.hasOwnProperty(k)) {
-          if (response.threshold[k].length === 0 && initPrefObject.get('threshold')[k] && initPrefObject.get('threshold')[k].length) {
-            response.threshold[k] = initPrefObject.get('threshold')[k];
-          }
+      });
+      Object.keys(defaultPreferences.groups).forEach(groupName => {
+        const groupPreferences = defaultPreferences.groups[groupName],
+          subGroupForAllItems = groupPreferences['*'],
+          subGroups = Object.keys(groupPreferences).without('*');
+        subGroups.forEach(subGroupName => {
+          groupPreferences[subGroupName][state].forEach(id => {
+            if (!newValue.groups[groupName] || !newValue.groups[groupName][subGroupName]) {
+              $.extend(true, newValue.groups, {
+                [groupName]: {
+                  [subGroupName]: {
+                    visible: [],
+                    hidden: [],
+                    threshold: defaultPreferences.groups[groupName][subGroupName].threshold
+                  }
+                }
+              });
+            }
+            const subGroupPreferences = newValue.groups[groupName][subGroupName];
+            if (!subGroupPreferences.visible.contains(id) && !subGroupPreferences.hidden.contains(id)) {
+              isChanged = true;
+              subGroupPreferences[state].push(id);
+            }
+          });
+        });
+        if (subGroupForAllItems) {
+          subGroupForAllItems[state].forEach(item => {
+            const {id, subGroup} = item;
+            if (!newValue.groups[groupName]['*']) {
+              $.extend(true, newValue.groups, {
+                [groupName]: {
+                  '*': {
+                    visible: [],
+                    hidden: [],
+                    threshold: defaultPreferences.groups[groupName]['*'].threshold
+                  }
+                }
+              });
+            }
+            const preferences = newValue.groups[groupName]['*'],
+              checkFunction = this.findWidgetInAllItemsSubGroup(id, subGroup);
+            if (!preferences.visible.some(checkFunction) && !preferences.hidden.some(checkFunction)) {
+              isChanged = true;
+              preferences[state].push({
+                id,
+                subGroup
+              });
+            }
+            if (!preferences.threshold[subGroup]) {
+              isChanged = true;
+              preferences.threshold[subGroup] = defaultPreferences.groups[groupName]['*'].threshold[subGroup];
+            }
+          });
         }
-      }
-      this.set('currentPrefObject', response);
+      });
+    });
+    if (isChanged) {
+      this.saveWidgetsSettings(newValue);
     }
-  },
-
-  getUserPrefErrorCallback: function (request) {
   },
 
   /**
    * Reset widgets visibility-status
    */
   resetAllWidgets: function () {
-    var self = this;
-    App.showConfirmationPopup(function () {
-      if (!App.get('testMode')) {
-        self.postUserPref(self.get('persistKey'), self.get('initPrefObject'));
-        self.setDBProperty(self.get('persistKey'), self.get('initPrefObject'));
-      }
-      self.setProperties({
+    App.showConfirmationPopup(() => {
+      this.saveWidgetsSettings(this.generateDefaultUserPreferences());
+      this.setProperties({
         currentTimeRangeIndex: 0,
         customStartTime: null,
         customEndTime: null
       });
-      self.translateToReal(self.get('initPrefObject'));
+      this.renderWidgets();
     });
   },
 
-  showAlertsPopup: Em.K
+  /**
+   * Make widgets' list sortable on New Dashboard style
+   */
+  makeSortable: function () {
+    var self = this;
+    return $("#sortable").sortable({
+      items: "> div",
+      cursor: "move",
+      tolerance: "pointer",
+      scroll: false,
+      update: function () {
+        var widgetsArray = $('#sortable div[viewid]');
+
+        var userPreferences = self.get('userPreferences') || self.getDBProperty(self.get('persistKey'));
+        var newValue = {
+          visible: [],
+          hidden: userPreferences.hidden,
+          threshold: userPreferences.threshold,
+          groups: userPreferences.groups
+        };
+        newValue.visible = userPreferences.visible.map((item, index) => {
+          var viewID = widgetsArray.get(index).getAttribute('viewid');
+          return Number(viewID.split('-')[1]);
+        });
+        self.saveWidgetsSettings(newValue);
+      },
+      activate: function () {
+        self.set('isMoving', true);
+      },
+      deactivate: function () {
+        self.set('isMoving', false);
+      }
+    }).disableSelection();
+  },
+
+  makeGroupedWidgetsSortable: function () {
+    this.get('displayedWidgetGroups').forEach(widgetGroup => {
+      const selector = `#${widgetGroup.get('name')}`;
+      $(selector).sortable({
+        items: '> div',
+        cursor: 'move',
+        tolerance: 'pointer',
+        scroll: false,
+        update: () => {
+          let isSubGroupForAllItems = false;
+          const widgetsArray = $(`${selector} div[viewid]`),
+            userPreferences = this.get('userPreferences') || this.getDBProperty(self.get('persistKey')),
+            currentWidgetsData = widgetsArray.toArray().map(widget => {
+              const viewId = widget.getAttribute('viewid'),
+                splittedViewId = viewId.split('-');
+              if (splittedViewId.length > 4) {
+                isSubGroupForAllItems = true;
+              }
+              return {
+                id: Number(splittedViewId[1]),
+                groupName: splittedViewId[2],
+                subGroupName: splittedViewId.slice(3, isSubGroupForAllItems ?
+                splittedViewId.length - 1 : splittedViewId.length).join('-')
+              };
+            }),
+            {groupName} = currentWidgetsData[0],
+            subGroupName = isSubGroupForAllItems ? '*' : currentWidgetsData[0].subGroupName,
+            groupPreferences = userPreferences.groups[groupName][subGroupName],
+            newSubGroupValue = {
+              visible: groupPreferences.visible.map((item, index) => {
+                const widget = currentWidgetsData[index];
+                if (isSubGroupForAllItems) {
+                  return {
+                    id: widget.id,
+                    subGroup: widget.subGroupName
+                  };
+                } else {
+                  return widget.id;
+                }
+              })
+            },
+            newValue = {
+              visible: userPreferences.visible,
+              hidden: userPreferences.hidden,
+              threshold: userPreferences.threshold,
+              groups: $.extend(true, userPreferences.groups, {
+                [groupName]: {
+                  [subGroupName]: newSubGroupValue
+                }
+              })
+            };
+          this.saveWidgetsSettings(newValue);
+        },
+        activate: () => {
+          this.set('isMoving', true);
+        },
+        deactivate: () => {
+          this.set('isMoving', false);
+        }
+      }).disableSelection();
+    });
+  },
+
+  /**
+   * Submenu view for New Dashboard style
+   * @type {Ember.View}
+   * @class
+   */
+  plusButtonFilterView: plusButtonFilterView.extend({
+    hiddenWidgetsBinding: 'parentView.hiddenWidgets'
+  }),
+
+  groupWidgetsFilterView: plusButtonFilterView.extend(),
+
+  showAlertsPopup: Em.K,
+
+  setActiveSubGroup: function (event) {
+    const subGroups = event.contexts[0] || [];
+    subGroups.forEach(subGroup => Em.set(subGroup, 'isActive', Em.get(subGroup, 'name') === event.contexts[1]));
+  }
 
 });

@@ -18,6 +18,8 @@
 
 package org.apache.ambari.server.security.authentication;
 
+import org.apache.ambari.server.security.authorization.UserAuthenticationType;
+
 /**
  * AmbariProxyUserDetails contains information about the proxy user authenticated during a trusted
  * proxy authentication attempt.
@@ -29,4 +31,11 @@ public interface AmbariProxyUserDetails {
    * @return the local username of the authenticated proxy user
    */
   String getUsername();
+
+  /**
+   * Returns the authentication type used to peform authentication.
+   *
+   * @return a {@link UserAuthenticationType}
+   */
+  UserAuthenticationType getAuthenticationType();
 }

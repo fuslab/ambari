@@ -238,7 +238,7 @@ public class RetryUpgradeActionServiceTest {
 
     RepositoryVersionEntity repoVersionEntity = new RepositoryVersionEntity();
     repoVersionEntity.setDisplayName("Initial Version");
-    repoVersionEntity.setOperatingSystems("");
+    repoVersionEntity.addRepoOsEntities(new ArrayList<>());
     repoVersionEntity.setStack(stackEntity220);
     repoVersionEntity.setVersion("2.2.0.0");
     repoVersionDAO.create(repoVersionEntity);
@@ -253,7 +253,7 @@ public class RetryUpgradeActionServiceTest {
   private void prepareUpgrade() throws AmbariException {
     RepositoryVersionEntity repoVersionEntity = new RepositoryVersionEntity();
     repoVersionEntity.setDisplayName("Version to Upgrade To");
-    repoVersionEntity.setOperatingSystems("");
+    repoVersionEntity.addRepoOsEntities(new ArrayList<>());
     repoVersionEntity.setStack(stackEntity220);
     repoVersionEntity.setVersion("2.2.0.1");
     repoVersionDAO.create(repoVersionEntity);
@@ -295,7 +295,7 @@ public class RetryUpgradeActionServiceTest {
     hrc1.setRole(Role.ZOOKEEPER_SERVER);
     hrc1.setRoleCommand(RoleCommand.RESTART);
 
-    stageEntity.setHostRoleCommands(new ArrayList<HostRoleCommandEntity>());
+    stageEntity.setHostRoleCommands(new ArrayList<>());
     stageEntity.getHostRoleCommands().add(hrc1);
     hostRoleCommandDAO.create(hrc1);
     stageDAO.merge(stageEntity);

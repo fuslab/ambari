@@ -163,7 +163,6 @@ App.AlertConfigProperties = {
     name: 'alert_name',
     label: 'Alert Name',
     displayType: 'textField',
-    classNames: 'alert-text-input',
     apiProperty: 'name'
   }),
 
@@ -174,28 +173,18 @@ App.AlertConfigProperties = {
     apiProperty: 'name'
   }),
 
-  ServiceAlertType: App.AlertConfigProperty.extend({
-    name: 'alert_type_service',
-    label: 'Service Alert Definition',
-    displayType: 'radioButton',
-    group: 'alert_type'
-  }),
-
-  HostAlertType: App.AlertConfigProperty.extend({
-    name: 'alert_type_host',
-    label: 'Host Alert Definition',
-    displayType: 'radioButton',
-    group: 'alert_type'
-  }),
-
   Service: App.AlertConfigProperty.extend({
     name: 'service',
     label: 'Service',
     displayType: 'select',
     apiProperty: 'service_name',
     apiFormattedValue: function () {
-      return App.StackService.find().findProperty('displayName', this.get('value')).get('serviceName');
-    }.property('value')
+      return this.get('value') === 'CUSTOM' ? this.get('value') : App.StackService.find().findProperty('displayName', this.get('value')).get('serviceName');
+    }.property('value'),
+    change: function () {
+      this.set('property.value', true);
+      this.get('parentView.controller').changeService(this.get('property.name'));
+    }
   }),
 
   Component: App.AlertConfigProperty.extend({
@@ -204,7 +193,7 @@ App.AlertConfigProperties = {
     displayType: 'select',
     apiProperty: 'component_name',
     apiFormattedValue: function () {
-      return App.StackServiceComponent.find().findProperty('displayName', this.get('value')).get('componentName');
+      return this.get('value') === 'No component' ? this.get('value') : App.StackServiceComponent.find().findProperty('displayName', this.get('value')).get('componentName');
     }.property('value')
   }),
 
@@ -222,7 +211,6 @@ App.AlertConfigProperties = {
     name: 'description',
     label: 'Description',
     displayType: 'textArea',
-    classNames: 'alert-config-text-area',
     // todo: check value after API will be provided
     apiProperty: 'description'
   }),
@@ -232,7 +220,7 @@ App.AlertConfigProperties = {
     label: 'Check Interval',
     displayType: 'textField',
     unit: 'Minute',
-    classNames: 'alert-interval-input',
+    colWidth: 'col-md-4',
     apiProperty: 'interval',
     isValid: function () {
       var value = this.get('value');
@@ -293,8 +281,6 @@ App.AlertConfigProperties = {
     text: '',
 
     displayType: 'threshold',
-
-    classNames: 'alert-thresholds-input',
 
     apiProperty: [],
 
@@ -408,9 +394,8 @@ App.AlertConfigProperties = {
 
   URI: App.AlertConfigProperty.extend({
     name: 'uri',
-    label: 'URI',
+    label: 'Host',
     displayType: 'textField',
-    classNames: 'alert-text-input',
     apiProperty: 'source.uri'
   }),
 
@@ -418,7 +403,6 @@ App.AlertConfigProperties = {
     name: 'uri',
     label: 'URI',
     displayType: 'textArea',
-    classNames: 'alert-config-text-area',
     apiProperty: 'source.uri',
     apiFormattedValue: function () {
       var result = {};
@@ -436,14 +420,18 @@ App.AlertConfigProperties = {
     label: 'Default Port',
     displayType: 'textField',
     classNames: 'alert-port-input',
-    apiProperty: 'source.default_port'
+    apiProperty: 'source.default_port',
+    isValid: function () {
+      var value = this.get('value');
+      if (!value) return false;
+      return String(value) === String(parseInt(value, 10)) && value >= 1;
+    }.property('value')
   }),
 
   Path: App.AlertConfigProperty.extend({
     name: 'path',
     label: 'Path',
     displayType: 'textField',
-    classNames: 'alert-text-input',
     apiProperty: 'source.path'
   }),
 
@@ -451,7 +439,6 @@ App.AlertConfigProperties = {
     name: 'metrics',
     label: 'JMX/Ganglia Metrics',
     displayType: 'textArea',
-    classNames: 'alert-config-text-area',
     apiProperty: Em.computed.ifThenElse('isJMXMetric', 'source.jmx.property_list', 'source.ganglia.property_list'),
     apiFormattedValue: function () {
       return this.get('value').split(',\n');
@@ -462,7 +449,6 @@ App.AlertConfigProperties = {
     name: 'metrics_string',
     label: 'Format String',
     displayType: 'textArea',
-    classNames: 'alert-config-text-area',
     apiProperty: Em.computed.ifThenElse('isJMXMetric', 'source.jmx.value', 'source.ganglia.value')
   }),
 
@@ -482,7 +468,7 @@ App.AlertConfigProperties = {
      * Custom css-class for different badges
      * type {string}
      */
-    badgeCssClass: Em.computed.format('alert-state-{0}', 'badge'),
+    badgeCssClass: Em.computed.format('alert-state-{0}', 'badge')
 
   })
 

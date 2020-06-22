@@ -21,27 +21,32 @@
     {{view App.SpinnerView}}
   </div>
   <div {{bindAttr class="view.isReady::hidden"}}>
-    <div class="btn-group display-inline-block">
-      <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
-        <span class="filters-label">{{t common.filter}}: </span>
-	        <span>
-	          {{view.selectedCategory.label}}
-              <span class="caret"></span>
-	        </span>
-      </a>
-      <ul class="dropdown-menu">
-          {{#each category in view.categories}}
-            <li>
-              <a {{action selectCategory category target="view"}} href="#">
-                  {{category.label}}
-              </a>
-            </li>
-          {{/each}}
-      </ul>
+    <div class="row">
+      <h2 class="table-title col-sm-3">{{t common.upgrade.history}}</h2>
+      <div class="table-controls row col-sm-9 pull-right">
+        <div class="col-sm-12">
+          <div class="btn-group pull-right">
+            <a class="btn btn-default dropdown-toggle" data-toggle="dropdown" href="#">
+              <span class="filters-label">{{t common.filter}}: </span>
+              <span>
+                {{view.selectedCategory.label}}
+                <span class="caret"></span>
+              </span>
+            </a>
+            <ul class="dropdown-menu">
+              {{#each category in view.categories}}
+                <li>
+                  <a {{action selectCategory category target="view"}} href="#">
+                    {{category.label}}
+                  </a>
+                </li>
+              {{/each}}
+            </ul>
+          </div>
+        </div>
+      </div>
     </div>
-    <br/>
-    <br/>
-    <table class="table advanced-header-table table-striped" id="upgrade-summary-table">
+    <table class="table advanced-header-table table-hover" id="upgrade-summary-table">
       <thead>
       <tr>
         <th>{{t common.direction}}</th>
@@ -57,12 +62,13 @@
       <tbody class="accordion" id="versionsAccordion">
         {{#if view.pageContent}}
           {{#each item in view.pageContent}}
-            <tr data-toggle="collapse"
-                data-parent="#versionsAccordion"
-                {{bindAttr href="item.idHref"}}>
+            <tr>
               <td class="name accordion-group">
                 <span class="trim_hostname accordion-heading">
-                  <i class="icon-caret-right accordion-toggle"></i>
+                  <i class="icon-caret-right accordion-toggle"
+                     data-toggle="collapse"
+                     data-parent="#versionsAccordion"
+                     {{bindAttr href="item.idHref"}}></i>
                   <a href="#" class="black"
                      {{action "showUpgradeHistoryRecord" item.stackUpgradeHistoryItem target="view"}}>
                     {{unbound item.directionLabel}}
@@ -71,20 +77,20 @@
                 <div class="accordion-body collapse" {{bindAttr id="item.id"}}>
                   <div class="accordion-inner">
                       {{#each service in item.services}}
-                        <div class="row-fluid service-version-info">
-                          <div class="span1 service-name">
+                        <div class="row service-version-info">
+                          <div class="col-xs-3 service-name">
                             {{service.displayName}}
                           </div>
-                          <div class="span1">
-                            <span class="label available">
+                          <div class="col-xs-3">
+                            <span class="label label-from available">
                               {{service.fromVersion}}
                             </span>
                           </div>
-                          <div class="span1">
+                          <div class="col-xs-3 align-center">
                             <i class="icon-arrow-right"></i>
                           </div>
-                          <div class="span1">
-                            <span class="label available">
+                          <div class="col-xs-3">
+                            <span class="label label-to available">
                               {{service.toVersion}}
                             </span>
                           </div>
@@ -97,7 +103,7 @@
                 <span>{{item.upgradeTypeLabel}}</span>
               </td>
               <td class="widest-column">
-                <span {{bindAttr data-original-title="item.repositoryName" }}>{{item.repositoryName}}</span>
+                <span {{bindAttr data-original-title="item.repositoryName"}}>{{item.repositoryName}}</span>
               </td>
               <td class="wide-column">
                 <span>{{item.repositoryType}}</span>
@@ -118,18 +124,13 @@
           {{/each}}
         {{/if}}
       </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="8">
+            {{view App.PaginationView}}
+          </td>
+        </tr>
+        </tfoot>
     </table>
-    <div class="page-bar">
-      <div class="items-on-page">
-        <label>{{t common.show}}: {{view view.rowsPerPageSelectView selectionBinding="view.displayLength"}}</label>
-      </div>
-      <div class="info">{{view.paginationInfo}}</div>
-      <div class="paging_two_button">
-        <a {{bindAttr class="view.paginationLeftClass"}}{{action previousPage target="view"}}><i
-          class="icon-arrow-left"></i></a>
-        <a {{bindAttr class="view.paginationRightClass"}}{{action nextPage target="view"}}><i
-          class="icon-arrow-right"></i></a>
-      </div>
-    </div>
   </div>
 </div>

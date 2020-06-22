@@ -18,25 +18,7 @@
 
 package org.apache.ambari.server.controller.internal;
 
-import org.apache.ambari.server.controller.AmbariManagementController;
-import org.apache.ambari.server.controller.KerberosHelper;
-import org.apache.ambari.server.controller.spi.Predicate;
-import org.apache.ambari.server.controller.spi.Request;
-import org.apache.ambari.server.controller.spi.Resource;
-import org.apache.ambari.server.controller.spi.ResourceProvider;
-import org.apache.ambari.server.controller.utilities.PredicateBuilder;
-import org.apache.ambari.server.controller.utilities.PropertyHelper;
-import org.apache.ambari.server.orm.dao.HostDAO;
-import org.apache.ambari.server.orm.dao.KerberosPrincipalDAO;
-import org.apache.ambari.server.orm.dao.KerberosPrincipalHostDAO;
-import org.apache.ambari.server.orm.entities.HostEntity;
-import org.apache.ambari.server.state.kerberos.KerberosIdentityDescriptor;
-import org.apache.ambari.server.state.kerberos.KerberosKeytabDescriptor;
-import org.apache.ambari.server.state.kerberos.KerberosPrincipalDescriptor;
-import org.apache.ambari.server.state.kerberos.KerberosPrincipalType;
-import org.easymock.EasyMockSupport;
-import org.junit.Assert;
-import org.junit.Test;
+import static org.easymock.EasyMock.expect;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -48,7 +30,26 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
-import static org.easymock.EasyMock.expect;
+import org.apache.ambari.server.controller.AmbariManagementController;
+import org.apache.ambari.server.controller.KerberosHelper;
+import org.apache.ambari.server.controller.spi.Predicate;
+import org.apache.ambari.server.controller.spi.Request;
+import org.apache.ambari.server.controller.spi.Resource;
+import org.apache.ambari.server.controller.spi.ResourceProvider;
+import org.apache.ambari.server.controller.utilities.PredicateBuilder;
+import org.apache.ambari.server.controller.utilities.PropertyHelper;
+import org.apache.ambari.server.orm.dao.HostDAO;
+import org.apache.ambari.server.orm.dao.KerberosKeytabPrincipalDAO;
+import org.apache.ambari.server.orm.dao.KerberosPrincipalDAO;
+import org.apache.ambari.server.orm.entities.HostEntity;
+import org.apache.ambari.server.orm.entities.KerberosKeytabPrincipalEntity;
+import org.apache.ambari.server.state.kerberos.KerberosIdentityDescriptor;
+import org.apache.ambari.server.state.kerberos.KerberosKeytabDescriptor;
+import org.apache.ambari.server.state.kerberos.KerberosPrincipalDescriptor;
+import org.apache.ambari.server.state.kerberos.KerberosPrincipalType;
+import org.easymock.EasyMockSupport;
+import org.junit.Assert;
+import org.junit.Test;
 
 
 /**
@@ -76,12 +77,12 @@ public class HostKerberosIdentityResourceProviderTest extends EasyMockSupport {
 
     AmbariManagementController managementController = createMock(AmbariManagementController.class);
 
-    Map<String, String> mapRequestProps = new HashMap<String, String>();
+    Map<String, String> mapRequestProps = new HashMap<>();
     mapRequestProps.put("context", "Called from a test");
 
     ResourceProvider provider = new HostKerberosIdentityResourceProvider(managementController);
 
-    Map<String, Object> properties = new LinkedHashMap<String, Object>();
+    Map<String, Object> properties = new LinkedHashMap<>();
 
     properties.put(HostKerberosIdentityResourceProvider.KERBEROS_IDENTITY_CLUSTER_NAME_PROPERTY_ID, "Cluster100");
     properties.put(HostKerberosIdentityResourceProvider.KERBEROS_IDENTITY_HOST_NAME_PROPERTY_ID, "Host100");
@@ -139,11 +140,12 @@ public class HostKerberosIdentityResourceProviderTest extends EasyMockSupport {
     expect(principalDescriptor1.getLocalUsername()).andReturn("principal1");
 
     KerberosKeytabDescriptor keytabDescriptor1 = createStrictMock(KerberosKeytabDescriptor.class);
-    expect(keytabDescriptor1.getOwnerAccess()).andReturn("rw").times(1);
-    expect(keytabDescriptor1.getGroupAccess()).andReturn("r").times(1);
     expect(keytabDescriptor1.getFile()).andReturn("/etc/security/keytabs/principal1.headless.keytab").times(1);
-    expect(keytabDescriptor1.getOwnerName()).andReturn("principal1").times(1);
-    expect(keytabDescriptor1.getGroupName()).andReturn("principal1").times(1);
+    expect(keytabDescriptor1.getOwnerAccess()).andReturn("rw").once();
+    expect(keytabDescriptor1.getGroupAccess()).andReturn("r").once();
+    expect(keytabDescriptor1.getFile()).andReturn("/etc/security/keytabs/principal1.headless.keytab").times(1);
+    expect(keytabDescriptor1.getOwnerName()).andReturn("principal1").once();
+    expect(keytabDescriptor1.getGroupName()).andReturn("principal1").once();
 
     KerberosIdentityDescriptor identity1 = createStrictMock(KerberosIdentityDescriptor.class);
     expect(identity1.getPrincipalDescriptor()).andReturn(principalDescriptor1).times(1);
@@ -188,9 +190,12 @@ public class HostKerberosIdentityResourceProviderTest extends EasyMockSupport {
     expect(kerberosPrincipalDAO.exists("principal2/Host100@EXAMPLE.COM")).andReturn(true).times(1);
     expect(kerberosPrincipalDAO.exists("principal5@EXAMPLE.COM")).andReturn(false).times(1);
 
-    KerberosPrincipalHostDAO kerberosPrincipalHostDAO = createStrictMock(KerberosPrincipalHostDAO.class);
-    expect(kerberosPrincipalHostDAO.exists("principal1@EXAMPLE.COM", 100L)).andReturn(true).times(1);
-    expect(kerberosPrincipalHostDAO.exists("principal2/Host100@EXAMPLE.COM", 100L)).andReturn(false).times(1);
+    KerberosKeytabPrincipalDAO kerberosKeytabPrincipalDAO = createStrictMock(KerberosKeytabPrincipalDAO.class);
+    KerberosKeytabPrincipalEntity distributedEntity = new KerberosKeytabPrincipalEntity();
+    distributedEntity.setDistributed(true);
+    expect(kerberosKeytabPrincipalDAO.findByNaturalKey(100L,"/etc/security/keytabs/principal1.headless.keytab", "principal1@EXAMPLE.COM"))
+      .andReturn(distributedEntity)
+      .times(1);
 
     HostEntity host100 = createStrictMock(HostEntity.class);
     expect(host100.getHostId()).andReturn(100L).times(1);
@@ -198,14 +203,14 @@ public class HostKerberosIdentityResourceProviderTest extends EasyMockSupport {
     HostDAO hostDAO = createStrictMock(HostDAO.class);
     expect(hostDAO.findByName("Host100")).andReturn(host100).times(1);
 
-    Collection<KerberosIdentityDescriptor> identities = new ArrayList<KerberosIdentityDescriptor>();
+    Collection<KerberosIdentityDescriptor> identities = new ArrayList<>();
     identities.add(identity1);
     identities.add(identity2);
     identities.add(identity3);
     identities.add(identity4);
     identities.add(identity5);
 
-    Map<String, Collection<KerberosIdentityDescriptor>> activeIdentities = new HashMap<String, Collection<KerberosIdentityDescriptor>>();
+    Map<String, Collection<KerberosIdentityDescriptor>> activeIdentities = new HashMap<>();
     activeIdentities.put("Host100", identities);
 
     KerberosHelper kerberosHelper = createStrictMock(KerberosHelper.class);
@@ -228,15 +233,15 @@ public class HostKerberosIdentityResourceProviderTest extends EasyMockSupport {
     field.setAccessible(true);
     field.set(provider, kerberosPrincipalDAO);
 
-    field = HostKerberosIdentityResourceProvider.class.getDeclaredField("kerberosPrincipalHostDAO");
+    field = HostKerberosIdentityResourceProvider.class.getDeclaredField("kerberosKeytabPrincipalDAO");
     field.setAccessible(true);
-    field.set(provider, kerberosPrincipalHostDAO);
+    field.set(provider, kerberosKeytabPrincipalDAO);
 
     field = HostKerberosIdentityResourceProvider.class.getDeclaredField("hostDAO");
     field.setAccessible(true);
     field.set(provider, hostDAO);
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     propertyIds.add(HostKerberosIdentityResourceProvider.KERBEROS_IDENTITY_CLUSTER_NAME_PROPERTY_ID);
     propertyIds.add(HostKerberosIdentityResourceProvider.KERBEROS_IDENTITY_HOST_NAME_PROPERTY_ID);

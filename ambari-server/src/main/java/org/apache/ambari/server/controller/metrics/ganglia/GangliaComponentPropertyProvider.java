@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,9 +27,7 @@ import org.apache.ambari.server.configuration.ComponentSSLConfiguration;
 import org.apache.ambari.server.controller.internal.PropertyInfo;
 import org.apache.ambari.server.controller.internal.URLStreamProvider;
 import org.apache.ambari.server.controller.metrics.MetricHostProvider;
-import org.apache.ambari.server.controller.metrics.MetricsPropertyProvider;
 import org.apache.ambari.server.controller.spi.Resource;
-import org.apache.ambari.server.controller.utilities.StreamProvider;
 
 /**
  * Ganglia property provider implementation for component resources.
@@ -67,8 +65,8 @@ public class GangliaComponentPropertyProvider extends GangliaPropertyProvider {
   protected Set<String> getGangliaClusterNames(Resource resource, String clusterName) {
     String component = getComponentName(resource);
     
-    return new HashSet<String>(GANGLIA_CLUSTER_NAME_MAP.containsKey(component) ?
-        GANGLIA_CLUSTER_NAME_MAP.get(component) :
-          Collections.<String>emptyList());    
+    return new HashSet<>(GANGLIA_CLUSTER_NAME_MAP.containsKey(component) ?
+      GANGLIA_CLUSTER_NAME_MAP.get(component) :
+      Collections.emptyList());
   }
 }

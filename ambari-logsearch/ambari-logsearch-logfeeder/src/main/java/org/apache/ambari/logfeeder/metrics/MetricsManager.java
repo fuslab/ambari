@@ -19,22 +19,26 @@
 
 package org.apache.ambari.logfeeder.metrics;
 
-import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.TreeMap;
 
+import org.apache.ambari.logfeeder.conf.LogFeederSecurityConfig;
+import org.apache.ambari.logfeeder.conf.MetricsCollectorConfig;
+import org.apache.ambari.logfeeder.plugin.common.MetricData;
 import org.apache.ambari.logfeeder.util.LogFeederUtil;
 import org.apache.hadoop.metrics2.sink.timeline.TimelineMetric;
 import org.apache.hadoop.metrics2.sink.timeline.TimelineMetrics;
 import org.apache.log4j.Logger;
 
+import javax.annotation.PostConstruct;
+import javax.inject.Inject;
+
 public class MetricsManager {
   private static final Logger LOG = Logger.getLogger(MetricsManager.class);
 
   private boolean isMetricsEnabled = false;
-  private String nodeHostName = null;
   private String appId = "logfeeder";
 
   private long lastPublishTimeMS = 0; // Let's do the first publish immediately
@@ -42,18 +46,24 @@ public class MetricsManager {
 
   private int publishIntervalMS = 60 * 1000;
   private int maxMetricsBuffer = 60 * 60 * 1000; // If AMS is down, we should not keep the metrics in memory forever
-  private HashMap<String, TimelineMetric> metricsMap = new HashMap<String, TimelineMetric>();
+  private HashMap<String, TimelineMetric> metricsMap = new HashMap<>();
   private LogFeederAMSClient amsClient = null;
 
+  @Inject
+  private MetricsCollectorConfig metricsCollectorConfig;
+
+  @Inject
+  private LogFeederSecurityConfig logFeederSecurityConfig;
+
+  @PostConstruct
   public void init() {
     LOG.info("Initializing MetricsManager()");
     if (amsClient == null) {
-      amsClient = new LogFeederAMSClient();
+      amsClient = new LogFeederAMSClient(metricsCollectorConfig, logFeederSecurityConfig);
     }
 
     if (amsClient.getCollectorUri(null) != null) {
-      findNodeHostName();
-      if (nodeHostName == null) {
+      if (LogFeederUtil.hostName == null) {
         isMetricsEnabled = false;
         LOG.error("Failed getting hostname for node. Disabling publishing LogFeeder metrics");
       } else {
@@ -62,24 +72,6 @@ public class MetricsManager {
       }
     } else {
       LOG.info("LogFeeder Metrics publish is disabled");
-    }
-  }
-
-  private void findNodeHostName() {
-    nodeHostName = LogFeederUtil.getStringProperty("node.hostname");
-    if (nodeHostName == null) {
-      try {
-        nodeHostName = InetAddress.getLocalHost().getHostName();
-      } catch (Throwable e) {
-        LOG.warn("Error getting hostname using InetAddress.getLocalHost().getHostName()", e);
-      }
-    }
-    if (nodeHostName == null) {
-      try {
-        nodeHostName = InetAddress.getLocalHost().getCanonicalHostName();
-      } catch (Throwable e) {
-        LOG.warn("Error getting hostname using InetAddress.getLocalHost().getCanonicalHostName()", e);
-      }
     }
   }
 
@@ -93,7 +85,7 @@ public class MetricsManager {
     }
     LOG.info("useMetrics() metrics.size=" + metricsList.size());
     long currMS = System.currentTimeMillis();
-
+    
     gatherMetrics(metricsList, currMS);
     publishMetrics(currMS);
   }
@@ -119,7 +111,7 @@ public class MetricsManager {
         LOG.debug("Creating new metric obbject for " + metric.metricsName);
         timelineMetric = new TimelineMetric();
         timelineMetric.setMetricName(metric.metricsName);
-        timelineMetric.setHostName(nodeHostName);
+        timelineMetric.setHostName(LogFeederUtil.hostName);
         timelineMetric.setAppId(appId);
         timelineMetric.setStartTime(currMS);
         timelineMetric.setType("Long");
@@ -127,7 +119,7 @@ public class MetricsManager {
 
         metricsMap.put(metric.metricsName, timelineMetric);
       }
-
+      
       LOG.debug("Adding metrics=" + metric.metricsName);
       if (metric.isPointInTime) {
         timelineMetric.getMetricValues().put(currMSLong, new Double(currCount));
@@ -149,7 +141,7 @@ public class MetricsManager {
         TimelineMetrics timelineMetrics = new TimelineMetrics();
         timelineMetrics.setMetrics(new ArrayList<TimelineMetric>(metricsMap.values()));
         amsClient.emitMetrics(timelineMetrics);
-
+        
         LOG.info("Published " + timelineMetrics.getMetrics().size() + " metrics to AMS");
         metricsMap.clear();
         lastPublishTimeMS = currMS;

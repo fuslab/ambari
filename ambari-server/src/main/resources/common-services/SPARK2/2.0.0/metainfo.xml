@@ -24,6 +24,7 @@
       <displayName>Spark2</displayName>
       <comment>Apache Spark 2.0 is a fast and general engine for large-scale data processing. This service is &lt;b&gt;Technical Preview&lt;/b&gt;.</comment>
       <version>2.0.0</version>
+      <selection>TECH_PREVIEW</selection>
       <components>
         <component>
           <name>SPARK2_JOBHISTORYSERVER</name>
@@ -197,7 +198,7 @@
 
       <osSpecifics>
         <osSpecific>
-          <osFamily>redhat7,amazon2015,redhat6,suse11,suse12</osFamily>
+          <osFamily>redhat7,amazonlinux2,redhat6,suse11,suse12</osFamily>
           <packages>
             <package>
               <name>spark2_${stack_version}</name>
@@ -225,6 +226,14 @@
           <default>true</default>
         </quickLinksConfiguration>
       </quickLinksConfigurations>
+
+      <themes>
+        <theme>
+          <fileName>directories.json</fileName>
+          <default>true</default>
+        </theme>
+      </themes>
+
     </service>
   </services>
 </metainfo>

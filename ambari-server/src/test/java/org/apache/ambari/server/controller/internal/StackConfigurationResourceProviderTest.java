@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -47,14 +47,14 @@ public class StackConfigurationResourceProviderTest {
   @Test
   public void testGetResources() throws Exception{
        
-    Map<String, String> attributes = new HashMap<String, String>();
+    Map<String, String> attributes = new HashMap<>();
     attributes.put("final", "true");
 
     Resource.Type type = Resource.Type.StackConfiguration;
 
     AmbariManagementController managementController = createMock(AmbariManagementController.class);
 
-    Set<StackConfigurationResponse> allResponse = new HashSet<StackConfigurationResponse>();
+    Set<StackConfigurationResponse> allResponse = new HashSet<>();
     
     allResponse.add(new StackConfigurationResponse(PROPERTY_NAME, PROPERTY_VALUE, PROPERTY_DESC, TYPE, attributes));
    
@@ -67,11 +67,9 @@ public class StackConfigurationResourceProviderTest {
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
         type,
-        PropertyHelper.getPropertyIds(type),
-        PropertyHelper.getKeyPropertyIds(type),
         managementController);
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     propertyIds.add(StackConfigurationResourceProvider.STACK_NAME_PROPERTY_ID);
     propertyIds.add(StackConfigurationResourceProvider.STACK_VERSION_PROPERTY_ID);
@@ -120,13 +118,13 @@ public class StackConfigurationResourceProviderTest {
   @Test
   public void testGetResources_noFinal() throws Exception{
 
-    Map<String, String> attributes = new HashMap<String, String>();
+    Map<String, String> attributes = new HashMap<>();
 
     Resource.Type type = Resource.Type.StackConfiguration;
 
     AmbariManagementController managementController = createMock(AmbariManagementController.class);
 
-    Set<StackConfigurationResponse> allResponse = new HashSet<StackConfigurationResponse>();
+    Set<StackConfigurationResponse> allResponse = new HashSet<>();
 
     allResponse.add(new StackConfigurationResponse(PROPERTY_NAME, PROPERTY_VALUE, PROPERTY_DESC, TYPE, attributes));
 
@@ -139,11 +137,9 @@ public class StackConfigurationResourceProviderTest {
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
         type,
-        PropertyHelper.getPropertyIds(type),
-        PropertyHelper.getKeyPropertyIds(type),
         managementController);
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     propertyIds.add(StackConfigurationResourceProvider.STACK_NAME_PROPERTY_ID);
     propertyIds.add(StackConfigurationResourceProvider.STACK_VERSION_PROPERTY_ID);

@@ -16,147 +16,157 @@
 * limitations under the License.
 }}
 
-<div id="confirm-hosts">
-  <h2>{{t installer.step3.header}}</h2>
+<div id="confirm-hosts" class="wizard-content col-md-9">
+  <h4 class="step-title">{{t installer.step3.header}}</h4>
+  <p class="step-description" {{QAAttr "step3-description"}}>{{t installer.step3.body}}</p>
 
-  <p class="alert alert-info">{{t installer.step3.body}}</p>
+  <div class="panel panel-default">
+    <div class="panel-body">
 
-  <div class="box">
-    <div class="box-header">
-      <div class="button-section">
-        {{#unless isBackDisabled}}
-          <button class="btn btn-primary step3-remove-selected-btn" {{bindAttr disabled="view.noHostsSelected"}}
-            {{action removeSelectedHosts target="controller" }}><i class="icon-trash icon-white"></i>
-            {{t installer.step3.removeSelected}}
-          </button>
-        {{/unless}}
-        {{#unless isRetryDisabled}}
-          <a class="btn btn-primary decommission"
-             href="#" {{action retrySelectedHosts target="view"}}><i class="icon-repeat icon-white"></i>
-            {{t installer.step3.retryFailed}}
-          </a>
-        {{/unless}}
+      <div class="panel panel-default panel-internal">
+        <div class="panel-heading compact-panel-heading">
+          <div class="button-section">
+            {{#unless view.noNotRunningHostsSelected}}
+              <button class="btn btn-primary" {{action removeSelectedHosts target="controller"}} {{QAAttr "remove-selected-button"}}>
+                <i class="glyphicon glyphicon-trash glyphicon-white"></i>
+                <span class="hidden-sm">{{t installer.step3.removeSelected}}</span>
+              </button>
+            {{/unless}}
+            {{#unless isRetryDisabled}}
+              <button class="btn btn-primary" {{action retrySelectedHosts target="view"}} {{QAAttr "retry-failed-button"}}>
+                <i class="glyphicon glyphicon-repeat glyphicon-white"></i>&nbsp;
+                <span class="hidden-sm">{{t installer.step3.retryFailed}}</span>
+              </button>
+            {{/unless}}
 
-        <div id="host-filter" class="pull-right">
-          <ul class="clearfix">
-            <li class="first">{{t common.show}}:</li>
-            {{#each category in view.categories}}
-              <li {{bindAttr class=":filter-status category.itemClass"}}>
-                <a {{action selectCategory category target="view"}} href="#">
-                  {{category.label}}
-                </a>
-              </li>
-              {{#unless category.last}}
-                <li class="divider">|</li>
-              {{/unless}}
-            {{/each}}
-          </ul>
+            <div id="host-filter" class="pull-right">
+              <ul class="clearfix">
+                <li class="first">{{t common.show}}:</li>
+                {{#each category in view.categories}}
+                  <li {{bindAttr class=":filter-status category.itemClass"}}>
+                    <a {{action selectCategory category target="view"}} {{QAAttr "hosts-filter-{category.hostsBootStatus}"}} href="#">
+                      {{category.label}}
+                    </a>
+                  </li>
+                  {{#unless category.last}}
+                    <li class="divider">|</li>
+                  {{/unless}}
+                {{/each}}
+              </ul>
+            </div>
+          </div>
+          <div class="clearfix"></div>
+        </div>
+        <div class="panel-body hosts-panel">
+          <div class="pre-scrollable col-sm-12" style="max-height: 440px;">
+            <table style="table-layout: fixed" id="confirm-hosts-table" class="table table-hover" {{QAAttr "confirm-hosts-table"}}>
+              <thead>
+              <tr>
+                <th {{QAAttr "confirm-hosts-table-heading-cell"}}>
+                  {{view App.CheckboxView checkedBinding="view.pageChecked"}}
+                </th>
+                <th {{QAAttr "confirm-hosts-table-heading-cell"}}>{{t common.host}}</th>
+                <!-- retrieved from local storage initially -->
+                <th {{QAAttr "confirm-hosts-table-heading-cell"}}>{{t common.progress}}</th>
+                <th {{QAAttr "confirm-hosts-table-heading-cell"}}>{{t common.status}}</th>
+                <!-- given by the parsing function that parses data from bootstrap call, dynamically assign the color -->
+                <th {{QAAttr "confirm-hosts-table-heading-cell"}}>{{t common.action}}</th>
+                <!-- empty th to contain extra space of table -->
+                <th></th>
+                <!-- trash icon -->
+                <!-- retry icon -->
+              </tr>
+              </thead>
+              <tbody {{QAAttr "confirm-hosts-table-body"}}>
+              {{#if view.pageContent}}
+                {{#each host in view.pageContent}}
+                  {{#view App.WizardHostView categoryBinding="controller.category" hostInfoBinding="host" data-qa="confirm-hosts-table-body-row"}}
+                    <td class="step3-table-checkbox" {{QAAttr "confirm-hosts-table-body-cell"}}>
+                      {{view App.CheckboxView checkedBinding="host.isChecked" labelIdentifier="select-host-checkbox"}}
+                    </td>
+                    <td class="host" {{QAAttr "confirm-hosts-table-body-cell"}}>
+                      <span title="{{unbound host.name}}" class="trim_hostname" {{QAAttr "confirm-hosts-table-host-name"}}>{{host.name}}</span>
+                    </td>
+                    <td class="step3-table-progress" {{QAAttr "confirm-hosts-table-body-cell"}}>
+                      <div class="progress">
+                        <div {{bindAttr class="host.bootBarColor host.isBootDone::progress-bar-striped host.isBootDone::active :progress-bar"}}
+                          {{QAAttr "{host.bootBarColor}"}}
+                          style="width:100%">
+                        </div>
+                      </div>
+                    </td>
+                    <td class="step3-table-status" {{QAAttr "confirm-hosts-table-body-cell"}}>
+                      <a href="javascript:void(null)" data-toggle="modal" {{action hostLogPopup host target="controller"}} {{QAAttr "host-status-link"}}>
+                        <span {{bindAttr class="host.bootStatusColor"}} {{QAAttr "host-status-{host.bootStatus}"}}>{{host.bootStatusForDisplay}}</span>
+                      </a>
+                    </td>
+                    <td class="step3-table-action" {{QAAttr "confirm-hosts-table-body-cell"}}>
+                      <a class="action" id="display-action" href="#" {{action remove target="view"}} {{bindAttr disabled="isBackDisabled"}} {{QAAttr "remove-host-button"}}>
+                        <i class="glyphicon glyphicon-trash" {{translateAttr title="common.remove"}}></i>
+                      </a>
+                    </td>
+                    <!-- empty td to contain extra space of table -->
+                    <td></td>
+                  {{/view}}
+                {{/each}}
+              {{else}}
+                <tr {{QAAttr "confirm-hosts-table-body-row"}}>
+                  <td class="step3-table-no-hosts" colspan="5" {{QAAttr "confirm-hosts-table-body-cell"}}>
+                    {{t hosts.table.noHosts}}
+                  </td>
+                </tr>
+              {{/if}}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="5">
+                  {{#if view.selectedHostsCount}}
+                    <a {{action selectedHostsPopup target="controller"}} href="#">
+                      {{view.selectedHostsCount}}
+                      {{pluralize view.selectedHostsCount singular="t:hosts.filters.selectedHostInfo" plural="t:hosts.filters.selectedHostsInfo"}}
+                    </a>
+                    -
+                    <a {{action unSelectAll target="view"}} href="#">{{t hosts.filters.clearSelection}}</a>
+                  {{/if}}
+                  {{view App.PaginationView}}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
       </div>
-    </div>
-
-    <div class="pre-scrollable" style="max-height: 440px;">
-      <table id="confirm-hosts-table" class="table table-bordered table-striped">
-        <thead>
-        <tr>
-          <th class="tinyspan">
-            {{view Ember.Checkbox checkedBinding="view.pageChecked"}}
-          </th>
-          <th class="span5">{{t common.host}}</th>
-          <!-- retrieved from local storage initially -->
-          <th class="span2">{{t common.progress}}</th>
-          <th class="span2">{{t common.status}}</th>
-          <!-- given by the parsing function that parses data from bootstrap call, dynamically assign the color -->
-          <th class="span2">{{t common.action}}</th>
-          <!-- trash icon -->
-          <!-- retry icon -->
-        </tr>
-        </thead>
-        <tbody>
-          {{#if view.pageContent}}
-            {{#each host in view.pageContent}}
-              {{#view App.WizardHostView categoryBinding="controller.category" hostInfoBinding="host"}}
-              <td class="step3-table-checkbox">
-                {{view Ember.Checkbox checkedBinding="host.isChecked"}}
-              </td>
-              <td class="host">
-                <span title="{{unbound host.name}}" class="trim_hostname">{{host.name}}</span>
-              </td>
-              <td class="step3-table-progress">
-                <div {{bindAttr class="host.bootBarColor host.isBootDone::progress-striped host.isBootDone::active :progress"}}>
-                  <div class="bar" style="width:100%">
-                  </div>
-                </div>
-              </td>
-              <td class="step3-table-status">
-                <a href="javascript:void(null)"
-                   data-toggle="modal" {{action hostLogPopup host target="controller"}}><span {{bindAttr class="host.bootStatusColor"}}>{{host.bootStatusForDisplay}}</span></a>
-              </td>
-              <td class="step3-table-action">
-                <a class="btn btn-mini" {{action remove target="view"}}{{bindAttr disabled="isBackDisabled"}}><i class="icon-trash"></i>
-                  {{t common.remove}}</a>
-              </td>
-              {{/view}}
-            {{/each}}
-          {{else}}
-          <tr>
-            <td class="step3-table-no-hosts" colspan="5">
-              {{t hosts.table.noHosts}}
-            </td>
-          </tr>
-          {{/if}}
-        </tbody>
-      </table>
-    </div>
-    <div id="hosts">
-      <div class="page-bar">
-        <div class="selected-hosts-info pull-left">
-          {{#if view.selectedHostsCount}}
-            <a {{action selectedHostsPopup target="controller"}} href="#">
-              {{view.selectedHostsCount}}
-              {{pluralize view.selectedHostsCount singular="t:hosts.filters.selectedHostInfo" plural="t:hosts.filters.selectedHostsInfo"}}
-            </a>
-            -
-            <a {{action unSelectAll target="view"}} href="#">{{t hosts.filters.clearSelection}}</a>
-          {{/if}}
-        </div>
-        <div class="items-on-page">
-          <label>{{t common.show}}: {{view view.rowsPerPageSelectView selectionBinding="view.displayLength"}}</label>
-        </div>
-        <div class="info">{{view.paginationInfo}}</div>
-        <div class="paging_two_button">
-          {{view view.paginationFirst}}
-          {{view view.paginationLeft}}
-          {{view view.paginationRight}}
-          {{view view.paginationLast}}
-        </div>
+      <div id="warningsSection">
+        {{#if hasMoreRegisteredHosts}}
+          <div {{bindAttr class=":alert :alert-warning"}} {{QAAttr "alert-warning"}}>
+            <a href="#" {{action registeredHostsPopup target="controller"}} {{QAAttr "alert-link"}}><span {{QAAttr "other-hosts-link"}}>{{view.registeredHostsMessage}}</span></a>
+          </div>
+        {{/if}}
+        {{#unless disableHostCheck}}
+          <div {{bindAttr class=":alert :alert-warning view.status isWarningsBoxVisible::hidden"}} {{QAAttr "{view.status}"}}>
+            {{view.message}}
+            <a href="#" {{action hostWarningsPopup warnings target="controller"}} {{QAAttr "alert-link"}}>{{view.linkText}}</a>
+            {{#unless isBootstrapFailed}}
+              {{#unless isWarningsLoaded}}
+                {{view App.SpinnerView data-qa="spinner"}}
+              {{/unless}}
+            {{/unless}}
+          </div>
+        {{/unless}}
       </div>
     </div>
   </div>
-  {{#if hasMoreRegisteredHosts}}
-    <div {{bindAttr class=":alert alert-warn"}}>
-      <a href="#" {{action registeredHostsPopup target="controller"}}>{{view.registeredHostsMessage}}</a>
-    </div>
-  {{/if}}
-  {{#unless disableHostCheck}}
-    <div {{bindAttr class=":alert view.status isWarningsBoxVisible::hidden"}}>
-      {{view.message}}
-      <a href="#" {{action hostWarningsPopup warnings target="controller"}}>{{view.linkText}}</a>
-      {{#unless isBootstrapFailed}}
-        {{#unless isWarningsLoaded}}
-          {{view App.SpinnerView}}
-        {{/unless}}
-      {{/unless}}
-    </div>
-  {{/unless}}
+</div>
+</div>
+<div class="wizard-footer col-md-12">
   <div class="btn-area">
-    <button type="button" class="btn pull-left installer-back-btn" {{bindAttr disabled="isBackButtonDisabled"}} {{action back}}>
+    <button type="button" class="btn btn-default pull-left installer-back-btn" {{bindAttr disabled="isBackButtonDisabled"}} {{action back}} {{QAAttr "wizard-back"}}>
       &larr; {{t common.back}}
       {{#if App.router.backBtnClickInProgress}}
         {{view App.SpinnerView tagName="span" classNames="service-button-spinner"}}
       {{/if}}
     </button>
-    <button type="button" class="btn btn-success pull-right" {{bindAttr disabled="isNextButtonDisabled"}} {{action submit target="controller"}}>
+    {{template "templates/wizard/installer_cancel_button"}}
+    <button type="button" class="btn btn-success pull-right" {{bindAttr disabled="isNextButtonDisabled"}} {{action submit target="controller"}} {{QAAttr "wizard-next"}}>
       {{#if App.router.nextBtnClickInProgress}}
         {{view App.SpinnerView tagName="span" classNames="service-button-spinner"}}
       {{/if}}

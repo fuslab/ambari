@@ -18,6 +18,14 @@
 
 package org.apache.ambari.server.view;
 
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.verify;
+
+import java.util.Arrays;
+import java.util.List;
+
 import org.apache.ambari.server.orm.dao.PrivilegeDAO;
 import org.apache.ambari.server.orm.dao.ViewDAO;
 import org.apache.ambari.server.orm.dao.ViewInstanceDAO;
@@ -28,14 +36,6 @@ import org.apache.ambari.server.orm.entities.ViewEntity;
 import org.apache.ambari.server.orm.entities.ViewInstanceEntity;
 import org.easymock.EasyMock;
 import org.junit.Test;
-
-import java.util.Arrays;
-import java.util.List;
-
-import static org.easymock.EasyMock.createNiceMock;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.verify;
 
 public class ViewInstanceOperationHandlerTest {
   @Test

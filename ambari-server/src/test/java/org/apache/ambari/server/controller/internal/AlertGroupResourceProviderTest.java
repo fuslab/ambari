@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -67,14 +67,14 @@ import org.easymock.EasyMock;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.google.inject.Binder;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Module;
 import com.google.inject.util.Modules;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
  * {@link AlertGroupResourceProvider} tests.
@@ -308,7 +308,7 @@ public class AlertGroupResourceProviderTest {
 
       // verify definitions and targets come back when requested
       List<AlertDefinitionResponse> definitions = (List<AlertDefinitionResponse>) r.getPropertyValue(AlertGroupResourceProvider.ALERT_GROUP_DEFINITIONS);
-      List<AlertTarget> targets = (List<AlertTarget>) r.getPropertyValue(AlertGroupResourceProvider.ALERT_GROUP_TARGETS);
+      List<?> targets = (List<?>) r.getPropertyValue(AlertGroupResourceProvider.ALERT_GROUP_TARGETS);
 
       assertNotNull(definitions);
       assertEquals(1, definitions.size());
@@ -433,22 +433,22 @@ public class AlertGroupResourceProviderTest {
    * @throws Exception
    */
   public void testCreateResources(Authentication authentication) throws Exception {
-    Capture<List<AlertGroupEntity>> listCapture = new Capture<List<AlertGroupEntity>>();
+    Capture<List<AlertGroupEntity>> listCapture = EasyMock.newCapture();
 
     // the definition IDs to associate with the group
-    List<Long> definitionIds = new ArrayList<Long>();
+    List<Long> definitionIds = new ArrayList<>();
     definitionIds.add(ALERT_DEF_ID);
 
     // the target IDs to associate with the group
-    List<Long> targetIds = new ArrayList<Long>();
+    List<Long> targetIds = new ArrayList<>();
     targetIds.add(ALERT_TARGET_ID);
 
     // definition entities to return from DAO
-    List<AlertDefinitionEntity> definitionEntities = new ArrayList<AlertDefinitionEntity>();
+    List<AlertDefinitionEntity> definitionEntities = new ArrayList<>();
     definitionEntities.addAll(getMockDefinitions());
 
     // target entities to return from DAO
-    List<AlertTargetEntity> targetEntities = new ArrayList<AlertTargetEntity>();
+    List<AlertTargetEntity> targetEntities = new ArrayList<>();
     targetEntities.addAll(getMockTargets());
 
     // expect create group
@@ -469,7 +469,7 @@ public class AlertGroupResourceProviderTest {
 
     AlertGroupResourceProvider provider = createProvider(m_amc);
 
-    Map<String, Object> requestProps = new HashMap<String, Object>();
+    Map<String, Object> requestProps = new HashMap<>();
     requestProps.put(AlertGroupResourceProvider.ALERT_GROUP_NAME,
         ALERT_GROUP_NAME);
 
@@ -525,25 +525,25 @@ public class AlertGroupResourceProviderTest {
    */
   @SuppressWarnings("unchecked")
   public void testUpdateResources(Authentication authentication) throws Exception {
-    Capture<AlertGroupEntity> entityCapture = new Capture<AlertGroupEntity>();
+    Capture<AlertGroupEntity> entityCapture = EasyMock.newCapture();
 
     // the definition IDs to associate with the group
-    List<Long> definitionIds = new ArrayList<Long>();
+    List<Long> definitionIds = new ArrayList<>();
     definitionIds.add(ALERT_DEF_ID);
 
     // the target IDs to associate with the group
-    List<Long> targetIds = new ArrayList<Long>();
+    List<Long> targetIds = new ArrayList<>();
     targetIds.add(ALERT_TARGET_ID);
 
     // definition entities to return from DAO
-    List<AlertDefinitionEntity> definitionEntities = new ArrayList<AlertDefinitionEntity>();
+    List<AlertDefinitionEntity> definitionEntities = new ArrayList<>();
     definitionEntities.addAll(getMockDefinitions());
 
     // target entities to return from DAO
-    List<AlertTargetEntity> targetEntities = new ArrayList<AlertTargetEntity>();
+    List<AlertTargetEntity> targetEntities = new ArrayList<>();
     targetEntities.addAll(getMockTargets());
 
-    m_dao.createGroups(EasyMock.anyObject(List.class));
+    m_dao.createGroups(EasyMock.anyObject());
     expectLastCall().times(1);
 
     AlertGroupEntity group = new AlertGroupEntity();
@@ -565,7 +565,7 @@ public class AlertGroupResourceProviderTest {
     SecurityContextHolder.getContext().setAuthentication(authentication);
 
     AlertGroupResourceProvider provider = createProvider(m_amc);
-    Map<String, Object> requestProps = new HashMap<String, Object>();
+    Map<String, Object> requestProps = new HashMap<>();
     requestProps.put(AlertGroupResourceProvider.ALERT_GROUP_NAME,
         ALERT_GROUP_NAME);
 
@@ -579,7 +579,7 @@ public class AlertGroupResourceProviderTest {
 
     // create new properties, and include the ID since we're not going through
     // a service layer which would add it for us automatically
-    requestProps = new HashMap<String, Object>();
+    requestProps = new HashMap<>();
     requestProps.put(AlertGroupResourceProvider.ALERT_GROUP_ID,
         ALERT_GROUP_ID.toString());
 
@@ -639,22 +639,22 @@ public class AlertGroupResourceProviderTest {
    */
   @SuppressWarnings("unchecked")
   private  void testUpdateDefaultGroup(Authentication authentication) throws Exception {
-    Capture<AlertGroupEntity> entityCapture = new Capture<AlertGroupEntity>();
+    Capture<AlertGroupEntity> entityCapture = EasyMock.newCapture();
 
     // the definition IDs to associate with the group
-    List<Long> definitionIds = new ArrayList<Long>();
+    List<Long> definitionIds = new ArrayList<>();
     definitionIds.add(ALERT_DEF_ID);
 
     // the target IDs to associate with the group
-    List<Long> targetIds = new ArrayList<Long>();
+    List<Long> targetIds = new ArrayList<>();
     targetIds.add(ALERT_TARGET_ID);
 
     // definition entities to return from DAO
-    List<AlertDefinitionEntity> definitionEntities = new ArrayList<AlertDefinitionEntity>();
+    List<AlertDefinitionEntity> definitionEntities = new ArrayList<>();
     definitionEntities.addAll(getMockDefinitions());
 
     // target entities to return from DAO
-    List<AlertTargetEntity> newTargetEntities = new ArrayList<AlertTargetEntity>();
+    List<AlertTargetEntity> newTargetEntities = new ArrayList<>();
     newTargetEntities.addAll(getMockTargets());
 
     Set<AlertTargetEntity> mockTargets2 = getMockTargets();
@@ -686,7 +686,7 @@ public class AlertGroupResourceProviderTest {
 
     // create new properties, and include the ID since we're not going through
     // a service layer which would add it for us automatically
-    Map<String, Object> requestProps = new HashMap<String, Object>();
+    Map<String, Object> requestProps = new HashMap<>();
     requestProps.put(AlertGroupResourceProvider.ALERT_GROUP_ID,
         ALERT_GROUP_ID.toString());
 
@@ -750,8 +750,8 @@ public class AlertGroupResourceProviderTest {
    * @throws Exception
    */
   private void testDeleteResources(Authentication authentication) throws Exception {
-    Capture<AlertGroupEntity> entityCapture = new Capture<AlertGroupEntity>();
-    Capture<List<AlertGroupEntity>> listCapture = new Capture<List<AlertGroupEntity>>();
+    Capture<AlertGroupEntity> entityCapture = EasyMock.newCapture();
+    Capture<List<AlertGroupEntity>> listCapture = EasyMock.newCapture();
 
     m_dao.createGroups(capture(listCapture));
     expectLastCall();
@@ -762,7 +762,7 @@ public class AlertGroupResourceProviderTest {
 
     AlertGroupResourceProvider provider = createProvider(m_amc);
 
-    Map<String, Object> requestProps = new HashMap<String, Object>();
+    Map<String, Object> requestProps = new HashMap<>();
     requestProps.put(AlertGroupResourceProvider.ALERT_GROUP_NAME,
         ALERT_GROUP_NAME);
 
@@ -902,7 +902,7 @@ public class AlertGroupResourceProviderTest {
     entity.setSourceType(SourceType.METRIC);
     entity.setSource("{\"type\" : \"METRIC\"}");
 
-    Set<AlertDefinitionEntity> definitions = new HashSet<AlertDefinitionEntity>();
+    Set<AlertDefinitionEntity> definitions = new HashSet<>();
     definitions.add(entity);
 
     return definitions;
@@ -920,7 +920,7 @@ public class AlertGroupResourceProviderTest {
     entity.setTargetName(ALERT_TARGET_NAME);
     entity.setNotificationType(ALERT_TARGET_TYPE);
 
-    Set<AlertTargetEntity> targets = new HashSet<AlertTargetEntity>();
+    Set<AlertTargetEntity> targets = new HashSet<>();
     targets.add(entity);
 
     return targets;

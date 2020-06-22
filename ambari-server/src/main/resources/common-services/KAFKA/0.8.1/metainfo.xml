@@ -88,7 +88,7 @@
       </configuration-dependencies>
       <osSpecifics>
         <osSpecific>
-          <osFamily>redhat7,amazon2015,redhat6,suse11,suse12</osFamily>
+          <osFamily>redhat7,amazonlinux2,redhat6,suse11,suse12</osFamily>
           <packages>
             <package>
               <name>kafka_${stack_version}</name>
@@ -105,6 +105,14 @@
         </osSpecific>
       </osSpecifics>
       <restartRequiredAfterChange>true</restartRequiredAfterChange>
+
+      <themes>
+        <theme>
+          <fileName>directories.json</fileName>
+          <default>true</default>
+        </theme>
+      </themes>
+
     </service>
   </services>
 </metainfo>

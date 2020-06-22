@@ -18,6 +18,11 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
 import org.apache.ambari.server.controller.spi.NoSuchResourceException;
 import org.apache.ambari.server.controller.spi.Predicate;
@@ -29,16 +34,12 @@ import org.apache.ambari.server.controller.spi.ResourceAlreadyExistsException;
 import org.apache.ambari.server.controller.spi.ResourceProvider;
 import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
+import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.apache.ambari.server.security.authorization.AuthorizationException;
+import org.apache.ambari.server.security.authorization.AuthorizationHelper;
 import org.apache.ambari.server.security.authorization.ResourceType;
 import org.apache.ambari.server.security.authorization.RoleAuthorization;
-import org.apache.ambari.server.security.authorization.AuthorizationHelper;
 import org.springframework.security.core.Authentication;
-
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * AbstractAuthorizedResourceProvider helps to provide an authorization layer for a resource provider.
@@ -81,13 +82,23 @@ public abstract class AbstractAuthorizedResourceProvider extends AbstractResourc
   private Set<RoleAuthorization> requiredDeleteAuthorizations = Collections.emptySet();
 
   /**
-   * Constructor
+   * Create a new resource provider. This constructor will initialize the
+   * specified {@link Resource.Type} with the provided keys. It should be used
+   * in cases where the provider declares its own keys instead of reading them
+   * from a JSON file.
    *
-   * @param propertyIds    the property ids
-   * @param keyPropertyIds the key property ids
+   * @param type
+   *          the type to set the properties for (not {@code null}).
+   * @param propertyIds
+   *          the property ids
+   * @param keyPropertyIds
+   *          the key property ids
    */
-  protected AbstractAuthorizedResourceProvider(Set<String> propertyIds, Map<Resource.Type, String> keyPropertyIds) {
+  AbstractAuthorizedResourceProvider(Resource.Type type, Set<String> propertyIds,
+      Map<Resource.Type, String> keyPropertyIds) {
     super(propertyIds, keyPropertyIds);
+    PropertyHelper.setPropertyIds(type, propertyIds);
+    PropertyHelper.setKeyPropertyIds(type, keyPropertyIds);
   }
 
   /**
@@ -522,8 +533,8 @@ public abstract class AbstractAuthorizedResourceProvider extends AbstractResourc
    */
   private Set<RoleAuthorization> createUnmodifiableSet(Set<RoleAuthorization> set) {
     return (set == null)
-        ? Collections.<RoleAuthorization>emptySet()
-        : Collections.unmodifiableSet(new HashSet<RoleAuthorization>(set));
+        ? Collections.emptySet()
+        : Collections.unmodifiableSet(new HashSet<>(set));
   }
 }
 

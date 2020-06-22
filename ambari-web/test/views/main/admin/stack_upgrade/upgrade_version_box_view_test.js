@@ -48,6 +48,9 @@ describe('App.UpgradeVersionBoxView', function () {
   });
 
   describe("#isUpgrading", function () {
+    beforeEach(function() {
+      view.set('controller.fromVersion', 'HDP-1');
+    });
     afterEach(function () {
       App.set('upgradeState', 'NOT_REQUIRED');
     });
@@ -62,6 +65,14 @@ describe('App.UpgradeVersionBoxView', function () {
       App.set('upgradeState', 'IN_PROGRESS');
       view.set('controller.upgradeVersion', 'HDP-2.2.2');
       view.set('content.displayName', 'HDP-2.2.2');
+      view.propertyDidChange('isUpgrading');
+      expect(view.get('isUpgrading')).to.be.true;
+    });
+    it("fromVersion correct", function () {
+      App.set('upgradeState', 'IN_PROGRESS');
+      view.set('controller.upgradeVersion', 'HDP-2.2.2');
+      view.set('content.displayName', 'HDP-2.2.1');
+      view.set('content.repositoryVersion', 'HDP-1');
       view.propertyDidChange('isUpgrading');
       expect(view.get('isUpgrading')).to.be.true;
     });
@@ -154,7 +165,6 @@ describe('App.UpgradeVersionBoxView', function () {
       jQueryMock;
     beforeEach(function () {
       sinon.stub(view.get('controller'), 'upgrade').returns(1);
-      view.set('content.stackVersion', Em.Object.create({supportsRevert: false}))
       jQueryMock = sinon.stub(window, '$');
     });
     afterEach(function () {
@@ -172,15 +182,12 @@ describe('App.UpgradeVersionBoxView', function () {
       expect(view.get('controller').upgrade.calledWith('content')).to.be.true;
     });
     it("action is taken from stateElement", function () {
-      var content =  Em.Object.create({
-        stackVersion: Em.Object.create({supportsRevert: false}),
-      });
       view.setProperties({
-        'content': content,
+        'content': 'content',
         'stateElement.action': 'upgrade'
       });
       view.runAction();
-      expect(view.get('controller').upgrade.calledWith(content)).to.be.true;
+      expect(view.get('controller').upgrade.calledWith('content')).to.be.true;
     });
     it("link is disabled", function () {
       jQueryMock.returns({
@@ -244,41 +251,115 @@ describe('App.UpgradeVersionBoxView', function () {
   });
   
   describe("#editRepositories()", function () {
-    var cases = [
-      {
-        isRepoUrlsEditDisabled: true,
-        popupShowCallCount: 0,
-        title: 'edit repo URLS disabled, popup shouldn\'t be shown'
-      },
-      {
-        isRepoUrlsEditDisabled: false,
-        popupShowCallCount: 1,
-        title: 'edit repo URLS enabled, popup should be shown'
-      }
-    ];
-    beforeEach(function () {
-      sinon.stub(App.RepositoryVersion, 'find').returns(Em.Object.create({
-        operatingSystems: []
-      }));
-      sinon.stub(App.ModalPopup, 'show', Em.K);
-    });
-    afterEach(function () {
-      App.RepositoryVersion.find.restore();
-      App.ModalPopup.show.restore();
-    });
-    cases.forEach(function (item) {
-      it(item.title, function () {
-        view.reopen({
-          isRepoUrlsEditDisabled: item.isRepoUrlsEditDisabled
+
+    describe('popup display', function () {
+      var cases = [
+        {
+          isRepoUrlsEditDisabled: true,
+          popupShowCallCount: 0,
+          title: 'edit repo URLS disabled, popup shouldn\'t be shown'
+        },
+        {
+          isRepoUrlsEditDisabled: false,
+          popupShowCallCount: 1,
+          title: 'edit repo URLS enabled, popup should be shown'
+        }
+      ];
+      beforeEach(function () {
+        sinon.stub(App.RepositoryVersion, 'find').returns(Em.Object.create({
+          operatingSystems: []
+        }));
+        sinon.stub(App.ModalPopup, 'show', Em.K);
+      });
+      afterEach(function () {
+        App.RepositoryVersion.find.restore();
+        App.ModalPopup.show.restore();
+      });
+      cases.forEach(function (item) {
+        it(item.title, function () {
+          view.reopen({
+            isRepoUrlsEditDisabled: item.isRepoUrlsEditDisabled
+          });
+          view.editRepositories();
+          expect(App.ModalPopup.show.callCount).to.equal(item.popupShowCallCount);
         });
-        view.editRepositories();
-        expect(App.ModalPopup.show.callCount).to.equal(item.popupShowCallCount);
+      });
+    });
+
+    describe('skip base URL validation', function () {
+      var checkbox,
+        cases = [
+          {
+            checked: true,
+            skipValidation: true,
+            title: 'option is enabled'
+          },
+          {
+            checked: false,
+            skipValidation: false,
+            title: 'option is disabled'
+          }
+        ];
+      beforeEach(function () {
+        sinon.stub(App.RepositoryVersion, 'find').returns(Em.Object.create({
+          operatingSystems: [
+            Em.Object.create({
+              repositories: [
+                Em.Object.create(),
+                Em.Object.create({
+                  skipValidation: true
+                }),
+                Em.Object.create({
+                  skipValidation: false
+                })
+              ]
+            }),
+            Em.Object.create({
+              repositories: [
+                Em.Object.create(),
+                Em.Object.create({
+                  skipValidation: true
+                }),
+                Em.Object.create({
+                  skipValidation: false
+                })
+              ]
+            })
+          ]
+        }));
+        sinon.stub(App.ModalPopup, 'show', function (popupOptions) {
+          var body = popupOptions.bodyClass.create();
+          return body.get('skipCheckBox').create({
+            parentView: body
+          });
+        });
+        view.reopen({
+          isRepoUrlsEditDisabled: false
+        });
+        checkbox = view.editRepositories();
+      });
+      afterEach(function () {
+        App.RepositoryVersion.find.restore();
+        App.ModalPopup.show.restore();
+      });
+      cases.forEach(function (item) {
+        it(item.title, function () {
+          checkbox.set('checked', item.checked);
+          checkbox.change();
+          var reposByOS = checkbox.get('repo.operatingSystems').mapProperty('repositories'),
+            result = reposByOS.map(function (repos) {
+              return repos.everyProperty('skipValidation', item.skipValidation);
+            });
+          expect(result).to.eql([true, true]);
+        });
       });
     });
   });
 
   describe("#showHosts()", function () {
     beforeEach(function () {
+      view.set('content.stackVersion', Em.Object.create({supportsRevert: false}));
+      view.set('content.stackServices', [Em.Object.create({isUpgradable: true})])
       sinon.spy(App.ModalPopup, 'show');
       sinon.stub(view, 'filterHostsByStack', Em.K);
     });
@@ -356,10 +437,6 @@ describe('App.UpgradeVersionBoxView', function () {
   });
 
   describe('#stateElement', function () {
-    beforeEach(function () {
-      view.set('content.stackVersion', Em.Object.create({supportsRevert: false}));
-      view.set('content.stackServices', [Em.Object.create({isUpgradable: true})])
-    });
 
     var cases = [
       {
@@ -370,7 +447,7 @@ describe('App.UpgradeVersionBoxView', function () {
           status: 'CURRENT',
           isLabel: true,
           text: Em.I18n.t('common.current'),
-          class: 'label top-label label-success'
+          class: 'label label-success'
         },
         title: 'current version'
       },
@@ -386,8 +463,7 @@ describe('App.UpgradeVersionBoxView', function () {
         expected: {
           isLabel: true,
           text: Em.I18n.t('common.current'),
-          class: 'label top-label label-success',
-          canBeReverted: false
+          class: 'label label-success'
         },
         title: 'current no-revertable patch version'
       },
@@ -401,10 +477,15 @@ describe('App.UpgradeVersionBoxView', function () {
           })
         },
         expected: {
-          isLabel: true,
+          isButtonGroup: true,
           text: Em.I18n.t('common.current'),
-          class: 'label top-label label-success',
-          canBeReverted: true
+          action: null,
+          buttons: [
+            {
+              text: Em.I18n.t('common.revert'),
+              action: 'confirmRevertPatchUpgrade'
+            }
+          ]
         },
         title: 'current revertable patch version'
       },
@@ -433,7 +514,7 @@ describe('App.UpgradeVersionBoxView', function () {
               "text": Em.I18n.t('common.hide')
             }
           ],
-          isDisabled: false
+          isDisabled: true
         },
         title: 'NOT_REQUIRED state, no admin access, no requests in progress'
       },
@@ -599,7 +680,7 @@ describe('App.UpgradeVersionBoxView', function () {
         expected: {
           status: 'INSTALLED',
           isButtonGroup: true,
-          iconClass: 'icon-ok',
+          iconClass: 'glyphicon glyphicon-ok',
           text: Em.I18n.t('common.installed'),
           action: null
         },
@@ -680,18 +761,7 @@ describe('App.UpgradeVersionBoxView', function () {
         expected: {
           status: 'INSTALLED',
           isButtonGroup: true,
-          buttons: [
-            {
-              text: Em.I18n.t('admin.stackVersions.version.reinstall'),
-              action: 'installRepoVersionPopup',
-              isDisabled: true
-            },
-            {
-              text: Em.I18n.t('admin.stackVersions.version.preUpgradeCheck'),
-              action: 'showUpgradeOptions',
-              isDisabled: true
-            }
-          ],
+          buttons: [],
           isDisabled: true
         },
         title: 'installed version, later than current one, admin access, no requests in progress, another installation running'
@@ -710,7 +780,7 @@ describe('App.UpgradeVersionBoxView', function () {
           status: 'INSTALLED',
           isLink: true,
           action: 'openUpgradeDialog',
-          iconClass: 'icon-cog',
+          iconClass: 'glyphicon glyphicon-cog',
           text: Em.I18n.t('admin.stackVersions.version.downgrade.running')
         },
         title: 'downgrading'
@@ -730,7 +800,7 @@ describe('App.UpgradeVersionBoxView', function () {
           status: 'INSTALLED',
           isLink: true,
           action: 'openUpgradeDialog',
-          iconClass: 'icon-cog',
+          iconClass: 'glyphicon glyphicon-cog',
           text: Em.I18n.t('admin.stackVersions.version.upgrade.running')
         },
         title: 'upgrading'
@@ -750,7 +820,7 @@ describe('App.UpgradeVersionBoxView', function () {
           status: 'UPGRADING',
           isLink: true,
           action: 'openUpgradeDialog',
-          iconClass: 'icon-pause',
+          iconClass: 'glyphicon glyphicon-pause',
           text: Em.I18n.t('admin.stackVersions.version.upgrade.pause')
         },
         title: 'upgrading, holding'
@@ -772,7 +842,7 @@ describe('App.UpgradeVersionBoxView', function () {
           status: 'UPGRADING',
           isLink: true,
           action: 'openUpgradeDialog',
-          iconClass: 'icon-pause',
+          iconClass: 'glyphicon glyphicon-pause',
           text: Em.I18n.t('admin.stackVersions.version.upgrade.pause')
         },
         title: 'upgrading, holding, isWizardRestricted=true'
@@ -792,7 +862,7 @@ describe('App.UpgradeVersionBoxView', function () {
           status: 'UPGRADING',
           isLink: true,
           action: 'openUpgradeDialog',
-          iconClass: 'icon-pause',
+          iconClass: 'glyphicon glyphicon-pause',
           text: Em.I18n.t('admin.stackVersions.version.upgrade.pause')
         },
         title: 'upgrading, holding failed'
@@ -812,7 +882,7 @@ describe('App.UpgradeVersionBoxView', function () {
           status: 'UPGRADING',
           isLink: true,
           action: 'openUpgradeDialog',
-          iconClass: 'icon-pause',
+          iconClass: 'glyphicon glyphicon-pause',
           text: Em.I18n.t('admin.stackVersions.version.upgrade.pause')
         },
         title: 'upgrading, upgrade aborted'
@@ -832,7 +902,7 @@ describe('App.UpgradeVersionBoxView', function () {
           status: 'UPGRADE_FAILED',
           isLink: true,
           action: 'openUpgradeDialog',
-          iconClass: 'icon-pause',
+          iconClass: 'glyphicon glyphicon-pause',
           text: Em.I18n.t('admin.stackVersions.version.upgrade.pause')
         },
         title: 'upgrade failed, holding finished on timeout'
@@ -852,7 +922,7 @@ describe('App.UpgradeVersionBoxView', function () {
           status: 'UPGRADE_FAILED',
           isLink: true,
           action: 'openUpgradeDialog',
-          iconClass: 'icon-pause',
+          iconClass: 'glyphicon glyphicon-pause',
           text: Em.I18n.t('admin.stackVersions.version.downgrade.pause')
         },
         title: 'downgrading, holding'
@@ -872,7 +942,7 @@ describe('App.UpgradeVersionBoxView', function () {
           status: 'UPGRADED',
           isLink: true,
           action: 'openUpgradeDialog',
-          iconClass: 'icon-pause',
+          iconClass: 'glyphicon glyphicon-pause',
           text: Em.I18n.t('admin.stackVersions.version.downgrade.pause')
         },
         title: 'downgrading, holding failed'
@@ -892,7 +962,7 @@ describe('App.UpgradeVersionBoxView', function () {
           status: 'UPGRADED',
           isLink: true,
           action: 'openUpgradeDialog',
-          iconClass: 'icon-pause',
+          iconClass: 'glyphicon glyphicon-pause',
           text: Em.I18n.t('admin.stackVersions.version.downgrade.pause')
         },
         title: 'downgrading, upgrade aborted'
@@ -912,7 +982,7 @@ describe('App.UpgradeVersionBoxView', function () {
           status: 'UPGRADED',
           isLink: true,
           action: 'openUpgradeDialog',
-          iconClass: 'icon-pause',
+          iconClass: 'glyphicon glyphicon-pause',
           text: Em.I18n.t('admin.stackVersions.version.downgrade.pause')
         },
         title: 'downgrading, holding finished on timeout'
@@ -933,7 +1003,7 @@ describe('App.UpgradeVersionBoxView', function () {
           isButton: true,
           action: 'resumeUpgrade',
           text: Em.I18n.t('admin.stackUpgrade.dialog.resume'),
-          isDisabled: false
+          isDisabled: true
         },
         title: 'upgrade suspended'
       },
@@ -1229,49 +1299,6 @@ describe('App.UpgradeVersionBoxView', function () {
     });
   });
 
-  describe('#addRemoveIopSelectButton', function() {
-    beforeEach(function() {
-      this.mock = sinon.stub(App, 'get');
-    });
-    afterEach(function() {
-      this.mock.restore();
-    });
-
-    it('should add remove Iop Select button', function() {
-      this.mock.withArgs('currentStackName').returns('BigInsights');
-      this.mock.withArgs('upgradeIsRunning').returns(false);
-      var element = Em.Object.create({
-        buttons: []
-      });
-      view.addRemoveIopSelectButton(element, true);
-      expect(element.get('buttons')[0]).to.be.eql({
-        text: Em.I18n.t('admin.stackVersions.removeIopSelect'),
-        action: 'removeIopSelect',
-        isDisabled: true
-      });
-    });
-
-    it('should not add remove Iop Select button when upgrade is running', function() {
-      this.mock.withArgs('currentStackName').returns('BigInsights-1');
-      this.mock.withArgs('upgradeIsRunning').returns(true);
-      var element = Em.Object.create({
-        buttons: []
-      });
-      view.addRemoveIopSelectButton(element, true);
-      expect(element.get('buttons')).to.be.empty;
-    });
-
-    it('should not add remove Iop Select button when stack not BigInsights', function() {
-      this.mock.withArgs('currentStackName').returns('HDP');
-      this.mock.withArgs('upgradeIsRunning').returns(false);
-      var element = Em.Object.create({
-        buttons: []
-      });
-      view.addRemoveIopSelectButton(element, true);
-      expect(element.get('buttons')).to.be.empty;
-    });
-  });
-
   describe('#processSuspendedState', function() {
 
     it('should process suspended state', function() {
@@ -1303,7 +1330,7 @@ describe('App.UpgradeVersionBoxView', function () {
       view.processUpgradingState(element);
       expect(element).to.be.eql(Em.Object.create({
         "action": "openUpgradeDialog",
-        "iconClass": "icon-pause",
+        "iconClass": "glyphicon glyphicon-pause",
         "isLink": true,
         "text": Em.I18n.t('admin.stackVersions.version.downgrade.pause')
       }));
@@ -1316,7 +1343,7 @@ describe('App.UpgradeVersionBoxView', function () {
       view.processUpgradingState(element);
       expect(element).to.be.eql(Em.Object.create({
         "action": "openUpgradeDialog",
-        "iconClass": "icon-pause",
+        "iconClass": "glyphicon glyphicon-pause",
         "isLink": true,
         "text": Em.I18n.t('admin.stackVersions.version.upgrade.pause')
       }));
@@ -1329,7 +1356,7 @@ describe('App.UpgradeVersionBoxView', function () {
       view.processUpgradingState(element);
       expect(element).to.be.eql(Em.Object.create({
         "action": "openUpgradeDialog",
-        "iconClass": "icon-cog",
+        "iconClass": "glyphicon glyphicon-cog",
         "isLink": true,
         "text": Em.I18n.t('admin.stackVersions.version.upgrade.running')
       }));
@@ -1342,7 +1369,7 @@ describe('App.UpgradeVersionBoxView', function () {
       view.processUpgradingState(element);
       expect(element).to.be.eql(Em.Object.create({
         "action": "openUpgradeDialog",
-        "iconClass": "icon-cog",
+        "iconClass": "glyphicon glyphicon-cog",
         "isLink": true,
         "text": Em.I18n.t('admin.stackVersions.version.downgrade.running')
       }));
@@ -1352,11 +1379,9 @@ describe('App.UpgradeVersionBoxView', function () {
   describe('#processPreUpgradeState', function() {
     beforeEach(function() {
       sinon.stub(view, 'isDisabledOnInstalled').returns(false);
-      sinon.stub(view, 'addRemoveIopSelectButton');
     });
     afterEach(function() {
       view.isDisabledOnInstalled.restore();
-      view.addRemoveIopSelectButton.restore();
     });
 
     it('version lower than current and in INSTALLED state', function() {
@@ -1375,7 +1400,7 @@ describe('App.UpgradeVersionBoxView', function () {
       view.processPreUpgradeState(element);
       expect(element).to.be.eql(Em.Object.create({
         "action": null,
-        "iconClass": "icon-ok",
+        "iconClass": "glyphicon glyphicon-ok",
         "isButtonGroup": true,
         "text": "Installed"
       }));
@@ -1430,7 +1455,6 @@ describe('App.UpgradeVersionBoxView', function () {
         "text": Em.I18n.t('common.installed'),
         "isDisabled": false
       })));
-      expect(view.addRemoveIopSelectButton.calledOnce).to.be.true;
     });
 
     it('version higher than current and in INSTALLED state hasnt services ant is patch', function() {
@@ -1463,7 +1487,6 @@ describe('App.UpgradeVersionBoxView', function () {
         "text": Em.I18n.t('common.installed'),
         "isDisabled": false
       })));
-      expect(view.addRemoveIopSelectButton.calledOnce).to.be.true;
     });
   });
 
@@ -1524,7 +1547,7 @@ describe('App.UpgradeVersionBoxView', function () {
           }
         ],
         "isButton": false,
-        "text": Em.I18n.t('common.install'),
+        "text": Em.I18n.t('admin.stackVersions.version.installNow'),
         "action": 'installRepoVersionPopup',
         "isDisabled": false,
         "isButtonGroup": true

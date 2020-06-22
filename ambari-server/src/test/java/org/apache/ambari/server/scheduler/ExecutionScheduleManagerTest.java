@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,17 +17,27 @@
  */
 package org.apache.ambari.server.scheduler;
 
-import com.google.gson.Gson;
-import com.google.inject.Binder;
-import com.google.inject.Guice;
-import com.google.inject.Inject;
-import com.google.inject.Injector;
-import com.google.inject.Module;
-import com.google.inject.persist.Transactional;
-import com.google.inject.util.Modules;
-import com.sun.jersey.api.client.Client;
-import com.sun.jersey.api.client.WebResource;
-import junit.framework.Assert;
+import static org.easymock.EasyMock.anyObject;
+import static org.easymock.EasyMock.capture;
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.createMockBuilder;
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.eq;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.verify;
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+
+import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.H2DatabaseCleaner;
 import org.apache.ambari.server.actionmanager.ActionDBAccessor;
@@ -68,26 +78,18 @@ import org.quartz.impl.matchers.GroupMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import com.google.gson.Gson;
+import com.google.inject.Binder;
+import com.google.inject.Guice;
+import com.google.inject.Inject;
+import com.google.inject.Injector;
+import com.google.inject.Module;
+import com.google.inject.persist.Transactional;
+import com.google.inject.util.Modules;
+import com.sun.jersey.api.client.Client;
+import com.sun.jersey.api.client.WebResource;
 
-import static org.easymock.EasyMock.anyObject;
-import static org.easymock.EasyMock.capture;
-import static org.easymock.EasyMock.createMock;
-import static org.easymock.EasyMock.createMockBuilder;
-import static org.easymock.EasyMock.createNiceMock;
-import static org.easymock.EasyMock.eq;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.expectLastCall;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.verify;
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import junit.framework.Assert;
 
 public class ExecutionScheduleManagerTest {
   private static Clusters clusters;
@@ -172,7 +174,7 @@ public class ExecutionScheduleManagerTest {
     batchSettings.setTaskFailureToleranceLimit(10);
     batches.setBatchSettings(batchSettings);
 
-    List<BatchRequest> batchRequests = new ArrayList<BatchRequest>();
+    List<BatchRequest> batchRequests = new ArrayList<>();
     BatchRequest batchRequest1 = new BatchRequest();
     batchRequest1.setOrderId(10L);
     batchRequest1.setType(BatchRequest.Type.DELETE);
@@ -357,7 +359,7 @@ public class ExecutionScheduleManagerTest {
     String type = "post";
     String body = "body";
     Integer userId = 1;
-    Map<Long, RequestExecution> executionMap = new HashMap<Long, RequestExecution>();
+    Map<Long, RequestExecution> executionMap = new HashMap<>();
     executionMap.put(executionId, requestExecutionMock);
 
     BatchRequestResponse batchRequestResponse = new BatchRequestResponse();
@@ -419,7 +421,7 @@ public class ExecutionScheduleManagerTest {
     long requestId = 5L;
     String clusterName = "mycluster";
 
-    Map<Long, RequestExecution> executionMap = new HashMap<Long, RequestExecution>();
+    Map<Long, RequestExecution> executionMap = new HashMap<>();
     executionMap.put(executionId, requestExecutionMock);
 
     BatchRequestResponse batchRequestResponse = new BatchRequestResponse();
@@ -465,7 +467,7 @@ public class ExecutionScheduleManagerTest {
     long requestId = 5L;
     String clusterName = "mycluster";
     String apiUri = "api/v1/clusters/mycluster/requests/5";
-    Capture<String> uriCapture = new Capture<String>();
+    Capture<String> uriCapture = EasyMock.newCapture();
 
     BatchRequestResponse batchRequestResponse = new BatchRequestResponse();
     batchRequestResponse.setStatus(HostRoleStatus.IN_PROGRESS.toString());
@@ -511,7 +513,7 @@ public class ExecutionScheduleManagerTest {
     BatchSettings batchSettings = new BatchSettings();
     batchSettings.setTaskFailureToleranceLimit(1);
 
-    Map<Long, RequestExecution> executionMap = new HashMap<Long, RequestExecution>();
+    Map<Long, RequestExecution> executionMap = new HashMap<>();
     executionMap.put(executionId, requestExecutionMock);
 
     expect(clustersMock.getCluster(clusterName)).andReturn(clusterMock).anyTimes();
@@ -561,7 +563,7 @@ public class ExecutionScheduleManagerTest {
     String clusterName = "c1";
     Date pastDate = new Date(new Date().getTime() - 2);
 
-    Map<Long, RequestExecution> executionMap = new HashMap<Long, RequestExecution>();
+    Map<Long, RequestExecution> executionMap = new HashMap<>();
     executionMap.put(executionId, requestExecutionMock);
 
     EasyMock.expect(configurationMock.getApiSSLAuthentication()).andReturn(Boolean.FALSE);
@@ -616,13 +618,13 @@ public class ExecutionScheduleManagerTest {
     expect(context.getJobDetail()).andReturn(jobDetail).anyTimes();
     expect(context.getMergedJobDataMap()).andReturn(jobDataMap).anyTimes();
     expect(jobDetail.getKey()).andReturn(new JobKey("TestJob"));
-    expect(jobDataMap.getWrappedMap()).andReturn(new HashMap<String,Object>());
+    expect(jobDataMap.getWrappedMap()).andReturn(new HashMap<>());
     expect(scheduleManagerMock.continueOnMisfire(context)).andReturn(true);
 
-    executionJob.doWork((Map<String, Object>) anyObject());
+    executionJob.doWork(EasyMock.anyObject());
     expectLastCall().andThrow(new AmbariException("Test Exception")).anyTimes();
 
-    executionJob.finalizeExecution((Map<String, Object>) anyObject());
+    executionJob.finalizeExecution(EasyMock.anyObject());
     expectLastCall().once();
 
     replay(scheduleManagerMock, executionJob, context, jobDataMap, jobDetail);
@@ -658,7 +660,7 @@ public class ExecutionScheduleManagerTest {
     ExecutionScheduleManager scheduleManager =
       new ExecutionScheduleManager(configurationMock, executionSchedulerMock,
         tokenStorageMock, clustersMock, actionDBAccessorMock, gson);
-    
+
     assertEquals(clustersEndpoint,
       scheduleManager.extendApiResource(webResource, "clusters").getURI().toString());
     assertEquals(clustersEndpoint,

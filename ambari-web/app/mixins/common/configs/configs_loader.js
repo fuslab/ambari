@@ -74,10 +74,11 @@ App.ConfigsLoader = Em.Mixin.create(App.GroupsMappingMixin, {
     this.set('preSelectedConfigVersion', null);
   },
 
-  loadPreSelectedConfigVersion: function () {
-    var preSelectedId = App.serviceConfigVersionsMapper.makeId(this.get('preSelectedConfigVersion.serviceName'), this.get('preSelectedConfigVersion.version'));
-    var defaultConfigVersion = App.ServiceConfigVersion.find(App.serviceConfigVersionsMapper.makeId(this.get('content.serviceName'), this.get('currentDefaultVersion')));
-    var preSelectedVersion = App.ServiceConfigVersion.find().someProperty('id', preSelectedId) ? this.get('preSelectedConfigVersion') : defaultConfigVersion;
+  /**
+   * @method loadPreSelectedConfigVersion
+   */
+  loadPreSelectedConfigVersion: function() {
+    var preSelectedVersion = this.get('preSelectedConfigVersion');
 
     this.set('selectedVersion', this.get('preSelectedConfigVersion.version'));
     /** handling redirecting from config history page **/
@@ -85,7 +86,8 @@ App.ConfigsLoader = Em.Mixin.create(App.GroupsMappingMixin, {
     this.loadConfigGroups(this.get('servicesToLoad')).done(function() {
       var selectedGroup = App.ServiceConfigGroup.find().find(function(g) {
         return g.get('serviceName') === preSelectedVersion.get('serviceName')
-          && (g.get('name') === preSelectedVersion.get('groupName') || preSelectedVersion.get('groupName') === App.ServiceConfigGroup.defaultGroupName && g.get('isDefault'));
+          && (g.get('name') === preSelectedVersion.get('groupName')
+              || preSelectedVersion.get('groupName') === App.ServiceConfigGroup.defaultGroupName && g.get('isDefault'));
       });
       self.set('selectedConfigGroup', selectedGroup);
       self.loadSelectedVersion(preSelectedVersion.get('version'), selectedGroup);
@@ -100,6 +102,7 @@ App.ConfigsLoader = Em.Mixin.create(App.GroupsMappingMixin, {
    */
   loadCurrentVersions: function() {
     this.set('isCompareMode', false);
+    this.set('compareServiceVersion', null);
     this.set('versionLoaded', false);
     this.set('selectedVersion', this.get('currentDefaultVersion'));
     this.set('preSelectedConfigVersion', null);
@@ -121,14 +124,16 @@ App.ConfigsLoader = Em.Mixin.create(App.GroupsMappingMixin, {
    */
   loadCurrentVersionsSuccess: function (data, opt, params) {
     var self = this;
+    var serviceGroups;
     App.configGroupsMapper.map(data, true, params.serviceNames.split(','));
     this.loadConfigGroups(params.serviceNames.split(',')).done(function () {
+      serviceGroups = App.ServiceConfigGroup.find().filterProperty('serviceName', self.get('content.serviceName'));
       if (self.get('isHostsConfigsPage')) {
-        self.set('selectedConfigGroup', App.ServiceConfigGroup.find().filterProperty('serviceName', self.get('content.serviceName')).find(function (cg) {
+        self.set('selectedConfigGroup', serviceGroups.find(function (cg) {
               return !cg.get('isDefault') && cg.get('hosts').contains(self.get('host.hostName'));
-            }) || App.ServiceConfigGroup.find().filterProperty('serviceName', self.get('content.serviceName')).findProperty('isDefault'));
+            }) || serviceGroups.findProperty('isDefault'));
       } else {
-        self.set('selectedConfigGroup', App.ServiceConfigGroup.find().filterProperty('serviceName', self.get('content.serviceName')).findProperty('isDefault'));
+        self.set('selectedConfigGroup', serviceGroups.findProperty('isDefault'));
       }
       self.parseConfigData(data);
     });
@@ -138,34 +143,60 @@ App.ConfigsLoader = Em.Mixin.create(App.GroupsMappingMixin, {
    * loads selected versions of current service
    * @method loadSelectedVersion
    */
-  loadSelectedVersion: function (version, switchToGroup) {
-    this.set('isCompareMode', false);
+  loadSelectedVersion: function (version, switchToGroup, stayInCompare) {
+    if (!stayInCompare) {
+      this.set('isCompareMode', false);
+      this.set('compareServiceVersion', null);
+    }
     this.set('versionLoaded', false);
     version = version || this.get('currentDefaultVersion');
     this.clearRecommendationsInfo();
     if (version === this.get('currentDefaultVersion') && (!switchToGroup || switchToGroup.get('isDefault'))) {
+      // current version with default group
       this.set('selectedVersion', this.get('currentDefaultVersion'));
       this.loadCurrentVersions();
     } else {
-      //version of non-default group require properties from current version of default group to correctly display page
-      var versions = this.isVersionDefault(version) ? [version] : [this.get('currentDefaultVersion'), version];
-      switchToGroup = this.isVersionDefault(version) && !switchToGroup ? this.get('configGroups').findProperty('isDefault') : switchToGroup;
+      // - version with DEFAULT config group but not CURRENT
+      // - ANY version with NON_DEFAULT config group
+      this.loadDefaultGroupVersion(version, switchToGroup);
+    }
+  },
 
-      if (this.get('dataIsLoaded') && switchToGroup) {
-        this.set('selectedConfigGroup', switchToGroup);
-      }
-      var selectedVersion = versions.length > 1 ? versions[1] : versions[0];
-      this.set('selectedVersion', selectedVersion);
-      this.trackRequest(App.ajax.send({
-        name: 'service.serviceConfigVersions.get.multiple',
-        sender: this,
-        data: {
-          serviceName: this.get('content.serviceName'),
-          serviceConfigVersions: versions,
-          additionalParams: this.get('dependentServiceNames.length') ? '|service_name.in(' + this.get('dependentServiceNames') + ')&is_current=true' : ''
-        },
-        success: 'loadSelectedVersionsSuccess'
-      }));
+  /**
+   * version with NON_DEFAULT group require properties from CURRENT version of DEFAULT group to correctly display page
+   * @param {string} version
+   * @param {?Em.Object} switchToGroup
+   */
+  loadDefaultGroupVersion: function(version, switchToGroup) {
+    var versions = this.isVersionDefault(version) ? [version] : [this.get('currentDefaultVersion'), version];
+    var selectedVersion = versions.length > 1 ? versions[1] : versions[0];
+
+    this.setSelectedConfigGroup(version, switchToGroup);
+    this.set('selectedVersion', selectedVersion);
+    this.trackRequest(App.ajax.send({
+      name: 'service.serviceConfigVersions.get.multiple',
+      sender: this,
+      data: {
+        serviceName: this.get('content.serviceName'),
+        serviceConfigVersions: versions,
+        additionalParams: this.get('dependentServiceNames.length') ? '|(service_name.in(' + this.get('dependentServiceNames') + ')&is_current=true)' : ''
+      },
+      success: 'loadSelectedVersionsSuccess'
+    }));
+  },
+
+  /**
+   *
+   * @param {string} version
+   * @param {?Em.Object} switchToGroup
+   */
+  setSelectedConfigGroup: function(version, switchToGroup) {
+    switchToGroup = (this.isVersionDefault(version) && !switchToGroup)
+      ? this.get('configGroups').findProperty('isDefault')
+      : switchToGroup;
+
+    if (this.get('dataIsLoaded') && switchToGroup) {
+      this.set('selectedConfigGroup', switchToGroup);
     }
   },
 

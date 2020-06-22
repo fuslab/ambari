@@ -27,11 +27,18 @@ class TestHDP22StackAdvisor(TestCase):
     import imp
     self.maxDiff = None
     self.testDirectory = os.path.dirname(os.path.abspath(__file__))
-    stackAdvisorPath = os.path.join(self.testDirectory, '../../../../../main/resources/stacks/stack_advisor.py')
-    hdp206StackAdvisorPath = os.path.join(self.testDirectory, '../../../../../main/resources/stacks/HDP/2.0.6/services/stack_advisor.py')
-    hdp21StackAdvisorPath = os.path.join(self.testDirectory, '../../../../../main/resources/stacks/HDP/2.1/services/stack_advisor.py')
-    hdp22StackAdvisorPath = os.path.join(self.testDirectory, '../../../../../main/resources/stacks/HDP/2.2/services/stack_advisor.py')
+
+    stacksPath = os.path.join(self.testDirectory, '../../../../../main/resources/stacks')
+    stackAdvisorPath = os.path.join(stacksPath, 'stack_advisor.py')
+    ambariConfigurationPath = os.path.join(stacksPath, 'ambari_configuration.py')
+    hdp206StackAdvisorPath = os.path.join(stacksPath, 'HDP/2.0.6/services/stack_advisor.py')
+    hdp21StackAdvisorPath = os.path.join(stacksPath, 'HDP/2.1/services/stack_advisor.py')
+    hdp22StackAdvisorPath = os.path.join(stacksPath, 'HDP/2.2/services/stack_advisor.py')
+
     hdp22StackAdvisorClassName = 'HDP22StackAdvisor'
+
+    with open(ambariConfigurationPath, 'rb') as fp:
+      imp.load_module('ambari_configuration', fp, ambariConfigurationPath, ('.py', 'rb', imp.PY_SOURCE))
     with open(stackAdvisorPath, 'rb') as fp:
       imp.load_module('stack_advisor', fp, stackAdvisorPath, ('.py', 'rb', imp.PY_SOURCE))
     with open(hdp206StackAdvisorPath, 'rb') as fp:
@@ -2300,517 +2307,6 @@ class TestHDP22StackAdvisor(TestCase):
     self.stackAdvisor.recommendMapReduce2Configurations(configurations, clusterData, services, hosts)
     self.assertEquals(configurations, expected)
 
-  def test_recommendAmsConfigurations(self):
-    configurations = {}
-    clusterData = {}
-
-    services = {
-      "services":  [ {
-        "StackServices": {
-          "service_name": "AMBARI_METRICS"
-        },
-        "components": [{
-          "StackServiceComponents": {
-            "component_name": "METRICS_COLLECTOR",
-            "hostnames": ["host1"]
-          }
-
-        }, {
-          "StackServiceComponents": {
-            "component_name": "METRICS_MONITOR",
-            "hostnames": ["host1"]
-          }
-
-        }]
-      }],
-      "configurations": []
-    }
-    hosts = {
-      "items": [{
-        "Hosts": {
-          "host_name": "host1",
-
-        }
-      }]
-    }
-
-    # 1-node cluster
-    expected = {
-      "ams-hbase-env": {
-        "properties": {
-          "hbase_master_xmn_size": "128",
-          "hbase_master_heapsize": "512",
-          "hbase_regionserver_heapsize": "512"
-        }
-      },
-      "ams-grafana-env": {
-        "properties" : {},
-        "property_attributes": {
-          "metrics_grafana_password": {
-            "visible": "false"
-          }
-        }
-      },
-      "ams-env": {
-        "properties": {
-          "metrics_collector_heapsize": "512",
-        }
-      },
-      "ams-hbase-site": {
-        "properties": {
-          "phoenix.coprocessor.maxMetaDataCacheSize": "20480000",
-          "hbase.regionserver.global.memstore.lowerLimit": "0.3",
-          "hbase.regionserver.global.memstore.upperLimit": "0.35",
-          "hbase.hregion.memstore.flush.size": "134217728",
-          "hfile.block.cache.size": "0.3",
-          "hbase.cluster.distributed": "false",
-          "hbase.rootdir": "file:///var/lib/ambari-metrics-collector/hbase",
-          "hbase.tmp.dir": "/var/lib/ambari-metrics-collector/hbase-tmp",
-          "hbase.zookeeper.property.clientPort": "61181",
-        }
-      },
-      "ams-site": {
-        "properties": {
-          "timeline.metrics.cluster.aggregate.splitpoints": "mem_buffered",
-          "timeline.metrics.host.aggregate.splitpoints": "mem_buffered",
-          "timeline.metrics.service.handler.thread.count": "20",
-          'timeline.metrics.service.webapp.address': '0.0.0.0:6188',
-          'timeline.metrics.service.watcher.disabled': 'false',
-          'timeline.metrics.cache.size': '100',
-          'timeline.metrics.cache.commit.interval': '10'
-        }
-      }
-    }
-    self.stackAdvisor.recommendAmsConfigurations(configurations, clusterData, services, hosts)
-    self.assertEquals(configurations, expected)
-
-    # 100-nodes cluster, but still only 1 sink (METRICS_COLLECTOR)
-    for i in range(2, 201):
-      hosts['items'].extend([{
-        "Hosts": {
-          "host_name": "host" + str(i)
-          }
-      }])
-
-    services['services'] = [
-      {
-        "StackServices": {
-          "service_name": "AMBARI_METRICS"
-        },
-        "components": [
-          {
-            "StackServiceComponents": {
-              "component_name": "METRICS_COLLECTOR",
-              "hostnames": ["host1"]
-            }
-          },
-          {
-            "StackServiceComponents": {
-              "component_name": "METRICS_MONITOR",
-              "hostnames": ["host" + str(i) for i in range(1, 201)]
-            }
-          }
-        ]
-      }
-    ]
-
-    expected["ams-site"]['properties']['timeline.metrics.cache.size'] = '500'
-    expected["ams-site"]['properties']['timeline.metrics.cache.commit.interval'] = '7'
-    expected["ams-hbase-env"]['properties']['hbase_master_heapsize'] = '2560'
-    expected["ams-hbase-env"]['properties']['hbase_master_xmn_size'] = '448'
-    expected["ams-env"]['properties']['metrics_collector_heapsize'] = '896'
-
-    self.stackAdvisor.recommendAmsConfigurations(configurations, clusterData, services, hosts)
-    self.assertEquals(configurations, expected)
-
-    # 200 nodes, but with HDFS and YARN services installed on all nodes
-    services['services'] = [
-      {
-        "StackServices": {
-          "service_name": "HDFS"
-        },
-        "components": [
-          {
-            "StackServiceComponents": {
-              "component_name": "NAMENODE",
-              "hostnames": ["host1"]
-            }
-          },
-          {
-            "StackServiceComponents": {
-              "component_name": "DATANODE",
-              "hostnames": ["host" + str(i) for i in range(1, 201)]
-            }
-          }
-        ]
-      },
-      {
-        "StackServices": {
-          "service_name": "YARN"
-        },
-        "components": [
-          {
-            "StackServiceComponents": {
-              "component_name": "RESOURCEMANAGER",
-              "hostnames": ["host1"]
-            }
-          },
-          {
-            "StackServiceComponents": {
-              "component_name": "NODEMANAGER",
-              "hostnames": ["host" + str(i) for i in range(1, 201)]
-            }
-          }
-        ]
-      },
-      {
-        "StackServices": {
-          "service_name": "AMBARI_METRICS"
-        },
-        "components": [
-          {
-            "StackServiceComponents": {
-              "component_name": "METRICS_COLLECTOR",
-              "hostnames": ["host1"]
-            }
-          },
-          {
-            "StackServiceComponents": {
-              "component_name": "METRICS_MONITOR",
-              "hostnames": ["host" + str(i) for i in range(1, 201)]
-            }
-          }
-        ]
-      }
-
-    ]
-    expected["ams-site"]['properties']['timeline.metrics.host.aggregate.splitpoints'] = 'dfs.FSNamesystem.FilesTotal,' \
-                                                                                        'dfs.datanode.WritesFromRemoteClient,' \
-                                                                                        'ipc.IPC.numCallsInReplicationQueue,' \
-                                                                                        'mapred.ShuffleMetrics.ShuffleOutputsFailed,' \
-                                                                                        'mem_buffered,' \
-                                                                                        'read_count,' \
-                                                                                        'regionserver.Server.percentFilesLocal,' \
-                                                                                        'rpcdetailed.rpcdetailed.RegisterNodeManagerNumOps,' \
-                                                                                        'sdisk_vdb_write_count'
-    expected["ams-site"]['properties']['timeline.metrics.cluster.aggregate.splitpoints'] = 'mem_total'
-
-    expected["ams-site"]['properties']['timeline.metrics.cache.size'] = '600'
-    expected["ams-site"]['properties']['timeline.metrics.cache.commit.interval'] = '6'
-    expected["ams-hbase-env"]['properties']['hbase_master_heapsize'] = '6656'
-    expected["ams-hbase-env"]['properties']['hbase_master_xmn_size'] = '1088'
-    expected["ams-env"]['properties']['metrics_collector_heapsize'] = '2176'
-
-    self.stackAdvisor.recommendAmsConfigurations(configurations, clusterData, services, hosts)
-    self.assertEquals(configurations, expected)
-
-    # Test splitpoints, AMS embedded mode
-    services['changed-configurations'] = [
-      {
-        "type": "ams-hbase-env",
-        "name": "hbase_master_heapsize",
-        "old_value": "1024"
-      }
-    ]
-
-    services['configurations'] = {
-      'core-site': {'properties': {}},
-      'ams-site': {'properties': {}},
-      'ams-hbase-site': {'properties': {}},
-      'ams-hbase-env': {'properties': {}}
-    }
-
-    # Embedded mode, 512m master heapsize, no splitpoints recommended
-    services["configurations"]['ams-hbase-env']['properties']['hbase_master_heapsize'] = '512'
-    services["configurations"]['ams-hbase-site']['properties']['hbase.regionserver.global.memstore.upperLimit'] = '0.4'
-    services["configurations"]['ams-hbase-site']['properties']['hbase.hregion.memstore.flush.size'] = '134217728'
-
-    expected['ams-site']['properties']['timeline.metrics.host.aggregate.splitpoints'] = 'mem_total'
-    expected['ams-site']['properties']['timeline.metrics.cluster.aggregate.splitpoints'] = 'mem_total'
-    expected['ams-hbase-env']['properties']['hbase_master_heapsize'] = '512'
-
-    self.stackAdvisor.recommendAmsConfigurations(configurations, clusterData, services, hosts)
-    self.assertEquals(configurations, expected)
-
-    # Embedded mode, 4096m master heapsize, some splitpoints recommended
-    services["configurations"]['ams-hbase-env']['properties']['hbase_master_heapsize'] = '4096'
-    expected['ams-site']['properties']['timeline.metrics.host.aggregate.splitpoints'] = 'dfs.namenode.BlockReportAvgTime,' \
-                                                                                        'master.AssignmentManger.Assign_mean,' \
-                                                                                        'regionserver.Server.Append_median,' \
-                                                                                        'rpcdetailed.rpcdetailed.client.CheckAccessNumOps'
-    expected['ams-site']['properties']['timeline.metrics.cluster.aggregate.splitpoints'] = 'mem_total'
-    expected['ams-hbase-env']['properties']['hbase_master_heapsize'] = '4096'
-    self.stackAdvisor.recommendAmsConfigurations(configurations, clusterData, services, hosts)
-    self.assertEquals(configurations, expected)
-
-
-    # Embedded mode, 8192m master heapsize, more splitpoints recommended
-    services["configurations"]['ams-hbase-env']['properties']['hbase_master_heapsize'] = '8192'
-    expected['ams-hbase-env']['properties']['hbase_master_heapsize'] = '8192'
-    self.stackAdvisor.recommendAmsConfigurations(configurations, clusterData, services, hosts)
-    self.assertEquals(len(configurations['ams-site']['properties']['timeline.metrics.host.aggregate.splitpoints'].split(',')), 13)
-    self.assertEquals(len(configurations['ams-site']['properties']['timeline.metrics.cluster.aggregate.splitpoints'].split(',')), 2)
-
-    # Test splitpoints, AMS distributed mode
-    services['changed-configurations'] = [
-      {
-        "type": "ams-hbase-env",
-        "name": "hbase_regionserver_heapsize",
-        "old_value": "512"
-      }
-    ]
-    services["configurations"]['ams-site']['properties']['timeline.metrics.service.operation.mode'] = 'distributed'
-    services["configurations"]["core-site"]["properties"]["fs.defaultFS"] = 'hdfs://host1:8020'
-    expected['ams-hbase-site']['properties']['hbase.cluster.distributed'] = 'true'
-    expected['ams-hbase-site']['properties']['hbase.rootdir'] = '/user/ams/hbase'
-    expected['ams-hbase-site']['properties']['hbase.zookeeper.property.clientPort'] = '2181'
-    expected['ams-hbase-env']['properties']['hbase_master_heapsize'] = '512'
-    expected['ams-hbase-site']['properties']['dfs.client.read.shortcircuit'] = 'true'
-
-    # Distributed mode, low memory, no splitpoints recommended
-    expected['ams-site']['properties']['timeline.metrics.host.aggregate.splitpoints'] = 'mem_total'
-    expected['ams-site']['properties']['timeline.metrics.cluster.aggregate.splitpoints'] = 'mem_total'
-    expected['ams-hbase-env']['properties']['hbase_regionserver_heapsize'] = '6656'
-    expected["ams-hbase-env"]['properties']['hbase_master_xmn_size'] = '102'
-    expected['ams-hbase-env']['properties']['regionserver_xmn_size'] = '1024'
-    expected['ams-site']['properties']['timeline.metrics.service.watcher.disabled'] = 'true'
-    self.stackAdvisor.recommendAmsConfigurations(configurations, clusterData, services, hosts)
-    self.assertEquals(configurations, expected)
-
-    # Distributed mode, more memory, more splitpoints recommended
-    services["configurations"]['ams-hbase-env']['properties']['hbase_regionserver_heapsize'] = '8192'
-    expected['ams-hbase-env']['properties']['hbase_regionserver_heapsize'] = '8192'
-    self.stackAdvisor.recommendAmsConfigurations(configurations, clusterData, services, hosts)
-    self.assertEquals(len(configurations['ams-site']['properties']['timeline.metrics.host.aggregate.splitpoints'].split(',')), 13)
-    self.assertEquals(len(configurations['ams-site']['properties']['timeline.metrics.cluster.aggregate.splitpoints'].split(',')), 2)
-
-    # 2000-nodes cluster
-    for i in range(202, 2001):
-        hosts['items'].extend([{
-            "Hosts": {
-                "host_name": "host" + str(i)
-            }
-        }])
-
-    services['services'] = [
-        {
-            "StackServices": {
-                "service_name": "AMBARI_METRICS"
-            },
-            "components": [
-                {
-                    "StackServiceComponents": {
-                        "component_name": "METRICS_COLLECTOR",
-                        "hostnames": ["host1"]
-                    }
-                },
-                {
-                    "StackServiceComponents": {
-                        "component_name": "METRICS_MONITOR",
-                        "hostnames": ["host" + str(i) for i in range(1, 2001)]
-                    }
-                }
-            ]
-        }
-    ]
-
-    self.stackAdvisor.recommendAmsConfigurations(configurations, clusterData, services, hosts)
-    self.assertEquals(configurations["ams-site"]['properties']['timeline.metrics.cache.size'], '700')
-    self.assertEquals(configurations["ams-site"]['properties']['timeline.metrics.cache.commit.interval'], '5')
-
-    # 500 Nodes with HDFS, YARN, HIVE, STORM, HBASE, KAFKA, AMS
-    node_count = 500
-    hosts = {
-      "items": []
-    }
-    for i in range(1, node_count):
-      hosts['items'].extend([{
-        "Hosts": {
-          "host_name": "host" + str(i)
-          }
-      }])
-
-    services['services'] = [
-      {
-        "StackServices": {
-          "service_name": "HDFS"
-        },
-        "components": [
-          {
-            "StackServiceComponents": {
-              "component_name": "NAMENODE",
-              "hostnames": ["host1"]
-            }
-          } ,
-          {
-            "StackServiceComponents": {
-              "component_name": "SECONDARY_NAMENODE",
-              "hostnames": ["host2"]
-            }
-          },
-          {
-            "StackServiceComponents": {
-              "component_name": "DATANODE",
-              "hostnames": ["host" + str(i) for i in range(6, node_count + 1)]
-            }
-          }
-        ]
-      },
-      {
-        "StackServices": {
-          "service_name": "HBASE"
-        },
-        "components": [
-          {
-            "StackServiceComponents": {
-              "component_name": "HBASE_MASTER",
-              "hostnames": ["host3"]
-            }
-          },
-          {
-            "StackServiceComponents": {
-              "component_name": "HBASE_REGIONSERVER",
-              "hostnames": ["host" + str(i) for i in range(6, node_count + 1)]
-            }
-          }
-        ]
-      },
-      {
-        "StackServices": {
-          "service_name": "YARN"
-        },
-        "components": [
-          {
-            "StackServiceComponents": {
-              "component_name": "RESOURCEMANAGER",
-              "hostnames": ["host4"]
-            }
-          },
-          {
-            "StackServiceComponents": {
-              "component_name": "NODEMANAGER",
-              "hostnames": ["host" + str(i) for i in range(6, node_count + 1)]
-            }
-          }
-        ]
-      },
-      {
-        "StackServices": {
-          "service_name": "HIVE"
-        },
-        "components": [
-          {
-            "StackServiceComponents": {
-              "component_name": "HIVE_METASTORE",
-              "hostnames": ["host3"]
-            }
-          },
-          {
-            "StackServiceComponents": {
-              "component_name": "HIVE_SERVER",
-              "hostnames": ["host3"]
-            }
-          }
-        ]
-      },
-      {
-        "StackServices": {
-          "service_name": "STORM"
-        },
-        "components": [
-          {
-            "StackServiceComponents": {
-              "component_name": "NIMBUS",
-              "hostnames": ["host" + str(i) for i in range(1, 6)]
-            }
-          }
-        ]
-      },
-      {
-        "StackServices": {
-          "service_name": "KAFKA"
-        },
-        "components": [
-          {
-            "StackServiceComponents": {
-              "component_name": "KAFKA_BROKER",
-              "hostnames": ["host" + str(i) for i in range(1, 6)]
-            }
-          }
-        ]
-      },
-      {
-        "StackServices": {
-          "service_name": "AMBARI_METRICS"
-        },
-        "components": [
-          {
-            "StackServiceComponents": {
-              "component_name": "METRICS_COLLECTOR",
-              "hostnames": ["host6"]
-            }
-          },
-          {
-            "StackServiceComponents": {
-              "component_name": "METRICS_MONITOR",
-              "hostnames": ["host" + str(i) for i in range(6, node_count + 1)]
-            }
-          }
-        ]
-      }
-    ]
-
-    services['configurations'] = {
-      'core-site': {'properties': {}},
-      'ams-site': {'properties': {}},
-      'ams-hbase-site': {'properties': {}},
-      'ams-hbase-env': {'properties': {}}
-    }
-    services["configurations"]['ams-site']['properties']['timeline.metrics.service.operation.mode'] = 'distributed'
-
-    expected['ams-hbase-site']['properties']['hbase.cluster.distributed'] = 'true'
-    expected['ams-hbase-site']['properties']['hbase.rootdir'] = '/user/ams/hbase'
-    expected['ams-hbase-site']['properties']['hbase.zookeeper.property.clientPort'] = '2181'
-
-    expected["ams-site"]['properties']['timeline.metrics.host.aggregate.splitpoints'] = 'default.General.active_calls_api_get_all_databases,' \
-                                                                                        'default.General.api_get_database_mean,' \
-                                                                                        'default.General.gc.PS-MarkSweep.count,' \
-                                                                                        'dfs.FsVolume.TotalDataFileIos,' \
-                                                                                        'disk_free,' \
-                                                                                        'jvm.JvmMetrics.MemHeapMaxM,' \
-                                                                                        'kafka.network.RequestMetrics.RemoteTimeMs.request.Metadata.75percentile,' \
-                                                                                        'kafka.network.RequestMetrics.ResponseQueueTimeMs.request.Update.Metadata.mean,' \
-                                                                                        'load_one,master.FileSystem.MetaHlogSplitTime_75th_percentile,' \
-                                                                                        'metricssystem.MetricsSystem.NumActiveSources,' \
-                                                                                        'regionserver.Server.Append_95th_percentile,' \
-                                                                                        'regionserver.Server.blockCacheEvictionCount,' \
-                                                                                        'rpc.rpc.client.SentBytes,' \
-                                                                                        'sdisk_vda1_write_bytes'
-    expected["ams-site"]['properties']['timeline.metrics.cluster.aggregate.splitpoints'] = 'ipc.IPC.authorizationSuccesses,' \
-                                                                                           'metricssystem.MetricsSystem.PublishNumOps'
-
-    expected["ams-site"]['properties']['timeline.metrics.cache.size'] = '700'
-    expected["ams-site"]['properties']['timeline.metrics.cache.commit.interval'] = '5'
-    expected["ams-site"]['properties']['timeline.metrics.service.resultset.fetchSize'] = '5000'
-    expected["ams-site"]['properties']['phoenix.query.maxGlobalMemoryPercentage'] = '30'
-
-    expected["ams-env"]['properties']['metrics_collector_heapsize'] = '7040'
-
-    expected["ams-hbase-env"]['properties']['hbase_master_heapsize'] = '512'
-    expected["ams-hbase-env"]['properties']['hbase_master_xmn_size'] = '102'
-
-    expected["ams-hbase-env"]['properties']['hbase_regionserver_heapsize'] = '21120'
-    expected["ams-hbase-env"]['properties']['regionserver_xmn_size'] = '3200'
-
-    expected["ams-hbase-site"]['properties']['phoenix.query.maxGlobalMemoryPercentage'] = '20'
-    expected['ams-hbase-site']['properties']['hbase.hregion.memstore.flush.size'] = '268435456'
-    expected['ams-hbase-site']['properties']['hbase.regionserver.handler.count'] = '60'
-    expected['ams-hbase-site']['properties']['hbase.regionserver.hlog.blocksize'] = '134217728'
-    expected['ams-hbase-site']['properties']['hbase.regionserver.maxlogs'] = '64'
-    expected['ams-hbase-site']['properties']['phoenix.coprocessor.maxMetaDataCacheSize'] = '40960000'
-
-    self.stackAdvisor.recommendAmsConfigurations(configurations, clusterData, services, hosts)
-    self.assertEquals(configurations, expected)
 
   def test_recommendHbaseConfigurations(self):
     servicesList = ["HBASE"]
@@ -3983,9 +3479,12 @@ class TestHDP22StackAdvisor(TestCase):
             "cpu_count" : 6,
             "total_mem" : 50331648,
             "disk_info" : [
-              {"mountpoint" : "/", "type": "ext3"},
-              {"mountpoint" : "/dev/shm", "type": "tmpfs"},
-              {"mountpoint" : "/vagrant", "type": "vboxsf"}
+              {"mountpoint" : "/"},
+              {"mountpoint" : "/dev/shm"},
+              {"mountpoint" : "/vagrant"},
+              {"mountpoint" : "/"},
+              {"mountpoint" : "/dev/shm"},
+              {"mountpoint" : "/vagrant"}
             ],
             "public_host_name" : "c6401.ambari.apache.org",
             "host_name" : "c6401.ambari.apache.org"
@@ -4031,22 +3530,22 @@ class TestHDP22StackAdvisor(TestCase):
       "yarn-site": {
         "properties": {
           "yarn.nodemanager.linux-container-executor.group": "hadoop",
-          "yarn.nodemanager.resource.memory-mb": "43008",
+          "yarn.nodemanager.container-executor.class": "org.apache.hadoop.yarn.server.nodemanager.LinuxContainerExecutor",
+          "yarn.nodemanager.linux-container-executor.cgroups.mount-path": "/cgroup",
+          "yarn.nodemanager.linux-container-executor.cgroups.mount": "true",
+          "yarn.nodemanager.resource.memory-mb": "33792",
           "yarn.scheduler.minimum-allocation-mb": "1024",
           "yarn.scheduler.maximum-allocation-vcores": "4",
           "yarn.scheduler.minimum-allocation-vcores": "1",
           "yarn.nodemanager.resource.cpu-vcores": "4",
-          "yarn.scheduler.maximum-allocation-mb": "43008",
+          "yarn.nodemanager.linux-container-executor.cgroups.hierarchy": "/yarn",
+          "yarn.scheduler.maximum-allocation-mb": "33792",
+          "yarn.nodemanager.linux-container-executor.resources-handler.class": "org.apache.hadoop.yarn.server.nodemanager.util.CgroupsLCEResourcesHandler",
+          "hadoop.registry.rm.enabled": "false",
           "yarn.timeline-service.leveldb-state-store.path": "/hadoop/yarn/timeline",
           "yarn.timeline-service.leveldb-timeline-store.path": "/hadoop/yarn/timeline",
-          "yarn.nodemanager.log-dirs": "/hadoop/yarn/log",
-          "yarn.nodemanager.linux-container-executor.cgroups.mount": "true",
-          "hadoop.registry.rm.enabled": "false",
-          "yarn.nodemanager.linux-container-executor.cgroups.hierarchy": "/yarn",
-          "yarn.nodemanager.container-executor.class": "org.apache.hadoop.yarn.server.nodemanager.LinuxContainerExecutor",
-          "yarn.nodemanager.local-dirs": "/hadoop/yarn/local",
-          "yarn.nodemanager.linux-container-executor.cgroups.mount-path": "/cgroup",
-          "yarn.nodemanager.linux-container-executor.resources-handler.class": "org.apache.hadoop.yarn.server.nodemanager.util.CgroupsLCEResourcesHandler"
+          "yarn.nodemanager.local-dirs": "/hadoop/yarn/local,/dev/shm/hadoop/yarn/local,/vagrant/hadoop/yarn/local",
+          "yarn.nodemanager.log-dirs": "/hadoop/yarn/log,/dev/shm/hadoop/yarn/log,/vagrant/hadoop/yarn/log"
         },
         "property_attributes": {
           "yarn.scheduler.minimum-allocation-vcores": {
@@ -4059,19 +3558,18 @@ class TestHDP22StackAdvisor(TestCase):
             "maximum": "49152"
           },
           "yarn.scheduler.minimum-allocation-mb": {
-            "maximum": "43008"
+            "maximum": "33792"
           },
           "yarn.nodemanager.resource.cpu-vcores": {
             "maximum": "12"
           },
           "yarn.scheduler.maximum-allocation-mb": {
-            "maximum": "43008"
+            "maximum": "33792"
           }
         }
       }
     }
 
-    hosts = self.stackAdvisor.filterHostMounts(hosts, services)
     clusterData = self.stackAdvisor.getConfigurationClusterSummary(servicesList, hosts, components, None)
     self.assertEquals(clusterData['hbaseRam'], 8)
 
@@ -4091,24 +3589,33 @@ class TestHDP22StackAdvisor(TestCase):
       "yarn-site": {
         "properties": {
           "yarn.nodemanager.linux-container-executor.group": "hadoop",
-          "yarn.nodemanager.resource.memory-mb": "43008",
+          "yarn.nodemanager.container-executor.class": "org.apache.hadoop.yarn.server.nodemanager.DefaultContainerExecutor",
+          "yarn.nodemanager.linux-container-executor.cgroups.mount-path": "/cgroup",
+          "yarn.nodemanager.linux-container-executor.cgroups.mount": "true",
+          "yarn.nodemanager.resource.memory-mb": "33792",
           "yarn.scheduler.minimum-allocation-mb": "1024",
           "yarn.scheduler.maximum-allocation-vcores": "4",
           "yarn.scheduler.minimum-allocation-vcores": "1",
           "yarn.nodemanager.resource.cpu-vcores": "4",
-          "yarn.scheduler.maximum-allocation-mb": "43008",
+          "yarn.nodemanager.linux-container-executor.cgroups.hierarchy": "/yarn",
+          "yarn.scheduler.maximum-allocation-mb": "33792",
+          "yarn.nodemanager.linux-container-executor.resources-handler.class": "org.apache.hadoop.yarn.server.nodemanager.util.CgroupsLCEResourcesHandler",
+          "hadoop.registry.rm.enabled": "false",
           "yarn.timeline-service.leveldb-state-store.path": "/hadoop/yarn/timeline",
           "yarn.timeline-service.leveldb-timeline-store.path": "/hadoop/yarn/timeline",
-          "yarn.nodemanager.log-dirs": "/hadoop/yarn/log",
-          "yarn.nodemanager.linux-container-executor.cgroups.mount": "true",
-          "hadoop.registry.rm.enabled": "false",
-          "yarn.nodemanager.linux-container-executor.cgroups.hierarchy": "/yarn",
-          "yarn.nodemanager.container-executor.class": "org.apache.hadoop.yarn.server.nodemanager.DefaultContainerExecutor",
-          "yarn.nodemanager.local-dirs": "/hadoop/yarn/local",
-          "yarn.nodemanager.linux-container-executor.cgroups.mount-path": "/cgroup",
-          "yarn.nodemanager.linux-container-executor.resources-handler.class": "org.apache.hadoop.yarn.server.nodemanager.util.CgroupsLCEResourcesHandler"
+          "yarn.nodemanager.local-dirs": "/hadoop/yarn/local,/dev/shm/hadoop/yarn/local,/vagrant/hadoop/yarn/local",
+          "yarn.nodemanager.log-dirs": "/hadoop/yarn/log,/dev/shm/hadoop/yarn/log,/vagrant/hadoop/yarn/log"
         },
         "property_attributes": {
+          "yarn.nodemanager.linux-container-executor.cgroups.mount": {
+            "delete": "true"
+          },
+          "yarn.nodemanager.linux-container-executor.cgroups.hierarchy": {
+            "delete": "true"
+          },
+          "yarn.nodemanager.linux-container-executor.cgroups.mount-path": {
+            "delete": "true"
+          },
           "yarn.scheduler.minimum-allocation-vcores": {
             "maximum": "4"
           },
@@ -4119,22 +3626,13 @@ class TestHDP22StackAdvisor(TestCase):
             "maximum": "49152"
           },
           "yarn.scheduler.minimum-allocation-mb": {
-            "maximum": "43008"
+            "maximum": "33792"
           },
           "yarn.nodemanager.resource.cpu-vcores": {
             "maximum": "12"
           },
           "yarn.scheduler.maximum-allocation-mb": {
-            "maximum": "43008"
-          },
-          "yarn.nodemanager.linux-container-executor.cgroups.mount": {
-            "delete": "true"
-          },
-          "yarn.nodemanager.linux-container-executor.cgroups.hierarchy": {
-            "delete": "true"
-          },
-          "yarn.nodemanager.linux-container-executor.cgroups.mount-path": {
-            "delete": "true"
+            "maximum": "33792"
           },
           "yarn.nodemanager.linux-container-executor.resources-handler.class": {
             "delete": "true"

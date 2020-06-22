@@ -44,7 +44,7 @@ def hbase(name=None):
   XmlConfig("hbase-site.xml",
             conf_dir = params.hbase_conf_dir,
             configurations = params.config['configurations']['hbase-site'],
-            configuration_attributes=params.config['configuration_attributes']['hbase-site']
+            configuration_attributes=params.config['configurationAttributes']['hbase-site']
   )
 
   if params.service_map.has_key(name):
@@ -107,7 +107,7 @@ def hbase(name=None):
   XmlConfig( "hbase-site.xml",
             conf_dir = params.hbase_conf_dir,
             configurations = params.config['configurations']['hbase-site'],
-            configuration_attributes=params.config['configuration_attributes']['hbase-site'],
+            configuration_attributes=params.config['configurationAttributes']['hbase-site'],
             owner = params.hbase_user,
             group = params.user_group
   )
@@ -116,7 +116,7 @@ def hbase(name=None):
     XmlConfig( "core-site.xml",
                conf_dir = params.hbase_conf_dir,
                configurations = params.config['configurations']['core-site'],
-               configuration_attributes=params.config['configuration_attributes']['core-site'],
+               configuration_attributes=params.config['configurationAttributes']['core-site'],
                owner = params.hbase_user,
                group = params.user_group
     )
@@ -124,7 +124,7 @@ def hbase(name=None):
       XmlConfig( "hdfs-site.xml",
               conf_dir = params.hbase_conf_dir,
               configurations = params.config['configurations']['hdfs-site'],
-              configuration_attributes=params.config['configuration_attributes']['hdfs-site'],
+              configuration_attributes=params.config['configurationAttributes']['hdfs-site'],
               owner = params.hbase_user,
               group = params.user_group
       )
@@ -140,7 +140,7 @@ def hbase(name=None):
     XmlConfig( "hbase-policy.xml",
             conf_dir = params.hbase_conf_dir,
             configurations = params.config['configurations']['hbase-policy'],
-            configuration_attributes=params.config['configuration_attributes']['hbase-policy'],
+            configuration_attributes=params.config['configurationAttributes']['hbase-policy'],
             owner = params.hbase_user,
             group = params.user_group
     )
@@ -208,7 +208,7 @@ def hbase(name=None):
       group=params.user_group,
       owner=params.hbase_user
     )
-  if name == "master":
+  if name == "master" and params.default_fs:
     if not params.hbase_hdfs_root_dir_protocol or params.hbase_hdfs_root_dir_protocol == urlparse(params.default_fs).scheme:
       params.HdfsResource(params.hbase_hdfs_root_dir,
                            type="directory",
@@ -229,6 +229,14 @@ def hbase(name=None):
                           mode=0755
       )
     params.HdfsResource(None, action="execute")
+
+  if name in ('master', 'regionserver') and not params.default_fs:
+    Directory(params.hbase_staging_dir,
+      owner = params.hbase_user,
+      create_parents = True,
+      cd_access = "a",
+      mode = 0711,
+    )
 
   if params.phoenix_enabled:
     Package(params.phoenix_package,

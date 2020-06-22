@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,13 +22,14 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 import org.apache.ambari.server.controller.spi.PageRequest;
 import org.apache.ambari.server.controller.spi.Request;
 import org.apache.ambari.server.controller.spi.ResourceProvider;
 import org.apache.ambari.server.controller.spi.SortRequest;
 import org.apache.ambari.server.controller.spi.TemporalInfo;
+
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 
 /**
  * Default request implementation.
@@ -105,13 +106,13 @@ public class RequestImpl implements Request {
                      SortRequest sortRequest, PageRequest pageRequest) {
 
     this.propertyIds = propertyIds == null ?
-        ImmutableSet.<String>of() : ImmutableSet.copyOf(propertyIds);
+        ImmutableSet.of() : ImmutableSet.copyOf(propertyIds);
 
     this.properties = properties == null ?
-        ImmutableSet.<Map<String,Object>>of() : ImmutableSet.copyOf(properties);
+        ImmutableSet.of() : ImmutableSet.copyOf(properties);
 
     this.requestInfoProperties = requestInfoProperties == null ?
-        ImmutableMap.<String, String>of() : ImmutableMap.copyOf(requestInfoProperties);
+        ImmutableMap.of() : ImmutableMap.copyOf(requestInfoProperties);
 
 
     m_mapTemporalInfo = mapTemporalInfo;

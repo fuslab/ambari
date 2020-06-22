@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -71,18 +71,18 @@ public class RequiredPasswordValidatorTest extends EasyMockSupport {
   private static Configuration topoGroup1Config;
   private static Configuration topoGroup2Config;
 
-  private static final Map<String, HostGroup> hostGroups = new HashMap<String, HostGroup>();
-  private static final Map<String, HostGroupInfo> hostGroupInfo = new HashMap<String, HostGroupInfo>();
+  private static final Map<String, HostGroup> hostGroups = new HashMap<>();
+  private static final Map<String, HostGroupInfo> hostGroupInfo = new HashMap<>();
 
-  private static final Collection<String> group1Components = new HashSet<String>();
-  private static final Collection<String> group2Components = new HashSet<String>();
-  private static final Collection<String> service1Components = new HashSet<String>();
-  private static final Collection<String> service2Components = new HashSet<String>();
-  private static final Collection<String> service3Components = new HashSet<String>();
+  private static final Collection<String> group1Components = new HashSet<>();
+  private static final Collection<String> group2Components = new HashSet<>();
+  private static final Collection<String> service1Components = new HashSet<>();
+  private static final Collection<String> service2Components = new HashSet<>();
+  private static final Collection<String> service3Components = new HashSet<>();
 
-  private static final Collection<Stack.ConfigProperty> service1RequiredPwdConfigs = new HashSet<Stack.ConfigProperty>();
-  private static final Collection<Stack.ConfigProperty> service2RequiredPwdConfigs = new HashSet<Stack.ConfigProperty>();
-  private static final Collection<Stack.ConfigProperty> service3RequiredPwdConfigs = new HashSet<Stack.ConfigProperty>();
+  private static final Collection<Stack.ConfigProperty> service1RequiredPwdConfigs = new HashSet<>();
+  private static final Collection<Stack.ConfigProperty> service2RequiredPwdConfigs = new HashSet<>();
+  private static final Collection<Stack.ConfigProperty> service3RequiredPwdConfigs = new HashSet<>();
 
   @TestSubject
   private RequiredPasswordValidator validator = new RequiredPasswordValidator();
@@ -91,26 +91,26 @@ public class RequiredPasswordValidatorTest extends EasyMockSupport {
   @Before
   public void setup() {
 
-    stackDefaults = new Configuration(new HashMap<String, Map<String, String>>(),
-      new HashMap<String, Map<String, Map<String, String>>>());
+    stackDefaults = new Configuration(new HashMap<>(),
+      new HashMap<>());
 
-    bpClusterConfig = new Configuration(new HashMap<String, Map<String, String>>(),
-      new HashMap<String, Map<String, Map<String, String>>>(), stackDefaults);
+    bpClusterConfig = new Configuration(new HashMap<>(),
+      new HashMap<>(), stackDefaults);
 
-    topoClusterConfig = new Configuration(new HashMap<String, Map<String, String>>(),
-      new HashMap<String, Map<String, Map<String, String>>>(), bpClusterConfig);
+    topoClusterConfig = new Configuration(new HashMap<>(),
+      new HashMap<>(), bpClusterConfig);
 
-    bpGroup1Config = new Configuration(new HashMap<String, Map<String, String>>(),
-      new HashMap<String, Map<String, Map<String, String>>>(), topoClusterConfig);
+    bpGroup1Config = new Configuration(new HashMap<>(),
+      new HashMap<>(), topoClusterConfig);
 
-    bpGroup2Config = new Configuration(new HashMap<String, Map<String, String>>(),
-      new HashMap<String, Map<String, Map<String, String>>>(), topoClusterConfig);
+    bpGroup2Config = new Configuration(new HashMap<>(),
+      new HashMap<>(), topoClusterConfig);
 
-    topoGroup1Config = new Configuration(new HashMap<String, Map<String, String>>(),
-      new HashMap<String, Map<String, Map<String, String>>>(), bpGroup1Config);
+    topoGroup1Config = new Configuration(new HashMap<>(),
+      new HashMap<>(), bpGroup1Config);
 
-    topoGroup2Config = new Configuration(new HashMap<String, Map<String, String>>(),
-      new HashMap<String, Map<String, Map<String, String>>>(), bpGroup2Config);
+    topoGroup2Config = new Configuration(new HashMap<>(),
+      new HashMap<>(), bpGroup2Config);
 
     service1RequiredPwdConfigs.clear();
     service2RequiredPwdConfigs.clear();
@@ -151,9 +151,9 @@ public class RequiredPasswordValidatorTest extends EasyMockSupport {
     expect(group2.getComponentNames()).andReturn(group2Components).anyTimes();
     expect(group1.getComponents("service1")).andReturn(Arrays.asList("component1", "component2")).anyTimes();
     expect(group1.getComponents("service2")).andReturn(Arrays.asList("component3")).anyTimes();
-    expect(group1.getComponents("service3")).andReturn(Collections.<String>emptySet()).anyTimes();
+    expect(group1.getComponents("service3")).andReturn(Collections.emptySet()).anyTimes();
     expect(group2.getComponents("service1")).andReturn(Arrays.asList("component1")).anyTimes();
-    expect(group2.getComponents("service2")).andReturn(Collections.<String>emptySet()).anyTimes();
+    expect(group2.getComponents("service2")).andReturn(Collections.emptySet()).anyTimes();
     expect(group2.getComponents("service3")).andReturn(Arrays.asList("component4")).anyTimes();
 
     expect(stack.getServiceForComponent("component1")).andReturn("service1").anyTimes();

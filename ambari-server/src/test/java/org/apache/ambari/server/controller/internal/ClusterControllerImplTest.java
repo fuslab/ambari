@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,8 +36,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import junit.framework.Assert;
-
 import org.apache.ambari.server.controller.spi.ClusterController;
 import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
 import org.apache.ambari.server.controller.spi.NoSuchResourceException;
@@ -62,12 +60,14 @@ import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.easymock.EasyMock;
 import org.junit.Test;
 
+import junit.framework.Assert;
+
 /**
  * Cluster controller tests
  */
 public class ClusterControllerImplTest {
 
-  private static final Set<String> propertyProviderProperties = new HashSet<String>();
+  private static final Set<String> propertyProviderProperties = new HashSet<>();
 
   private static final String UNSUPPORTED_PROPERTY = PropertyHelper.getPropertyId("c1", "unsupported");
 
@@ -98,7 +98,7 @@ public class ClusterControllerImplTest {
     @Override
     public Set<String> checkPropertyIds(Set<String> propertyIds) {
       if (!propertyProviderProperties.containsAll(propertyIds)) {
-        Set<String> unsupportedPropertyIds = new HashSet<String>(propertyIds);
+        Set<String> unsupportedPropertyIds = new HashSet<>(propertyIds);
         unsupportedPropertyIds.removeAll(propertyProviderProperties);
         return unsupportedPropertyIds;
       }
@@ -106,20 +106,20 @@ public class ClusterControllerImplTest {
     }
   };
 
-  private static final List<PropertyProvider> propertyProviders = new LinkedList<PropertyProvider>();
+  private static final List<PropertyProvider> propertyProviders = new LinkedList<>();
 
   static {
     propertyProviders.add(propertyProvider);
   }
 
-  private static final Map<Resource.Type, String> keyPropertyIds = new HashMap<Resource.Type, String>();
+  private static final Map<Resource.Type, String> keyPropertyIds = new HashMap<>();
 
   static {
     keyPropertyIds.put(Resource.Type.Cluster, PropertyHelper.getPropertyId("Hosts", "cluster_name"));
     keyPropertyIds.put(Resource.Type.Host, PropertyHelper.getPropertyId("Hosts", "host_name"));
   }
 
-  private static final Set<String> resourceProviderProperties = new HashSet<String>();
+  private static final Set<String> resourceProviderProperties = new HashSet<>();
 
   static {
     resourceProviderProperties.add(PropertyHelper.getPropertyId("Hosts", "cluster_name"));
@@ -138,7 +138,7 @@ public class ClusterControllerImplTest {
   public void testGetResources() throws Exception{
     ClusterControllerImpl controller = new ClusterControllerImpl(new TestProviderModule());
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     propertyIds.add(PropertyHelper.getPropertyId("c1", "p1"));
     propertyIds.add(PropertyHelper.getPropertyId("c1", "p3"));
@@ -159,7 +159,7 @@ public class ClusterControllerImplTest {
   public void testGetResourcesPageFromStart() throws Exception{
     ClusterControllerImpl controller = new ClusterControllerImpl(new TestProviderModule());
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     Request request = PropertyHelper.getReadRequest(propertyIds);
 
@@ -168,7 +168,7 @@ public class ClusterControllerImplTest {
     PageResponse pageResponse = controller.getResources(Resource.Type.Host, request, null, pageRequest, null);
 
     Iterable<Resource> iterable = pageResponse.getIterable();
-    List<Resource> list = new LinkedList<Resource>();
+    List<Resource> list = new LinkedList<>();
 
     for (Resource resource : iterable) {
       list.add(resource);
@@ -186,7 +186,7 @@ public class ClusterControllerImplTest {
     pageResponse = controller.getResources(Resource.Type.Host, request, null, pageRequest, null);
 
     iterable = pageResponse.getIterable();
-    list = new LinkedList<Resource>();
+    list = new LinkedList<>();
 
     for (Resource resource : iterable) {
       list.add(resource);
@@ -206,7 +206,7 @@ public class ClusterControllerImplTest {
   public void testGetResourcesSortedByProperty() throws Exception {
     ClusterControllerImpl controller = new ClusterControllerImpl(new TestProviderModule());
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     propertyIds.add(PropertyHelper.getPropertyId("c1", "p1"));
     propertyIds.add(PropertyHelper.getPropertyId("c1", "p2"));
@@ -223,7 +223,7 @@ public class ClusterControllerImplTest {
     Iterable<Resource> iterable = controller.getResources(Resource.Type.Host,
       request, null, null, sortRequest).getIterable();
 
-    List<Resource> list = new LinkedList<Resource>();
+    List<Resource> list = new LinkedList<>();
 
     for (Resource resource : iterable) {
       list.add(resource);
@@ -243,7 +243,7 @@ public class ClusterControllerImplTest {
     iterable = controller.getResources(Resource.Type.Host,
       request, null, null, sortRequest).getIterable();
 
-    list = new LinkedList<Resource>();
+    list = new LinkedList<>();
 
     for (Resource resource : iterable) {
       list.add(resource);
@@ -260,7 +260,7 @@ public class ClusterControllerImplTest {
   public void testGetResourcesSortedByMultiProperty() throws Exception {
     ClusterControllerImpl controller = new ClusterControllerImpl(new TestProviderModule());
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     propertyIds.add(PropertyHelper.getPropertyId("c1", "p1"));
     propertyIds.add(PropertyHelper.getPropertyId("c1", "p2"));
@@ -278,7 +278,7 @@ public class ClusterControllerImplTest {
     Iterable<Resource> iterable = controller.getResources(Resource.Type.Host,
       request, null, null, sortRequest).getIterable();
 
-    List<Resource> list = new LinkedList<Resource>();
+    List<Resource> list = new LinkedList<>();
 
     for (Resource resource : iterable) {
       list.add(resource);
@@ -295,7 +295,7 @@ public class ClusterControllerImplTest {
   public void testGetResourcesPageFromOffset() throws Exception{
     ClusterControllerImpl controller = new ClusterControllerImpl(new TestProviderModule());
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     Request request = PropertyHelper.getReadRequest(propertyIds);
 
@@ -308,7 +308,7 @@ public class ClusterControllerImplTest {
     Assert.assertEquals("host:3", pageResponse.getNextResource().getPropertyValue(PropertyHelper.getPropertyId("Hosts", "host_name")));
 
     Iterable<Resource> iterable = pageResponse.getIterable();
-    List<Resource> list = new LinkedList<Resource>();
+    List<Resource> list = new LinkedList<>();
 
     for (Resource resource : iterable) {
       list.add(resource);
@@ -330,7 +330,7 @@ public class ClusterControllerImplTest {
     Assert.assertEquals("host:3", pageResponse.getNextResource().getPropertyValue(PropertyHelper.getPropertyId("Hosts", "host_name")));
 
     iterable = pageResponse.getIterable();
-    list = new LinkedList<Resource>();
+    list = new LinkedList<>();
 
     for (Resource resource : iterable) {
       list.add(resource);
@@ -350,7 +350,7 @@ public class ClusterControllerImplTest {
   public void testGetResourcesPageToEnd() throws Exception{
     ClusterControllerImpl controller = new ClusterControllerImpl(new TestProviderModule());
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     Request request = PropertyHelper.getReadRequest(propertyIds);
 
@@ -359,7 +359,7 @@ public class ClusterControllerImplTest {
     PageResponse pageResponse = controller.getResources(Resource.Type.Host, request, null, pageRequest, null);
 
     Iterable<Resource> iterable = pageResponse.getIterable();
-    List<Resource> list = new LinkedList<Resource>();
+    List<Resource> list = new LinkedList<>();
 
     for (Resource resource : iterable) {
       list.add(resource);
@@ -377,7 +377,7 @@ public class ClusterControllerImplTest {
     pageResponse = controller.getResources(Resource.Type.Host, request, null, pageRequest, null);
 
     iterable = pageResponse.getIterable();
-    list = new LinkedList<Resource>();
+    list = new LinkedList<>();
 
     for (Resource resource : iterable) {
       list.add(resource);
@@ -397,7 +397,7 @@ public class ClusterControllerImplTest {
   public void testGetResourcesPageToOffset() throws Exception{
     ClusterControllerImpl controller = new ClusterControllerImpl(new TestProviderModule());
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     Request request = PropertyHelper.getReadRequest(propertyIds);
 
@@ -412,7 +412,7 @@ public class ClusterControllerImplTest {
     Assert.assertEquals(4, pageResponse.getTotalResourceCount().intValue());
 
     Iterable<Resource> iterable = pageResponse.getIterable();
-    List<Resource> list = new LinkedList<Resource>();
+    List<Resource> list = new LinkedList<>();
 
     for (Resource resource : iterable) {
       list.add(resource);
@@ -432,7 +432,7 @@ public class ClusterControllerImplTest {
     Assert.assertEquals("host:3", pageResponse.getNextResource().getPropertyValue(PropertyHelper.getPropertyId("Hosts", "host_name")));
 
     iterable = pageResponse.getIterable();
-    list = new LinkedList<Resource>();
+    list = new LinkedList<>();
 
     for (Resource resource : iterable) {
       list.add(resource);
@@ -452,7 +452,7 @@ public class ClusterControllerImplTest {
   public void testGetResourcesEmptyRequest() throws Exception{
     ClusterControllerImpl controller = new ClusterControllerImpl(new TestProviderModule());
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     Request request = PropertyHelper.getReadRequest(propertyIds);
 
@@ -470,7 +470,7 @@ public class ClusterControllerImplTest {
   public void testGetResourcesCheckOrder() throws Exception{
     ClusterControllerImpl controller = new ClusterControllerImpl(new TestProviderModule());
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     Request request = PropertyHelper.getReadRequest(propertyIds);
 
@@ -496,7 +496,7 @@ public class ClusterControllerImplTest {
   public void testGetResourcesWithPredicate() throws Exception{
     ClusterControllerImpl controller = new ClusterControllerImpl(new TestProviderModule());
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     propertyIds.add(PropertyHelper.getPropertyId("c1", "p1"));
     propertyIds.add(PropertyHelper.getPropertyId("c1", "p2"));
@@ -521,7 +521,7 @@ public class ClusterControllerImplTest {
   public void testGetResourcesWithUnsupportedPropertyPredicate() throws Exception{
     ClusterControllerImpl controller = new ClusterControllerImpl(new TestProviderModule());
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     propertyIds.add(PropertyHelper.getPropertyId("c1", "p1"));
     propertyIds.add(PropertyHelper.getPropertyId("c1", "p2"));
@@ -544,7 +544,7 @@ public class ClusterControllerImplTest {
   public void testGetResourcesWithUnsupportedPropertyRequest() throws Exception{
     ClusterControllerImpl controller = new ClusterControllerImpl(new TestProviderModule());
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     propertyIds.add(PropertyHelper.getPropertyId("c1", "p1"));
     propertyIds.add(PropertyHelper.getPropertyId("c1", "p2"));
@@ -569,7 +569,7 @@ public class ClusterControllerImplTest {
     ClusterControllerImpl controller =
       new ClusterControllerImpl(new TestProviderModule());
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     Request request = PropertyHelper.getReadRequest(propertyIds);
 
@@ -586,7 +586,7 @@ public class ClusterControllerImplTest {
       controller.getResources(Resource.Type.Host, request, predicate, pageRequest, sortRequest);
 
     Iterable<Resource> iterable = pageResponse.getIterable();
-    List<Resource> list = new LinkedList<Resource>();
+    List<Resource> list = new LinkedList<>();
 
     for (Resource resource : iterable) {
       list.add(resource);
@@ -626,8 +626,8 @@ public class ClusterControllerImplTest {
     TestHostResourceProvider resourceProvider = (TestHostResourceProvider) providerModule.getResourceProvider(Resource.Type.Host);
     ClusterController controller = new ClusterControllerImpl(providerModule);
 
-    Set<Map<String, Object>> properties = new HashSet<Map<String, Object>>();
-    Map<String, Object> propertyMap = new HashMap<String, Object>();
+    Set<Map<String, Object>> properties = new HashSet<>();
+    Map<String, Object> propertyMap = new HashMap<>();
 
     propertyMap.put(PropertyHelper.getPropertyId("c1", "p1"), 99);
     propertyMap.put(PropertyHelper.getPropertyId("c1", "p2"), 2);
@@ -648,8 +648,8 @@ public class ClusterControllerImplTest {
     TestProviderModule providerModule = new TestProviderModule();
     ClusterController controller = new ClusterControllerImpl(providerModule);
 
-    Set<Map<String, Object>> properties = new HashSet<Map<String, Object>>();
-    Map<String, Object> propertyMap = new HashMap<String, Object>();
+    Set<Map<String, Object>> properties = new HashSet<>();
+    Map<String, Object> propertyMap = new HashMap<>();
 
     propertyMap.put(PropertyHelper.getPropertyId("c1", "p1"), 99);
     propertyMap.put(UNSUPPORTED_PROPERTY, 2);
@@ -672,7 +672,7 @@ public class ClusterControllerImplTest {
     TestHostResourceProvider resourceProvider = (TestHostResourceProvider) providerModule.getResourceProvider(Resource.Type.Host);
     ClusterController controller = new ClusterControllerImpl(providerModule);
 
-    Map<String, Object> propertyMap = new HashMap<String, Object>();
+    Map<String, Object> propertyMap = new HashMap<>();
 
     propertyMap.put(PropertyHelper.getPropertyId("c1", "p1"), 99);
     propertyMap.put(PropertyHelper.getPropertyId("c1", "p2"), 2);
@@ -693,7 +693,7 @@ public class ClusterControllerImplTest {
     TestProviderModule providerModule = new TestProviderModule();
     ClusterController controller = new ClusterControllerImpl(providerModule);
 
-    Map<String, Object> propertyMap = new HashMap<String, Object>();
+    Map<String, Object> propertyMap = new HashMap<>();
 
     propertyMap.put(PropertyHelper.getPropertyId("c1", "p1"), 99);
     propertyMap.put(UNSUPPORTED_PROPERTY, 2);
@@ -715,7 +715,7 @@ public class ClusterControllerImplTest {
     TestProviderModule providerModule = new TestProviderModule();
     ClusterController controller = new ClusterControllerImpl(providerModule);
 
-    Map<String, Object> propertyMap = new HashMap<String, Object>();
+    Map<String, Object> propertyMap = new HashMap<>();
 
     propertyMap.put(PropertyHelper.getPropertyId("c1", "p1"), 99);
     propertyMap.put(PropertyHelper.getPropertyId("c1", "p2"), 2);
@@ -738,7 +738,7 @@ public class ClusterControllerImplTest {
     TestHostResourceProvider resourceProvider = (TestHostResourceProvider) providerModule.getResourceProvider(Resource.Type.Host);
     ClusterController controller = new ClusterControllerImpl(providerModule);
 
-    Map<String, Object> propertyMap = new HashMap<String, Object>();
+    Map<String, Object> propertyMap = new HashMap<>();
 
     propertyMap.put(PropertyHelper.getPropertyId("c1", "p1"), 99);
     propertyMap.put(PropertyHelper.getPropertyId("c1", "p2"), 2);
@@ -887,33 +887,33 @@ public class ClusterControllerImplTest {
 
     expect(
         resourceProvider.checkPropertyIds(Collections.singleton(AlertHistoryResourceProvider.ALERT_HISTORY_HOSTNAME))).andReturn(
-        Collections.<String> emptySet()).anyTimes();
+        Collections.emptySet()).anyTimes();
 
     expect(
         resourceProvider.getResources(anyObject(Request.class),
             anyObject(Predicate.class))).andReturn(
-        Collections.<Resource> emptySet()).anyTimes();
+        Collections.emptySet()).anyTimes();
 
-    expect(resourceProvider.checkPropertyIds(EasyMock.anyObject(Set.class))).andReturn(
-        new HashSet<String>()).anyTimes();
+    expect(resourceProvider.checkPropertyIds(EasyMock.anyObject())).andReturn(
+      new HashSet<>()).anyTimes();
 
     // strict pageRequest mock to ensure that paging is not performed on
     // the result set
     PageRequest pageRequest = EasyMock.createStrictMock(PageRequest.class);
 
     SortRequest sortRequest = EasyMock.createStrictMock(SortRequest.class);
-    expect(sortRequest.getPropertyIds()).andReturn(new ArrayList<String>()).atLeastOnce();
+    expect(sortRequest.getPropertyIds()).andReturn(new ArrayList<>()).atLeastOnce();
 
     replay(providerModule, resourceProvider, pageRequest, sortRequest);
 
     ClusterControllerImpl controller = new ClusterControllerImpl(providerModule);
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
     propertyIds.add(AlertHistoryResourceProvider.ALERT_HISTORY_HOSTNAME);
 
     // create a result set that we will use to ensure that the contents
     // were unmodified
-    Set<Resource> providerResources = new LinkedHashSet<Resource>();
+    Set<Resource> providerResources = new LinkedHashSet<>();
     providerResources.add(new ResourceImpl(Resource.Type.AlertHistory));
 
     Request request = PropertyHelper.getReadRequest(propertyIds, null, null,
@@ -930,12 +930,12 @@ public class ClusterControllerImplTest {
   }
 
   public static class TestProviderModule implements ProviderModule {
-    private Map<Resource.Type, ResourceProvider> providers = new HashMap<Resource.Type, ResourceProvider>();
+    private Map<Resource.Type, ResourceProvider> providers = new HashMap<>();
 
     public TestProviderModule() {
 
       for (Resource.Type type : Resource.Type.values()) {
-        providers.put(type, new TestResourceProvider(type));
+        providers.put(type, new TestResourceProvider());
       }
       providers.put(Resource.Type.Cluster, new TestClusterResourceProvider());
       providers.put(Resource.Type.Host, new TestHostResourceProvider());
@@ -965,8 +965,8 @@ public class ClusterControllerImplTest {
 
   private static class TestResourceProvider extends AbstractResourceProvider {
 
-    private TestResourceProvider(Resource.Type type) {
-      super(PropertyHelper.getPropertyIds(type), PropertyHelper.getKeyPropertyIds(type));
+    private TestResourceProvider() {
+      super(new HashSet<>(), new HashMap<>());
     }
 
     private TestResourceProvider(Set<String> propertyIds, Map<Resource.Type, String> keyPropertyIds) {
@@ -1000,11 +1000,11 @@ public class ClusterControllerImplTest {
 
     protected Set<Resource> getResources(Resource.Type type, Predicate predicate, String keyPropertyId, Set<String> keyPropertyValues)
         throws SystemException, UnsupportedPropertyException, NoSuchParentResourceException, NoSuchResourceException {
-      Set<Resource> resources = new HashSet<Resource>();
+      Set<Resource> resources = new HashSet<>();
 
       for (Map<String, Object> propertyMap : getPropertyMaps(predicate)) {
 
-        Set<Resource> resources2 = new HashSet<Resource>();
+        Set<Resource> resources2 = new HashSet<>();
 
         if (!propertyMap.containsKey(keyPropertyId)) {
           for (String keyPropertyValue : keyPropertyValues) {
@@ -1029,7 +1029,7 @@ public class ClusterControllerImplTest {
 
   private static class TestClusterResourceProvider extends TestResourceProvider {
     private TestClusterResourceProvider() {
-      super(Resource.Type.Cluster);
+      super(ClusterResourceProvider.propertyIds, ClusterResourceProvider.keyPropertyIds);
     }
 
     @Override
@@ -1038,7 +1038,7 @@ public class ClusterControllerImplTest {
 
       resource.setProperty(PropertyHelper.getPropertyId("Clusters", "cluster_name"), "cluster");
 
-      return Collections.<Resource>singleton(resource);
+      return Collections.singleton(resource);
     }
   }
 
@@ -1048,13 +1048,13 @@ public class ClusterControllerImplTest {
     private Predicate lastPredicate = null;
 
     private TestHostResourceProvider() {
-      super(Resource.Type.Host);
+      super(HostResourceProvider.propertyIds, HostResourceProvider.keyPropertyIds);
     }
 
     @Override
     public Set<Resource> getResources(Request request, Predicate predicate) throws SystemException, UnsupportedPropertyException, NoSuchResourceException, NoSuchParentResourceException {
 
-      Set<Resource> resources = new HashSet<Resource>();
+      Set<Resource> resources = new HashSet<>();
 
       for (int cnt = 0; cnt < 4; ++ cnt) {
         ResourceImpl resource = new ResourceImpl(Resource.Type.Host);
@@ -1109,7 +1109,7 @@ public class ClusterControllerImplTest {
     @Override
     public Set<String> checkPropertyIds(Set<String> propertyIds) {
       if (!resourceProviderProperties.containsAll(propertyIds)) {
-        Set<String> unsupportedPropertyIds = new HashSet<String>(propertyIds);
+        Set<String> unsupportedPropertyIds = new HashSet<>(propertyIds);
         unsupportedPropertyIds.removeAll(resourceProviderProperties);
         return unsupportedPropertyIds;
       }
@@ -1143,14 +1143,14 @@ public class ClusterControllerImplTest {
 
   private static class TestStackResourceProvider extends TestResourceProvider {
     private TestStackResourceProvider() {
-      super(Resource.Type.Stack);
+      super(StackResourceProvider.propertyIds, StackResourceProvider.keyPropertyIds);
     }
 
     @Override
     public Set<Resource> getResources(Request request, Predicate predicate)
         throws SystemException, UnsupportedPropertyException, NoSuchResourceException, NoSuchParentResourceException {
 
-      Set<String> keyPropertyValues = new HashSet<String>();
+      Set<String> keyPropertyValues = new HashSet<>();
 
       return getResources(Resource.Type.Stack, predicate, "Stacks/stack_name", keyPropertyValues);
     }
@@ -1159,13 +1159,13 @@ public class ClusterControllerImplTest {
 
   private static class TestStackVersionResourceProvider extends TestResourceProvider {
     private TestStackVersionResourceProvider() {
-      super(Resource.Type.StackVersion);
+      super(StackVersionResourceProvider.propertyIds, StackVersionResourceProvider.keyPropertyIds);
     }
 
     @Override
     public Set<Resource> getResources(Request request, Predicate predicate)
         throws SystemException, UnsupportedPropertyException, NoSuchResourceException, NoSuchParentResourceException {
-      Set<String> keyPropertyValues = new LinkedHashSet<String>();
+      Set<String> keyPropertyValues = new LinkedHashSet<>();
 
       keyPropertyValues.add("1.2.1");
       keyPropertyValues.add("1.2.2");
@@ -1183,7 +1183,7 @@ public class ClusterControllerImplTest {
     @Override
     public Set<Resource> getResources(Request request, Predicate predicate)
         throws SystemException, UnsupportedPropertyException, NoSuchResourceException, NoSuchParentResourceException {
-      Set<String> keyPropertyValues = new LinkedHashSet<String>();
+      Set<String> keyPropertyValues = new LinkedHashSet<>();
 
       keyPropertyValues.add("centos5");
       keyPropertyValues.add("centos6");
@@ -1201,7 +1201,7 @@ public class ClusterControllerImplTest {
     @Override
     public Set<Resource> getResources(Request request, Predicate predicate)
         throws SystemException, UnsupportedPropertyException, NoSuchResourceException, NoSuchParentResourceException {
-      Set<String> keyPropertyValues = new LinkedHashSet<String>();
+      Set<String> keyPropertyValues = new LinkedHashSet<>();
 
       keyPropertyValues.add("repo1");
       keyPropertyValues.add("repo2");
@@ -1218,7 +1218,7 @@ public class ClusterControllerImplTest {
     @Override
     public Set<Resource> getResources(Request request, Predicate predicate)
         throws SystemException, UnsupportedPropertyException, NoSuchResourceException, NoSuchParentResourceException {
-      Set<String> keyPropertyValues = new LinkedHashSet<String>();
+      Set<String> keyPropertyValues = new LinkedHashSet<>();
 
       keyPropertyValues.add("1");
       keyPropertyValues.add("2");
@@ -1235,7 +1235,7 @@ public class ClusterControllerImplTest {
     @Override
     public Set<Resource> getResources(Request request, Predicate predicate)
         throws SystemException, UnsupportedPropertyException, NoSuchResourceException, NoSuchParentResourceException {
-      Set<String> keyPropertyValues = new LinkedHashSet<String>();
+      Set<String> keyPropertyValues = new LinkedHashSet<>();
 
       keyPropertyValues.add("1");
       keyPropertyValues.add("2");
@@ -1252,7 +1252,7 @@ public class ClusterControllerImplTest {
     @Override
     public Set<Resource> getResources(Request request, Predicate predicate)
         throws SystemException, UnsupportedPropertyException, NoSuchResourceException, NoSuchParentResourceException {
-      Set<String> keyPropertyValues = new LinkedHashSet<String>();
+      Set<String> keyPropertyValues = new LinkedHashSet<>();
 
       keyPropertyValues.add("kerberos_descriptor");
 

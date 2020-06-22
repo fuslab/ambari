@@ -18,6 +18,14 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.eq;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.verify;
+
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -25,7 +33,6 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.ambari.server.controller.AmbariManagementController;
-import org.apache.ambari.server.controller.MemberResponse;
 import org.apache.ambari.server.controller.RequestStatusResponse;
 import org.apache.ambari.server.controller.ResourceProviderFactory;
 import org.apache.ambari.server.controller.spi.Predicate;
@@ -40,8 +47,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-
-import static org.easymock.EasyMock.*;
 
 /**
  * MemberResourceProvider tests.
@@ -72,8 +77,8 @@ public class MemberResourceProviderTest {
 
     AbstractControllerResourceProvider.init(resourceProviderFactory);
 
-    expect(resourceProviderFactory.getMemberResourceProvider(anyObject(Set.class), anyObject(Map.class), eq(managementController)))
-        .andReturn(new MemberResourceProvider(PropertyHelper.getPropertyIds(type), PropertyHelper.getKeyPropertyIds(type), managementController)).anyTimes();
+    expect(resourceProviderFactory.getMemberResourceProvider(eq(managementController)))
+        .andReturn(new MemberResourceProvider(managementController)).anyTimes();
 
     managementController.createMembers(AbstractResourceProviderTest.Matcher.getMemberRequestSet("engineering", "joe"));
     expectLastCall().atLeastOnce();
@@ -85,14 +90,12 @@ public class MemberResourceProviderTest {
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
         type,
-        PropertyHelper.getPropertyIds(type),
-        PropertyHelper.getKeyPropertyIds(type),
         managementController);
 
     // add the property map to a set for the request.  add more maps for multiple creates
-    Set<Map<String, Object>> propertySet = new LinkedHashSet<Map<String, Object>>();
+    Set<Map<String, Object>> propertySet = new LinkedHashSet<>();
 
-    Map<String, Object> properties = new LinkedHashMap<String, Object>();
+    Map<String, Object> properties = new LinkedHashMap<>();
 
     // add properties to the request map
     properties.put(MemberResourceProvider.MEMBER_GROUP_NAME_PROPERTY_ID, "engineering");
@@ -128,11 +131,11 @@ public class MemberResourceProviderTest {
 
     AbstractControllerResourceProvider.init(resourceProviderFactory);
 
-    expect(resourceProviderFactory.getMemberResourceProvider(anyObject(Set.class), anyObject(Map.class), eq(managementController)))
-        .andReturn(new MemberResourceProvider(PropertyHelper.getPropertyIds(type), PropertyHelper.getKeyPropertyIds(type), managementController)).anyTimes();
+    expect(resourceProviderFactory.getMemberResourceProvider(eq(managementController)))
+        .andReturn(new MemberResourceProvider(managementController)).anyTimes();
 
     expect(managementController.getMembers(AbstractResourceProviderTest.Matcher.getMemberRequestSet(null, null)))
-        .andReturn(Collections.<MemberResponse>emptySet())
+        .andReturn(Collections.emptySet())
         .atLeastOnce();
 
     // replay
@@ -142,8 +145,6 @@ public class MemberResourceProviderTest {
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
         type,
-        PropertyHelper.getPropertyIds(type),
-        PropertyHelper.getKeyPropertyIds(type),
         managementController);
 
     // create the request
@@ -177,8 +178,8 @@ public class MemberResourceProviderTest {
     AbstractControllerResourceProvider.init(resourceProviderFactory);
 
     // set expectations
-    expect(resourceProviderFactory.getMemberResourceProvider(anyObject(Set.class), anyObject(Map.class), eq(managementController)))
-        .andReturn(new MemberResourceProvider(PropertyHelper.getPropertyIds(type), PropertyHelper.getKeyPropertyIds(type), managementController)).anyTimes();
+    expect(resourceProviderFactory.getMemberResourceProvider(eq(managementController)))
+        .andReturn(new MemberResourceProvider(managementController)).anyTimes();
 
     managementController.updateMembers(AbstractResourceProviderTest.Matcher.getMemberRequestSet("engineering", "joe"));
     expectLastCall().atLeastOnce();
@@ -190,12 +191,10 @@ public class MemberResourceProviderTest {
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
         type,
-        PropertyHelper.getPropertyIds(type),
-        PropertyHelper.getKeyPropertyIds(type),
         managementController);
 
     // add the property map to a set for the request.
-    Map<String, Object> properties = new LinkedHashMap<String, Object>();
+    Map<String, Object> properties = new LinkedHashMap<>();
 
     properties.put(MemberResourceProvider.MEMBER_GROUP_NAME_PROPERTY_ID, "engineering");
     properties.put(MemberResourceProvider.MEMBER_USER_NAME_PROPERTY_ID, "joe");
@@ -232,8 +231,8 @@ public class MemberResourceProviderTest {
     AbstractControllerResourceProvider.init(resourceProviderFactory);
 
     // set expectations
-    expect(resourceProviderFactory.getMemberResourceProvider(anyObject(Set.class), anyObject(Map.class), eq(managementController)))
-        .andReturn(new MemberResourceProvider(PropertyHelper.getPropertyIds(type), PropertyHelper.getKeyPropertyIds(type), managementController)).anyTimes();
+    expect(resourceProviderFactory.getMemberResourceProvider(eq(managementController)))
+        .andReturn(new MemberResourceProvider(managementController)).anyTimes();
 
     managementController.deleteMembers(AbstractResourceProviderTest.Matcher.getMemberRequestSet("engineering", null));
     expectLastCall().atLeastOnce();
@@ -245,8 +244,6 @@ public class MemberResourceProviderTest {
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
         type,
-        PropertyHelper.getPropertyIds(type),
-        PropertyHelper.getKeyPropertyIds(type),
         managementController);
 
     PredicateBuilder builder = new PredicateBuilder();

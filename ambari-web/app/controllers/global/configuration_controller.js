@@ -43,6 +43,20 @@ App.ConfigurationController = Em.Controller.extend({
       return this.loadFromDB(tags.mapProperty('siteName'));
     }
   },
+
+  /**
+   * if no sites specified then configs from all sites will be fetched
+   * @param {Array} sites
+   * @returns {$.Deferred}
+   */
+  getCurrentConfigsBySites: function (sites = []) {
+    const dfd = $.Deferred();
+    this.getConfigTags(sites).done((tags) => {
+      this.getConfigsByTags(tags).done(dfd.resolve);
+    });
+    return dfd.promise();
+  },
+
   /**
    * check whether tag versions have been changed
    * if they are different then return true
@@ -61,6 +75,12 @@ App.ConfigurationController = Em.Controller.extend({
     }
     return isDifferent;
   },
+
+  /**
+   *
+   * @param {Array} siteNames
+   * @returns {*}
+   */
   loadFromDB: function (siteNames) {
     var dfd = $.Deferred();
     var configs = App.db.getConfigs().filter(function (site) {
@@ -80,7 +100,7 @@ App.ConfigurationController = Em.Controller.extend({
     var dfd = $.Deferred();
     if (!tags.everyProperty('tagName')) {
       var configTags;
-      var jqXhr =  this.loadConfigTags();
+      var jqXhr = this.loadConfigTags();
       jqXhr.done(function (data) {
         configTags = data.Clusters.desired_configs;
         tags.forEach(function (_tag) {
@@ -88,10 +108,10 @@ App.ConfigurationController = Em.Controller.extend({
             _tag.tagName = configTags[_tag.siteName].tag;
           }
         }, self);
-        self.loadConfigsByTags(tags,dfd);
+        self.loadConfigsByTags(tags, dfd);
       });
     } else {
-      self.loadConfigsByTags(tags,dfd);
+      self.loadConfigsByTags(tags, dfd);
     }
     return dfd.promise();
   },
@@ -101,7 +121,7 @@ App.ConfigurationController = Em.Controller.extend({
    *  @params tags
    *  @params dfd jqXhr promise
    */
-  loadConfigsByTags: function (tags,dfd) {
+  loadConfigsByTags: function (tags, dfd) {
     var self = this;
     var loadedConfigs = [];
     App.config.loadConfigsByTags(tags).done(function (data) {
@@ -144,5 +164,52 @@ App.ConfigurationController = Em.Controller.extend({
       }
     });
     App.db.setConfigs(storedConfigs);
+  },
+
+  /**
+   * @param {Array} sites
+   * @return {Array}
+   */
+  getConfigTags: function(sites = []) {
+    const dfd = $.Deferred();
+    if (App.db.getTags().length > 0) {
+      dfd.resolve(this.extractTagsFromLocalDB(sites));
+    } else {
+      this.updateConfigTags().always(() => {
+        dfd.resolve(this.extractTagsFromLocalDB(sites));
+      });
+    }
+    return dfd.promise();
+  },
+
+  /**
+   *
+   * @param {Array} sites
+   * @return {Array}
+   */
+  extractTagsFromLocalDB: function(sites) {
+    return App.db.getTags().filter((tag) => {
+      if (sites.length > 0) {
+        return sites.contains(tag.siteName);
+      } else {
+        return true;
+      }
+    });
+  },
+
+  /**
+   * update configs' tags from server
+   */
+  updateConfigTags: function() {
+    return this.loadConfigTags().done((data) => {
+      const tags = [];
+      for (let site in data.Clusters.desired_configs) {
+        tags.push({
+          siteName: site,
+          tagName: data.Clusters.desired_configs[site].tag
+        });
+      }
+      App.db.setTags(tags);
+    });
   }
 });

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,7 +30,7 @@ public class AllPostAndPutCreator extends AbstractBaseCreator {
 
   @Override
   public Set<Request.Type> getRequestTypes() {
-    return new HashSet<Request.Type>(Arrays.asList(Request.Type.POST, Request.Type.PUT));
+    return new HashSet<>(Arrays.asList(Request.Type.POST, Request.Type.PUT));
   }
 
   @Override

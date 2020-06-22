@@ -26,7 +26,7 @@ import javax.naming.NamingException;
 import javax.naming.directory.Attributes;
 import javax.naming.directory.DirContext;
 
-import org.apache.ambari.server.configuration.Configuration;
+import org.apache.ambari.server.ldap.domain.AmbariLdapConfiguration;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,15 +51,14 @@ import org.springframework.security.ldap.search.LdapUserSearch;
  */
 public class AmbariLdapBindAuthenticator extends AbstractLdapAuthenticator {
   private static final Logger LOG = LoggerFactory.getLogger(AmbariLdapBindAuthenticator.class);
-
-  private Configuration configuration;
-
   private static final String AMBARI_ADMIN_LDAP_ATTRIBUTE_KEY = "ambari_admin";
 
-  public AmbariLdapBindAuthenticator(BaseLdapPathContextSource contextSource,
-                                     Configuration configuration) {
+  private final AmbariLdapConfiguration ldapConfiguration;
+
+
+  public AmbariLdapBindAuthenticator(BaseLdapPathContextSource contextSource, AmbariLdapConfiguration ldapConfiguration) {
     super(contextSource);
-    this.configuration = configuration;
+    this.ldapConfiguration = ldapConfiguration;;
   }
 
   @Override
@@ -72,7 +71,7 @@ public class AmbariLdapBindAuthenticator extends AbstractLdapAuthenticator {
 
     DirContextOperations user = authenticate((UsernamePasswordAuthenticationToken) authentication);
 
-    LdapServerProperties ldapServerProperties = configuration.getLdapServerProperties();
+    LdapServerProperties ldapServerProperties = ldapConfiguration.getLdapServerProperties();
     if (StringUtils.isNotEmpty(ldapServerProperties.getAdminGroupMappingRules())) {
       setAmbariAdminAttr(user, ldapServerProperties);
     }
@@ -155,7 +154,7 @@ public class AmbariLdapBindAuthenticator extends AbstractLdapAuthenticator {
       throw new BadCredentialsException("The user search facility has not been set.");
     } else {
       if (LOG.isTraceEnabled()) {
-        LOG.trace("Searching for user with username {}: {}", username, userSearch.toString());
+        LOG.trace("Searching for user with username {}: {}", username, userSearch);
       }
 
       // Find the user data where the supplied username matches the value of the configured LDAP

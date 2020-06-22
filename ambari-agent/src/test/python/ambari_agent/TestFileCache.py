@@ -67,9 +67,12 @@ class TestFileCache(TestCase):
     command = {
       'commandParams' : {
         'service_package_folder' : os.path.join('stacks', 'HDP', '2.1.1', 'services', 'ZOOKEEPER', 'package')
+      },
+      'ambariLevelParams': {
+        'jdk_location': 'server_url_pref'
       }
     }
-    res = fileCache.get_service_base_dir(command, "server_url_pref")
+    res = fileCache.get_service_base_dir(command)
     self.assertEquals(
       pprint.pformat(provide_directory_mock.call_args_list[0][0]),
       "('/var/lib/ambari-agent/cache',\n "
@@ -83,27 +86,33 @@ class TestFileCache(TestCase):
     fileCache = FileCache(self.config)
     # Check missing parameter
     command = {
-      'commandParams' : {
+      'clusterLevelParams' : {
+      },
+      'ambariLevelParams': {
+        'jdk_location': 'server_url_pref'
       }
     }
-    base = fileCache.get_hook_base_dir(command, "server_url_pref")
+    base = fileCache.get_hook_base_dir(command)
     self.assertEqual(base, None)
     self.assertFalse(provide_directory_mock.called)
 
     # Check existing dir case
     command = {
-      'commandParams' : {
-        'hooks_folder' : os.path.join('HDP', '2.1.1', 'hooks')
+      'clusterLevelParams' : {
+        'hooks_folder' : 'stack-hooks'
+      },
+      'ambariLevelParams': {
+        'jdk_location': 'server_url_pref'
       }
     }
     provide_directory_mock.return_value = "dummy value"
     fileCache = FileCache(self.config)
-    res = fileCache.get_hook_base_dir(command, "server_url_pref")
+    res = fileCache.get_hook_base_dir(command)
     self.assertEquals(
       pprint.pformat(provide_directory_mock.call_args_list[0][0]),
       "('/var/lib/ambari-agent/cache', "
       "{0}, "
-      "'server_url_pref')".format(pprint.pformat(os.path.join('stacks','HDP', '2.1.1', 'hooks'))))
+      "'server_url_pref')".format(pprint.pformat('stack-hooks')))
     self.assertEquals(res, "dummy value")
 
 
@@ -111,7 +120,11 @@ class TestFileCache(TestCase):
   def test_get_custom_actions_base_dir(self, provide_directory_mock):
     provide_directory_mock.return_value = "dummy value"
     fileCache = FileCache(self.config)
-    res = fileCache.get_custom_actions_base_dir("server_url_pref")
+    res = fileCache.get_custom_actions_base_dir({
+      'ambariLevelParams': {
+        'jdk_location': 'server_url_pref'
+      }
+    })
     self.assertEquals(
       pprint.pformat(provide_directory_mock.call_args_list[0][0]),
       "('/var/lib/ambari-agent/cache', 'custom_actions', 'server_url_pref')")
@@ -125,10 +138,13 @@ class TestFileCache(TestCase):
     command = {
       'commandParams': {
         'custom_folder' : 'dashboards'
-      }
+      },
+      'ambariLevelParams': {
+          'jdk_location': 'server_url_pref'
+        }
     }
 
-    res = fileCache.get_custom_resources_subdir(command, "server_url_pref")
+    res = fileCache.get_custom_resources_subdir(command)
     self.assertEquals(
       pprint.pformat(provide_directory_mock.call_args_list[0][0]),
       "('/var/lib/ambari-agent/cache', 'dashboards', 'server_url_pref')")

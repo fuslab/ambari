@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,5 +32,5 @@ public interface SchemaManagerFactory {
    *
    * @return the schema manager
    */
-  public SchemaManager getSchemaManager(DatabaseSession session);
+  SchemaManager getSchemaManager(DatabaseSession session);
 }

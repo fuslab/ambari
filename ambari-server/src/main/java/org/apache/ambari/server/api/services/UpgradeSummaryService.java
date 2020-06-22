@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,8 +17,8 @@
  */
 package org.apache.ambari.server.api.services;
 
-import org.apache.ambari.server.api.resources.ResourceInstance;
-import org.apache.ambari.server.controller.spi.Resource;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -28,9 +28,10 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
-import java.util.HashMap;
-import java.util.Map;
 
+import org.apache.ambari.annotations.ApiIgnore;
+import org.apache.ambari.server.api.resources.ResourceInstance;
+import org.apache.ambari.server.controller.spi.Resource;
 
 /**
  * Endpoint for a detailed summary of the cluster upgrades.
@@ -48,7 +49,7 @@ public class UpgradeSummaryService extends BaseService {
     m_clusterName = clusterName;
   }
 
-  @GET
+  @GET @ApiIgnore // until documented
   @Produces("text/plain")
   public Response getUpgradeSummaries(@Context HttpHeaders headers,
                                       @Context UriInfo ui) {
@@ -56,7 +57,7 @@ public class UpgradeSummaryService extends BaseService {
         createResourceInstance(null));
   }
 
-  @GET
+  @GET @ApiIgnore // until documented
   @Path("{requestId}")
   @Produces("text/plain")
   public Response getUpgradeSummary(@Context HttpHeaders headers,
@@ -71,7 +72,7 @@ public class UpgradeSummaryService extends BaseService {
    * @return the resource instance
    */
   private ResourceInstance createResourceInstance(Long requestId) {
-    Map<Resource.Type, String> mapIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type, String> mapIds = new HashMap<>();
     mapIds.put(Resource.Type.Cluster, m_clusterName);
 
     if (null != requestId) {

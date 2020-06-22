@@ -33,7 +33,7 @@ Ambari API Response Schemas
 - [GET configuration](#get-configuration)
 - [GET request](#get-request)
 - [GET task](#get-task)
-- [POST/PUT/DELETE resource](#post-put-delete-resource)
+- [POST/PUT/DELETE resource](#postputdelete-resource)
 
 
 GET clusters
@@ -3012,7 +3012,7 @@ POST/PUT/DELETE resource
     PUT /clusters/c1/services/HDFS/
     {
       "ServiceInfo": {
-        "state" : "STARTED”
+        "state" : "STARTED"
       }
     }
 

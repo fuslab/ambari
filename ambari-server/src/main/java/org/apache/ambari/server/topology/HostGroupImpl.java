@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,19 +19,20 @@
 
 package org.apache.ambari.server.topology;
 
-import com.google.gson.Gson;
-import org.apache.ambari.server.controller.internal.ProvisionAction;
-import org.apache.ambari.server.controller.internal.Stack;
-import org.apache.ambari.server.orm.entities.HostGroupComponentEntity;
-import org.apache.ambari.server.orm.entities.HostGroupConfigEntity;
-import org.apache.ambari.server.orm.entities.HostGroupEntity;
-
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+
+import org.apache.ambari.server.controller.internal.ProvisionAction;
+import org.apache.ambari.server.controller.internal.Stack;
+import org.apache.ambari.server.orm.entities.HostGroupComponentEntity;
+import org.apache.ambari.server.orm.entities.HostGroupConfigEntity;
+import org.apache.ambari.server.orm.entities.HostGroupEntity;
+
+import com.google.gson.Gson;
 
 /**
  * Host Group implementation.
@@ -51,12 +52,12 @@ public class HostGroupImpl implements HostGroup {
   /**
    * components contained in the host group
    */
-  private Map<String, Component> components = new HashMap<String, Component>();
+  private Map<String, Component> components = new HashMap<>();
 
   /**
    * map of service to components for the host group
    */
-  private Map<String, Set<String>> componentsForService = new HashMap<String, Set<String>>();
+  private Map<String, Set<String>> componentsForService = new HashMap<>();
 
   /**
    * configuration
@@ -124,7 +125,7 @@ public class HostGroupImpl implements HostGroup {
 
   @Override
   public Collection<String> getComponentNames(ProvisionAction provisionAction) {
-    Set<String> setOfComponentNames = new HashSet<String>();
+    Set<String> setOfComponentNames = new HashSet<>();
     for (String componentName : components.keySet()) {
       Component component = components.get(componentName);
       if ( (component.getProvisionAction() != null) && (component.getProvisionAction() == provisionAction) ) {
@@ -185,7 +186,7 @@ public class HostGroupImpl implements HostGroup {
         // an example of a component without a service in the stack is AMBARI_SERVER
         Set<String> serviceComponents = componentsForService.get(service);
         if (serviceComponents == null) {
-          serviceComponents = new HashSet<String>();
+          serviceComponents = new HashSet<>();
           componentsForService.put(service, serviceComponents);
         }
         serviceComponents.add(component);
@@ -204,8 +205,8 @@ public class HostGroupImpl implements HostGroup {
   @Override
   public Collection<String> getComponents(String service) {
     return componentsForService.containsKey(service) ?
-        new HashSet<String>(componentsForService.get(service)) :
-        Collections.<String>emptySet();
+      new HashSet<>(componentsForService.get(service)) :
+        Collections.emptySet();
   }
 
   /**
@@ -264,13 +265,13 @@ public class HostGroupImpl implements HostGroup {
    */
   //todo: use ConfigurationFactory
   private void parseConfigurations(HostGroupEntity entity) {
-    Map<String, Map<String, String>> config = new HashMap<String, Map<String, String>>();
+    Map<String, Map<String, String>> config = new HashMap<>();
     Gson jsonSerializer = new Gson();
     for (HostGroupConfigEntity configEntity : entity.getConfigurations()) {
       String type = configEntity.getType();
       Map<String, String> typeProperties = config.get(type);
       if ( typeProperties == null) {
-        typeProperties = new HashMap<String, String>();
+        typeProperties = new HashMap<>();
         config.put(type, typeProperties);
       }
       Map<String, String> propertyMap =  jsonSerializer.<Map<String, String>>fromJson(
@@ -281,7 +282,10 @@ public class HostGroupImpl implements HostGroup {
       }
     }
     //todo: parse attributes
-    Map<String, Map<String, Map<String, String>>> attributes = new HashMap<String, Map<String, Map<String, String>>>();
+    Map<String, Map<String, Map<String, String>>> attributes = new HashMap<>();
     configuration = new Configuration(config, attributes);
+  }
+  public String toString(){
+       return  name;
   }
 }

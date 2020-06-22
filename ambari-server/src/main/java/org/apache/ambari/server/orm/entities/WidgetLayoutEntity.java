@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,6 +17,8 @@
  */
 package org.apache.ambari.server.orm.entities;
 
+import java.util.List;
+
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -31,7 +33,7 @@ import javax.persistence.OneToMany;
 import javax.persistence.OrderBy;
 import javax.persistence.Table;
 import javax.persistence.TableGenerator;
-import java.util.List;
+import javax.persistence.UniqueConstraint;
 
 @Entity
 @Table(name = "widget_layout")
@@ -40,7 +42,8 @@ import java.util.List;
         pkColumnName = "sequence_name",
         valueColumnName = "sequence_value",
         pkColumnValue = "widget_layout_id_seq",
-        initialValue = 0
+        initialValue = 0,
+        uniqueConstraints=@UniqueConstraint(columnNames={"layout_name", "cluster_id"})
 )
 @NamedQueries({
     @NamedQuery(name = "WidgetLayoutEntity.findAll", query = "SELECT widgetLayout FROM WidgetLayoutEntity widgetLayout"),
@@ -55,7 +58,7 @@ public class WidgetLayoutEntity {
   @Column(name = "id", nullable = false, updatable = false)
   private Long id;
 
-  @Column(name = "layout_name", nullable = false, unique = true, length = 255)
+  @Column(name = "layout_name", nullable = false, length = 255)
   private String layoutName;
 
   @Column(name = "section_name", nullable = false, length = 255)

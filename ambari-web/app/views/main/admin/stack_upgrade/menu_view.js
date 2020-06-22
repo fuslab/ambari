@@ -40,7 +40,7 @@ App.MainAdminStackMenuView = Em.CollectionView.extend({
         name: 'upgradeHistory',
         label: Em.I18n.t('common.upgrade.history'),
         routing: 'upgradeHistory',
-        hidden: !App.get('stackVersionsAvailable')
+        hidden: !App.get('upgradeHistoryAvailable')
       })
     ]
   }.property('App.stackVersionsAvailable'),

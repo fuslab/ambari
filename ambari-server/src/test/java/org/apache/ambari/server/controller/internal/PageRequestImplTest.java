@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,13 +20,9 @@ package org.apache.ambari.server.controller.internal;
 
 import org.apache.ambari.server.controller.spi.PageRequest;
 import org.apache.ambari.server.controller.spi.Predicate;
-import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.utilities.PredicateBuilder;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
-
-import java.util.Comparator;
 
 /**
  * PageRequestImpl tests.

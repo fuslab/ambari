@@ -60,6 +60,7 @@
     <display-name>hive-env template</display-name>
     <description>This is the jinja template for hive-env.sh file</description>
     <value>
+export JAVA_HOME={{java64_home}}
 export HADOOP_USER_CLASSPATH_FIRST=true  #this prevents old metrics libs from mapreduce lib from bringing in old jar deps overriding HIVE_LIB
 if [ "$SERVICE" = "cli" ]; then
   if [ -z "$DEBUG" ]; then
@@ -76,6 +77,10 @@ if [ "$SERVICE" = "metastore" ]; then
 else
   export HADOOP_HEAPSIZE={{hive_heapsize}} # Setting for HiveServer2 and Client
 fi
+
+{% if security_enabled %}
+export HADOOP_OPTS="$HADOOP_OPTS -Dzookeeper.sasl.client.username={{zk_principal_user}}"
+{% endif %}
 
 export HADOOP_CLIENT_OPTS="$HADOOP_CLIENT_OPTS  -Xmx${HADOOP_HEAPSIZE}m"
 export HADOOP_CLIENT_OPTS="$HADOOP_CLIENT_OPTS{{heap_dump_opts}}"

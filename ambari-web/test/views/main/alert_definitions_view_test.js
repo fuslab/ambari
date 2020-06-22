@@ -23,7 +23,9 @@ require('views/main/alert_definitions_view');
 var view;
 
 function getView() {
-  return App.MainAlertDefinitionsView.create({});
+  return App.MainAlertDefinitionsView.create({
+    controller: Em.Object.create()
+  });
 }
 
 describe('App.MainAlertDefinitionsView', function () {
@@ -47,15 +49,6 @@ describe('App.MainAlertDefinitionsView', function () {
 
   App.TestAliases.testAsComputedAlias(getView(), 'totalCount', 'content.length', 'number');
 
-  describe('#serviceFilterView', function () {
-    it('Add Ambari service to filters', function () {
-      var serviceFilterClass = view.serviceFilterView;
-      var content = serviceFilterClass.create({}).get('content');
-      expect(content[0].label).to.be.equal(Em.I18n.t('common.all'));
-      expect(content[content.length - 1].label).to.be.equal(Em.I18n.t('app.name'));
-    });
-  });
-
   describe('#willInsertElement', function () {
 
     beforeEach(function(){
@@ -63,14 +56,16 @@ describe('App.MainAlertDefinitionsView', function () {
       sinon.stub(App.db, 'getSortingStatuses').returns([
         {
           name: "summary",
-          status: "sorting_asc"
+          status: "sorting"
         }
       ]);
+      sinon.stub(App.db, 'setSortingStatuses');
     });
 
     afterEach(function(){
       view.clearFilterConditionsFromLocalStorage.restore();
       App.db.getSortingStatuses.restore();
+      App.db.setSortingStatuses.restore();
     });
 
     it('should call clearFilterCondition if controller.showFilterConditionsFirstLoad is false', function () {
@@ -83,6 +78,210 @@ describe('App.MainAlertDefinitionsView', function () {
       view.set('controller', {showFilterConditionsFirstLoad: true, content: []});
       view.willInsertElement();
       expect(view.clearFilterConditionsFromLocalStorage.calledOnce).to.be.false;
+    });
+
+    it('showFilterConditionsFirstLoad is true', function () {
+      view.set('controller', {showFilterConditionsFirstLoad: true, name: 'ctrl1'});
+      view.willInsertElement();
+      expect(App.db.setSortingStatuses.calledWith('ctrl1',
+        [
+          {
+            name: "summary",
+            status: "sorting"
+          },
+          {
+            name: "summary",
+            status: "sorting_desc"
+          }
+        ])).to.be.true;
+    });
+  });
+
+  describe("#didInsertElement()", function () {
+
+    beforeEach(function() {
+      sinon.stub(Em.run, 'next', Em.clb);
+      sinon.stub(view, 'contentObsOnce');
+      sinon.stub(view, 'tooltipsUpdater');
+      view.didInsertElement();
+    });
+
+    afterEach(function() {
+      Em.run.next.restore();
+      view.contentObsOnce.restore();
+      view.tooltipsUpdater.restore();
+    });
+
+    it("isInitialRendering should be false", function() {
+      expect(view.get('isInitialRendering')).to.be.false;
+    });
+
+    it("contentObsOnce should be called", function() {
+      expect(view.contentObsOnce.calledOnce).to.be.true;
+    });
+
+    it("tooltipsUpdater should be called", function() {
+      expect(view.tooltipsUpdater.calledOnce).to.be.true;
+    });
+  });
+
+  describe("#willDestroyElement()", function () {
+    var container = {
+      tooltip: Em.K
+    };
+
+    beforeEach(function() {
+      sinon.stub(window, '$').returns(container);
+      sinon.stub(view, 'removeObserver');
+      sinon.stub(container, 'tooltip');
+      view.willDestroyElement();
+    });
+
+    afterEach(function() {
+      window.$.restore();
+      view.removeObserver.restore();
+      container.tooltip.restore();
+    });
+
+    it("tooltip should be destroyed", function() {
+      expect(container.tooltip.calledWith('destroy')).to.be.true;
+    });
+
+    it("removeObserver should be called", function() {
+      expect(view.removeObserver.calledWith('pageContent.length', view, 'tooltipsUpdater')).to.be.true;
+    });
+  });
+
+  describe("#saveStartIndex()", function () {
+
+    it("App.db.setStartIndex should be called", function() {
+      view.set('controller.name', 'ctrl1');
+      view.set('startIndex', 1);
+      view.saveStartIndex();
+      expect(App.db.setStartIndex.calledWith('ctrl1', 1)).to.be.true;
+    });
+  });
+
+  describe("#clearStartIndex()", function () {
+
+    it("App.db.setStartIndex should be called", function() {
+      view.set('controller.name', 'ctrl1');
+      view.clearStartIndex();
+      expect(App.db.setStartIndex.calledWith('ctrl1', null)).to.be.true;
+    });
+  });
+
+  describe("#paginationLeftClass", function() {
+
+    it("startIndex is 2", function() {
+      view.set('startIndex', 2);
+      expect(view.get('paginationLeftClass')).to.equal('paginate_previous');
+    });
+
+    it("startIndex is 1", function() {
+      view.set('startIndex', 1);
+      expect(view.get('paginationLeftClass')).to.equal('paginate_disabled_previous');
+    });
+
+    it("startIndex is 0", function() {
+      view.set('startIndex', 0);
+      expect(view.get('paginationLeftClass')).to.equal('paginate_disabled_previous');
+    });
+  });
+
+  describe("#paginationRightClass", function() {
+
+    it("endIndex more than filteredCount", function() {
+      view.reopen({
+        endIndex: 4,
+        filteredCount: 3
+      });
+      expect(view.get('paginationRightClass')).to.equal('paginate_disabled_next');
+    });
+
+    it("endIndex equal to filteredCount", function() {
+      view.reopen({
+        endIndex: 4,
+        filteredCount: 4
+      });
+      expect(view.get('paginationRightClass')).to.equal('paginate_disabled_next');
+    });
+
+    it("endIndex less than filteredCount", function() {
+      view.reopen({
+        endIndex: 3,
+        filteredCount: 4
+      });
+      view.propertyDidChange('paginationRightClass');
+      expect(view.get('paginationRightClass')).to.equal('paginate_next');
+    });
+  });
+
+  describe("#previousPage()", function () {
+
+    beforeEach(function() {
+      sinon.stub(view, 'tooltipsUpdater');
+    });
+
+    afterEach(function() {
+      view.tooltipsUpdater.restore();
+    });
+
+    it("tooltipsUpdater should be called", function() {
+      view.previousPage();
+      expect(view.tooltipsUpdater.calledOnce).to.be.true;
+    });
+  });
+
+  describe("#nextPage()", function () {
+
+    beforeEach(function() {
+      sinon.stub(view, 'tooltipsUpdater');
+    });
+
+    afterEach(function() {
+      view.tooltipsUpdater.restore();
+    });
+
+    it("tooltipsUpdater should be called", function() {
+      view.nextPage();
+      expect(view.tooltipsUpdater.calledOnce).to.be.true;
+    });
+  });
+
+  describe("#tooltipsUpdater", function () {
+
+    beforeEach(function() {
+      sinon.stub(Em.run, 'next', function(context, callback) {
+        callback();
+      });
+      sinon.stub(App, 'tooltip');
+    });
+
+    afterEach(function() {
+      Em.run.next.restore();
+      App.tooltip.restore();
+    });
+
+    it("App.tooltip should be called", function() {
+      view.tooltipsUpdater();
+      expect(App.tooltip.calledOnce).to.be.true;
+    });
+  });
+
+  describe("#updateFilter()", function () {
+
+    beforeEach(function() {
+      sinon.stub(view, 'tooltipsUpdater');
+    });
+
+    afterEach(function() {
+      view.tooltipsUpdater.restore();
+    });
+
+    it("tooltipsUpdater should be called", function() {
+      view.updateFilter(1, 'val1', 'type1');
+      expect(view.tooltipsUpdater.calledOnce).to.be.true;
     });
   });
 

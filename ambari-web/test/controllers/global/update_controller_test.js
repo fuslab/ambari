@@ -32,6 +32,11 @@ describe('App.UpdateController', function () {
 
   beforeEach(function () {
     c = App.UpdateController.create();
+    sinon.stub(App.HttpClient, 'get');
+  });
+
+  afterEach(function() {
+    App.HttpClient.get.restore();
   });
 
   App.TestAliases.testAsComputedAlias(App.UpdateController.create(), 'clusterName', 'App.router.clusterController.clusterName', 'string');
@@ -54,13 +59,47 @@ describe('App.UpdateController', function () {
 
     it('isWorking = false', function () {
       controller.set('isWorking', false);
+      controller.updateAll();
       expect(App.updater.run.called).to.equal(false);
     });
 
     it('isWorking = true', function () {
       controller.set('isWorking', true);
-      expect(App.updater.run.callCount).to.equal(13);
+      expect(App.updater.run.callCount).to.equal(6);
     });
+  });
+
+  describe('#startSubscriptions()', function () {
+    var mock = {
+      subscribeToUpdates: sinon.spy()
+    };
+    beforeEach(function() {
+      sinon.stub(App.StompClient, 'subscribe');
+      sinon.stub(App.router, 'get').returns(mock);
+    });
+    afterEach(function() {
+      App.StompClient.subscribe.restore();
+      App.router.get.restore();
+    });
+
+    it('should subscribe to all topics', function () {
+      controller.startSubscriptions();
+      expect(App.StompClient.subscribe.calledWith('/events/hostcomponents')).to.be.true;
+      expect(App.StompClient.subscribe.calledWith('/events/alerts')).to.be.true;
+      expect(App.StompClient.subscribe.calledWith('/events/ui_topologies')).to.be.true;
+      expect(App.StompClient.subscribe.calledWith('/events/configs')).to.be.true;
+      expect(App.StompClient.subscribe.calledWith('/events/services')).to.be.true;
+      expect(App.StompClient.subscribe.calledWith('/events/hosts')).to.be.true;
+      expect(App.StompClient.subscribe.calledWith('/events/alert_definitions')).to.be.true;
+      expect(App.StompClient.subscribe.calledWith('/events/alert_group')).to.be.true;
+      expect(App.StompClient.subscribe.calledWith('/events/upgrade')).to.be.true;
+    });
+
+    it('subscribeToUpdates should be called', function () {
+      controller.startSubscriptions();
+      expect(mock.subscribeToUpdates.called).to.be.true;
+    });
+
   });
 
   describe('#getConditionalFields()', function () {
@@ -80,7 +119,7 @@ describe('App.UpdateController', function () {
             }
           }
         ],
-        result: ['metrics/1']
+        result: ['metrics/1', 'host_components/metrics/dfs/namenode/ClusterId']
       },
       {
         title: 'FLUME service',
@@ -122,7 +161,7 @@ describe('App.UpdateController', function () {
         "host_components/metrics/hbase/master/MasterStartTime," +
         "host_components/metrics/hbase/master/MasterActiveTime," +
         "host_components/metrics/hbase/master/AverageLoad," +
-        "host_components/metrics/master/AssignmentManger/ritCount"]
+        "host_components/metrics/master/AssignmentManager/ritCount"]
       },
       {
         title: 'STORM service',
@@ -266,7 +305,7 @@ describe('App.UpdateController', function () {
     });
     it("AMBARI_METRICS is not started", function () {
       this.mock.returns(Em.Object.create({isStarted: false}));
-      expect(controller.loadHostsMetric([])).to.be.null;
+      expect(controller.loadHostsMetric([])).to.be.object;
       var args = testHelpers.findAjaxRequest('name', 'hosts.metrics.lazy_load');
       expect(args).to.not.exists;
     });
@@ -291,157 +330,15 @@ describe('App.UpdateController', function () {
     });
   });
 
-  describe('#updateUpgradeState()', function () {
-
-    var cases = [
-        {
-          currentStateName: 'versions',
-          parentStateName: 'stackAndUpgrade',
-          wizardIsNotFinished: true,
-          isLoadUpgradeDataPending: true,
-          loadUpgradeDataCallCount: 0,
-          callbackCallCount: 1,
-          title: 'stack versions page'
-        },
-        {
-          currentStateName: 'stackUpgrade',
-          parentStateName: 'admin',
-          wizardIsNotFinished: true,
-          isLoadUpgradeDataPending: true,
-          loadUpgradeDataCallCount: 0,
-          callbackCallCount: 1,
-          title: 'upgrade popup open'
-        },
-        {
-          currentStateName: 'versions',
-          parentStateName: 'admin',
-          wizardIsNotFinished: true,
-          isLoadUpgradeDataPending: false,
-          loadUpgradeDataCallCount: 1,
-          callbackCallCount: 0,
-          title: 'another page with \'versions\' name'
-        },
-        {
-          currentStateName: 'versions',
-          parentStateName: 'admin',
-          wizardIsNotFinished: false,
-          isLoadUpgradeDataPending: false,
-          loadUpgradeDataCallCount: 0,
-          callbackCallCount: 1,
-          title: 'another page with \'versions\' name, upgrade finished'
-        },
-        {
-          currentStateName: 'versions',
-          parentStateName: 'admin',
-          wizardIsNotFinished: true,
-          isLoadUpgradeDataPending: true,
-          loadUpgradeDataCallCount: 0,
-          callbackCallCount: 1,
-          title: 'another page with \'versions\' name, another update upgrade request not completed'
-        },
-        {
-          currentStateName: 'services',
-          parentStateName: 'stackAndUpgrade',
-          wizardIsNotFinished: true,
-          isLoadUpgradeDataPending: false,
-          loadUpgradeDataCallCount: 1,
-          callbackCallCount: 0,
-          title: 'another page from \'Stack and Versions\' section'
-        },
-        {
-          currentStateName: 'services',
-          parentStateName: 'stackAndUpgrade',
-          wizardIsNotFinished: false,
-          isLoadUpgradeDataPending: false,
-          loadUpgradeDataCallCount: 0,
-          callbackCallCount: 1,
-          title: 'another page from \'Stack and Versions\' section, upgrade finished'
-        },
-        {
-          currentStateName: 'services',
-          parentStateName: 'stackAndUpgrade',
-          wizardIsNotFinished: true,
-          isLoadUpgradeDataPending: true,
-          loadUpgradeDataCallCount: 0,
-          callbackCallCount: 1,
-          title: 'another page from \'Stack and Versions\' section, another update upgrade request not completed'
-        },
-        {
-          currentStateName: 'widgets',
-          parentStateName: 'dashboard',
-          wizardIsNotFinished: true,
-          isLoadUpgradeDataPending: false,
-          loadUpgradeDataCallCount: 1,
-          callbackCallCount: 0,
-          title: 'not \'Stack and Versions\' section'
-        },
-        {
-          currentStateName: 'widgets',
-          parentStateName: 'dashboard',
-          wizardIsNotFinished: false,
-          isLoadUpgradeDataPending: false,
-          loadUpgradeDataCallCount: 0,
-          callbackCallCount: 1,
-          title: 'not \'Stack and Versions\' section, upgrade finished'
-        },
-        {
-          currentStateName: 'widgets',
-          parentStateName: 'dashboard',
-          wizardIsNotFinished: true,
-          isLoadUpgradeDataPending: true,
-          loadUpgradeDataCallCount: 0,
-          callbackCallCount: 1,
-          title: 'not \'Stack and Versions\' section, another update upgrade request not completed'
-        }
-      ],
-      mock = {
-        callback: Em.K,
-        loadUpgradeData: function () {
-          return {
-            done: Em.K
-          };
-        }
-      },
-      appGetMock;
-
-    beforeEach(function () {
-      sinon.spy(mock, 'callback');
-      sinon.spy(mock, 'loadUpgradeData');
-      appGetMock = sinon.stub(App, 'get');
-    });
-
-    afterEach(function () {
-      mock.callback.restore();
-      mock.loadUpgradeData.restore();
-      App.get.restore();
-      appGetMock.restore();
-    });
-
-    cases.forEach(function (item) {
-      describe(item.title, function () {
-
-        beforeEach(function () {
-          appGetMock.withArgs('router.mainAdminStackAndUpgradeController').returns(Em.Object.create({
-            loadUpgradeData: mock.loadUpgradeData,
-            isLoadUpgradeDataPending: item.isLoadUpgradeDataPending
-          })).withArgs('wizardIsNotFinished').returns(item.wizardIsNotFinished)
-            .withArgs('router.currentState.name').returns(item.currentStateName)
-            .withArgs('router.currentState.parentState.name').returns(item.parentStateName);
-          controller.updateUpgradeState(mock.callback);
-        });
-        it('loadUpgradeData is called ' + item.loadUpgradeDataCallCount + ' times', function () {
-          expect(mock.loadUpgradeData.callCount).to.equal(item.loadUpgradeDataCallCount);
-        });
-        it('callback is called ' + item.callbackCallCount + ' times', function () {
-          expect(mock.callback.callCount).to.equal(item.callbackCallCount);
-        });
-
-      });
-    });
-
-  });
-
   describe('#computeParameters', function () {
+
+    beforeEach(function() {
+      sinon.stub(App.router.get('mainHostComboSearchBoxController'), 'generateQueryParam').returns('combo');
+    });
+
+    afterEach(function() {
+      App.router.get('mainHostComboSearchBoxController').generateQueryParam.restore();
+    });
 
     Em.A([
       {
@@ -451,6 +348,22 @@ describe('App.UpdateController', function () {
           value: [1, 2]
         }],
         result: 'k.in(1,2)'
+      },
+      {
+        q: [{
+          type: 'CUSTOM',
+          key: '{0} - {1}',
+          value: [1, 2]
+        }],
+        result: '1 - 2'
+      },
+      {
+        q: [{
+          type: 'COMBO',
+          key: '',
+          value: []
+        }],
+        result: 'combo'
       },
       {
         q: [{
@@ -534,9 +447,116 @@ describe('App.UpdateController', function () {
         var result = c.computeParameters(test.q);
         expect(result).to.be.equal(test.result);
       });
-
     });
-
   });
 
+  describe('#preLoadHosts()', function() {
+
+    beforeEach(function() {
+      sinon.stub(c, 'getHostByHostComponents');
+    });
+
+    afterEach(function() {
+      c.getHostByHostComponents.restore();
+    });
+
+    it('getHostByHostComponents should be called', function() {
+      c.set('queryParams.Hosts', [{isComponentRelatedFilter: true}]);
+      expect(c.preLoadHosts(Em.K)).to.be.true;
+      expect(c.getHostByHostComponents.calledOnce).to.be.true;
+    });
+
+    it('getHostByHostComponents should not be called', function() {
+      c.set('queryParams.Hosts', []);
+      expect(c.preLoadHosts(Em.K)).to.be.false;
+      expect(c.getHostByHostComponents.calledOnce).to.be.false;
+    });
+  });
+
+  describe('#getHostByHostComponents', function() {
+
+    it('App.ajax.send should be called', function() {
+      var args = testHelpers.findAjaxRequest('name', 'hosts.host_components.pre_load');
+      expect(args).to.exists;
+    });
+  });
+
+  describe('#updateServices()', function() {
+    it('App.HttpClient.get should be called', function() {
+      c.updateServices();
+      expect(App.HttpClient.get.calledOnce).to.be.true;
+    });
+  });
+
+  describe('#updateComponentsState()', function() {
+    it('App.HttpClient.get should be called', function() {
+      c.updateComponentsState();
+      expect(App.HttpClient.get.calledOnce).to.be.true;
+    });
+  });
+
+  describe('#updateAlertDefinitions()', function() {
+    it('App.HttpClient.get should be called', function() {
+      c.updateAlertDefinitions();
+      expect(App.HttpClient.get.calledOnce).to.be.true;
+    });
+  });
+
+  describe('#updateUnhealthyAlertInstances()', function() {
+    it('App.HttpClient.get should be called', function() {
+      c.updateUnhealthyAlertInstances();
+      expect(App.HttpClient.get.calledOnce).to.be.true;
+    });
+  });
+
+  describe('#updateAlertDefinitionSummary()', function() {
+    it('App.HttpClient.get should be called', function() {
+      c.updateAlertDefinitionSummary();
+      expect(App.HttpClient.get.calledOnce).to.be.true;
+    });
+  });
+
+  describe('#updateAlertGroups()', function() {
+    it('App.HttpClient.get should be called', function() {
+      c.updateAlertGroups();
+      expect(App.HttpClient.get.calledOnce).to.be.true;
+    });
+  });
+
+  describe('#updateAlertNotifications()', function() {
+    it('App.HttpClient.get should be called', function() {
+      c.updateAlertNotifications();
+      expect(App.HttpClient.get.calledOnce).to.be.true;
+    });
+  });
+
+  describe('#loadClusterConfig()', function() {
+
+    it('App.ajax.send should be called', function() {
+      c.loadClusterConfig();
+      var args = testHelpers.findAjaxRequest('name', 'config.tags.site');
+      expect(args).to.exists;
+    });
+  });
+
+  describe('#configsChangedHandler', function() {
+    beforeEach(function() {
+      sinon.stub(c, 'updateClusterEnv');
+      sinon.stub(App.router.get('configurationController'), 'updateConfigTags');
+    });
+    afterEach(function() {
+      c.updateClusterEnv.restore();
+      App.router.get('configurationController').updateConfigTags.restore();
+    });
+
+    it('updateClusterEnv should be called', function() {
+      c.configsChangedHandler({configs: [{type: 'cluster-env'}]});
+      expect(c.updateClusterEnv.calledOnce).to.be.true;
+    });
+
+    it('updateConfigTags should be called', function() {
+      c.configsChangedHandler({configs: [{type: 'cluster-env'}]});
+      expect(App.router.get('configurationController').updateConfigTags.calledOnce).to.be.true;
+    });
+  });
 });

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,19 +18,19 @@
 
 package org.apache.ambari.server.api.services;
 
-import org.apache.ambari.server.api.resources.ResourceInstance;
-import org.apache.ambari.server.api.services.parsers.RequestBodyParser;
-import org.apache.ambari.server.api.services.serializers.ResultSerializer;
-import org.apache.ambari.server.controller.spi.Resource.Type;
-
-import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.UriInfo;
-
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.UriInfo;
+
+import org.apache.ambari.server.api.resources.ResourceInstance;
+import org.apache.ambari.server.api.services.parsers.RequestBodyParser;
+import org.apache.ambari.server.api.services.serializers.ResultSerializer;
+import org.apache.ambari.server.controller.spi.Resource.Type;
 
 /**
  * Unit tests for RepositoryService.
@@ -39,7 +39,7 @@ public class RepositoryServiceTest extends BaseServiceTest {
 
   @Override
   public List<ServiceTestInvocation> getTestInvocations() throws Exception {
-    List<ServiceTestInvocation> listInvocations = new ArrayList<ServiceTestInvocation>();
+    List<ServiceTestInvocation> listInvocations = new ArrayList<>();
 
     RepositoryService service;
     Method m;
@@ -81,7 +81,7 @@ public class RepositoryServiceTest extends BaseServiceTest {
   private class TestRepositoryService extends RepositoryService {
 
     public TestRepositoryService() {
-      super(new HashMap<Type, String>());
+      super(new HashMap<>());
     }
 
     @Override

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -250,6 +250,18 @@ public interface Host extends Comparable {
   void setLastRegistrationTime(long lastRegistrationTime);
 
   /**
+   * Time the Ambari Agent was started.
+   * ( Unix timestamp )
+   * @return the lastOnAgentStartRegistrationTime
+   */
+  long getLastAgentStartTime();
+
+  /**
+   * @param lastAgentStartTime the lastAgentStartTime to set
+   */
+  void setLastAgentStartTime(long lastAgentStartTime);
+
+  /**
    * Last time the Ambari Server received a heartbeat from the Host
    * ( Unix timestamp )
    * @return the lastHeartbeatTime
@@ -293,6 +305,12 @@ public interface Host extends Comparable {
    * @param state Host State
    */
   void setState(HostState state);
+
+  /**
+   * Set state of host's state machine.
+   * @param state
+   */
+  void setStateMachineState(HostState state);
 
   /**
    * Get the prefix path of all logs
@@ -396,9 +414,7 @@ public interface Host extends Comparable {
   List<HostVersionEntity> getAllHostVersions();
 
   /**
-   * Gets whether this host has components which advertise their version for the
-   * given stack. If the components on the host do not exist in the given stack,
-   * then it is assumed they do not advertise their version.
+   * Gets whether this host has components which advertise their version.
    *
    * @param stackId
    *          the version of the stack to use when checking version
@@ -410,6 +426,8 @@ public interface Host extends Comparable {
    * @see ComponentInfo#isVersionAdvertised()
    */
   boolean hasComponentsAdvertisingVersions(StackId stackId) throws AmbariException;
+
+  void calculateHostStatus(Long clusterId) throws AmbariException;
 
   /**
    * Gets whether all host components whose desired repository version matches

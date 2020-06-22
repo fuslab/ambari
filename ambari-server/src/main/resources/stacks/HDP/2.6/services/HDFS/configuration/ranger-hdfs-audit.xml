@@ -20,7 +20,7 @@
 -->
 <configuration>
 
-	<property>
+  <property>
     <name>ranger.plugin.hdfs.ambari.cluster.name</name>
     <value>{{cluster_name}}</value>
     <description>Capture cluster name from where Ranger hdfs plugin is enabled.</description>

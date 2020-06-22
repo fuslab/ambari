@@ -19,9 +19,11 @@
 package org.apache.ambari.server.state;
 
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.controller.ServiceResponse;
+import org.apache.ambari.server.controller.internal.DeleteHostComponentStatusMetaData;
 import org.apache.ambari.server.orm.entities.RepositoryVersionEntity;
 
 public interface Service {
@@ -39,6 +41,8 @@ public interface Service {
 
   Map<String, ServiceComponent> getServiceComponents();
 
+  Set<String> getServiceHosts();
+
   void addServiceComponents(Map<String, ServiceComponent> components)
       throws AmbariException;
 
@@ -48,24 +52,6 @@ public interface Service {
   State getDesiredState();
 
   void setDesiredState(State state);
-
-  /**
-   * Gets this Service's security state.
-   *
-   * @return this services desired SecurityState
-   */
-  SecurityState getSecurityState();
-
-  /**
-   * Sets this Service's desired security state
-   * <p/>
-   * It is expected that the new SecurityState is a valid endpoint state such that
-   * SecurityState.isEndpoint() == true.
-   *
-   * @param securityState the desired SecurityState for this Service
-   * @throws AmbariException if the new state is not an endpoint state
-   */
-  void setSecurityState(SecurityState securityState) throws AmbariException;
 
   StackId getDesiredStackId();
 
@@ -83,14 +69,14 @@ public interface Service {
    */
   boolean canBeRemoved();
 
-  void deleteAllComponents() throws AmbariException;
+  void deleteAllComponents(DeleteHostComponentStatusMetaData deleteMetaData);
 
-  void deleteServiceComponent(String componentName)
+  void deleteServiceComponent(String componentName, DeleteHostComponentStatusMetaData deleteMetaData)
       throws AmbariException;
 
   boolean isClientOnlyService();
 
-  void delete() throws AmbariException;
+  void delete(DeleteHostComponentStatusMetaData deleteMetaData);
 
   /**
    * Sets the maintenance state for the service
@@ -102,6 +88,25 @@ public interface Service {
    * @return the maintenance state
    */
   MaintenanceState getMaintenanceState();
+
+  /**
+   * Tests to see if Kerberos is enabled for this service using the Kerberos enabled test metadata
+   * and the existing cluster configurations.
+   *
+   * @return <code>true</code>. if it is determined that Kerberos is enabled for this service; <code>false</code>, otherwise
+   * @see #isKerberosEnabled(Map)
+   */
+  boolean isKerberosEnabled();
+
+  /**
+   * Tests to see if Kerberos is enabled for this service using the Kerberos enabled test metadata
+   * and the supplied configurations map.
+   *
+   * @param configurations a map of configurations to use for the test
+   * @return <code>true</code>. if it is determined that Kerberos is enabled for this service; <code>false</code>, otherwise
+   * @see #isKerberosEnabled()
+   */
+  boolean isKerberosEnabled(Map<String, Map<String, String>> configurations);
 
   /**
    * Refresh Service info due to current stack

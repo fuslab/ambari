@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
 package org.apache.ambari.server.orm.dao;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import javax.persistence.EntityManager;
@@ -27,7 +26,6 @@ import javax.persistence.TypedQuery;
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.controller.ExtensionLinkRequest;
 import org.apache.ambari.server.orm.RequiresSession;
-import org.apache.ambari.server.orm.entities.ExtensionLinkEntity;
 import org.apache.ambari.server.orm.entities.ExtensionLinkEntity;
 
 import com.google.inject.Inject;
@@ -68,7 +66,7 @@ public class ExtensionLinkDAO {
   public List<ExtensionLinkEntity> find(ExtensionLinkRequest request) {
     if (request.getLinkId() != null) {
       ExtensionLinkEntity entity = findById(new Long(request.getLinkId()));
-      List<ExtensionLinkEntity> list = new ArrayList<ExtensionLinkEntity>();
+      List<ExtensionLinkEntity> list = new ArrayList<>();
       list.add(entity);
       return list;
     }
@@ -231,8 +229,7 @@ public class ExtensionLinkDAO {
    * {@link ExtensionLinkEntity#getLinkId()} in order to determine whether the entity
    * should be created or merged.
    *
-   * @param extension
-   *          the link to create or update (not {@code null}).
+   * @param link the link to create or update (not {@code null}).
    */
   public void createOrUpdate(ExtensionLinkEntity link)
       throws AmbariException {

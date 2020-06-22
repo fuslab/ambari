@@ -36,11 +36,7 @@ App.AlertDefinitionConfigsView = Em.View.extend({
    */
   alertDefinitionType: '',
 
-  /**
-   * List of classes applied to all inputs
-   * @type {String}
-   */
-  basicClass: 'span11',
+  formControlClass: 'form-control',
 
   init: function () {
     this.set('controller.canEdit', this.get('canEdit'));
@@ -57,13 +53,17 @@ App.AlertDefinitionConfigsView = Em.View.extend({
 
 App.AlertConfigTextFieldView = Em.View.extend({
   templateName: require('templates/main/alerts/configs/alert_config_text_field'),
-  classNameBindings: ['property.classNames', 'parentView.basicClass']
+  classNameBindings: ['property.classNames'],
+  classNames: ['row'],
+  colWidth: function () {
+    return this.get('property.colWidth') || 'col-md-12';
+  }.property('property.colWidth')
 });
 
-App.AlertConfigTextAreaView = Em.TextArea.extend({
-  valueBinding: 'property.value',
-  disabledBinding: 'property.isDisabled',
-  classNameBindings: ['property.classNames', 'parentView.basicClass']
+App.AlertConfigTextAreaView = Em.View.extend({
+  templateName: require('templates/main/alerts/configs/alert_config_text_area'),
+  classNameBindings: ['property.classNames'],
+  classNames: ['row']
 });
 
 App.AlertConfigSelectView = Em.Select.extend({
@@ -71,17 +71,16 @@ App.AlertConfigSelectView = Em.Select.extend({
   selectionBinding: 'property.value',
   disabledBinding: 'property.isDisabled',
   contentBinding: 'property.options',
-  classNameBindings: ['property.classNames', 'parentView.basicClass']
+  classNameBindings: ['property.classNames']
 });
 
 App.AlertConfigThresholdView = Em.View.extend({
   templateName: require('templates/main/alerts/configs/alert_config_threshold'),
-  classNameBindings: ['property.classNames', 'parentView.basicClass']
+  classNameBindings: ['property.classNames'],
+  classNames: ['row']
 });
 
-App.AlertConfigRadioButtonView = Em.Checkbox.extend({
-  attributeBindings: ['type', 'name', 'value', 'checked', 'disabled'],
-  type: 'radio',
+App.AlertConfigRadioButtonView = App.RadioButtonView.extend({
   nameBinding: 'property.group',
   checkedBinding: 'property.value',
 
@@ -100,7 +99,8 @@ App.AlertConfigParameterView = Em.View.extend({
 
   bigInput: Em.computed.equal('property.type', 'STRING'),
 
-  classNameBindings: ['property.classNames', 'parentView.basicClass'],
+  classNameBindings: ['property.classNames'],
+  classNames: ['row'],
 
   didInsertElement: function () {
     App.tooltip($("[rel='parameter-tooltip']"));

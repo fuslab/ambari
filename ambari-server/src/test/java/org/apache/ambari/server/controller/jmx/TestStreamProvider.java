@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,10 +18,6 @@
 
 package org.apache.ambari.server.controller.jmx;
 
-import org.apache.ambari.server.configuration.ComponentSSLConfiguration;
-import org.apache.ambari.server.controller.internal.URLStreamProvider;
-import org.apache.ambari.server.controller.utilities.StreamProvider;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -29,9 +25,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.ambari.server.configuration.ComponentSSLConfiguration;
+import org.apache.ambari.server.controller.internal.URLStreamProvider;
+
 public class TestStreamProvider extends URLStreamProvider {
 
-  protected static Map<String, String> FILE_MAPPING = new HashMap<String, String>();
+  protected static Map<String, String> FILE_MAPPING = new HashMap<>();
 
   static {
     FILE_MAPPING.put("50070", "hdfs_namenode_jmx.json");

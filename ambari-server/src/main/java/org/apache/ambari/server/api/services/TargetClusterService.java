@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,7 @@
 
 package org.apache.ambari.server.api.services;
 
-import org.apache.ambari.server.api.resources.ResourceInstance;
-import org.apache.ambari.server.controller.spi.Resource;
+import java.util.Collections;
 
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
@@ -32,7 +31,10 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
-import java.util.Collections;
+
+import org.apache.ambari.annotations.ApiIgnore;
+import org.apache.ambari.server.api.resources.ResourceInstance;
+import org.apache.ambari.server.controller.spi.Resource;
 
 /**
  * DR target cluster service.
@@ -49,7 +51,7 @@ public class TargetClusterService extends BaseService {
    * @param targetName    target id
    * @return target instance representation
    */
-  @GET
+  @GET @ApiIgnore // until documented
   @Path("{targetName}")
   @Produces("text/plain")
   public Response getTargetCluster(String body, @Context HttpHeaders headers, @Context UriInfo ui,
@@ -66,7 +68,7 @@ public class TargetClusterService extends BaseService {
    * @param ui      uri info
    * @return target collection resource representation
    */
-  @GET
+  @GET @ApiIgnore // until documented
   @Produces("text/plain")
   public Response getTargetClusters(String body, @Context HttpHeaders headers, @Context UriInfo ui) {
     return handleRequest(headers, body, ui, Request.Type.GET, createTargetClusterResource(null));
@@ -81,7 +83,7 @@ public class TargetClusterService extends BaseService {
    * @param targetName target id
    * @return information regarding the created target
    */
-  @POST
+  @POST @ApiIgnore // until documented
   @Path("{targetName}")
   @Produces("text/plain")
   public Response createTargetCluster(String body, @Context HttpHeaders headers, @Context UriInfo ui,
@@ -99,7 +101,7 @@ public class TargetClusterService extends BaseService {
    * @param targetName target id
    * @return information regarding the updated target
    */
-  @PUT
+  @PUT @ApiIgnore // until documented
   @Path("{targetName}")
   @Produces("text/plain")
   public Response updateTargetCluster(String body, @Context HttpHeaders headers, @Context UriInfo ui,
@@ -117,7 +119,7 @@ public class TargetClusterService extends BaseService {
    * @param targetName target id
    * @return information regarding the deleted target
    */
-  @DELETE
+  @DELETE @ApiIgnore // until documented
   @Path("{targetName}")
   @Produces("text/plain")
   public Response deleteTargetCluster(@Context HttpHeaders headers, @Context UriInfo ui,

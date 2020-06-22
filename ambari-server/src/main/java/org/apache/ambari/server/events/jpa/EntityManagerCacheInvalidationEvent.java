@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,11 +23,6 @@ package org.apache.ambari.server.events.jpa;
  */
 public final class EntityManagerCacheInvalidationEvent extends JPAEvent {
 
-  /**
-   * Constructor.
-   *
-   * @param eventType
-   */
   public EntityManagerCacheInvalidationEvent() {
     super(JPAEventType.CACHE_INVALIDATION);
   }

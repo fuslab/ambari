@@ -57,14 +57,13 @@ def setup_kms_db(stack_version=None):
   if params.has_ranger_admin:
 
     kms_home = params.kms_home
-    version = params.version
+
     if stack_version is not None:
       kms_home = format("{stack_root}/{stack_version}/ranger-kms")
-      version = stack_version
 
     password_validation(params.kms_master_key_password, 'KMS master key')
 
-    copy_jdbc_connector(stack_version=version)
+    copy_jdbc_connector(kms_home)
 
     env_dict = {'RANGER_KMS_HOME':kms_home, 'JAVA_HOME': params.java_home}
     if params.db_flavor.lower() == 'sqla':
@@ -126,6 +125,16 @@ def do_keystore_setup(cred_provider_path, credential_alias, credential_password)
     File(cred_provider_path,
       owner = params.kms_user,
       group = params.kms_group,
+      only_if = format('test -e {cred_provider_path}'),
+      mode = 0640
+    )
+
+    dot_jceks_crc_file_path = os.path.join(os.path.dirname(cred_provider_path), "." + os.path.basename(cred_provider_path) + ".crc")
+
+    File(dot_jceks_crc_file_path,
+      owner = params.kms_user,
+      group = params.kms_group,
+      only_if = format("test -e {dot_jceks_crc_file_path}"),
       mode = 0640
     )
 
@@ -150,7 +159,7 @@ def kms(upgrade_type=None):
       cd_access = "a"
     )
 
-    copy_jdbc_connector()
+    copy_jdbc_connector(params.kms_home)
 
     File(format("/usr/lib/ambari-agent/{check_db_connection_jar_name}"),
       content = DownloadSource(format("{jdk_location}/{check_db_connection_jar_name}")),
@@ -301,7 +310,7 @@ def kms(upgrade_type=None):
     XmlConfig("dbks-site.xml",
       conf_dir=params.kms_conf_dir,
       configurations=dbks_site_copy,
-      configuration_attributes=params.config['configuration_attributes']['dbks-site'],
+      configuration_attributes=params.config['configurationAttributes']['dbks-site'],
       owner=params.kms_user,
       group=params.kms_group,
       mode=0644
@@ -318,7 +327,7 @@ def kms(upgrade_type=None):
     XmlConfig("ranger-kms-site.xml",
       conf_dir=params.kms_conf_dir,
       configurations=ranger_kms_site_copy,
-      configuration_attributes=params.config['configuration_attributes']['ranger-kms-site'],
+      configuration_attributes=params.config['configurationAttributes']['ranger-kms-site'],
       owner=params.kms_user,
       group=params.kms_group,
       mode=0644
@@ -327,7 +336,7 @@ def kms(upgrade_type=None):
     XmlConfig("kms-site.xml",
       conf_dir=params.kms_conf_dir,
       configurations=params.config['configurations']['kms-site'],
-      configuration_attributes=params.config['configuration_attributes']['kms-site'],
+      configuration_attributes=params.config['configurationAttributes']['kms-site'],
       owner=params.kms_user,
       group=params.kms_group,
       mode=0644
@@ -344,7 +353,7 @@ def kms(upgrade_type=None):
       XmlConfig("core-site.xml",
         conf_dir=params.kms_conf_dir,
         configurations=params.config['configurations']['core-site'],
-        configuration_attributes=params.config['configuration_attributes']['core-site'],
+        configuration_attributes=params.config['configurationAttributes']['core-site'],
         owner=params.kms_user,
         group=params.kms_group,
         mode=0644
@@ -352,7 +361,7 @@ def kms(upgrade_type=None):
     else:
       File(format('{kms_conf_dir}/core-site.xml'), action="delete")
 
-def copy_jdbc_connector(stack_version=None):
+def copy_jdbc_connector(kms_home):
   import params
 
   if params.jdbc_jar_name is None and params.driver_curl_source.endswith("/None"):
@@ -363,10 +372,6 @@ def copy_jdbc_connector(stack_version=None):
   if params.driver_curl_source and not params.driver_curl_source.endswith("/None"):
     if params.previous_jdbc_jar and os.path.isfile(params.previous_jdbc_jar):
       File(params.previous_jdbc_jar, action='delete')
-
-  kms_home = params.kms_home
-  if stack_version is not None:
-    kms_home = format("{stack_root}/{stack_version}/ranger-kms")
 
   driver_curl_target = format("{kms_home}/ews/webapp/lib/{jdbc_jar_name}")
 
@@ -468,7 +473,7 @@ def enable_kms_plugin():
     XmlConfig("ranger-kms-audit.xml",
       conf_dir=params.kms_conf_dir,
       configurations=plugin_audit_properties_copy,
-      configuration_attributes=params.config['configuration_attributes']['ranger-kms-audit'],
+      configuration_attributes=params.config['configurationAttributes']['ranger-kms-audit'],
       owner=params.kms_user,
       group=params.kms_group,
       mode=0744)
@@ -476,7 +481,7 @@ def enable_kms_plugin():
     XmlConfig("ranger-kms-security.xml",
       conf_dir=params.kms_conf_dir,
       configurations=params.config['configurations']['ranger-kms-security'],
-      configuration_attributes=params.config['configuration_attributes']['ranger-kms-security'],
+      configuration_attributes=params.config['configurationAttributes']['ranger-kms-security'],
       owner=params.kms_user,
       group=params.kms_group,
       mode=0744)
@@ -492,7 +497,7 @@ def enable_kms_plugin():
     XmlConfig("ranger-policymgr-ssl.xml",
       conf_dir=params.kms_conf_dir,
       configurations=ranger_kms_policymgr_ssl_copy,
-      configuration_attributes=params.config['configuration_attributes']['ranger-kms-policymgr-ssl'],
+      configuration_attributes=params.config['configurationAttributes']['ranger-kms-policymgr-ssl'],
       owner=params.kms_user,
       group=params.kms_group,
       mode=0744)
@@ -510,8 +515,18 @@ def enable_kms_plugin():
     File(params.credential_file,
       owner = params.kms_user,
       group = params.kms_group,
+      only_if = format("test -e {credential_file}"),
       mode = 0640
-      )
+    )
+
+    dot_jceks_crc_file_path = os.path.join(os.path.dirname(params.credential_file), "." + os.path.basename(params.credential_file) + ".crc")
+
+    File(dot_jceks_crc_file_path,
+      owner = params.kms_user,
+      group = params.kms_group,
+      only_if = format("test -e {dot_jceks_crc_file_path}"),
+      mode = 0640
+    )
 
     # create ranger kms audit directory
     if params.xa_audit_hdfs_is_enabled and params.has_namenode and params.has_hdfs_client_on_node:
@@ -538,7 +553,7 @@ def enable_kms_plugin():
       XmlConfig("hdfs-site.xml",
         conf_dir=params.kms_conf_dir,
         configurations=params.config['configurations']['hdfs-site'],
-        configuration_attributes=params.config['configuration_attributes']['hdfs-site'],
+        configuration_attributes=params.config['configurationAttributes']['hdfs-site'],
         owner=params.kms_user,
         group=params.kms_group,
         mode=0644

@@ -18,9 +18,11 @@
 package org.apache.ambari.server.checks;
 
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import org.apache.ambari.server.AmbariException;
@@ -47,6 +49,7 @@ import org.apache.ambari.server.state.stack.upgrade.RepositoryVersionHelper;
 import org.apache.ambari.server.state.stack.upgrade.UpgradeType;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
+import org.codehaus.jackson.annotate.JsonProperty;
 
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
@@ -76,7 +79,7 @@ public abstract class AbstractCheckDescriptor {
   Provider<RepositoryVersionHelper> repositoryVersionHelper;
 
   @Inject
-  protected Provider<AmbariMetaInfo> ambariMetaInfo;
+  Provider<AmbariMetaInfo> ambariMetaInfo;
 
   @Inject
   Configuration config;
@@ -129,7 +132,7 @@ public abstract class AbstractCheckDescriptor {
    *           if server error happens
    */
   public final boolean isApplicable(PrereqCheckRequest request) throws AmbariException {
-    List<CheckQualification> qualifications = Lists.<CheckQualification> newArrayList(
+    List<CheckQualification> qualifications = Lists.newArrayList(
         new ServiceQualification(), new OrchestrationQualification(getClass()));
 
     // add any others from the concrete check
@@ -185,7 +188,8 @@ public abstract class AbstractCheckDescriptor {
   }
 
   /**
-   * Gets a cluster configuration property if it exists, or {@code null} otherwise.
+   * Gets a cluster configuration property if it exists, or {@code null}
+   * otherwise.
    *
    * @param request
    *          the request (not {@code null}).
@@ -201,23 +205,6 @@ public abstract class AbstractCheckDescriptor {
       throws AmbariException {
     final String clusterName = request.getClusterName();
     final Cluster cluster = clustersProvider.get().getCluster(clusterName);
-
-    return getProperty(cluster, configType, propertyName);
-  }
-
-  /**
-   * Gets a cluster configuration property if it exists, or {@code null} otherwise.
-   *
-   * @param cluster
-   *          the cluster (not {@code null}).
-   * @param configType
-   *          the configuration type, such as {@code hdfs-site} (not
-   *          {@code null}).
-   * @param propertyName
-   *          the name of the property (not {@code null}).
-   * @return the property value or {@code null} if not found.
-   */
-  protected String getProperty(Cluster cluster, String configType, String propertyName) {
     final Map<String, DesiredConfig> desiredConfigs = cluster.getDesiredConfigs();
     final DesiredConfig desiredConfig = desiredConfigs.get(configType);
 
@@ -230,7 +217,6 @@ public abstract class AbstractCheckDescriptor {
     Map<String, String> properties = config.getProperties();
     return properties.get(propertyName);
   }
-
 
   /**
    * Gets the fail reason
@@ -483,6 +469,167 @@ public abstract class AbstractCheckDescriptor {
       }
 
       return false;
+    }
+  }
+
+  /**
+   * Used to represent information about a service. This class is safe to use in
+   * sorted & unique collections.
+   */
+  static class ServiceDetail implements Comparable<ServiceDetail> {
+    @JsonProperty("service_name")
+    final String serviceName;
+
+    ServiceDetail(String serviceName) {
+      this.serviceName = serviceName;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int hashCode() {
+      return Objects.hash(serviceName);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean equals(Object obj) {
+      if (this == obj) {
+        return true;
+      }
+
+      if (obj == null) {
+        return false;
+      }
+
+      if (getClass() != obj.getClass()) {
+        return false;
+      }
+
+      ServiceDetail other = (ServiceDetail) obj;
+      return Objects.equals(serviceName, other.serviceName);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int compareTo(ServiceDetail other) {
+      return serviceName.compareTo(other.serviceName);
+    }
+  }
+
+  /**
+   * Used to represent information about a service component. This class is safe
+   * to use in sorted & unique collections.
+   */
+  static class ServiceComponentDetail implements Comparable<ServiceComponentDetail> {
+    @JsonProperty("service_name")
+    final String serviceName;
+
+    @JsonProperty("component_name")
+    final String componentName;
+
+    ServiceComponentDetail(String serviceName, String componentName) {
+      this.serviceName = serviceName;
+      this.componentName = componentName;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int hashCode() {
+      return Objects.hash(serviceName, componentName);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean equals(Object obj) {
+      if (this == obj) {
+        return true;
+      }
+
+      if (obj == null) {
+        return false;
+      }
+
+      if (getClass() != obj.getClass()) {
+        return false;
+      }
+
+      ServiceComponentDetail other = (ServiceComponentDetail) obj;
+      return Objects.equals(serviceName, other.serviceName)
+          && Objects.equals(componentName, other.componentName);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int compareTo(ServiceComponentDetail other) {
+      return Comparator.comparing(
+          (ServiceComponentDetail detail) -> detail.serviceName).thenComparing(
+              detail -> detail.componentName).compare(this, other);
+    }
+  }
+
+  /**
+   * Used to represent information about a host. This class is safe to use in
+   * sorted & unique collections.
+   */
+  static class HostDetail implements Comparable<HostDetail> {
+    @JsonProperty("host_id")
+    final Long hostId;
+
+    @JsonProperty("host_name")
+    final String hostName;
+
+    HostDetail(Long hostId, String hostName) {
+      this.hostId = hostId;
+      this.hostName = hostName;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int hashCode() {
+      return Objects.hash(hostId, hostName);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean equals(Object obj) {
+      if (this == obj) {
+        return true;
+      }
+
+      if (obj == null) {
+        return false;
+      }
+
+      if (getClass() != obj.getClass()) {
+        return false;
+      }
+
+      HostDetail other = (HostDetail) obj;
+      return Objects.equals(hostId, other.hostId) && Objects.equals(hostName, other.hostName);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int compareTo(HostDetail other) {
+      return hostName.compareTo(other.hostName);
     }
   }
 }

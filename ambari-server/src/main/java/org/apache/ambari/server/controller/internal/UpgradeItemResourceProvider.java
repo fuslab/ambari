@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -55,10 +55,12 @@ import org.apache.ambari.server.security.authorization.AuthorizationHelper;
 import org.apache.ambari.server.security.authorization.ResourceType;
 import org.apache.ambari.server.security.authorization.RoleAuthorization;
 import org.apache.ambari.server.state.Cluster;
-
-import com.google.inject.Inject;
 import org.apache.ambari.server.utils.SecretReference;
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.inject.Inject;
 
 /**
  * Manages the ability to get the status of upgrades.
@@ -66,18 +68,20 @@ import org.apache.commons.lang.StringUtils;
 @StaticallyInject
 public class UpgradeItemResourceProvider extends ReadOnlyResourceProvider {
 
+  private static final Logger LOG = LoggerFactory.getLogger(UpgradeItemResourceProvider.class);
+
   public static final String UPGRADE_CLUSTER_NAME = "UpgradeItem/cluster_name";
   public static final String UPGRADE_REQUEST_ID = "UpgradeItem/request_id";
   public static final String UPGRADE_GROUP_ID = "UpgradeItem/group_id";
   public static final String UPGRADE_ITEM_STAGE_ID = "UpgradeItem/stage_id";
   public static final String UPGRADE_ITEM_TEXT = "UpgradeItem/text";
 
-  private static final Set<String> PK_PROPERTY_IDS = new HashSet<String>(
-      Arrays.asList(UPGRADE_REQUEST_ID, UPGRADE_ITEM_STAGE_ID));
-  private static final Set<String> PROPERTY_IDS = new HashSet<String>();
+  private static final Set<String> PK_PROPERTY_IDS = new HashSet<>(
+    Arrays.asList(UPGRADE_REQUEST_ID, UPGRADE_ITEM_STAGE_ID));
+  private static final Set<String> PROPERTY_IDS = new HashSet<>();
 
-  private static final Map<Resource.Type, String> KEY_PROPERTY_IDS = new HashMap<Resource.Type, String>();
-  private static Map<String, String> STAGE_MAPPED_IDS = new HashMap<String, String>();
+  private static final Map<Resource.Type, String> KEY_PROPERTY_IDS = new HashMap<>();
+  private static Map<String, String> STAGE_MAPPED_IDS = new HashMap<>();
 
   @Inject
   private static UpgradeDAO s_dao;
@@ -115,7 +119,7 @@ public class UpgradeItemResourceProvider extends ReadOnlyResourceProvider {
    * @param controller  the controller
    */
   UpgradeItemResourceProvider(AmbariManagementController controller) {
-    super(PROPERTY_IDS, KEY_PROPERTY_IDS, controller);
+    super(Resource.Type.UpgradeItem, PROPERTY_IDS, KEY_PROPERTY_IDS, controller);
   }
 
   @Override
@@ -188,7 +192,7 @@ public class UpgradeItemResourceProvider extends ReadOnlyResourceProvider {
       throws SystemException, UnsupportedPropertyException,
       NoSuchResourceException, NoSuchParentResourceException {
 
-    Set<Resource> results = new LinkedHashSet<Resource>();
+    Set<Resource> results = new LinkedHashSet<>();
     Set<String> requestPropertyIds = getRequestPropertyIds(request, predicate);
 
     for (Map<String, Object> propertyMap : getPropertyMaps(predicate)) {
@@ -212,7 +216,7 @@ public class UpgradeItemResourceProvider extends ReadOnlyResourceProvider {
         stageId = Long.valueOf(stageIdStr);
       }
 
-      List<UpgradeItemEntity> entities = new ArrayList<UpgradeItemEntity>();
+      List<UpgradeItemEntity> entities = new ArrayList<>();
       if (null == stageId) {
         UpgradeGroupEntity group = s_dao.findUpgradeGroup(groupId);
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,11 +19,12 @@
 package org.apache.ambari.server.api.predicate.operators;
 
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
+
 import org.apache.ambari.server.controller.predicate.EqualsPredicate;
 import org.apache.ambari.server.controller.predicate.NotPredicate;
 import org.junit.Test;
-
-import static org.junit.Assert.*;
 
 
 /**
@@ -38,7 +39,7 @@ public class NotOperatorTest {
 
   @Test
   public void testToPredicate() {
-    EqualsPredicate p = new EqualsPredicate<String>("prop", "val");
+    EqualsPredicate p = new EqualsPredicate<>("prop", "val");
     NotPredicate notPredicate = new NotPredicate(p);
 
     assertEquals(notPredicate, new NotOperator(1).toPredicate(null, p));

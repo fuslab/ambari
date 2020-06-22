@@ -36,7 +36,6 @@
     <check>org.apache.ambari.server.checks.ServicePresenceCheck</check>
     <check>org.apache.ambari.server.checks.RangerAuditDbCheck</check>
     <check>org.apache.ambari.server.checks.RangerSSLConfigCheck</check>
-    <check>org.apache.ambari.server.checks.KafkaPropertiesCheck</check>
     <check>org.apache.ambari.server.checks.LZOCheck</check>
 
     <!-- Specific to HDP 2.5, Storm is not rolling -->
@@ -106,11 +105,10 @@
 
       <execute-stage service="RANGER" component="RANGER_ADMIN" title="Pre Upgrade Ranger Backup">
         <task xsi:type="manual">
-          <message>Before continuing, please backup the Ranger Admin database and Ranger Audit database.
-                If audit database size is too large( > 3GB ) then follow the below instructions:
-                1. Backup the audit table from audit database.
-                2. Truncate audit table.
-                3. Follow upgrade process and once completed then restore audit data to audit table.</message>
+          <message>Before continuing, please backup the Ranger Admin database and Ranger Audit database. If audit database size is too large( > 3GB ) then follow the below instructions:</message>
+          <message>1. Backup the audit table from audit database.</message>
+          <message>2. Truncate audit table.</message>
+          <message>3. Follow upgrade process and once completed then restore audit data to audit table.</message>
         </task>
       </execute-stage>
 
@@ -163,7 +161,7 @@
       </service>
     </group>
 
-    <group name="HBASE" title="Update HBase Configuration">
+    <group xsi:type="cluster" name="HBASE" title="Update HBase Configuration">
       <skippable>true</skippable>
 
       <execute-stage service="HBASE" component="HBASE_MASTER" title="Update HBase Configuration">
@@ -499,16 +497,6 @@
       </service>
     </group>
 
-    <group xsi:type="cluster" name="ALL_HOST_OPS" title="Finalize Hosts">
-      <scope>COMPLETE</scope>
-      <execute-stage title="Update remaining HDP stack to {{version}}">
-        <task xsi:type="execute">
-          <script>scripts/ru_set_all.py</script>
-          <function>actionexecute</function>
-        </task>
-      </execute-stage>
-    </group>
-
     <group xsi:type="cluster" name="FINALIZE_PRE_CHECK" title="Finalize {{direction.text.proper}} Pre-Check">
       <direction>UPGRADE</direction>
 
@@ -711,6 +699,7 @@
       <component name="HDFS_CLIENT">
         <pre-upgrade>
           <task xsi:type="configure" id="hdfs_user_agent" />
+          <task xsi:type="configure" id="gcs_properties" />
         </pre-upgrade>
         <pre-downgrade />
         <upgrade>
@@ -1137,7 +1126,6 @@
           <task xsi:type="configure" id="storm_worker_log4j_parameterize" />
           <task xsi:type="configure" id="storm_cluster_log4j_parameterize" />
           <task xsi:type="configure" id="storm_worker_log4j_directory" />
-          <task xsi:type="configure" id="storm_nimbus_autocred_config" />
           <task xsi:type="configure" id="storm_remove_jmxetric"/>
         </pre-upgrade>
 

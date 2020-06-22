@@ -18,10 +18,7 @@
 
 package org.apache.ambari.server.collections.functors;
 
-import org.apache.ambari.server.collections.Predicate;
-import org.easymock.EasyMockSupport;
-import org.junit.Assert;
-import org.junit.Test;
+import static org.easymock.EasyMock.expect;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,7 +26,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.easymock.EasyMock.expect;
+import org.apache.ambari.server.collections.Predicate;
+import org.easymock.EasyMockSupport;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class OrPredicateTest extends EasyMockSupport {
 
@@ -64,10 +64,10 @@ public class OrPredicateTest extends EasyMockSupport {
   @Test
   public void testToMap() {
     Predicate mockPredicate1 = createStrictMock(Predicate.class);
-    expect(mockPredicate1.toMap()).andReturn(Collections.<String, Object>singletonMap("nop", "foo")).times(1);
+    expect(mockPredicate1.toMap()).andReturn(Collections.singletonMap("nop", "foo")).times(1);
 
     Predicate mockPredicate2 = createStrictMock(Predicate.class);
-    expect(mockPredicate2.toMap()).andReturn(Collections.<String, Object>singletonMap("nop", "baz")).times(1);
+    expect(mockPredicate2.toMap()).andReturn(Collections.singletonMap("nop", "baz")).times(1);
 
     replayAll();
 
@@ -76,10 +76,10 @@ public class OrPredicateTest extends EasyMockSupport {
 
     verifyAll();
 
-    Map<String, Object> expectedMap = new HashMap<String, Object>();
-    expectedMap.put("or", new ArrayList<Map<String, Object>>(
-        Arrays.asList(Collections.<String, Object>singletonMap("nop", "foo"),
-            Collections.<String, Object>singletonMap("nop", "baz"))
+    Map<String, Object> expectedMap = new HashMap<>();
+    expectedMap.put("or", new ArrayList<>(
+      Arrays.asList(Collections.<String, Object>singletonMap("nop", "foo"),
+        Collections.<String, Object>singletonMap("nop", "baz"))
     ));
 
     Assert.assertEquals(expectedMap, actualMap);
@@ -88,10 +88,10 @@ public class OrPredicateTest extends EasyMockSupport {
   @Test
   public void testToJSON() {
     Predicate mockPredicate1 = createStrictMock(Predicate.class);
-    expect(mockPredicate1.toMap()).andReturn(Collections.<String, Object>singletonMap("nop", "foo")).times(1);
+    expect(mockPredicate1.toMap()).andReturn(Collections.singletonMap("nop", "foo")).times(1);
 
     Predicate mockPredicate2 = createStrictMock(Predicate.class);
-    expect(mockPredicate2.toMap()).andReturn(Collections.<String, Object>singletonMap("nop", "baz")).times(1);
+    expect(mockPredicate2.toMap()).andReturn(Collections.singletonMap("nop", "baz")).times(1);
 
     replayAll();
 

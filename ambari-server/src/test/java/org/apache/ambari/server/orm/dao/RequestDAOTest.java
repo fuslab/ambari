@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -119,7 +119,7 @@ public class RequestDAOTest {
     Assert.assertEquals(calc1.getPercent(), calc2.getPercent(), 0.01d);
 
     // !!! simulate an upgrade group
-    Set<Long> group = new HashSet<Long>();
+    Set<Long> group = new HashSet<>();
     group.add(2L);
     group.add(3L);
     group.add(4L);
@@ -175,11 +175,11 @@ public class RequestDAOTest {
     RequestEntity requestEntity = new RequestEntity();
     requestEntity.setRequestId(requestId);
     requestEntity.setClusterId(clusterEntity.getClusterId());
-    requestEntity.setStages(new ArrayList<StageEntity>());
+    requestEntity.setStages(new ArrayList<>());
     requestDAO.create(requestEntity);
 
     HostEntity host = hostDAO.findByName(hostName);
-    host.setHostRoleCommandEntities(new ArrayList<HostRoleCommandEntity>());
+    host.setHostRoleCommandEntities(new ArrayList<>());
 
     long stageId = 1L;
 
@@ -202,7 +202,7 @@ public class RequestDAOTest {
       stageEntity.setClusterId(clusterEntity.getClusterId());
       stageEntity.setRequest(re);
       stageEntity.setStageId(stageId);
-      stageEntity.setHostRoleCommands(new ArrayList<HostRoleCommandEntity>());
+      stageEntity.setHostRoleCommands(new ArrayList<>());
       stageEntity.setSkippable(skipStage);
       stageDAO.create(stageEntity);
 

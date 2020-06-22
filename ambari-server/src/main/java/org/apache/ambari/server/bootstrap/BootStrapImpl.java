@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,12 +27,11 @@ import java.util.List;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
 import org.apache.ambari.server.bootstrap.BSResponse.BSRunStat;
 import org.apache.ambari.server.configuration.Configuration;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import org.apache.ambari.server.controller.AmbariServer;
 
 @Singleton
 public class BootStrapImpl {
@@ -45,7 +44,7 @@ public class BootStrapImpl {
   private String masterHostname;
   long timeout;
 
-  private static Log LOG = LogFactory.getLog(BootStrapImpl.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BootStrapImpl.class);
 
   /* Monotonically increasing requestid for the bootstrap api to query on */
   int requestId = 0;
@@ -61,7 +60,7 @@ public class BootStrapImpl {
     this.bootScript = conf.getBootStrapScript();
     this.bootSetupAgentScript = conf.getBootSetupAgentScript();
     this.bootSetupAgentPassword = conf.getBootSetupAgentPassword();
-    this.bsStatus = new FifoLinkedHashMap<Long, BootStrapStatus>();
+    this.bsStatus = new FifoLinkedHashMap<>();
     this.masterHostname = conf.getMasterHostname(
         InetAddress.getLocalHost().getCanonicalHostName());
     this.clusterOsType = conf.getServerOsType();
@@ -117,7 +116,7 @@ public class BootStrapImpl {
     if (info.getHosts() == null || info.getHosts().isEmpty()) {
       BootStrapStatus status = new BootStrapStatus();
       status.setLog("Host list is empty.");
-      status.setHostsStatus(new ArrayList<BSHostStatus>());
+      status.setHostsStatus(new ArrayList<>());
       status.setStatus(BootStrapStatus.BSStat.ERROR);
       updateStatus(requestId, status);
 
@@ -142,7 +141,7 @@ public class BootStrapImpl {
    * @return
    */
   public synchronized List<BSHostStatus> getHostInfo(List<String> hosts) {
-    List<BSHostStatus> statuses = new ArrayList<BSHostStatus>();
+    List<BSHostStatus> statuses = new ArrayList<>();
 
     if (null == hosts || 0 == hosts.size() || (hosts.size() == 1 && hosts.get(0).equals("*"))) {
       for (BootStrapStatus status : bsStatus.values()) {

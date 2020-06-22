@@ -162,7 +162,7 @@ public class ConfigurationMergeCheckTest {
         Collections.singleton(pi11)).anyTimes();
 
     expect(ami.getStackProperties(anyObject(String.class), anyObject(String.class))).andReturn(
-        Collections.<PropertyInfo>emptySet()).anyTimes();
+        Collections.emptySet()).anyTimes();
 
     replay(ami);
 

@@ -139,12 +139,12 @@ public class RepositoryVersionEventCreator implements RequestAuditEventCreator {
    */
   private SortedMap<String, List<Map<String, String>>> getRepos(Request request) {
 
-    SortedMap<String, List<Map<String, String>>> result = new TreeMap<String, List<Map<String, String>>>();
+    SortedMap<String, List<Map<String, String>>> result = new TreeMap<>();
 
     Map<String, Object> first = Iterables.getFirst(request.getBody().getPropertySets(), null);
 
     if (first != null && first.get("operating_systems") instanceof Set) {
-      Set<Object> set = (Set<Object>) first.get("operating_systems");
+      Set<?> set = (Set<?>) first.get("operating_systems");
       result = createResultForOperationSystems(set);
     }
     return result;
@@ -155,17 +155,17 @@ public class RepositoryVersionEventCreator implements RequestAuditEventCreator {
    * @param set
    * @return
    */
-  private SortedMap<String, List<Map<String, String>>> createResultForOperationSystems(Set<Object> set) {
-    SortedMap<String, List<Map<String, String>>> result = new TreeMap<String, List<Map<String, String>>>();
+  private SortedMap<String, List<Map<String, String>>> createResultForOperationSystems(Set<?> set) {
+    SortedMap<String, List<Map<String, String>>> result = new TreeMap<>();
     for (Object entry : set) {
       if (entry instanceof Map) {
-        Map<String, Object> map = (Map<String, Object>) entry;
+        Map<?, ?> map = (Map<?, ?>) entry;
         String osType = (String) map.get(OperatingSystemResourceProvider.OPERATING_SYSTEM_OS_TYPE_PROPERTY_ID);
         if (!result.containsKey(osType)) {
-          result.put(osType, new LinkedList<Map<String, String>>());
+          result.put(osType, new LinkedList<>());
         }
         if (map.get("repositories") instanceof Set) {
-          Set<Object> repos = (Set<Object>) map.get("repositories");
+          Set<?> repos = (Set<?>) map.get("repositories");
           for (Object repo : repos) {
             if (repo instanceof Map) {
               Map<String, String> resultMap = buildResultRepo((Map<String, String>) repo);

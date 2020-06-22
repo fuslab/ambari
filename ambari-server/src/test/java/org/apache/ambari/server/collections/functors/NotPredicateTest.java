@@ -18,16 +18,16 @@
 
 package org.apache.ambari.server.collections.functors;
 
-import org.apache.ambari.server.collections.Predicate;
-import org.easymock.EasyMockSupport;
-import org.junit.Assert;
-import org.junit.Test;
+import static org.easymock.EasyMock.expect;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.easymock.EasyMock.expect;
+import org.apache.ambari.server.collections.Predicate;
+import org.easymock.EasyMockSupport;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class NotPredicateTest extends EasyMockSupport {
 
@@ -55,7 +55,7 @@ public class NotPredicateTest extends EasyMockSupport {
   @Test
   public void testToMap() {
     Predicate mockPredicate = createStrictMock(Predicate.class);
-    expect(mockPredicate.toMap()).andReturn(Collections.<String, Object>singletonMap("nop", "foo")).times(1);
+    expect(mockPredicate.toMap()).andReturn(Collections.singletonMap("nop", "foo")).times(1);
 
     replayAll();
 
@@ -64,7 +64,7 @@ public class NotPredicateTest extends EasyMockSupport {
 
     verifyAll();
 
-    Map<String, Object> expectedMap = new HashMap<String, Object>();
+    Map<String, Object> expectedMap = new HashMap<>();
     expectedMap.put("not", Collections.<String, Object>singletonMap("nop", "foo"));
 
     Assert.assertEquals(expectedMap, actualMap);
@@ -73,7 +73,7 @@ public class NotPredicateTest extends EasyMockSupport {
   @Test
   public void testToJSON() {
     Predicate mockPredicate = createStrictMock(Predicate.class);
-    expect(mockPredicate.toMap()).andReturn(Collections.<String, Object>singletonMap("nop", "foo")).times(1);
+    expect(mockPredicate.toMap()).andReturn(Collections.singletonMap("nop", "foo")).times(1);
 
     replayAll();
 

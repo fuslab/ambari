@@ -29,7 +29,7 @@
           <name>METRICS_COLLECTOR</name>
           <displayName>Metrics Collector</displayName>
           <category>MASTER</category>
-          <cardinality>1+</cardinality>
+          <cardinality>0+</cardinality>
           <versionAdvertised>false</versionAdvertised>
           <reassignAllowed>true</reassignAllowed>
           <timelineAppid>AMS-HBASE</timelineAppid>
@@ -87,12 +87,25 @@
             <scriptType>PYTHON</scriptType>
             <timeout>1200</timeout>
           </commandScript>
+            <customCommands>
+              <customCommand>
+                <name>CHECK_HADOOP_SINK_VERSION</name>
+                <commandScript>
+                  <script>scripts/metrics_monitor.py</script>
+                  <scriptType>PYTHON</scriptType>
+                  <timeout>600</timeout>
+                </commandScript>
+              </customCommand>
+            </customCommands>
           <logs>
             <log>
               <logId>ams_monitor</logId>
               <primary>true</primary>
             </log>
           </logs>
+          <configuration-dependencies>
+            <config-type>ams-site</config-type>
+          </configuration-dependencies>
         </component>
 
         <component>
@@ -111,18 +124,26 @@
             <config-type>ams-grafana-env</config-type>
             <config-type>ams-grafana-ini</config-type>
           </configuration-dependencies>
+          <logs>
+            <log>
+              <logId>ams_grafana</logId>
+              <primary>true</primary>
+            </log>
+          </logs>
         </component>
-        <logs>
-          <log>
-            <logId>ams_grafana</logId>
-            <primary>true</primary>
-          </log>
-        </logs>
+
       </components>
+
+      <themes>
+        <theme>
+          <fileName>theme.json</fileName>
+          <default>true</default>
+        </theme>
+      </themes>
 
       <osSpecifics>
         <osSpecific>
-          <osFamily>redhat7,amazon2015,redhat6,suse11,suse12</osFamily>
+          <osFamily>redhat7,amazonlinux2,redhat6,suse11,suse12</osFamily>
           <packages>
             <package>
               <name>ambari-metrics-collector</name>
@@ -144,6 +165,14 @@
             </package>
             <package>
               <name>gcc</name>
+            </package>
+          </packages>
+        </osSpecific>
+        <osSpecific>
+          <osFamily>redhat7,redhat6,amazonlinux2</osFamily>
+          <packages>
+            <package>
+              <name>python-kerberos</name>
             </package>
           </packages>
         </osSpecific>
@@ -216,6 +245,17 @@
           <default>true</default>
         </quickLinksConfiguration>
       </quickLinksConfigurations>
+
+      <themes>
+        <theme>
+          <fileName>credentials.json</fileName>
+          <default>true</default>
+        </theme>
+        <theme>
+          <fileName>directories.json</fileName>
+          <default>true</default>
+        </theme>
+      </themes>
 
     </service>
   </services>

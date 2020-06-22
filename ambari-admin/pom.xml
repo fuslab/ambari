@@ -15,11 +15,11 @@
    limitations under the License.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/maven-v4_0_0.xsd">
   <parent>
     <groupId>org.apache.ambari</groupId>
     <artifactId>ambari-project</artifactId>
-    <version>2.6.2.0.0</version>
+    <version>2.7.3.0.0</version>
     <relativePath>../ambari-project</relativePath>
   </parent>
   <modelVersion>4.0.0</modelVersion>
@@ -27,7 +27,7 @@
   <artifactId>ambari-admin</artifactId>
   <packaging>jar</packaging>
   <name>Ambari Admin View</name>
-  <version>2.6.2.0.0</version>
+  <version>2.7.3.0.0</version>
   <description>Admin control panel</description>
   <build>
     <plugins>
@@ -157,7 +157,7 @@
       </plugin>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.0</version>
+        <version>3.2</version>
       </plugin>
       <plugin>
         <artifactId>maven-assembly-plugin</artifactId>
@@ -170,7 +170,7 @@
       <plugin>
         <groupId>org.vafer</groupId>
         <artifactId>jdeb</artifactId>
-        <version>1.0.1</version>
+        <version>1.7</version>
         <executions>
             <execution>
                 <phase>none</phase>
@@ -192,7 +192,7 @@
             <exclude>src/main/resources/ui/admin-web/bower_components/**</exclude>
             <exclude>src/main/resources/ui/admin-web/dist/**</exclude>
             <exclude>src/main/resources/ui/admin-web/node/**</exclude>
-            <exclude>src/main/resources/ui/admin-web/app/assets/data/**</exclude>
+            <exclude>src/main/resources/ui/admin-web/app/assets/**</exclude>
             <exclude>src/main/resources/ui/admin-web/node_modules/**</exclude>
             <exclude>src/main/resources/ui/admin-web/app/bower_components/**</exclude>
             <exclude>src/main/resources/ui/admin-web/test/bower_components/**</exclude>

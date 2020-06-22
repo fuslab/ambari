@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,12 @@
 package org.apache.ambari.server.api.query;
 
 
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.predicate.AlwaysPredicate;
 import org.apache.ambari.server.controller.predicate.ArrayPredicate;
 import org.apache.ambari.server.controller.predicate.CategoryPredicate;
@@ -26,12 +32,6 @@ import org.apache.ambari.server.controller.predicate.PredicateVisitor;
 import org.apache.ambari.server.controller.predicate.UnaryPredicate;
 import org.apache.ambari.server.controller.spi.Predicate;
 import org.apache.ambari.server.controller.utilities.PredicateHelper;
-
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * A predicate visitor used to process a predicate to do the following :
@@ -72,12 +72,12 @@ public class ProcessingPredicateVisitor implements PredicateVisitor {
   /**
    * The set of sub-resource categories.
    */
-  private final Set<String> subResourceCategories = new HashSet<String>();
+  private final Set<String> subResourceCategories = new HashSet<>();
 
   /**
    * The set of sub-resource properties.
    */
-  private final Set<String> subResourceProperties = new HashSet<String>();
+  private final Set<String> subResourceProperties = new HashSet<>();
 
 
   // ----- Constructors ----------------------------------------------------
@@ -115,7 +115,7 @@ public class ProcessingPredicateVisitor implements PredicateVisitor {
 
   @Override
   public void acceptArrayPredicate(ArrayPredicate arrayPredicate) {
-    List<Predicate> predicateList = new LinkedList<Predicate>();
+    List<Predicate> predicateList = new LinkedList<>();
 
     Predicate[] predicates = arrayPredicate.getPredicates();
     if (predicates.length > 0) {

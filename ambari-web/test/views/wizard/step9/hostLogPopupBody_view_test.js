@@ -212,11 +212,11 @@ describe('App.WizardStep9HostLogPopupBodyView', function() {
       Em.A([
         {
           status: 'pending',
-          icon:'icon-cog'
+          icon:'glyphicon glyphicon-cog'
         },
         {
           status: 'queued',
-          icon:'icon-cog'
+          icon:'glyphicon glyphicon-cog'
         },
         {
           status: 'in_progress',
@@ -224,19 +224,19 @@ describe('App.WizardStep9HostLogPopupBodyView', function() {
         },
         {
           status: 'completed',
-          icon:'icon-ok'
+          icon:'glyphicon glyphicon-ok'
         },
         {
           status: 'failed',
-          icon:'icon-exclamation-sign'
+          icon:'glyphicon glyphicon-exclamation-sign'
         },
         {
           status: 'aborted',
-          icon:'icon-minus'
+          icon:'glyphicon glyphicon-minus'
         },
         {
           status: 'timedout',
-          icon:'icon-time'
+          icon:'glyphicon glyphicon-time'
         }
       ]).forEach(function (test) {
         it(test.status + ' -> ' + test.icon, function () {

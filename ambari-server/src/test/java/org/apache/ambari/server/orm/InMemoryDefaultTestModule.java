@@ -1,6 +1,4 @@
-package org.apache.ambari.server.orm;
-
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,17 +15,19 @@ package org.apache.ambari.server.orm;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.ambari.server.orm;
 
 import java.io.File;
 import java.util.Collections;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
-import com.google.inject.assistedinject.FactoryModuleBuilder;
-import com.google.inject.util.Modules;
+
 import org.apache.ambari.server.audit.AuditLogger;
 import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.controller.ControllerModule;
+import org.apache.ambari.server.ldap.LdapModule;
+import org.apache.ambari.server.ldap.service.AmbariLdapConfigurationProvider;
 import org.apache.ambari.server.stack.StackManager;
 import org.apache.ambari.server.stack.StackManagerFactory;
 import org.apache.ambari.server.stack.StackManagerMock;
@@ -35,6 +35,8 @@ import org.easymock.EasyMock;
 import org.springframework.beans.factory.config.BeanDefinition;
 
 import com.google.inject.AbstractModule;
+import com.google.inject.assistedinject.FactoryModuleBuilder;
+import com.google.inject.util.Modules;
 
 public class InMemoryDefaultTestModule extends AbstractModule {
 
@@ -55,10 +57,6 @@ public class InMemoryDefaultTestModule extends AbstractModule {
     private static final AtomicReference<Set<BeanDefinition>> foundNotificationBeanDefinitions
         = new AtomicReference<>(null);
 
-    private static final AtomicReference<Set<BeanDefinition>> foundUpgradeChecksDefinitions
-        = new AtomicReference<>(null);
-
-
     public BeanDefinitionsCachingTestControllerModule(Properties properties) throws Exception {
       super(properties);
     }
@@ -76,13 +74,6 @@ public class InMemoryDefaultTestModule extends AbstractModule {
       foundNotificationBeanDefinitions.compareAndSet(null, Collections.unmodifiableSet(newBeanDefinitions));
       return null;
     }
-
-    @Override
-    protected Set<BeanDefinition> registerUpgradeChecks(Set<BeanDefinition> beanDefinitions){
-      Set<BeanDefinition> newBeanDefinition = super.registerUpgradeChecks(foundUpgradeChecksDefinitions.get());
-      foundUpgradeChecksDefinitions.compareAndSet(null, Collections.unmodifiableSet(newBeanDefinition));
-      return null;
-    }
   }
 
   @Override
@@ -91,9 +82,10 @@ public class InMemoryDefaultTestModule extends AbstractModule {
     String version = "src/test/resources/version";
     String sharedResourcesDir = "src/test/resources/";
     String resourcesDir = "src/test/resources/";
+    String mpacksv2 = "src/main/resources/mpacks-v2";
     if (System.getProperty("os.name").contains("Windows")) {
       stacks = ClassLoader.getSystemClassLoader().getResource("stacks").getPath();
-      version = new File(new File(ClassLoader.getSystemClassLoader().getResource("").getPath()).getParent(), "version").getPath();
+      version = new File(new File(ClassLoader.getSystemClassLoader().getResource("").getPath()), "version").getPath();
       sharedResourcesDir = ClassLoader.getSystemClassLoader().getResource("").getPath();
     }
 
@@ -122,6 +114,7 @@ public class InMemoryDefaultTestModule extends AbstractModule {
     }
 
     try {
+      install(new LdapModule());
       install(Modules.override(new BeanDefinitionsCachingTestControllerModule(properties)).with(new AbstractModule() {
         @Override
         protected void configure() {
@@ -132,6 +125,8 @@ public class InMemoryDefaultTestModule extends AbstractModule {
       AuditLogger al = EasyMock.createNiceMock(AuditLogger.class);
       EasyMock.expect(al.isEnabled()).andReturn(false).anyTimes();
       bind(AuditLogger.class).toInstance(al);
+      bind(AmbariLdapConfigurationProvider.class).toInstance(EasyMock.createMock(AmbariLdapConfigurationProvider.class));
+
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

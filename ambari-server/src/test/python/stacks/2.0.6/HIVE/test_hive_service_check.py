@@ -46,7 +46,7 @@ class TestServiceCheck(RMFTestCase):
                         stack_version = self.STACK_VERSION,
                         target = RMFTestCase.TARGET_COMMON_SERVICES
     )
-    self.assertResourceCalled('Execute', "! beeline -u 'jdbc:hive2://c6402.ambari.apache.org:10000/;transportMode=binary;auth=noSasl'  -e '' 2>&1| awk '{print}'|grep -i -e 'Connection refused' -e 'Invalid URL'",
+    self.assertResourceCalled('Execute', "beeline -u 'jdbc:hive2://c6402.ambari.apache.org:10000/;transportMode=binary;auth=noSasl' -n hive -e ';' 2>&1 | awk '{print}' | grep -i -e 'Connected to:' -e 'Transaction isolation:' -e 'inactive HS2 instance; use service discovery'",
                               path = ['/bin/', '/usr/bin/', '/usr/lib/hive/bin/', '/usr/sbin/'],
                               user = 'ambari-qa',
                               timeout = 30,
@@ -140,7 +140,7 @@ class TestServiceCheck(RMFTestCase):
         action = ['execute'], hdfs_resource_ignore_file='/var/lib/ambari-agent/data/.hdfs_resource_ignore',
         hadoop_conf_dir = '/etc/hadoop/conf',
     )
-    self.assertResourceCalled('Execute', '/tmp/templetonSmoke.sh c6402.ambari.apache.org ambari-qa 50111 idtest.ambari-qa.1431110511.43.pig no_keytab false /usr/bin/kinit no_principal /tmp',
+    self.assertResourceCalled('Execute', '/tmp/templetonSmoke.sh c6402.ambari.apache.org ambari-qa 50111 idtest.ambari-qa.1431110511.43.pig True no_keytab false /usr/bin/kinit no_principal /tmp',
         logoutput = True,
         path = ['/usr/sbin:/sbin:/usr/local/bin:/bin:/usr/bin'],
         tries = 3,
@@ -165,7 +165,7 @@ class TestServiceCheck(RMFTestCase):
     self.assertResourceCalled('Execute', '/usr/bin/kinit -kt /etc/security/keytabs/smokeuser.headless.keytab ambari-qa@EXAMPLE.COM; ',
                               user = 'ambari-qa',
                               )
-    self.assertResourceCalled('Execute', "! beeline -u 'jdbc:hive2://c6402.ambari.apache.org:10000/;transportMode=binary;principal=hive/_HOST@EXAMPLE.COM'  -e '' 2>&1| awk '{print}'|grep -i -e 'Connection refused' -e 'Invalid URL'",
+    self.assertResourceCalled('Execute', "beeline -u 'jdbc:hive2://c6402.ambari.apache.org:10000/;transportMode=binary;principal=hive/_HOST@EXAMPLE.COM' -n hive -e ';' 2>&1 | awk '{print}' | grep -i -e 'Connected to:' -e 'Transaction isolation:' -e 'inactive HS2 instance; use service discovery'",
                               path = ['/bin/', '/usr/bin/', '/usr/lib/hive/bin/', '/usr/sbin/'],
                               user = 'ambari-qa',
                               timeout = 30,
@@ -260,7 +260,7 @@ class TestServiceCheck(RMFTestCase):
         action = ['execute'], hdfs_resource_ignore_file='/var/lib/ambari-agent/data/.hdfs_resource_ignore',
         hadoop_conf_dir = '/etc/hadoop/conf',
     )
-    self.assertResourceCalled('Execute', '/tmp/templetonSmoke.sh c6402.ambari.apache.org ambari-qa 50111 idtest.ambari-qa.1431110511.43.pig /etc/security/keytabs/smokeuser.headless.keytab true /usr/bin/kinit ambari-qa@EXAMPLE.COM /tmp',
+    self.assertResourceCalled('Execute', '/tmp/templetonSmoke.sh c6402.ambari.apache.org ambari-qa 50111 idtest.ambari-qa.1431110511.43.pig True /etc/security/keytabs/smokeuser.headless.keytab true /usr/bin/kinit ambari-qa@EXAMPLE.COM /tmp',
         logoutput = True,
         path = ['/usr/sbin:/sbin:/usr/local/bin:/bin:/usr/bin'],
         tries = 3,
@@ -283,7 +283,7 @@ class TestServiceCheck(RMFTestCase):
       stack_version = self.STACK_VERSION,
       target = RMFTestCase.TARGET_COMMON_SERVICES)
 
-    self.assertResourceCalled('Execute', "! beeline -u 'jdbc:hive2://c6402.ambari.apache.org:10010/;transportMode=binary'  -e '' 2>&1| awk '{print}'|grep -i -e 'Connection refused' -e 'Invalid URL'",
+    self.assertResourceCalled('Execute', "beeline -u 'jdbc:hive2://c6402.ambari.apache.org:10010/;transportMode=binary' -n hive -e ';' 2>&1 | awk '{print}' | grep -i -e 'Connected to:' -e 'Transaction isolation:' -e 'inactive HS2 instance; use service discovery'",
       path = ['/bin/', '/usr/bin/', '/usr/lib/hive/bin/', '/usr/sbin/'],
       timeout = 30,
       user = 'ambari-qa',
@@ -322,7 +322,7 @@ class TestServiceCheck(RMFTestCase):
       target = RMFTestCase.TARGET_COMMON_SERVICES)
 
     self.assertResourceCalled('Execute',
-      "! beeline -u 'jdbc:hive2://c6402.ambari.apache.org:10010/;transportMode=binary'  -e '' 2>&1| awk '{print}'|grep -i -e 'Connection refused' -e 'Invalid URL'",
+      "beeline -u 'jdbc:hive2://c6402.ambari.apache.org:10010/;transportMode=binary' -n hive -e ';' 2>&1 | awk '{print}' | grep -i -e 'Connected to:' -e 'Transaction isolation:' -e 'inactive HS2 instance; use service discovery'",
       path = ['/bin/', '/usr/bin/', '/usr/lib/hive/bin/', '/usr/sbin/'],
       timeout = 30,
       user = 'ambari-qa',
@@ -330,7 +330,7 @@ class TestServiceCheck(RMFTestCase):
     )
 
     self.assertResourceCalled('Execute',
-      "! beeline -u 'jdbc:hive2://c6402.ambari.apache.org:10500/;transportMode=binary'  -e '' 2>&1| awk '{print}'|grep -i -e 'Connection refused' -e 'Invalid URL'",
+      "beeline -u 'jdbc:hive2://c6402.ambari.apache.org:10500/;transportMode=binary' -n hive -e ';' 2>&1 | awk '{print}' | grep -i -e 'Connected to:' -e 'Transaction isolation:' -e 'inactive HS2 instance; use service discovery'",
       path = ['/bin/', '/usr/bin/', '/usr/lib/hive/bin/', '/usr/sbin/'],
       timeout = 30,
       user = 'ambari-qa',
@@ -339,7 +339,7 @@ class TestServiceCheck(RMFTestCase):
 
     # LLAP call
     self.assertResourceCalled('Execute',
-      "! beeline -u 'jdbc:hive2://c6402.ambari.apache.org:10500/;transportMode=binary' --hiveconf \"hiveLlapServiceCheck=\" -f /usr/hdp/current/hive-server2-hive2/scripts/llap/sql/serviceCheckScript.sql -e '' 2>&1| awk '{print}'|grep -i -e 'Invalid status\|Invalid URL\|command not found\|Connection refused'",
+      '! beeline -u \'jdbc:hive2://c6402.ambari.apache.org:10500/;transportMode=binary\' --hiveconf "hiveLlapServiceCheck=" -f /usr/hdp/current/hive-server2-hive2/scripts/llap/sql/serviceCheckScript.sql -e \'\' 2>&1| awk \'{print}\'|grep -i -e \'Invalid status\\|Invalid URL\\|command not found\\|Connection refused\'',
       path = ['/usr/sbin', '/usr/local/bin', '/bin', '/usr/bin', '/bin:/usr/hdp/2.3.0.0-1234/hadoop/bin:/usr/hdp/current/hive-server2-hive2/bin'],
       tries = 1,
       stderr = -1,

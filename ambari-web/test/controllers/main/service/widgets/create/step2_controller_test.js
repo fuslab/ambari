@@ -722,6 +722,7 @@ describe('App.WidgetWizardStep2Controller', function () {
           serviceName: 'S1',
           componentName: 'C1',
           metricPath: 'mp',
+          tag: 'tag',
           hostComponentCriteria: 'hcc',
           isMetric: true
         },
@@ -739,7 +740,8 @@ describe('App.WidgetWizardStep2Controller', function () {
             "service_name": "S1",
             "component_name": "C1",
             "metric_path": "mp",
-            "host_component_criteria": "hcc"
+            "host_component_criteria": "hcc",
+            tag: 'tag'
           }
         ],
         value: '${m1+10}'

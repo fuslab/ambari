@@ -24,7 +24,7 @@ import os
 from resource_management.libraries.script.script import Script
 from resource_management.libraries.functions import stack_select
 from resource_management.libraries.functions.stack_features import check_stack_feature
-from resource_management.libraries.functions import StackFeature
+from resource_management.libraries.functions.constants import StackFeature
 from resource_management.libraries.functions.check_process_status import check_process_status
 from resource_management.core.logger import Logger
 from resource_management.core import shell
@@ -76,6 +76,10 @@ class SparkThriftServer(Script):
   def get_user(self):
     import params
     return params.hive_user
+
+  def get_pid_files(self):
+    import status_params
+    return [status_params.spark_thrift_server_pid_file]
 
 if __name__ == "__main__":
   SparkThriftServer().execute()

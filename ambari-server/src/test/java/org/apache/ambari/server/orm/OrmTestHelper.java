@@ -67,6 +67,8 @@ import org.apache.ambari.server.orm.entities.HostStateEntity;
 import org.apache.ambari.server.orm.entities.HostVersionEntity;
 import org.apache.ambari.server.orm.entities.PrincipalEntity;
 import org.apache.ambari.server.orm.entities.PrincipalTypeEntity;
+import org.apache.ambari.server.orm.entities.RepoDefinitionEntity;
+import org.apache.ambari.server.orm.entities.RepoOsEntity;
 import org.apache.ambari.server.orm.entities.RepositoryVersionEntity;
 import org.apache.ambari.server.orm.entities.RequestEntity;
 import org.apache.ambari.server.orm.entities.ResourceEntity;
@@ -227,8 +229,7 @@ public class OrmTestHelper {
     PasswordEncoder encoder = injector.getInstance(PasswordEncoder.class);
 
     UserEntity admin = new UserEntity();
-    admin.setUserName(UserName.fromString("administrator"));
-    admin.setUserPassword(encoder.encode("admin"));
+    admin.setUserName(UserName.fromString("administrator").toString());
     admin.setPrincipal(principalEntity);
 
     Set<UserEntity> users = new HashSet<>();
@@ -242,11 +243,9 @@ public class OrmTestHelper {
     getEntityManager().persist(principalEntity);
 
     UserEntity userWithoutRoles = new UserEntity();
-    userWithoutRoles.setUserName(UserName.fromString("userWithoutRoles"));
-    userWithoutRoles.setUserPassword(encoder.encode("test"));
+    userWithoutRoles.setUserName(UserName.fromString("userWithoutRoles").toString());
     userWithoutRoles.setPrincipal(principalEntity);
     userDAO.create(userWithoutRoles);
-
   }
 
   @Transactional
@@ -299,7 +298,7 @@ public class OrmTestHelper {
     commandEntity2.setStage(stageEntity);
     commandEntity3.setStage(stageEntity);
 
-    stageEntity.setHostRoleCommands(new ArrayList<HostRoleCommandEntity>());
+    stageEntity.setHostRoleCommands(new ArrayList<>());
     stageEntity.getHostRoleCommands().add(commandEntity);
     stageEntity.getHostRoleCommands().add(commandEntity2);
     stageEntity.getHostRoleCommands().add(commandEntity3);
@@ -449,8 +448,8 @@ public class OrmTestHelper {
       ServiceFactory serviceFactory, ServiceComponentFactory componentFactory,
       ServiceComponentHostFactory schFactory, String hostName) throws Exception {
 
-    RepositoryVersionEntity repositoryVersion = repositoryVersionDAO.findByStackAndVersion(
-        cluster.getDesiredStackVersion(), cluster.getDesiredStackVersion().getStackVersion());
+    RepositoryVersionEntity repositoryVersion = repositoryVersionDAO.findByStackAndVersion(cluster.getDesiredStackVersion(),
+        cluster.getDesiredStackVersion().getStackVersion());
 
     String serviceName = "HDFS";
     Service service = serviceFactory.createNew(cluster, serviceName, repositoryVersion);
@@ -483,8 +482,8 @@ public class OrmTestHelper {
       ServiceFactory serviceFactory, ServiceComponentFactory componentFactory,
       ServiceComponentHostFactory schFactory, String hostName) throws Exception {
 
-    RepositoryVersionEntity repositoryVersion = repositoryVersionDAO.findByStackAndVersion(
-        cluster.getDesiredStackVersion(), cluster.getDesiredStackVersion().getStackVersion());
+    RepositoryVersionEntity repositoryVersion = repositoryVersionDAO.findByStackAndVersion(cluster.getDesiredStackVersion(),
+        cluster.getDesiredStackVersion().getStackVersion());
 
     String serviceName = "YARN";
     Service service = serviceFactory.createNew(cluster, serviceName, repositoryVersion);
@@ -635,8 +634,31 @@ public class OrmTestHelper {
 
     if (repositoryVersion == null) {
       try {
+        List<RepoOsEntity> operatingSystems = new ArrayList<>();
+        RepoDefinitionEntity repoDefinitionEntity1 = new RepoDefinitionEntity();
+        repoDefinitionEntity1.setRepoID("HDP");
+        repoDefinitionEntity1.setBaseUrl("");
+        repoDefinitionEntity1.setRepoName("HDP");
+        RepoDefinitionEntity repoDefinitionEntity2 = new RepoDefinitionEntity();
+        repoDefinitionEntity2.setRepoID("HDP-UTILS");
+        repoDefinitionEntity2.setBaseUrl("");
+        repoDefinitionEntity2.setRepoName("HDP-UTILS");
+        RepoOsEntity repoOsEntityRedHat6 = new RepoOsEntity();
+        repoOsEntityRedHat6.setFamily("redhat6");
+        repoOsEntityRedHat6.setAmbariManaged(true);
+        repoOsEntityRedHat6.addRepoDefinition(repoDefinitionEntity1);
+        repoOsEntityRedHat6.addRepoDefinition(repoDefinitionEntity2);
+        RepoOsEntity repoOsEntityRedHat5 = new RepoOsEntity();
+        repoOsEntityRedHat5.setFamily("redhat5");
+        repoOsEntityRedHat5.setAmbariManaged(true);
+        repoOsEntityRedHat5.addRepoDefinition(repoDefinitionEntity1);
+        repoOsEntityRedHat5.addRepoDefinition(repoDefinitionEntity2);
+        operatingSystems.add(repoOsEntityRedHat6);
+        operatingSystems.add(repoOsEntityRedHat5);
+
         repositoryVersion = repositoryVersionDAO.create(stackEntity, version,
-            String.valueOf(System.currentTimeMillis()) + uniqueCounter.incrementAndGet(), "");
+            String.valueOf(System.currentTimeMillis()) + uniqueCounter.incrementAndGet(),
+            operatingSystems);
       } catch (Exception ex) {
         LOG.error("Caught exception", ex);
         ex.printStackTrace();
@@ -670,7 +692,28 @@ public class OrmTestHelper {
 
     if (repositoryVersion == null) {
       try {
-        String operatingSystems = "[{\"OperatingSystems/ambari_managed_repositories\":\"true\",\"repositories\":[{\"Repositories/repo_id\":\"HDP\",\"Repositories/base_url\":\"\",\"Repositories/repo_name\":\"HDP\"},{\"Repositories/repo_id\":\"HDP-UTILS\",\"Repositories/base_url\":\"\",\"Repositories/repo_name\":\"HDP-UTILS\"}],\"OperatingSystems/os_type\":\"redhat6\"}]";
+        List<RepoOsEntity> operatingSystems = new ArrayList<>();
+        RepoDefinitionEntity repoDefinitionEntity1 = new RepoDefinitionEntity();
+        repoDefinitionEntity1.setRepoID("HDP");
+        repoDefinitionEntity1.setBaseUrl("");
+        repoDefinitionEntity1.setRepoName("HDP");
+        RepoDefinitionEntity repoDefinitionEntity2 = new RepoDefinitionEntity();
+        repoDefinitionEntity2.setRepoID("HDP-UTILS");
+        repoDefinitionEntity2.setBaseUrl("");
+        repoDefinitionEntity2.setRepoName("HDP-UTILS");
+        RepoOsEntity repoOsEntityRedHat6 = new RepoOsEntity();
+        repoOsEntityRedHat6.setFamily("redhat6");
+        repoOsEntityRedHat6.setAmbariManaged(true);
+        repoOsEntityRedHat6.addRepoDefinition(repoDefinitionEntity1);
+        repoOsEntityRedHat6.addRepoDefinition(repoDefinitionEntity2);
+        RepoOsEntity repoOsEntityRedHat5 = new RepoOsEntity();
+        repoOsEntityRedHat5.setFamily("redhat5");
+        repoOsEntityRedHat5.setAmbariManaged(true);
+        repoOsEntityRedHat5.addRepoDefinition(repoDefinitionEntity1);
+        repoOsEntityRedHat5.addRepoDefinition(repoDefinitionEntity2);
+        operatingSystems.add(repoOsEntityRedHat6);
+        operatingSystems.add(repoOsEntityRedHat5);
+
 
         repositoryVersion = repositoryVersionDAO.create(stackEntity, version,
             String.valueOf(System.currentTimeMillis()) + uniqueCounter.incrementAndGet(), operatingSystems);

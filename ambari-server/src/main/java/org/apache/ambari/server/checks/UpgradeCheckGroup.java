@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -99,7 +99,7 @@ public enum UpgradeCheckGroup {
    *
    * @param order
    */
-  private UpgradeCheckGroup(Float order) {
+  UpgradeCheckGroup(Float order) {
     m_order = order;
   }
 

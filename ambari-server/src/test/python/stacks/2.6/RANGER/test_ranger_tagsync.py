@@ -126,7 +126,7 @@ class TestRangerTagsync(RMFTestCase):
       group = 'ranger',
       conf_dir = '/usr/hdp/current/ranger-tagsync/conf',
       configurations = self.getConfig()['configurations']['ranger-tagsync-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['ranger-tagsync-site'],
+      configuration_attributes = self.getConfig()['configurationAttributes']['ranger-tagsync-site'],
       mode=0644
     )
 
@@ -155,7 +155,7 @@ class TestRangerTagsync(RMFTestCase):
       group = 'ranger',
       conf_dir = '/usr/hdp/current/ranger-tagsync/conf',
       configurations = ranger_tagsync_policymgr_ssl_copy,
-      configuration_attributes = self.getConfig()['configuration_attributes']['ranger-tagsync-policymgr-ssl'],
+      configuration_attributes = self.getConfig()['configurationAttributes']['ranger-tagsync-policymgr-ssl'],
       mode = 0644,
     )
 
@@ -192,6 +192,14 @@ class TestRangerTagsync(RMFTestCase):
     self.assertResourceCalled('File', '/etc/ranger/tagsync/rangercred.jceks',
       owner = 'ranger',
       group = 'ranger',
+      only_if = 'test -e /etc/ranger/tagsync/rangercred.jceks',
+      mode = 0640,
+    )
+
+    self.assertResourceCalled('File', '/etc/ranger/tagsync/.rangercred.jceks.crc',
+      owner = 'ranger',
+      group = 'ranger',
+      only_if = 'test -e /etc/ranger/tagsync/.rangercred.jceks.crc',
       mode = 0640,
     )
 
@@ -243,9 +251,16 @@ class TestRangerTagsync(RMFTestCase):
     self.assertResourceCalled('File', '/etc/ranger/tagsync/atlascred.jceks',
       owner = 'ranger',
       group = 'ranger',
+      only_if = 'test -e /etc/ranger/tagsync/atlascred.jceks',
       mode = 0640,
     )
 
+    self.assertResourceCalled('File', '/etc/ranger/tagsync/.atlascred.jceks.crc',
+      owner = 'ranger',
+      group = 'ranger',
+      only_if = 'test -e /etc/ranger/tagsync/.atlascred.jceks.crc',
+      mode = 0640,
+    )
 
     self.assertResourceCalled('PropertiesFile', '/usr/hdp/current/ranger-tagsync/conf/atlas-application.properties',
       properties = self.getConfig()['configurations']['tagsync-application-properties'],
@@ -276,6 +291,6 @@ class TestRangerTagsync(RMFTestCase):
       group = 'ranger',
       conf_dir = '/usr/hdp/current/ranger-tagsync/conf',
       configurations = self.getConfig()['configurations']['core-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['core-site'],
+      configuration_attributes = self.getConfig()['configurationAttributes']['core-site'],
       mode = 0644
     )

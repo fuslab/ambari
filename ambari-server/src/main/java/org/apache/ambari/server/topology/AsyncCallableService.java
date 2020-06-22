@@ -25,11 +25,11 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 
@@ -57,13 +57,13 @@ public class AsyncCallableService<T> implements Callable<T> {
 
   // the delay between two consecutive execution trials in milliseconds
   private final long retryDelay;
-  private final Function<Throwable, ?> onError;
+  private final Consumer<Throwable> onError;
 
-  public AsyncCallableService(Callable<T> task, long timeout, long retryDelay, String taskName, Function<Throwable, ?> onError) {
+  public AsyncCallableService(Callable<T> task, long timeout, long retryDelay, String taskName, Consumer<Throwable> onError) {
     this(task, timeout, retryDelay, taskName, Executors.newScheduledThreadPool(1), onError);
   }
 
-  public AsyncCallableService(Callable<T> task, long timeout, long retryDelay, String taskName, ScheduledExecutorService executorService, Function<Throwable, ?> onError) {
+  public AsyncCallableService(Callable<T> task, long timeout, long retryDelay, String taskName, ScheduledExecutorService executorService, Consumer<Throwable> onError) {
     Preconditions.checkArgument(retryDelay > 0, "retryDelay should be positive");
 
     this.task = task;
@@ -106,7 +106,7 @@ public class AsyncCallableService<T> implements Callable<T> {
       if (timeLeft <= 0) {
         attemptToCancel(future);
         LOG.warn("Task {} timeout exceeded, no more retries", taskName);
-        onError.apply(lastError);
+        onError.accept(lastError);
         return null;
       }
 

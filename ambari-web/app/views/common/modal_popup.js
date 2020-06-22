@@ -21,6 +21,7 @@ var App = require('app');
 App.ModalPopup = Ember.View.extend({
 
   viewName: 'modalPopup',
+  modalDialogClasses: [],
   templateName: require('templates/common/modal_popup'),
   header: '&nbsp;',
   body: '&nbsp;',
@@ -35,11 +36,19 @@ App.ModalPopup = Ember.View.extend({
   disableSecondary: false,
   disableThird: false,
   primaryClass: 'btn-success',
-  secondaryClass: '',
-  thirdClass: '',
+  secondaryClass: 'btn-default',
+  thirdClass: 'btn-default',
+  modalDialogClassesStr: function () {
+    var modalDialogClasses = this.get('modalDialogClasses');
+    if (!Em.isArray(modalDialogClasses)) {
+      return '';
+    }
+    return modalDialogClasses.join(' ');
+  }.property('modalDialogClasses.[]'),
   primaryId: '',
   secondaryId: '',
   thirdId: '',
+  'data-qa': 'modal',
   onPrimary: function () {
     this.hide();
   },
@@ -57,6 +66,9 @@ App.ModalPopup = Ember.View.extend({
   },
 
   hide: function () {
+    if (!$.mocho) {
+      this.$('#modal').modal('hide');
+    }
     this.destroy();
   },
 
@@ -74,6 +86,12 @@ App.ModalPopup = Ember.View.extend({
     this.fitZIndex();
     this.handleBackDrop();
     var firstInputElement = this.$('#modal').find(':input').not(':disabled, .no-autofocus').first();
+    if (!$.mocho) {
+      this.$('#modal').modal({
+        keyboard: false,
+        backdrop: false
+      });
+    }
     this.focusElement(firstInputElement);
     this.subscribeResize();
   },
@@ -144,17 +162,25 @@ App.ModalPopup = Ember.View.extend({
 
   fitHeight: function () {
     if (this.get('state') === 'destroyed') return;
-    var popup = this.$().find('#modal');
-    var block = this.$().find('#modal > .modal-body');
-    var wh = $(window).height();
+    const popup = this.$().find('#modal'),
+      wrapper = $(popup).find('.modal-dialog'),
+      block = $(popup).find('.modal-body'),
+      wh = $(window).height(),
+      ww = $(window).width(),
+      topNavPaddingTop = 19, // from ambari-web/app/styles/common.less
+      topNavFontSize = 20, // from ambari-web/app/styles/common.less
+      topNavLineHeight = 1.3, // from ambari-web/app/styles/common.less
+      modalMarginTopDefault = 10, // from ambari-web/app/styles/common.less
+      modalMarginTopWide = 30, // from ambari-web/app/styles/common.less
+      modalMarginTop = ww < 768 ? modalMarginTopDefault : modalMarginTopWide, // from ambari-web/vendor/styles/bootstrap.css
+      top = topNavPaddingTop + topNavFontSize * topNavLineHeight - modalMarginTop;
+    let newMaxHeight = wh - top * 2 - (wrapper.height() - block.height());
 
-    var top = wh * 0.05;
     popup.css({
       'top': top + 'px',
       'marginTop': 0
     });
 
-    var newMaxHeight = $(window).height() - top * 2 - (popup.height() - block.height());
     newMaxHeight = Math.max(newMaxHeight, 500);
     block.css('max-height', newMaxHeight);
   }

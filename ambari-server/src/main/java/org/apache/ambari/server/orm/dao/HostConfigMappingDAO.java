@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,15 +25,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import javax.persistence.EntityManager;
 import javax.persistence.TypedQuery;
-
-import com.google.inject.Singleton;
 
 import org.apache.ambari.server.orm.RequiresSession;
 import org.apache.ambari.server.orm.cache.HostConfigMapping;
@@ -45,6 +40,7 @@ import org.apache.commons.collections.Predicate;
 
 import com.google.inject.Inject;
 import com.google.inject.Provider;
+import com.google.inject.Singleton;
 import com.google.inject.persist.Transactional;
 
 /**
@@ -61,7 +57,6 @@ public class HostConfigMappingDAO {
   @Inject
   private HostDAO hostDAO;
 
-  private final ReadWriteLock gl = new ReentrantReadWriteLock();
   private ConcurrentHashMap<Long, Set<HostConfigMapping>> hostConfigMappingByHost;
   
   private volatile boolean cacheLoaded;
@@ -70,7 +65,7 @@ public class HostConfigMappingDAO {
     
     if (!cacheLoaded) {
       if (hostConfigMappingByHost == null) {
-        hostConfigMappingByHost = new ConcurrentHashMap<Long, Set<HostConfigMapping>>();
+        hostConfigMappingByHost = new ConcurrentHashMap<>();
 
         TypedQuery<HostConfigMappingEntity> query = entityManagerProvider.get().createNamedQuery(
             "HostConfigMappingEntity.findAll", HostConfigMappingEntity.class);
@@ -88,7 +83,7 @@ public class HostConfigMappingDAO {
           if (hostConfigMappingByHost.containsKey(hostId)) {
             setByHost = hostConfigMappingByHost.get(hostId);
           } else {
-            setByHost = new HashSet<HostConfigMapping>();
+            setByHost = new HashSet<>();
             hostConfigMappingByHost.put(hostId, setByHost);
           }
 
@@ -117,7 +112,7 @@ public class HostConfigMappingDAO {
       if (hostConfigMappingByHost.containsKey(hostId)) {
         set = hostConfigMappingByHost.get(hostId);
       } else {
-        set = new HashSet<HostConfigMapping>();
+        set = new HashSet<>();
         hostConfigMappingByHost.put(hostId, set);
       }
 
@@ -135,7 +130,7 @@ public class HostConfigMappingDAO {
       if (hostConfigMappingByHost.containsKey(hostId)) {
         set = hostConfigMappingByHost.get(hostId);
       } else {
-        set = new HashSet<HostConfigMapping>();
+        set = new HashSet<>();
         hostConfigMappingByHost.put(hostId, set);
       }
 
@@ -156,7 +151,7 @@ public class HostConfigMappingDAO {
     if (!hostConfigMappingByHost.containsKey(hostId))
       return Collections.emptySet();
       
-    Set<HostConfigMapping> set = new HashSet<HostConfigMapping>(hostConfigMappingByHost.get(hostId));
+    Set<HostConfigMapping> set = new HashSet<>(hostConfigMappingByHost.get(hostId));
      
     CollectionUtils.filter(set, new Predicate() {
         
@@ -178,7 +173,7 @@ public class HostConfigMappingDAO {
     if (!hostConfigMappingByHost.containsKey(hostId))
       return null;
     
-    Set<HostConfigMapping> set = new HashSet<HostConfigMapping>(hostConfigMappingByHost.get(hostId));
+    Set<HostConfigMapping> set = new HashSet<>(hostConfigMappingByHost.get(hostId));
     
     HostConfigMapping result = (HostConfigMapping) CollectionUtils.find(set, new Predicate() {
       
@@ -200,7 +195,7 @@ public class HostConfigMappingDAO {
     if (!hostConfigMappingByHost.containsKey(hostId))
       return Collections.emptySet();
     
-    Set<HostConfigMapping> set = new HashSet<HostConfigMapping>(hostConfigMappingByHost.get(hostId));
+    Set<HostConfigMapping> set = new HashSet<>(hostConfigMappingByHost.get(hostId));
     
     CollectionUtils.filter(set, new Predicate() {
       
@@ -222,13 +217,13 @@ public class HostConfigMappingDAO {
       return Collections.emptySet();
     }
     
-    HashSet<HostConfigMapping> result = new HashSet<HostConfigMapping>();
+    HashSet<HostConfigMapping> result = new HashSet<>();
 
     for (final Long hostId : hostIds) {
       if (!hostConfigMappingByHost.containsKey(hostId))
         continue;
       
-      Set<HostConfigMapping> set = new HashSet<HostConfigMapping>(hostConfigMappingByHost.get(hostId));
+      Set<HostConfigMapping> set = new HashSet<>(hostConfigMappingByHost.get(hostId));
       
       CollectionUtils.filter(set, new Predicate() {
         
@@ -251,16 +246,16 @@ public class HostConfigMappingDAO {
                                                                              Collection<String> types) {
     populateCache();
     
-    Map<String, List<HostConfigMapping>> mappingsByType = new HashMap<String, List<HostConfigMapping>>();
+    Map<String, List<HostConfigMapping>> mappingsByType = new HashMap<>();
     
     for (String type : types) {
       if (!mappingsByType.containsKey(type)) {
-        mappingsByType.put(type, new ArrayList<HostConfigMapping>());
+        mappingsByType.put(type, new ArrayList<>());
       }
     }
 
     if (!types.isEmpty()) {
-      List<HostConfigMapping> mappings = new ArrayList<HostConfigMapping>();
+      List<HostConfigMapping> mappings = new ArrayList<>();
 
       for (Set<HostConfigMapping> entries : hostConfigMappingByHost.values()) {
         
@@ -284,9 +279,6 @@ public class HostConfigMappingDAO {
     return daoUtils.selectAll(entityManagerProvider.get(), HostConfigMappingEntity.class);
   }
 
-  /**
-   * @param hostId
-   */
   @Transactional
   public void removeByHostId(Long hostId) {
     populateCache();
@@ -310,17 +302,13 @@ public class HostConfigMappingDAO {
     }
   }
 
-  /**
-   * @param clusterId
-   * @param hostName
-   */
   @Transactional
   public void removeByClusterAndHostName(final long clusterId, String hostName) {
     populateCache();
 
     HostEntity hostEntity = hostDAO.findByName(hostName);
     if (hostEntity != null) {
-      if (hostConfigMappingByHost.containsKey(hostName)) {
+      if (hostConfigMappingByHost.containsKey(hostEntity.getHostId())) {
         // Delete from db
         TypedQuery<HostConfigMappingEntity> query = entityManagerProvider.get().createQuery(
             "SELECT entity FROM HostConfigMappingEntity entity " +

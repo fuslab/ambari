@@ -25,6 +25,10 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
+import javax.annotation.Nullable;
 
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.controller.PrereqCheckRequest;
@@ -37,10 +41,12 @@ import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.MaintenanceState;
 import org.apache.ambari.server.state.Service;
 import org.apache.ambari.server.state.ServiceComponent;
+import org.apache.ambari.server.state.StackId;
 import org.apache.ambari.server.state.stack.PrereqCheckStatus;
 import org.apache.ambari.server.state.stack.PrerequisiteCheck;
 import org.apache.ambari.server.state.stack.upgrade.UpgradeType;
 import org.apache.commons.lang.StringUtils;
+import org.codehaus.jackson.annotate.JsonProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -99,9 +105,15 @@ public class ServiceCheckValidityCheck extends AbstractCheckDescriptor {
       if (service.getMaintenanceState() != MaintenanceState.OFF || !hasAtLeastOneComponentVersionAdvertised(service)) {
         continue;
       }
-
-      ServiceConfigEntity lastServiceConfig = serviceConfigDAO.getLastServiceConfig(clusterId, service.getName());
-      lastServiceConfigUpdates.put(service.getName(), lastServiceConfig.getCreateTimestamp());
+      StackId stackId = service.getDesiredStackId();
+      boolean isServiceWitNoConfigs = ambariMetaInfo.get().isServiceWithNoConfigs(stackId.getStackName(), stackId.getStackVersion(), service.getName());
+      if (isServiceWitNoConfigs){
+        LOG.info(String.format("%s in %s version %s does not have customizable configurations. Skip checking service configuration history.", service.getName(), stackId.getStackName(), stackId.getStackVersion()));
+      } else {
+        LOG.info(String.format("%s in %s version %s has customizable configurations. Check service configuration history.", service.getName(), stackId.getStackName(), stackId.getStackVersion()));
+        ServiceConfigEntity lastServiceConfig = serviceConfigDAO.getLastServiceConfig(clusterId, service.getName());
+        lastServiceConfigUpdates.put(service.getName(), lastServiceConfig.getCreateTimestamp());
+      }
     }
 
     // get the latest service checks, grouped by role
@@ -111,7 +123,7 @@ public class ServiceCheckValidityCheck extends AbstractCheckDescriptor {
       lastServiceChecksByRole.put(lastServiceCheck.role, lastServiceCheck.endTime);
     }
 
-    LinkedHashSet<String> failedServiceNames = new LinkedHashSet<>();
+    LinkedHashSet<ServiceCheckConfigDetail> failures = new LinkedHashSet<>();
 
     // for every service, see if there was a service check executed and then
     for( Entry<String, Long> entry : lastServiceConfigUpdates.entrySet() ) {
@@ -121,13 +133,15 @@ public class ServiceCheckValidityCheck extends AbstractCheckDescriptor {
 
       if(!lastServiceChecksByRole.containsKey(role) ) {
         LOG.info("There was no service check found for service {} matching role {}", serviceName, role);
-        failedServiceNames.add(serviceName);
+        failures.add(new ServiceCheckConfigDetail(serviceName, null, null));
         continue;
       }
 
       long lastServiceCheckTime = lastServiceChecksByRole.get(role);
       if (lastServiceCheckTime < configCreationTime) {
-        failedServiceNames.add(serviceName);
+        failures.add(
+            new ServiceCheckConfigDetail(serviceName, lastServiceCheckTime, configCreationTime));
+
         LOG.info(
             "The {} service (role {}) had its configurations updated on {}, but the last service check was {}",
             serviceName, role, DATE_FORMAT.format(new Date(configCreationTime)),
@@ -135,7 +149,12 @@ public class ServiceCheckValidityCheck extends AbstractCheckDescriptor {
       }
     }
 
-    if (!failedServiceNames.isEmpty()) {
+    if (!failures.isEmpty()) {
+      prerequisiteCheck.getFailedDetail().addAll(failures);
+
+      LinkedHashSet<String> failedServiceNames = failures.stream().map(
+          failure -> failure.serviceName).collect(Collectors.toCollection(LinkedHashSet::new));
+
       prerequisiteCheck.setFailedOn(failedServiceNames);
       prerequisiteCheck.setStatus(PrereqCheckStatus.FAIL);
       String failReason = getFailReason(prerequisiteCheck, request);
@@ -153,4 +172,64 @@ public class ServiceCheckValidityCheck extends AbstractCheckDescriptor {
     return false;
   }
 
+  /**
+   * Used to represent information about a service component. This class is safe
+   * to use in sorted & unique collections.
+   */
+  static class ServiceCheckConfigDetail implements Comparable<ServiceCheckConfigDetail> {
+    @JsonProperty("service_name")
+    final String serviceName;
+
+    @JsonProperty("service_check_date")
+    final Long serviceCheckDate;
+
+    @JsonProperty("configuration_date")
+    final Long configurationDate;
+
+    ServiceCheckConfigDetail(String serviceName, @Nullable Long serviceCheckDate,
+        @Nullable Long configurationDate) {
+      this.serviceName = serviceName;
+      this.serviceCheckDate = serviceCheckDate;
+      this.configurationDate = configurationDate;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int hashCode() {
+      return Objects.hash(serviceName, serviceCheckDate, configurationDate);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean equals(Object obj) {
+      if (this == obj) {
+        return true;
+      }
+
+      if (obj == null) {
+        return false;
+      }
+
+      if (getClass() != obj.getClass()) {
+        return false;
+      }
+
+      ServiceCheckConfigDetail other = (ServiceCheckConfigDetail) obj;
+      return Objects.equals(serviceName, other.serviceName)
+          && Objects.equals(serviceCheckDate, other.serviceCheckDate)
+          && Objects.equals(configurationDate, other.configurationDate);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int compareTo(ServiceCheckConfigDetail other) {
+      return serviceName.compareTo(other.serviceName);
+    }
+  }
 }

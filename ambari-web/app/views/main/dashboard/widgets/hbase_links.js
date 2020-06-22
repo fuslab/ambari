@@ -21,12 +21,10 @@ var App = require('app');
 App.HBaseLinksView = App.LinkDashboardWidgetView.extend({
 
   templateName: require('templates/main/dashboard/widgets/hbase_links'),
-  title: Em.I18n.t('dashboard.widgets.HBaseLinks'),
-  id: '12',
 
-  model_type: 'hbase',
-
-  port: App.get('isHadoop23Stack') ? '16010' : '60010',
+  port: function() {
+    return App.StackService.find('HBASE').compareCurrentVersion('1.1') > -1 ? '16010' : '60010';
+  }.property(),
 
   componentName: 'HBASE_REGIONSERVER',
 

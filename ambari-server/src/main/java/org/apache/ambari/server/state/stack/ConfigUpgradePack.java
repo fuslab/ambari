@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,9 +17,10 @@
  */
 package org.apache.ambari.server.state.stack;
 
-import org.apache.ambari.server.state.stack.upgrade.ConfigUpgradeChangeDefinition;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
@@ -27,12 +28,10 @@ import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlElementWrapper;
 import javax.xml.bind.annotation.XmlRootElement;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+
+import org.apache.ambari.server.state.stack.upgrade.ConfigUpgradeChangeDefinition;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Represents a pack of changes that should be applied to configs
@@ -59,7 +58,7 @@ public class ConfigUpgradePack {
    */
   private Map<String, ConfigUpgradeChangeDefinition> changesById;
 
-  private static Logger LOG = LoggerFactory.getLogger(ConfigUpgradePack.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ConfigUpgradePack.class);
 
   /**
    * no-arg default constructor for JAXB
@@ -123,7 +122,7 @@ public class ConfigUpgradePack {
     for (ConfigUpgradePack configUpgradePack : cups) {
       for (AffectedService service : configUpgradePack.services) {
         if (! mergedServiceMap.containsKey(service.name)) {
-          mergedServiceMap.put(service.name, new HashMap<String, AffectedComponent>());
+          mergedServiceMap.put(service.name, new HashMap<>());
         }
         Map<String, AffectedComponent> mergedComponentMap = mergedServiceMap.get(service.name);
 

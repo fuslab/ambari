@@ -18,7 +18,10 @@
 
 package org.apache.ambari.server.collections;
 
-import junit.framework.Assert;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Map;
+
 import org.apache.ambari.server.collections.functors.AndPredicate;
 import org.apache.ambari.server.collections.functors.ContainsPredicate;
 import org.apache.ambari.server.collections.functors.ContextTransformer;
@@ -27,9 +30,7 @@ import org.apache.ambari.server.collections.functors.NotPredicate;
 import org.apache.ambari.server.collections.functors.OrPredicate;
 import org.junit.Test;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Map;
+import junit.framework.Assert;
 
 public class PredicateUtilsTest {
   @Test
@@ -74,7 +75,7 @@ public class PredicateUtilsTest {
 
   private Map<String, Object> createMap() {
     Map<String, Object> andMap =
-        Collections.<String, Object>singletonMap(
+        Collections.singletonMap(
             AndPredicate.NAME, Arrays.asList(
                 Collections.<String, Object>singletonMap(ContainsPredicate.NAME, Arrays.asList("services", "HDFS")),
                 Collections.<String, Object>singletonMap(EqualsPredicate.NAME, Arrays.asList("configurations/service-env/property1", "true"))
@@ -82,14 +83,14 @@ public class PredicateUtilsTest {
         );
 
     Map<String, Object> orMap =
-        Collections.<String, Object>singletonMap(OrPredicate.NAME,
+        Collections.singletonMap(OrPredicate.NAME,
             Arrays.asList(
                 Collections.<String, Object>singletonMap(EqualsPredicate.NAME, Arrays.asList("configurations/cluster-env/property1", "false")),
                 andMap
             )
         );
 
-    return Collections.<String, Object>singletonMap(NotPredicate.NAME, orMap);
+    return Collections.singletonMap(NotPredicate.NAME, orMap);
   }
 
   private String createJSON() {

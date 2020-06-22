@@ -219,3 +219,9 @@ class TestUtils(TestCase):
     self.assertEquals(utils.compare_versions("2.0.0_1","2.0.0_2"),0)
     self.assertEquals(utils.compare_versions("2.0.0-abc","2.0.0_abc"),0)
 
+class FakeProperties(object):
+  def __init__(self, prop_map):
+    self.prop_map = prop_map
+
+  def get_property(self, prop_name):
+    return self.prop_map[prop_name]

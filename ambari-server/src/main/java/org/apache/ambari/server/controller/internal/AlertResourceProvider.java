@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -50,6 +50,8 @@ import org.apache.ambari.server.state.Clusters;
 import org.apache.ambari.server.state.ConfigHelper;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.math.NumberUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.inject.Inject;
 import com.google.inject.Provider;
@@ -61,9 +63,12 @@ import com.google.inject.Provider;
 public class AlertResourceProvider extends ReadOnlyResourceProvider implements
     ExtendedResourceProvider {
 
+  private static final Logger LOG = LoggerFactory.getLogger(AlertResourceProvider.class);
+
   public static final String ALERT_ID = "Alert/id";
   public static final String ALERT_STATE = "Alert/state";
   public static final String ALERT_ORIGINAL_TIMESTAMP = "Alert/original_timestamp";
+  // TODO remove after UI-side fix
   public static final String ALERT_LATEST_TIMESTAMP = "Alert/latest_timestamp";
   public static final String ALERT_MAINTENANCE_STATE = "Alert/maintenance_state";
   public static final String ALERT_DEFINITION_ID = "Alert/definition_id";
@@ -84,8 +89,8 @@ public class AlertResourceProvider extends ReadOnlyResourceProvider implements
   protected static final String ALERT_REPEAT_TOLERANCE_REMAINING = "Alert/repeat_tolerance_remaining";
   protected static final String ALERT_FIRMNESS = "Alert/firmness";
 
-  private static Set<String> pkPropertyIds = new HashSet<String>(
-      Arrays.asList(ALERT_ID, ALERT_DEFINITION_NAME));
+  private static Set<String> pkPropertyIds = new HashSet<>(
+    Arrays.asList(ALERT_ID, ALERT_DEFINITION_NAME));
 
   @Inject
   private static AlertsDAO alertsDAO;
@@ -99,12 +104,12 @@ public class AlertResourceProvider extends ReadOnlyResourceProvider implements
   /**
    * The property ids for an alert defintion resource.
    */
-  private static final Set<String> PROPERTY_IDS = new HashSet<String>();
+  private static final Set<String> PROPERTY_IDS = new HashSet<>();
 
   /**
    * The key property ids for an alert definition resource.
    */
-  private static final Map<Resource.Type, String> KEY_PROPERTY_IDS = new HashMap<Resource.Type, String>();
+  private static final Map<Resource.Type, String> KEY_PROPERTY_IDS = new HashMap<>();
 
   static {
     // properties
@@ -114,6 +119,7 @@ public class AlertResourceProvider extends ReadOnlyResourceProvider implements
     PROPERTY_IDS.add(ALERT_DEFINITION_ID);
     PROPERTY_IDS.add(ALERT_DEFINITION_NAME);
     PROPERTY_IDS.add(ALERT_CLUSTER_NAME);
+    // TODO remove after UI-side fix
     PROPERTY_IDS.add(ALERT_LATEST_TIMESTAMP);
     PROPERTY_IDS.add(ALERT_MAINTENANCE_STATE);
     PROPERTY_IDS.add(ALERT_INSTANCE);
@@ -141,7 +147,7 @@ public class AlertResourceProvider extends ReadOnlyResourceProvider implements
    * @param controller
    */
   AlertResourceProvider(AmbariManagementController controller) {
-    super(PROPERTY_IDS, KEY_PROPERTY_IDS, controller);
+    super(Resource.Type.Alert, PROPERTY_IDS, KEY_PROPERTY_IDS, controller);
   }
 
   @Override
@@ -170,7 +176,7 @@ public class AlertResourceProvider extends ReadOnlyResourceProvider implements
     Set<String> requestPropertyIds = getRequestPropertyIds(request, predicate);
 
     // use a collection which preserves order since JPA sorts the results
-    Set<Resource> results = new LinkedHashSet<Resource>();
+    Set<Resource> results = new LinkedHashSet<>();
 
     for (Map<String, Object> propertyMap : getPropertyMaps(predicate)) {
 
@@ -256,6 +262,7 @@ public class AlertResourceProvider extends ReadOnlyResourceProvider implements
     Resource resource = new ResourceImpl(Resource.Type.Alert);
     setResourceProperty(resource, ALERT_CLUSTER_NAME, clusterName, requestedIds);
     setResourceProperty(resource, ALERT_ID, entity.getAlertId(), requestedIds);
+    // TODO remove after UI-side fix
     setResourceProperty(resource, ALERT_LATEST_TIMESTAMP, entity.getLatestTimestamp(), requestedIds);
     setResourceProperty(resource, ALERT_MAINTENANCE_STATE, entity.getMaintenanceState(), requestedIds);
     setResourceProperty(resource, ALERT_ORIGINAL_TIMESTAMP, entity.getOriginalTimestamp(), requestedIds);

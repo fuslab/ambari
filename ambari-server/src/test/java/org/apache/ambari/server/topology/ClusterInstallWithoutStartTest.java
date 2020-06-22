@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -84,6 +84,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(AmbariServer.class)
 public class ClusterInstallWithoutStartTest extends EasyMockSupport {
+
   private static final String CLUSTER_NAME = "test-cluster";
   private static final long CLUSTER_ID = 1;
   private static final String BLUEPRINT_NAME = "test-bp";
@@ -160,22 +161,24 @@ public class ClusterInstallWithoutStartTest extends EasyMockSupport {
 
   @Mock
   private TopologyValidatorService topologyValidatorServiceMock;
+  @Mock(type = MockType.NICE)
+  private AmbariEventPublisher eventPublisher;
 
-  private final Configuration stackConfig = new Configuration(new HashMap<String, Map<String, String>>(),
-    new HashMap<String, Map<String, Map<String, String>>>());
-  private final Configuration bpConfiguration = new Configuration(new HashMap<String, Map<String, String>>(),
-    new HashMap<String, Map<String, Map<String, String>>>(), stackConfig);
-  private final Configuration topoConfiguration = new Configuration(new HashMap<String, Map<String, String>>(),
-    new HashMap<String, Map<String, Map<String, String>>>(), bpConfiguration);
-  private final Configuration bpGroup1Config = new Configuration(new HashMap<String, Map<String, String>>(),
-    new HashMap<String, Map<String, Map<String, String>>>(), bpConfiguration);
-  private final Configuration bpGroup2Config = new Configuration(new HashMap<String, Map<String, String>>(),
-    new HashMap<String, Map<String, Map<String, String>>>(), bpConfiguration);
+  private final Configuration stackConfig = new Configuration(new HashMap<>(),
+    new HashMap<>());
+  private final Configuration bpConfiguration = new Configuration(new HashMap<>(),
+    new HashMap<>(), stackConfig);
+  private final Configuration topoConfiguration = new Configuration(new HashMap<>(),
+    new HashMap<>(), bpConfiguration);
+  private final Configuration bpGroup1Config = new Configuration(new HashMap<>(),
+    new HashMap<>(), bpConfiguration);
+  private final Configuration bpGroup2Config = new Configuration(new HashMap<>(),
+    new HashMap<>(), bpConfiguration);
 
-  private final Configuration topoGroup1Config = new Configuration(new HashMap<String, Map<String, String>>(),
-    new HashMap<String, Map<String, Map<String, String>>>(), bpGroup1Config);
-  private final Configuration topoGroup2Config = new Configuration(new HashMap<String, Map<String, String>>(),
-    new HashMap<String, Map<String, Map<String, String>>>(), bpGroup2Config);
+  private final Configuration topoGroup1Config = new Configuration(new HashMap<>(),
+    new HashMap<>(), bpGroup1Config);
+  private final Configuration topoGroup2Config = new Configuration(new HashMap<>(),
+    new HashMap<>(), bpGroup2Config);
 
   private HostGroupInfo group1Info = new HostGroupInfo("group1");
   private HostGroupInfo group2Info = new HostGroupInfo("group2");
@@ -253,6 +256,7 @@ public class ClusterInstallWithoutStartTest extends EasyMockSupport {
     expect(blueprint.getServices()).andReturn(Arrays.asList("service1", "service2")).anyTimes();
     expect(blueprint.getStack()).andReturn(stack).anyTimes();
     expect(blueprint.isValidConfigType(anyString())).andReturn(true).anyTimes();
+    expect(blueprint.getRepositorySettings()).andReturn(new ArrayList<>()).anyTimes();
     // don't expect toEntity()
 
     expect(stack.getAllConfigurationTypes("service1")).andReturn(Arrays.asList("service1-site", "service1-env")).anyTimes();
@@ -282,8 +286,8 @@ public class ClusterInstallWithoutStartTest extends EasyMockSupport {
     expect(stack.getVersion()).andReturn(STACK_VERSION).anyTimes();
     expect(stack.getServiceForConfigType("service1-site")).andReturn("service1").anyTimes();
     expect(stack.getServiceForConfigType("service2-site")).andReturn("service2").anyTimes();
-    expect(stack.getExcludedConfigurationTypes("service1")).andReturn(Collections.<String>emptySet()).anyTimes();
-    expect(stack.getExcludedConfigurationTypes("service2")).andReturn(Collections.<String>emptySet()).anyTimes();
+    expect(stack.getExcludedConfigurationTypes("service1")).andReturn(Collections.emptySet()).anyTimes();
+    expect(stack.getExcludedConfigurationTypes("service2")).andReturn(Collections.emptySet()).anyTimes();
 
     expect(request.getBlueprint()).andReturn(blueprint).anyTimes();
     expect(request.getClusterId()).andReturn(CLUSTER_ID).anyTimes();
@@ -291,18 +295,16 @@ public class ClusterInstallWithoutStartTest extends EasyMockSupport {
     expect(request.getDescription()).andReturn("Provision Cluster Test").anyTimes();
     expect(request.getConfiguration()).andReturn(topoConfiguration).anyTimes();
     expect(request.getHostGroupInfo()).andReturn(groupInfoMap).anyTimes();
-    expect(request.getRepositoryVersion()).andReturn("1").anyTimes();
-
     expect(request.getConfigRecommendationStrategy()).andReturn(ConfigRecommendationStrategy.NEVER_APPLY);
     expect(request.getProvisionAction()).andReturn(INSTALL_ONLY).anyTimes();
     expect(request.getSecurityConfiguration()).andReturn(null).anyTimes();
-
+    expect(request.getRepositoryVersion()).andReturn("1").anyTimes();
 
     expect(group1.getBlueprintName()).andReturn(BLUEPRINT_NAME).anyTimes();
     expect(group1.getCardinality()).andReturn("test cardinality").anyTimes();
     expect(group1.containsMasterComponent()).andReturn(true).anyTimes();
     expect(group1.getComponentNames()).andReturn(group1Components).anyTimes();
-    expect(group1.getComponentNames(anyObject(ProvisionAction.class))).andReturn(Collections.<String>emptyList()).anyTimes();
+    expect(group1.getComponentNames(anyObject(ProvisionAction.class))).andReturn(Collections.emptyList()).anyTimes();
 
     expect(group1.getComponents("service1")).andReturn(group1ServiceComponents.get("service1")).anyTimes();
     expect(group1.getComponents("service2")).andReturn(group1ServiceComponents.get("service1")).anyTimes();
@@ -315,7 +317,7 @@ public class ClusterInstallWithoutStartTest extends EasyMockSupport {
     expect(group2.getCardinality()).andReturn("test cardinality").anyTimes();
     expect(group2.containsMasterComponent()).andReturn(false).anyTimes();
     expect(group2.getComponentNames()).andReturn(group2Components).anyTimes();
-    expect(group2.getComponentNames(anyObject(ProvisionAction.class))).andReturn(Collections.<String>emptyList()).anyTimes();
+    expect(group2.getComponentNames(anyObject(ProvisionAction.class))).andReturn(Collections.emptyList()).anyTimes();
     expect(group2.getComponents("service1")).andReturn(group2ServiceComponents.get("service1")).anyTimes();
     expect(group2.getComponents("service2")).andReturn(group2ServiceComponents.get("service2")).anyTimes();
     expect(group2.getConfiguration()).andReturn(topoGroup2Config).anyTimes();
@@ -367,18 +369,13 @@ public class ClusterInstallWithoutStartTest extends EasyMockSupport {
     ambariContext.persistInstallStateForUI(CLUSTER_NAME, STACK_NAME, STACK_VERSION);
     expectLastCall().once();
 
-    expect(configureClusterTaskFactory.createConfigureClusterTask(
-      anyObject(ClusterTopology.class),
-      anyObject(ClusterConfigurationRequest.class),
-      anyObject(AmbariEventPublisher.class)
-    )).andReturn(configureClusterTask);
+    expect(configureClusterTaskFactory.createConfigureClusterTask(anyObject(), anyObject(), anyObject())).andReturn(configureClusterTask);
     expect(configureClusterTask.getTimeout()).andReturn(1000L);
     expect(configureClusterTask.getRepeatDelay()).andReturn(50L);
     expect(executor.submit(anyObject(AsyncCallableService.class))).andReturn(mockFuture).times(1);
 
     persistedTopologyRequest = new PersistedTopologyRequest(1, request);
-    expect(persistedState.getAllRequests()).andReturn(Collections.<ClusterTopology,
-      List<LogicalRequest>>emptyMap()).once();
+    expect(persistedState.getAllRequests()).andReturn(Collections.emptyMap()).once();
     expect(persistedState.persistTopologyRequest(request)).andReturn(persistedTopologyRequest).once();
     persistedState.persistLogicalRequest((LogicalRequest) anyObject(), anyLong());
     expectLastCall().once();

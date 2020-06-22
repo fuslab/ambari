@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -33,10 +33,11 @@ public interface ConfigFactory {
   /**
    * Creates a new {@link Config} object using provided values.
    */
-  @Experimental(feature = ExperimentalFeature.PATCH_UPGRADES,
+  @Experimental(feature = ExperimentalFeature.MULTI_SERVICE,
       comment = "This constructor is only used for test compatibility and should be removed")
   Config createNew(Cluster cluster, @Assisted("type") String type, @Assisted("tag") String tag,
       Map<String, String> map, Map<String, Map<String, String>> mapAttributes);
+
 
   /**
    * Creates a new {@link Config} object using provided values.

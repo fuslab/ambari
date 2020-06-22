@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,9 +17,11 @@
  */
 package org.apache.ambari.server.controller.metrics;
 
-import org.apache.ambari.server.controller.spi.SystemException;
-
 import static org.apache.ambari.server.controller.metrics.MetricsServiceProvider.MetricsService;
+
+import java.util.Optional;
+
+import org.apache.ambari.server.controller.spi.SystemException;
 
 public interface MetricHostProvider {
   /**
@@ -31,7 +33,7 @@ public interface MetricHostProvider {
    *
    * @throws org.apache.ambari.server.controller.spi.SystemException if unable to get the metrics server host name
    */
-  public String getCollectorHostName(String clusterName, MetricsService service) throws SystemException;
+  String getCollectorHostName(String clusterName, MetricsService service) throws SystemException;
 
   /**
    * Get the host name for the given cluster name and component name.
@@ -42,7 +44,7 @@ public interface MetricHostProvider {
    * @throws org.apache.ambari.server.controller.spi.SystemException
    *          if unable to get the JMX host name
    */
-  public String getHostName(String clusterName, String componentName) throws SystemException;
+  String getHostName(String clusterName, String componentName) throws SystemException;
 
   /**
    * Get the metrics server port for the given cluster name.
@@ -53,7 +55,7 @@ public interface MetricHostProvider {
    *
    * @throws org.apache.ambari.server.controller.spi.SystemException if unable to get the metrics server port
    */
-  public String getCollectorPort(String clusterName, MetricsService service) throws SystemException;
+  String getCollectorPort(String clusterName, MetricsService service) throws SystemException;
 
   /**
    * Get the status of metrics server host for the given cluster name.
@@ -64,7 +66,7 @@ public interface MetricHostProvider {
    *
    * @throws SystemException if unable to get the status of metrics server host
    */
-  public boolean isCollectorHostLive(String clusterName, MetricsService service) throws SystemException;
+  boolean isCollectorHostLive(String clusterName, MetricsService service) throws SystemException;
 
   /**
    * Get the status of metrics server component for the given cluster name.
@@ -75,5 +77,24 @@ public interface MetricHostProvider {
    *
    * @throws SystemException if unable to get the status of metrics server component
    */
-  public boolean isCollectorComponentLive(String clusterName, MetricsService service) throws SystemException;
+  boolean isCollectorComponentLive(String clusterName, MetricsService service) throws SystemException;
+
+  /**
+   * If a component is installed to a host that is managed outside of Ambari (for example OneFS) then this method will return the external hostname.
+   */
+  default Optional<String> getExternalHostName(String clusterName, String componentName) {
+    return Optional.empty();
+  }
+
+
+  /**
+   * Is the collector host external to the cluster?
+   *
+   * @param clusterName the cluster name
+   *
+   * @return true if metrics server component is NOT in this cluster
+   *
+   */
+  public boolean isCollectorHostExternal(String clusterName);
+
 }

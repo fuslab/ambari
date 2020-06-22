@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,12 @@
 
 package org.apache.ambari.server.view.events;
 
+import java.util.Collections;
+import java.util.Map;
+
 import org.apache.ambari.view.ViewDefinition;
 import org.apache.ambari.view.ViewInstanceDefinition;
 import org.apache.ambari.view.events.Event;
-
-import java.util.Collections;
-import java.util.Map;
 
 /**
  * View event implementation.
@@ -80,7 +80,7 @@ public class EventImpl implements Event {
     this.id                  = id;
     this.viewSubject         = viewSubject;
     this.viewInstanceSubject = viewInstanceSubject;
-    this.properties          = properties == null ? Collections.<String, String>emptyMap() :
+    this.properties          = properties == null ? Collections.emptyMap() :
         Collections.unmodifiableMap(properties);
   }
 

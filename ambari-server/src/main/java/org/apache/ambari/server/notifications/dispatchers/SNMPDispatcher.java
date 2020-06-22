@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,10 +20,10 @@ package org.apache.ambari.server.notifications.dispatchers;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.HashSet;
 
 import org.apache.ambari.server.notifications.Notification;
 import org.apache.ambari.server.notifications.NotificationDispatcher;
@@ -171,7 +171,7 @@ public class SNMPDispatcher implements NotificationDispatcher {
    */
   @Override
   public TargetConfigurationResult validateTargetConfig(Map<String, Object> properties) {
-    Map<String, String> stringValuesConfig = new HashMap<String, String>(properties.size());
+    Map<String, String> stringValuesConfig = new HashMap<>(properties.size());
     for (Map.Entry<String, Object> propertyEntry : properties.entrySet()) {
       stringValuesConfig.put(propertyEntry.getKey(), propertyEntry.getValue().toString());
     }

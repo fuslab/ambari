@@ -19,7 +19,7 @@
 
 @undo-btn-margin: 10px;
 @controls-min-width: 55px;
-@combo-widget-width: 100px;
+@combo-widget-width: 200px;
 @overriden-property-bg-color: rgba(211, 237, 247, 0.39);
 @overriden-property-widget-padding: 8px;
 @green: #6ebd45;
@@ -28,6 +28,7 @@
 
 @slider-widget-border-color: #999;
 @slider-widget-width: 220px;
+@slider-widget-wrapper-width: 68%;
 @slider-widget-tooltip-background-color: @green;
 @slider-widget-selection-background-color: @slider-dark-grey;
 @slider-widget-body-height: 10px;
@@ -41,6 +42,7 @@
 
 @widget-config-override-action-color: #cbcbcb;
 @widget-config-override-action-active-color: #acacac;
+@widget-config-final-active-color: blue;
 
 @toggle-widget-handle-background-color: #f3f3f3;
 @toggle-widget-text-color: #fff;
@@ -58,7 +60,7 @@
     &.text-success {
       color: @green;
     }
-    .icon-warning-sign {
+    .glyphicon-warning-sign {
       &.warning {
         color: @health-status-yellow
       }
@@ -80,7 +82,7 @@
       .label-current {
         padding: 2px 3px 3px 5px;
       }
-      .icon-lock {
+      .glyphicon-lock {
         position: relative;
         top: 2px;
         left: 2px;
@@ -108,9 +110,12 @@
       &.active {
         color: @widget-config-override-action-active-color;
       }
-      &.text-error {
+      &.text-danger {
         color: #b94a48;
       }
+    }
+    .widget-action-final.active {
+      color: @widget-config-final-active-color;
     }
   }
   .clear-min-height {
@@ -121,9 +126,9 @@
   }
   &.slider-widget {
     width: 100%;
-    margin-left: -20px;
+  //  margin-left: -20px;
     margin-right: 0;
-    padding-left: 20px;
+  //  padding-left: 20px;
   }
   // background hack instead of increasing padding,
   // because we have lack of space for widget container.
@@ -143,6 +148,9 @@
       left: -@overriden-property-widget-padding;
     }
   }
+  .input-group-btn {
+    width: auto;
+  }
 }
 
 .widget-config-comparison .widget-config&.slider-widget {
@@ -155,7 +163,7 @@
 
 .directory-textarea-wrapper {
   float: left;
-  width: 80%;
+  width: @slider-widget-wrapper-width;
 }
 
 .list-widget {
@@ -244,10 +252,10 @@
     }
     &.slider-disabled {
       .tooltip-arrow {
-        border-top-color: lighten(@green, 20%);;
+        border-top-color: lighten(@green, 20%);
       }
       .tooltip-inner {
-        background-color: lighten(@green, 20%);;
+        background-color: lighten(@green, 20%);
       }
     }
   }
@@ -280,9 +288,9 @@
 
   .ui-slider-wrapper {
     .ui-slider-wrapper-inner {
-      width: 68%;
+      width: @slider-widget-wrapper-width;
       width: calc(~"100% - 30px -"@controls-min-width);
-      max-width: 68%;
+      max-width: @slider-widget-wrapper-width;
       padding-left: 10px;
       .slider.slider-horizontal {
         width: 100%;
@@ -325,12 +333,12 @@
     line-height: normal;
     float: left;
 
-    .input-append.input-prepend {
+    .input-group {
        margin: 0;
     }
 
     input {
-      width: 20px;
+      width: 30px;
       font-size: 12px;
       text-align: center;
     }
@@ -415,7 +423,7 @@
 }
 
 .combo-widget {
-  .input-append {
+  .input-group {
     .btn-group {
       display: inline-block;
       margin-left: -1px;
@@ -455,23 +463,17 @@
 
 .checkbox-widget {
   .widget-config-label {
-    margin-left: 10px;
     width: auto;
+    padding-left: 0;
   }
-
-  .bootstrap-checkbox {
-    &>button.btn {
-      padding: 0;
-      color: @green;
-      &:focus {
-        border-color: transparent;
-        box-shadow: 0;
-        outline: 0 none;
+  .checkbox {
+    .ember-checkbox:not([disabled]) {
+      & + label:hover, &:checked + label {
+        &:before {
+          background-color: @green;
+          border-color: @green;
+        }
       }
-    }
-
-    .icon-check-empty {
-      margin-left: -3px;
     }
   }
 }
@@ -483,14 +485,6 @@
   }
 }
 
-.widget-config {
-  .text-field-wrapper {
-    input {
-      display: inline-block;
-    }
-  }
-}
-
 #serviceConfig {
   .text-field-widget {
     .with-unit input {
@@ -499,7 +493,7 @@
   }
 }
 
-.label-current.icon-ok {
+.label-current.glyphicon-ok {
   color: white;
 }
 
@@ -507,3 +501,5 @@
   background-color: rgba(211, 237, 247, 0.39);
   padding: 10px 5px 0 10px;
 }
+
+

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,14 +18,6 @@
 
 package org.apache.ambari.server.view;
 
-import org.apache.ambari.server.configuration.ComponentSSLConfiguration;
-import org.apache.ambari.server.controller.internal.URLStreamProvider;
-import org.apache.ambari.server.proxy.ProxyService;
-import org.apache.ambari.view.AmbariHttpException;
-import org.apache.ambari.view.AmbariStreamProvider;
-import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.io.IOUtils;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -33,6 +25,14 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.apache.ambari.server.configuration.ComponentSSLConfiguration;
+import org.apache.ambari.server.controller.internal.URLStreamProvider;
+import org.apache.ambari.server.proxy.ProxyService;
+import org.apache.ambari.view.AmbariHttpException;
+import org.apache.ambari.view.AmbariStreamProvider;
+import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.io.IOUtils;
 
 /**
  * Provider of an input stream for a request to the Remote Ambari server.
@@ -90,7 +90,7 @@ public class RemoteAmbariStreamProvider implements AmbariStreamProvider {
   }
 
   private Map<String,List<String>> modifyHeaders(Map<String,String> headers){
-    Map<String, List<String>> headerMap = new HashMap<String, List<String>>();
+    Map<String, List<String>> headerMap = new HashMap<>();
     for (Map.Entry<String, String> entry : headers.entrySet()) {
       headerMap.put(entry.getKey(), Collections.singletonList(entry.getValue()));
     }
@@ -98,7 +98,7 @@ public class RemoteAmbariStreamProvider implements AmbariStreamProvider {
   }
 
   private Map<String, List<String>> addHeaders(Map<String, String> customHeaders) {
-    HashMap<String, String> newHeaders = new HashMap<String, String>();
+    HashMap<String, String> newHeaders = new HashMap<>();
     if (customHeaders != null)
       newHeaders.putAll(customHeaders);
 

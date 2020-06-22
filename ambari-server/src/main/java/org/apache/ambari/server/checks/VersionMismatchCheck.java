@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,7 +17,10 @@
  */
 package org.apache.ambari.server.checks;
 
-import com.google.inject.Singleton;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.controller.PrereqCheckRequest;
 import org.apache.ambari.server.state.Cluster;
@@ -30,9 +33,7 @@ import org.apache.ambari.server.state.stack.PrerequisiteCheck;
 import org.apache.ambari.server.state.stack.upgrade.UpgradeType;
 import org.apache.commons.lang.StringUtils;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import com.google.inject.Singleton;
 
 /**
  * Warns about host components whose upgrade state is VERSION_MISMATCH. Never triggers
@@ -54,7 +55,7 @@ public class VersionMismatchCheck extends AbstractCheckDescriptor {
     final String clusterName = request.getClusterName();
     final Cluster cluster = clustersProvider.get().getCluster(clusterName);
     Map<String, Service> services = cluster.getServices();
-    List<String> errorMessages = new ArrayList<String>();
+    List<String> errorMessages = new ArrayList<>();
     for (Service service : services.values()) {
       validateService(service, prerequisiteCheck, errorMessages);
     }

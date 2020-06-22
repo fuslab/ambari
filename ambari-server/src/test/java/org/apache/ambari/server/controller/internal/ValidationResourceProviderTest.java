@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,18 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import static org.apache.ambari.server.api.services.stackadvisor.StackAdvisorResponse.Version;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+
+import java.util.Collections;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.api.services.stackadvisor.StackAdvisorHelper;
 import org.apache.ambari.server.api.services.stackadvisor.StackAdvisorRequest;
 import org.apache.ambari.server.api.services.stackadvisor.validations.ValidationResponse;
@@ -28,14 +40,6 @@ import org.apache.ambari.server.controller.spi.RequestStatus;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.junit.Test;
 
-import java.util.Collections;
-import java.util.Map;
-import java.util.Set;
-
-import static org.apache.ambari.server.api.services.stackadvisor.StackAdvisorResponse.Version;
-import static org.mockito.Mockito.*;
-import static org.junit.Assert.*;
-
 public class ValidationResourceProviderTest {
 
   @Test
@@ -43,8 +47,7 @@ public class ValidationResourceProviderTest {
     Map<Resource.Type, String> keyPropertyIds = Collections.emptyMap();
     Set<String> propertyIds = Collections.singleton(ValidationResourceProvider.VALIDATION_ID_PROPERTY_ID);
     AmbariManagementController ambariManagementController = mock(AmbariManagementController.class);
-    ValidationResourceProvider provider = spy(new ValidationResourceProvider(propertyIds,
-        keyPropertyIds, ambariManagementController));
+    ValidationResourceProvider provider = spy(new ValidationResourceProvider(ambariManagementController));
     StackAdvisorRequest stackAdvisorRequest = mock(StackAdvisorRequest.class);
     Request request = mock(Request.class);
     doReturn(stackAdvisorRequest).when(provider).prepareStackAdvisorRequest(request);

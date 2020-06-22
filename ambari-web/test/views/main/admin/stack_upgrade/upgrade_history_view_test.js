@@ -62,32 +62,32 @@ describe('App.MainAdminStackUpgradeHistoryView', function () {
 
     it('All should return all records', function(){
       this.mock.returns(records);
-      var filteredResults = view.filterBy('ALL')
-      expect(filteredResults.length).to.be.equal(4);
+      var filteredResults = view.filterBy('ALL');
+      expect(filteredResults).to.have.property('length').equal(4);
     });
 
     it('Filter aborted upgrades', function(){
       this.mock.returns(records);
-      var filteredResults = view.filterBy('UPGRADE_ABORTED')
-      expect(filteredResults.length).to.be.equal(1);
+      var filteredResults = view.filterBy('UPGRADE_ABORTED');
+      expect(filteredResults).to.have.property('length').equal(1);
     });
 
     it('Filter completed upgrades', function(){
       this.mock.returns(records);
-      var filteredResults = view.filterBy('UPGRADE_COMPLETED')
-      expect(filteredResults.length).to.be.equal(1);
+      var filteredResults = view.filterBy('UPGRADE_COMPLETED');
+      expect(filteredResults).to.have.property('length').equal(1);
     });
 
     it('Filter aborted downgrades', function(){
       this.mock.returns(records);
-      var filteredResults = view.filterBy('DOWNGRADE_ABORTED')
-      expect(filteredResults.length).to.be.equal(1);
+      var filteredResults = view.filterBy('DOWNGRADE_ABORTED');
+      expect(filteredResults).to.have.property('length').equal(1);
     });
 
     it('Filter completed downgrades', function(){
       this.mock.returns(records);
-      var filteredResults = view.filterBy('DOWNGRADE_COMPLETED')
-      expect(filteredResults.length).to.be.equal(1);
+      var filteredResults = view.filterBy('DOWNGRADE_COMPLETED');
+      expect(filteredResults).to.have.property('length').equal(1);
     });
   });
 
@@ -149,8 +149,7 @@ describe('App.MainAdminStackUpgradeHistoryView', function () {
       ]);
       view.selectCategory(event);
     });
-    afterEach(function () {
-    });
+
     it("categories[0].isSelected false", function() {
       expect(view.get('categories')[0].get('isSelected')).to.be.false;
     });
@@ -206,7 +205,7 @@ describe('App.MainAdminStackUpgradeHistoryView', function () {
         services: [],
         directionLabel: Em.I18n.t('common.upgrade'),
         upgradeTypeLabel: Em.I18n.t('common.rolling'),
-        duration: '1.00 hours'
+        duration: '1h'
       }),
       Em.Object.create({
         idHref: '#2',
@@ -216,7 +215,7 @@ describe('App.MainAdminStackUpgradeHistoryView', function () {
         services: [],
         directionLabel: Em.I18n.t('common.downgrade'),
         upgradeTypeLabel: Em.I18n.t('common.hostOrdered'),
-        duration: '2.00 hours'
+        duration: '2h'
       })
     ];
 

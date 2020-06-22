@@ -17,7 +17,8 @@ limitations under the License.
 
 """
 import os
-from resource_management import *
+from resource_management.core.resources.system import Directory, Execute, File
+from resource_management.libraries.functions.check_process_status import check_process_status
 from resource_management.libraries.functions.mounted_dirs_helper import handle_mounted_dirs
 from utils import service
 from ambari_commons.os_family_impl import OsFamilyImpl, OsFamilyFuncImpl

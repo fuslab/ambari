@@ -40,7 +40,7 @@ import com.google.inject.Singleton;
  * Checks that all hosts have particular repository version. Hosts that are in
  * maintenance mode will be skipped and will not report a warning. Even if they
  * do not have the repo version, they will not be included in the upgrade
- * orchestration, so no warning is required.
+ * orchstration, so no warning is required.
  */
 @Singleton
 @UpgradeCheck(
@@ -82,6 +82,9 @@ public class HostsRepositoryVersionCheck extends AbstractCheckDescriptor {
 
       if (hostVersion == null || !okStates.contains(hostVersion.getState())) {
         prerequisiteCheck.getFailedOn().add(host.getHostName());
+
+        prerequisiteCheck.getFailedDetail().add(
+            new HostDetail(host.getHostId(), host.getHostName()));
       }
     }
 

@@ -18,21 +18,21 @@
 
 package org.apache.ambari.server.serveraction;
 
+import java.util.Collections;
+import java.util.Map;
+
 import org.apache.ambari.server.RoleCommand;
 import org.apache.ambari.server.actionmanager.ExecutionCommandWrapper;
 import org.apache.ambari.server.actionmanager.HostRoleCommand;
 import org.apache.ambari.server.actionmanager.HostRoleStatus;
 import org.apache.ambari.server.agent.CommandReport;
 import org.apache.ambari.server.agent.ExecutionCommand;
-import org.apache.ambari.server.audit.event.AuditEvent;
 import org.apache.ambari.server.audit.AuditLogger;
+import org.apache.ambari.server.audit.event.AuditEvent;
 import org.apache.ambari.server.utils.StageUtils;
 
-import java.util.Collections;
-import java.util.Map;
-
+import com.google.gson.Gson;
 import com.google.inject.Inject;
-import com.google.inject.Injector;
 
 /**
  * AbstractServerAction is an abstract implementation of a ServerAction.
@@ -60,9 +60,15 @@ public abstract class AbstractServerAction implements ServerAction {
   @Inject
   private AuditLogger auditLogger;
 
+  /**
+   * Used to deserialized JSON.
+   */
+  @Inject
+  protected Gson gson;
+
   @Override
   public ExecutionCommand getExecutionCommand() {
-    return this.executionCommand;
+    return executionCommand;
   }
 
   @Override
@@ -72,12 +78,19 @@ public abstract class AbstractServerAction implements ServerAction {
 
   @Override
   public HostRoleCommand getHostRoleCommand() {
-    return this.hostRoleCommand;
+    return hostRoleCommand;
   }
 
   @Override
   public void setHostRoleCommand(HostRoleCommand hostRoleCommand) {
     this.hostRoleCommand = hostRoleCommand;
+  }
+
+  /**
+   * @return a command report with 0 exit code and COMPLETED HostRoleStatus
+   */
+  protected CommandReport createCompletedCommandReport() {
+    return createCommandReport(0, HostRoleStatus.COMPLETED, "{}", actionLog.getStdOut(), actionLog.getStdErr());
   }
 
   /**
@@ -115,8 +128,8 @@ public abstract class AbstractServerAction implements ServerAction {
         report = new CommandReport();
 
         report.setActionId(StageUtils.getActionId(hostRoleCommand.getRequestId(), hostRoleCommand.getStageId()));
-        report.setClusterName(executionCommand.getClusterName());
-        report.setConfigurationTags(executionCommand.getConfigurationTags());
+        report.setClusterId(executionCommand.getClusterId());
+        //report.setConfigurationTags(executionCommand.getConfigurationTags());
         report.setRole(executionCommand.getRole());
         report.setRoleCommand((roleCommand == null) ? null : roleCommand.toString());
         report.setServiceName(executionCommand.getServiceName());
@@ -160,31 +173,7 @@ public abstract class AbstractServerAction implements ServerAction {
     return (commandParameters == null) ? null : commandParameters.get(propertyName);
   }
 
-  /**
-   * Returns the configurations value from the ExecutionCommand
-   * <p/>
-   * The returned map should be assumed to be read-only.
-   *
-   * @return the (assumed read-only) configurations value from the ExecutionCommand
-   */
-  protected Map<String, Map<String, String>> getConfigurations() {
-    return (executionCommand == null) ? Collections.<String, Map<String, String>>emptyMap() : executionCommand.getConfigurations();
-  }
-
-  /**
-   * Returns the requested configuration Map from the ExecutionCommand
-   * <p/>
-   * The returned map should be assumed to be read-only.
-   *
-   * @param configurationName a String indicating the name of the configuration data to retrieve
-   * @return the (assumed read-only) configuration Map from the ExecutionCommand, or null if not available
-   */
-  protected Map<String, String> getConfiguration(String configurationName) {
-    return getConfigurations().get(configurationName);
-  }
-
   protected void auditLog(AuditEvent ae) {
     auditLogger.log(ae);
   }
-
 }

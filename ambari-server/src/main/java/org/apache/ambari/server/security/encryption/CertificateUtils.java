@@ -17,13 +17,7 @@
  */
 package org.apache.ambari.server.security.encryption;
 
-import org.apache.commons.io.FileUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
@@ -34,19 +28,6 @@ import java.security.interfaces.RSAPublicKey;
  * Utility class containing methods to works with certificates
  */
 public class CertificateUtils {
-  private static final Logger LOG = LoggerFactory.getLogger(CertificateUtils.class);
-
-  /**
-   * Get RSA public key from X.509 certificate file
-   * @param filePath path to certificate file
-   * @return RSA public key
-   * @throws IOException
-   * @throws CertificateException
-   */
-  public static RSAPublicKey getPublicKeyFromFile(String filePath) throws IOException, CertificateException {
-    String pemString = FileUtils.readFileToString(new File(filePath));
-    return getPublicKeyFromString(pemString);
-  }
 
   /**
    * Get RSA public key from X.509 certificate string (full crt file content, including header and footer)

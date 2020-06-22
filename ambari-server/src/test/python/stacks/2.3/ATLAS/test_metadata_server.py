@@ -82,8 +82,9 @@ class TestMetadataServer(RMFTestCase):
                                 cd_access='a',
                                 mode=0644
       )
-      self.assertResourceCalled('File', self.stack_root+'/current/atlas-server/server/webapp/atlas.war',
-          content = StaticFile(self.stack_root+'/current/atlas-server/server/webapp/atlas.war'),
+      self.assertResourceCalled('Execute', ('cp', '/usr/hdp/current/atlas-server/server/webapp/atlas.war', '/usr/hdp/current/atlas-server/server/webapp/atlas.war'),
+                                sudo = True,
+                                not_if = True,
       )
       host_name = u"c6401.ambari.apache.org"
       app_props =  dict(self.getConfig()['configurations']['application-properties'])
@@ -125,7 +126,7 @@ class TestMetadataServer(RMFTestCase):
                                 properties=app_props,
                                 owner=u'atlas',
                                 group=u'hadoop',
-                                mode=0644,
+                                mode=0600,
       )
       self.assertResourceCalled('Directory', '/var/log/ambari-infra-solr-client',
                                 create_parents = True,
@@ -217,9 +218,10 @@ class TestMetadataServer(RMFTestCase):
                               cd_access='a',
                               mode=0644
     )
-    self.assertResourceCalled('File', self.stack_root+'/current/atlas-server/server/webapp/atlas.war',
-                              content = StaticFile(self.stack_root+'/current/atlas-server/server/webapp/atlas.war'),
-                              )
+    self.assertResourceCalled('Execute', ('cp', self.stack_root+'/current/atlas-server/server/webapp/atlas.war', self.stack_root+'/current/atlas-server/server/webapp/atlas.war'),
+                              sudo = True,
+                              not_if = True,
+    )
     host_name = u"c6401.ambari.apache.org"
     app_props =  dict(self.getConfig()['configurations']['application-properties'])
     app_props['atlas.server.bind.address'] = host_name
@@ -260,7 +262,7 @@ class TestMetadataServer(RMFTestCase):
                               properties=app_props,
                               owner=u'atlas',
                               group=u'hadoop',
-                              mode=0644,
+                              mode=0600,
                               )
 
     self.assertResourceCalled('TemplateConfig', self.conf_dir+"/atlas_jaas.conf",
@@ -292,13 +294,13 @@ class TestMetadataServer(RMFTestCase):
                               content=''
     )
     self.assertResourceCalledRegexp('^Execute$', '^ambari-sudo.sh JAVA_HOME=/usr/jdk64/jdk1.7.0_45 /usr/lib/ambari-infra-solr-client/solrCloudCli.sh --zookeeper-connect-string c6401.ambari.apache.org:2181 --znode /infra-solr --check-znode --retry 5 --interval 10')
-    self.assertResourceCalledRegexp('^Execute$', '^ambari-sudo.sh JAVA_HOME=/usr/jdk64/jdk1.7.0_45 /usr/lib/ambari-infra-solr-client/solrCloudCli.sh --zookeeper-connect-string c6401.ambari.apache.org:2181/infra-solr --download-config --config-dir /tmp/solr_config_atlas_configs_0.[0-9]* --config-set atlas_configs --retry 30 --interval 5')
+    self.assertResourceCalledRegexp('^Execute$', '^ambari-sudo.sh JAVA_HOME=/usr/jdk64/jdk1.7.0_45 /usr/lib/ambari-infra-solr-client/solrCloudCli.sh --zookeeper-connect-string c6401.ambari.apache.org:2181/infra-solr --jaas-file /usr/hdp/current/atlas-server/conf/atlas_jaas.conf --download-config --config-dir /tmp/solr_config_atlas_configs_0.[0-9]* --config-set atlas_configs --retry 30 --interval 5')
     self.assertResourceCalledRegexp('^File$', '^/tmp/solr_config_atlas_configs_0.[0-9]*',
                                     content=InlineTemplate(self.getConfig()['configurations']['atlas-solrconfig']['content']),
                                     only_if='test -d /tmp/solr_config_atlas_configs_0.[0-9]*')
-    self.assertResourceCalledRegexp('^Execute$', '^ambari-sudo.sh JAVA_HOME=/usr/jdk64/jdk1.7.0_45 /usr/lib/ambari-infra-solr-client/solrCloudCli.sh --zookeeper-connect-string c6401.ambari.apache.org:2181/infra-solr --upload-config --config-dir /tmp/solr_config_atlas_configs_0.[0-9]* --config-set atlas_configs --retry 30 --interval 5',
+    self.assertResourceCalledRegexp('^Execute$', '^ambari-sudo.sh JAVA_HOME=/usr/jdk64/jdk1.7.0_45 /usr/lib/ambari-infra-solr-client/solrCloudCli.sh --zookeeper-connect-string c6401.ambari.apache.org:2181/infra-solr --jaas-file /usr/hdp/current/atlas-server/conf/atlas_jaas.conf --upload-config --config-dir /tmp/solr_config_atlas_configs_0.[0-9]* --config-set atlas_configs --retry 30 --interval 5',
                                     only_if='test -d /tmp/solr_config_atlas_configs_0.[0-9]*')
-    self.assertResourceCalledRegexp('^Execute$', '^ambari-sudo.sh JAVA_HOME=/usr/jdk64/jdk1.7.0_45 /usr/lib/ambari-infra-solr-client/solrCloudCli.sh --zookeeper-connect-string c6401.ambari.apache.org:2181/infra-solr --upload-config --config-dir {0}/solr --config-set atlas_configs --retry 30 --interval 5'.format(self.conf_dir),
+    self.assertResourceCalledRegexp('^Execute$', '^ambari-sudo.sh JAVA_HOME=/usr/jdk64/jdk1.7.0_45 /usr/lib/ambari-infra-solr-client/solrCloudCli.sh --zookeeper-connect-string c6401.ambari.apache.org:2181/infra-solr --jaas-file /usr/hdp/current/atlas-server/conf/atlas_jaas.conf --upload-config --config-dir {0}/solr --config-set atlas_configs --retry 30 --interval 5'.format(self.conf_dir),
                                     not_if='test -d /tmp/solr_config_atlas_configs_0.[0-9]*')
     self.assertResourceCalledRegexp('^Directory$', '^/tmp/solr_config_atlas_configs_0.[0-9]*',
                                     action=['delete'],
@@ -308,14 +310,14 @@ class TestMetadataServer(RMFTestCase):
                               + kinit_path_local +" -kt /etc/security/keytabs/ambari-infra-solr.keytab infra-solr/c6401.ambari.apache.org@EXAMPLE.COM; curl -H 'Content-type:application/json' -d '{\"set-user-role\": {\"atlas@EXAMPLE.COM\": [\"atlas_user\", \"ranger_audit_user\", \"dev\"]}}' -s -o /dev/null -w'%{http_code}' --negotiate -u: -k http://c6401.ambari.apache.org:8886/solr/admin/authorization | grep 200",
                               logoutput = True, tries = 30, try_sleep = 10, user='solr')
 
-    self.assertResourceCalledRegexp('^Execute$', '^ambari-sudo.sh JAVA_HOME=/usr/jdk64/jdk1.7.0_45 /usr/lib/ambari-infra-solr-client/solrCloudCli.sh --zookeeper-connect-string c6401.ambari.apache.org:2181/infra-solr --create-collection --collection vertex_index --config-set atlas_configs --shards 1 --replication 1 --max-shards 1 --retry 5 --interval 10')
-    self.assertResourceCalledRegexp('^Execute$', '^ambari-sudo.sh JAVA_HOME=/usr/jdk64/jdk1.7.0_45 /usr/lib/ambari-infra-solr-client/solrCloudCli.sh --zookeeper-connect-string c6401.ambari.apache.org:2181/infra-solr --create-collection --collection edge_index --config-set atlas_configs --shards 1 --replication 1 --max-shards 1 --retry 5 --interval 10')
-    self.assertResourceCalledRegexp('^Execute$', '^ambari-sudo.sh JAVA_HOME=/usr/jdk64/jdk1.7.0_45 /usr/lib/ambari-infra-solr-client/solrCloudCli.sh --zookeeper-connect-string c6401.ambari.apache.org:2181/infra-solr --create-collection --collection fulltext_index --config-set atlas_configs --shards 1 --replication 1 --max-shards 1 --retry 5 --interval 10')
+    self.assertResourceCalledRegexp('^Execute$', '^ambari-sudo.sh JAVA_HOME=/usr/jdk64/jdk1.7.0_45 /usr/lib/ambari-infra-solr-client/solrCloudCli.sh --zookeeper-connect-string c6401.ambari.apache.org:2181/infra-solr --jaas-file /usr/hdp/current/atlas-server/conf/atlas_jaas.conf --create-collection --collection vertex_index --config-set atlas_configs --shards 1 --replication 1 --max-shards 1 --retry 5 --interval 10')
+    self.assertResourceCalledRegexp('^Execute$', '^ambari-sudo.sh JAVA_HOME=/usr/jdk64/jdk1.7.0_45 /usr/lib/ambari-infra-solr-client/solrCloudCli.sh --zookeeper-connect-string c6401.ambari.apache.org:2181/infra-solr --jaas-file /usr/hdp/current/atlas-server/conf/atlas_jaas.conf --create-collection --collection edge_index --config-set atlas_configs --shards 1 --replication 1 --max-shards 1 --retry 5 --interval 10')
+    self.assertResourceCalledRegexp('^Execute$', '^ambari-sudo.sh JAVA_HOME=/usr/jdk64/jdk1.7.0_45 /usr/lib/ambari-infra-solr-client/solrCloudCli.sh --zookeeper-connect-string c6401.ambari.apache.org:2181/infra-solr --jaas-file /usr/hdp/current/atlas-server/conf/atlas_jaas.conf --create-collection --collection fulltext_index --config-set atlas_configs --shards 1 --replication 1 --max-shards 1 --retry 5 --interval 10')
 
-    self.assertResourceCalled('Execute', "ambari-sudo.sh JAVA_HOME=/usr/jdk64/jdk1.7.0_45 /usr/lib/ambari-infra-solr-client/solrCloudCli.sh --zookeeper-connect-string c6401.ambari.apache.org:2181 --znode /infra-solr/configs/atlas_configs --secure-znode --jaas-file /usr/hdp/current/atlas-server/conf/atlas_jaas.conf --sasl-users atlas,infra-solr --retry 5 --interval 10")
-    self.assertResourceCalled('Execute', "ambari-sudo.sh JAVA_HOME=/usr/jdk64/jdk1.7.0_45 /usr/lib/ambari-infra-solr-client/solrCloudCli.sh --zookeeper-connect-string c6401.ambari.apache.org:2181 --znode /infra-solr/collections/vertex_index --secure-znode --jaas-file /usr/hdp/current/atlas-server/conf/atlas_jaas.conf --sasl-users atlas,infra-solr --retry 5 --interval 10")
-    self.assertResourceCalled('Execute', "ambari-sudo.sh JAVA_HOME=/usr/jdk64/jdk1.7.0_45 /usr/lib/ambari-infra-solr-client/solrCloudCli.sh --zookeeper-connect-string c6401.ambari.apache.org:2181 --znode /infra-solr/collections/edge_index --secure-znode --jaas-file /usr/hdp/current/atlas-server/conf/atlas_jaas.conf --sasl-users atlas,infra-solr --retry 5 --interval 10")
-    self.assertResourceCalled('Execute', "ambari-sudo.sh JAVA_HOME=/usr/jdk64/jdk1.7.0_45 /usr/lib/ambari-infra-solr-client/solrCloudCli.sh --zookeeper-connect-string c6401.ambari.apache.org:2181 --znode /infra-solr/collections/fulltext_index --secure-znode --jaas-file /usr/hdp/current/atlas-server/conf/atlas_jaas.conf --sasl-users atlas,infra-solr --retry 5 --interval 10")
+    self.assertResourceCalled('Execute', "ambari-sudo.sh JAVA_HOME=/usr/jdk64/jdk1.7.0_45 /usr/lib/ambari-infra-solr-client/solrCloudCli.sh --zookeeper-connect-string c6401.ambari.apache.org:2181 --znode /infra-solr/configs/atlas_configs --jaas-file /usr/hdp/current/atlas-server/conf/atlas_jaas.conf --secure-znode --sasl-users atlas,infra-solr --retry 5 --interval 10")
+    self.assertResourceCalled('Execute', "ambari-sudo.sh JAVA_HOME=/usr/jdk64/jdk1.7.0_45 /usr/lib/ambari-infra-solr-client/solrCloudCli.sh --zookeeper-connect-string c6401.ambari.apache.org:2181 --znode /infra-solr/collections/vertex_index --jaas-file /usr/hdp/current/atlas-server/conf/atlas_jaas.conf --secure-znode --sasl-users atlas,infra-solr --retry 5 --interval 10")
+    self.assertResourceCalled('Execute', "ambari-sudo.sh JAVA_HOME=/usr/jdk64/jdk1.7.0_45 /usr/lib/ambari-infra-solr-client/solrCloudCli.sh --zookeeper-connect-string c6401.ambari.apache.org:2181 --znode /infra-solr/collections/edge_index --jaas-file /usr/hdp/current/atlas-server/conf/atlas_jaas.conf --secure-znode --sasl-users atlas,infra-solr --retry 5 --interval 10")
+    self.assertResourceCalled('Execute', "ambari-sudo.sh JAVA_HOME=/usr/jdk64/jdk1.7.0_45 /usr/lib/ambari-infra-solr-client/solrCloudCli.sh --zookeeper-connect-string c6401.ambari.apache.org:2181 --znode /infra-solr/collections/fulltext_index --jaas-file /usr/hdp/current/atlas-server/conf/atlas_jaas.conf --secure-znode --sasl-users atlas,infra-solr --retry 5 --interval 10")
 
   def test_configure_default(self):
     self.executeScript(self.COMMON_SERVICES_PACKAGE_DIR + "/scripts/metadata_server.py",

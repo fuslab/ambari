@@ -22,7 +22,7 @@ var sort = require('views/common/sort_view');
 
 App.MainHostStackVersionsView = App.TableView.extend({
   templateName: require('templates/main/host/stack_versions'),
-  classNames: ['host-tab-content'],
+  classNames: ['host-tab-content', 'container-wrap-table'],
 
   /**
    * @type {Ember.Object}
@@ -161,7 +161,7 @@ App.MainHostStackVersionsView = App.TableView.extend({
 
   outOfSyncInfo: Em.View.extend({
     tagName: 'i',
-    classNames: ['icon-question-sign'],
+    classNames: ['glyphicon glyphicon-question-sign'],
     didInsertElement: function() {
       App.tooltip($(this.get('element')), {
         placement: "top",

@@ -285,7 +285,7 @@ App.Router = Em.Router.extend({
     var self = this;
     var auth = App.db.getAuthenticated();
     this.getClusterDataRequest().complete(function (xhr) {
-      if (xhr.isResolved()) {
+      if (xhr.state() === 'resolved') {
         // if server knows the user and user authenticated by UI
         if (auth) {
           dfd.resolve(self.get('loggedIn'));
@@ -342,7 +342,7 @@ App.Router = Em.Router.extend({
    * @param {?object} data
    */
   onAuthenticationError: function (data) {
-    if (data.status === 403) {
+    if ((data.status === 403) || (data.status === 401)) {
       try {
         var responseJson = JSON.parse(data.responseText);
         if (responseJson.jwtProviderUrl && this.get('location.lastSetURL') !== this.get('localUserAuthUrl')) {
@@ -439,7 +439,6 @@ App.Router = Em.Router.extend({
 
   loginSuccessCallback: function(data, opt, params) {
     var self = this;
-    App.router.set('loginController.isSubmitDisabled', false);
     App.usersMapper.map({"items": [data]});
     this.setUserLoggedIn(data.Users.user_name);
     var requestData = {
@@ -498,7 +497,8 @@ App.Router = Em.Router.extend({
 
     if(text && status){
       return App.ModalPopup.show({
-        classNames: ['sixty-percent-width-modal'],
+        classNames: ['common-modal-wrapper'],
+        modalDialogClasses: ['modal-lg'],
         header: Em.I18n.t('login.message.title'),
         bodyClass: Ember.View.extend({
           template: Ember.Handlebars.compile(text)
@@ -606,7 +606,7 @@ App.Router = Em.Router.extend({
     // set cluster name and security type
     App.router.get('clusterController').reloadSuccessCallback(clustersData);
     App.set('isPermissionDataLoaded', true);
-    App.router.get('userSettingsController').dataLoading();
+    App.router.get('loginController').postLogin(true, true);
   },
 
   /**
@@ -651,7 +651,7 @@ App.Router = Em.Router.extend({
           }
         }),
         sortedMappedVersions = mappedVersions.sort(),
-        latestVersion = sortedMappedVersions[sortedMappedVersions.length-1];
+        latestVersion = sortedMappedVersions[sortedMappedVersions.length-1].replace(/[^\d.-]/g, '');
       window.location.replace(App.appURLRoot +  'views/ADMIN_VIEW/' + latestVersion + '/INSTANCE/#/');
     }
   },

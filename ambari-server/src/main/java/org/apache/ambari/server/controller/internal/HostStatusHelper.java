@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
 
 public class HostStatusHelper {
 
-  protected final static Logger LOG =
+  private static final Logger LOG =
     LoggerFactory.getLogger(HostStatusHelper.class);
 
   public static boolean isHostComponentLive(AmbariManagementController managementController,
@@ -56,7 +56,7 @@ public class HostStatusHelper {
 
       componentHostResponse = hostComponents.size() == 1 ? hostComponents.iterator().next() : null;
     } catch (AmbariException e) {
-      LOG.debug("Error checking " + componentName + " server host component state: ", e);
+      LOG.debug("Error checking {} server host component state: ", componentName, e);
       return false;
     }
 
@@ -73,7 +73,7 @@ public class HostStatusHelper {
 
     try {
       HostRequest hostRequest = new HostRequest(hostName, clusterName);
-      Set<HostResponse> hosts = HostResourceProvider.getHosts(managementController, hostRequest);
+      Set<HostResponse> hosts = HostResourceProvider.getHosts(managementController, hostRequest, null);
 
       hostResponse = hosts.size() == 1 ? hosts.iterator().next() : null;
     } catch (AmbariException e) {
@@ -82,6 +82,6 @@ public class HostStatusHelper {
     }
     //Cluster without host
     return hostResponse != null &&
-      !hostResponse.getHostState().equals(HostState.HEARTBEAT_LOST.name());
+      !hostResponse.getHostState().equals(HostState.HEARTBEAT_LOST);
   }
 }

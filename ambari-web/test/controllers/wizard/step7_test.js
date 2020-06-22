@@ -801,6 +801,9 @@ describe('App.InstallerStep7Controller', function () {
             {selected: true, name: 'n2'},
             {selected: true, name: 'n3'}
           ],
+          tabs: [
+            Em.Object.create({isActive: true, selectedServiceName: null})
+          ],
           e: 'n2'
         },
         {
@@ -810,7 +813,34 @@ describe('App.InstallerStep7Controller', function () {
             {showConfig: false, name: 'n2'},
             {showConfig: true, name: 'n3'}
           ],
+          tabs: [
+            Em.Object.create({isActive: true, selectedServiceName: null})
+          ],
           e: 'n3'
+        },
+        {
+          name: 'addServiceController',
+          stepConfigs: [
+            {selected: true, name: 'n1'},
+            {selected: true, name: 'n2'},
+            {selected: true, name: 'n3'}
+          ],
+          tabs: [
+            Em.Object.create({isActive: true, selectedServiceName: 'n1'})
+          ],
+          e: 'n1'
+        },
+        {
+          name: 'installerController',
+          stepConfigs: [
+            {showConfig: true, name: 'n1'},
+            {showConfig: false, name: 'n2'},
+            {showConfig: true, name: 'n3'}
+          ],
+          tabs: [
+            Em.Object.create({isActive: true, selectedServiceName: 'n1'})
+          ],
+          e: 'n1'
         }
       ]).forEach(function (test) {
         describe(test.name, function () {
@@ -821,7 +851,8 @@ describe('App.InstallerStep7Controller', function () {
               wizardController: Em.Object.create({
                 name: test.name
               }),
-              stepConfigs: test.stepConfigs
+              stepConfigs: test.stepConfigs,
+              tabs: test.tabs
             });
             installerStep7Controller.selectProperService();
           });
@@ -1440,7 +1471,7 @@ describe('App.InstallerStep7Controller', function () {
         ]
       });
       installerStep7Controller.toggleIssuesFilter();
-      expect(installerStep7Controller.get('selectedService.serviceName')).to.eql('service2');
+      expect(installerStep7Controller.get('selectedService.serviceName')).to.be.equal('service2');
     });
   });
 
@@ -1448,6 +1479,9 @@ describe('App.InstallerStep7Controller', function () {
 
     beforeEach(function() {
       sinon.stub(App.config, 'kerberosIdentitiesDescription');
+      installerStep7Controller.set('content.services', [
+        {isSelected: true, serviceName: 's1'}
+      ]);
     });
 
     afterEach(function() {
@@ -1455,13 +1489,14 @@ describe('App.InstallerStep7Controller', function () {
     });
 
     var configs = [
-      { name: 'prop1', displayName: 'Prop1', description: 'd1' },
-      { name: 'prop2', displayName: 'Prop2', description: 'd1' },
-      { name: 'prop3', displayName: 'Prop3', description: 'd1' }
+      { name: 'prop1', displayName: 'Prop1', description: 'd1', serviceName: 's1' },
+      { name: 'prop2', displayName: 'Prop2', description: 'd1', serviceName: 's2' },
+      { name: 'prop3', displayName: 'Prop3', description: 'd1', serviceName: 's2' },
+      { name: 'prop4', displayName: 'Prop4', description: 'd1', serviceName: 's3' }
     ];
     var descriptor = [
-      Em.Object.create({ name: 'prop4', filename: 'file-1'}),
-      Em.Object.create({ name: 'prop1', filename: 'file-1'})
+      Em.Object.create({ name: 'prop4', filename: 'file-1', serviceName: 's2'}),
+      Em.Object.create({ name: 'prop1', filename: 'file-1', serviceName: 's1'})
     ];
     var propertiesAttrTests = [
       {
@@ -1611,12 +1646,12 @@ describe('App.InstallerStep7Controller', function () {
 
   describe('#errorsCount', function () {
 
-    it('should ignore configs with widgets (enhanced configs)', function () {
+    it('should ignore configs with isInDefaultTheme=false', function () {
 
       installerStep7Controller.reopen({selectedService: Em.Object.create({
           configsWithErrors: Em.A([
-            Em.Object.create({widget: {}}),
-            Em.Object.create({widget: null})
+            Em.Object.create({isInDefaultTheme: true}),
+            Em.Object.create({isInDefaultTheme: null})
           ])
         })
       });
@@ -2070,22 +2105,8 @@ describe('App.InstallerStep7Controller', function () {
 
   });
 
-  describe('#setButtonClickFinish', function () {
+  App.TestAliases.testAsComputedEqual(installerStep7Controller, 'isInstallWizard', 'content.controllerName', 'installerController');
 
-    beforeEach(function () {
-      installerStep7Controller.set('submitButtonClicked', true);
-      App.set('router.nextBtnClickInProgress', true);
-      installerStep7Controller.setButtonClickFinish();
-    });
-
-    it('submitButtonClicked should be false', function () {
-      expect(installerStep7Controller.get('submitButtonClicked')).to.be.false;
-    });
-
-    it('nextBtnClickInProgress should be false', function () {
-      expect(App.get('router.nextBtnClickInProgress')).to.be.false;
-    });
-
-  });
+  App.TestAliases.testAsComputedEqual(installerStep7Controller, 'isAddServiceWizard', 'content.controllerName', 'addServiceController');
 
 });

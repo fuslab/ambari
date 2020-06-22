@@ -18,8 +18,9 @@
 
 package org.apache.ambari.server.api.services;
 
-import com.google.inject.Guice;
-import com.google.inject.Injector;
+import java.util.Map;
+
+import org.apache.ambari.server.H2DatabaseCleaner;
 import org.apache.ambari.server.orm.GuiceJpaInitializer;
 import org.apache.ambari.server.orm.InMemoryDefaultTestModule;
 import org.junit.After;
@@ -27,9 +28,9 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Map;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
 
-import org.apache.ambari.server.H2DatabaseCleaner;
 
 public class PersistKeyValueImplTest extends Assert {
 

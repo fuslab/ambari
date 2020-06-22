@@ -92,6 +92,6 @@ admin = *
 #/** = anon
 /** = authc
       </value>
-    <on-ambari-upgrade add="true"/>
+    <on-ambari-upgrade add="false"/>
   </property>
 </configuration>

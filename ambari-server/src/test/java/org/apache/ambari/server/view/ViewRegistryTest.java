@@ -37,7 +37,6 @@ import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -105,6 +104,7 @@ import org.easymock.IAnswer;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -198,6 +198,17 @@ public class ViewRegistryTest {
       "    </auto-instance>\n" +
       "</view>";
 
+  private static final String AUTO_VIEW_WILD_ALL_STACKS_XML = "<view>\n" +
+    "    <name>MY_VIEW</name>\n" +
+    "    <label>My View!</label>\n" +
+    "    <version>1.0.0</version>\n" +
+    "    <auto-instance>\n" +
+    "        <name>AUTO-INSTANCE</name>\n" +
+    "        <stack-id>*</stack-id>\n" +
+    "        <services><service>HIVE</service><service>HDFS</service></services>\n" +
+    "    </auto-instance>\n" +
+    "</view>";
+
   private static final String AUTO_VIEW_BAD_STACK_XML = "<view>\n" +
       "    <name>MY_VIEW</name>\n" +
       "    <label>My View!</label>\n" +
@@ -208,6 +219,8 @@ public class ViewRegistryTest {
       "        <services><service>HIVE</service><service>HDFS</service></services>\n" +
       "    </auto-instance>\n" +
       "</view>";
+
+  private static final String EXPECTED_HDP_2_0_STACK_NAME = "HDP-2.0";
 
   // registry mocks
   private static final ViewDAO viewDAO = createMock(ViewDAO.class);
@@ -224,6 +237,7 @@ public class ViewRegistryTest {
   private static final ViewInstanceHandlerList handlerList = createNiceMock(ViewInstanceHandlerList.class);
   private static final AmbariMetaInfo ambariMetaInfo = createNiceMock(AmbariMetaInfo.class);
   private static final Clusters clusters = createNiceMock(Clusters.class);
+
 
 
   @Before
@@ -256,7 +270,8 @@ public class ViewRegistryTest {
     testReadViewArchives(true, false, false);
   }
 
-  @Test
+
+  @Ignore("this will get refactored when divorced from the stack")
   public void testReadViewArchives_viewAutoInstanceCreation() throws Exception {
     testReadViewArchives(false, false, true);
   }
@@ -289,7 +304,7 @@ public class ViewRegistryTest {
     for (ViewInstanceEntity viewInstanceEntity : viewInstanceEntities) {
       viewInstanceEntity.putInstanceData("p1", "v1");
 
-      Collection<ViewEntityEntity> entities = new HashSet<ViewEntityEntity>();
+      Collection<ViewEntityEntity> entities = new HashSet<>();
       ViewEntityEntity viewEntityEntity = new ViewEntityEntity();
       viewEntityEntity.setId(99L);
       viewEntityEntity.setIdProperty("id");
@@ -314,7 +329,7 @@ public class ViewRegistryTest {
       viewInstanceEntity.setResource(resourceEntity);
     }
 
-    Map<String, File> files = new HashMap<String, File>();
+    Map<String, File> files = new HashMap<>();
     if (System.getProperty("os.name").contains("Windows")) {
       files.put("\\var\\lib\\ambari-server\\resources\\views\\work", extractedArchiveDir);
       files.put("\\var\\lib\\ambari-server\\resources\\views\\work\\MY_VIEW{1.0.0}", archiveDir);
@@ -332,10 +347,10 @@ public class ViewRegistryTest {
       files.put("/var/lib/ambari-server/resources/views/work/MY_VIEW{1.0.0}/META-INF", metaInfDir);
     }
 
-    Map<File, FileOutputStream> outputStreams = new HashMap<File, FileOutputStream>();
+    Map<File, FileOutputStream> outputStreams = new HashMap<>();
     outputStreams.put(entryFile, fos);
 
-    Map<File, JarInputStream> jarFiles = new HashMap<File, JarInputStream>();
+    Map<File, JarInputStream> jarFiles = new HashMap<>();
     jarFiles.put(viewArchive, viewJarFile);
 
     // set expectations
@@ -409,13 +424,13 @@ public class ViewRegistryTest {
     Cluster cluster = createNiceMock(Cluster.class);
     Service service = createNiceMock(Service.class);
     ViewInstanceEntity viewAutoInstanceEntity = createNiceMock(ViewInstanceEntity.class);
-    Capture<ViewInstanceEntity> viewAutoInstanceCapture = new Capture<ViewInstanceEntity>();
+    Capture<ViewInstanceEntity> viewAutoInstanceCapture = EasyMock.newCapture();
 
     ViewInstanceDataEntity autoInstanceDataEntity = createNiceMock(ViewInstanceDataEntity.class);
     expect(autoInstanceDataEntity.getName()).andReturn("p1").anyTimes();
     expect(autoInstanceDataEntity.getUser()).andReturn(" ").anyTimes();
 
-    Map<String, Service> serviceMap = new HashMap<String, Service>();
+    Map<String, Service> serviceMap = new HashMap<>();
     serviceMap.put("HDFS", service);
     serviceMap.put("HIVE", service);
 
@@ -423,7 +438,7 @@ public class ViewRegistryTest {
     StackId stackId = new StackId("HDP-2.0");
 
     if(checkAutoInstanceCreation) {
-      Map<String, Cluster> allClusters = new HashMap<String, Cluster>();
+      Map<String, Cluster> allClusters = new HashMap<>();
       expect(cluster.getClusterName()).andReturn("c1").anyTimes();
       expect(cluster.getCurrentStackVersion()).andReturn(stackId).anyTimes();
       expect(cluster.getServices()).andReturn(serviceMap).anyTimes();
@@ -434,11 +449,11 @@ public class ViewRegistryTest {
       expect(viewInstanceDAO.findByName("MY_VIEW{1.0.0}", "AUTO-INSTANCE")).andReturn(viewAutoInstanceEntity).anyTimes();
       expect(viewAutoInstanceEntity.getInstanceData("p1")).andReturn(autoInstanceDataEntity).anyTimes();
     } else {
-      expect(clusters.getClusters()).andReturn(new HashMap<String, Cluster>());
+      expect(clusters.getClusters()).andReturn(new HashMap<>());
     }
 
     if (removeUndeployed) {
-      expect(viewDAO.findAll()).andReturn(Collections.<ViewEntity>emptyList());
+      expect(viewDAO.findAll()).andReturn(Collections.emptyList());
     }
 
     // replay mocks
@@ -543,7 +558,7 @@ public class ViewRegistryTest {
       viewInstanceEntity.setResource(resourceEntity);
     }
 
-    Map<String, File> files = new HashMap<String, File>();
+    Map<String, File> files = new HashMap<>();
 
     if (System.getProperty("os.name").contains("Windows")) {
       files.put("\\var\\lib\\ambari-server\\resources\\views\\work", extractedArchiveDir);
@@ -562,10 +577,10 @@ public class ViewRegistryTest {
       files.put("/var/lib/ambari-server/resources/views/work/MY_VIEW{1.0.0}/META-INF", metaInfDir);
     }
 
-    Map<File, FileOutputStream> outputStreams = new HashMap<File, FileOutputStream>();
+    Map<File, FileOutputStream> outputStreams = new HashMap<>();
     outputStreams.put(entryFile, fos);
 
-    Map<File, JarInputStream> jarFiles = new HashMap<File, JarInputStream>();
+    Map<File, JarInputStream> jarFiles = new HashMap<>();
     jarFiles.put(viewArchive, viewJarFile);
 
     // set expectations
@@ -667,7 +682,7 @@ public class ViewRegistryTest {
     TestListener listener = new TestListener();
     registry.registerListener(listener, "MY_VIEW", "1.0.0");
 
-    EventImpl event = EventImplTest.getEvent("MyEvent", Collections.<String, String>emptyMap(), VIEW_XML_1);
+    EventImpl event = EventImplTest.getEvent("MyEvent", Collections.emptyMap(), VIEW_XML_1);
 
     registry.fireEvent(event);
 
@@ -676,7 +691,7 @@ public class ViewRegistryTest {
     listener.clear();
 
     // fire an event for a different view
-    event = EventImplTest.getEvent("MyEvent", Collections.<String, String>emptyMap(), VIEW_XML_2);
+    event = EventImplTest.getEvent("MyEvent", Collections.emptyMap(), VIEW_XML_2);
 
     registry.fireEvent(event);
 
@@ -685,7 +700,7 @@ public class ViewRegistryTest {
     // un-register the listener
     registry.unregisterListener(listener, "MY_VIEW", "1.0.0");
 
-    event = EventImplTest.getEvent("MyEvent", Collections.<String, String>emptyMap(), VIEW_XML_1);
+    event = EventImplTest.getEvent("MyEvent", Collections.emptyMap(), VIEW_XML_1);
 
     registry.fireEvent(event);
 
@@ -699,7 +714,7 @@ public class ViewRegistryTest {
     TestListener listener = new TestListener();
     registry.registerListener(listener, "MY_VIEW", null); // all versions of MY_VIEW
 
-    EventImpl event = EventImplTest.getEvent("MyEvent", Collections.<String, String>emptyMap(), VIEW_XML_1);
+    EventImpl event = EventImplTest.getEvent("MyEvent", Collections.emptyMap(), VIEW_XML_1);
 
     registry.fireEvent(event);
 
@@ -708,7 +723,7 @@ public class ViewRegistryTest {
     listener.clear();
 
     // fire an event for a different view
-    event = EventImplTest.getEvent("MyEvent", Collections.<String, String>emptyMap(), VIEW_XML_2);
+    event = EventImplTest.getEvent("MyEvent", Collections.emptyMap(), VIEW_XML_2);
 
     registry.fireEvent(event);
 
@@ -719,13 +734,13 @@ public class ViewRegistryTest {
     // un-register the listener
     registry.unregisterListener(listener, "MY_VIEW", null); // all versions of MY_VIEW
 
-    event = EventImplTest.getEvent("MyEvent", Collections.<String, String>emptyMap(), VIEW_XML_1);
+    event = EventImplTest.getEvent("MyEvent", Collections.emptyMap(), VIEW_XML_1);
 
     registry.fireEvent(event);
 
     Assert.assertNull(listener.getLastEvent());
 
-    event = EventImplTest.getEvent("MyEvent", Collections.<String, String>emptyMap(), VIEW_XML_2);
+    event = EventImplTest.getEvent("MyEvent", Collections.emptyMap(), VIEW_XML_2);
 
     registry.fireEvent(event);
 
@@ -832,7 +847,7 @@ public class ViewRegistryTest {
 
     Assert.assertEquals(3, subResourceDefinitions.size());
 
-    Set<String> names = new HashSet<String>();
+    Set<String> names = new HashSet<>();
     for (SubResourceDefinition definition : subResourceDefinitions) {
       names.add(definition.getType().name());
     }
@@ -1103,7 +1118,7 @@ public class ViewRegistryTest {
     ViewInstanceEntity viewInstanceEntity = getViewInstanceEntity(viewEntity, config.getInstances().get(0));
 
 
-    Map<String, String> instanceProperties = new HashMap<String, String>();
+    Map<String, String> instanceProperties = new HashMap<>();
     instanceProperties.put("p1", "newV1");
     instanceProperties.put("p2", "newV2");
 
@@ -1302,7 +1317,7 @@ public class ViewRegistryTest {
     ViewRegistry registry = ViewRegistry.getInstance();
     ViewEntity viewEntity = createNiceMock(ViewEntity.class);
 
-    expect(viewEntity.getInstances()).andReturn(Collections.<ViewInstanceEntity>emptyList()).anyTimes();
+    expect(viewEntity.getInstances()).andReturn(Collections.emptyList()).anyTimes();
 
     replay(viewEntity, configuration);
 
@@ -1321,7 +1336,7 @@ public class ViewRegistryTest {
     ResourceEntity resourceEntity = createNiceMock(ResourceEntity.class);
     ResourceTypeEntity resourceTypeEntity = createNiceMock(ResourceTypeEntity.class);
 
-    Collection<ViewInstanceEntity> instances = new ArrayList<ViewInstanceEntity>();
+    Collection<ViewInstanceEntity> instances = new ArrayList<>();
     instances.add(instanceEntity);
 
     expect(viewEntity.getInstances()).andReturn(instances);
@@ -1342,38 +1357,47 @@ public class ViewRegistryTest {
 
   @Test
   public void testOnAmbariEventServiceCreation() throws Exception {
-    Set<String> serviceNames = new HashSet<String>();
+    Set<String> serviceNames = new HashSet<>();
     serviceNames.add("HDFS");
     serviceNames.add("HIVE");
 
-    testOnAmbariEventServiceCreation(AUTO_VIEW_XML, serviceNames, true);
+    testOnAmbariEventServiceCreation(AUTO_VIEW_XML, serviceNames, EXPECTED_HDP_2_0_STACK_NAME,true);
   }
 
   @Test
   public void testOnAmbariEventServiceCreation_widcardStackVersion() throws Exception {
-    Set<String> serviceNames = new HashSet<String>();
+    Set<String> serviceNames = new HashSet<>();
     serviceNames.add("HDFS");
     serviceNames.add("HIVE");
 
-    testOnAmbariEventServiceCreation(AUTO_VIEW_WILD_STACK_XML, serviceNames, true);
+    testOnAmbariEventServiceCreation(AUTO_VIEW_WILD_STACK_XML, serviceNames, EXPECTED_HDP_2_0_STACK_NAME,true);
+  }
+
+  @Test
+  public void testOnAmbariEventServiceCreation_widcardAllStacks() throws Exception {
+    Set<String> serviceNames = new HashSet<>();
+    serviceNames.add("HDFS");
+    serviceNames.add("HIVE");
+
+    testOnAmbariEventServiceCreation(AUTO_VIEW_WILD_ALL_STACKS_XML, serviceNames, "HDF-3.1", true);
   }
 
   @Test
   public void testOnAmbariEventServiceCreation_mismatchStackVersion() throws Exception {
-    Set<String> serviceNames = new HashSet<String>();
+    Set<String> serviceNames = new HashSet<>();
     serviceNames.add("HDFS");
     serviceNames.add("HIVE");
 
-    testOnAmbariEventServiceCreation(AUTO_VIEW_BAD_STACK_XML, serviceNames, false);
+    testOnAmbariEventServiceCreation(AUTO_VIEW_BAD_STACK_XML, serviceNames, EXPECTED_HDP_2_0_STACK_NAME, false);
   }
 
   @Test
   public void testOnAmbariEventServiceCreation_missingClusterService() throws Exception {
-    Set<String> serviceNames = new HashSet<String>();
+    Set<String> serviceNames = new HashSet<>();
     serviceNames.add("STORM");
     serviceNames.add("HIVE");
 
-    testOnAmbariEventServiceCreation(AUTO_VIEW_XML, serviceNames, false);
+    testOnAmbariEventServiceCreation(AUTO_VIEW_XML, serviceNames, EXPECTED_HDP_2_0_STACK_NAME, false);
   }
 
   @Test
@@ -1528,7 +1552,7 @@ public class ViewRegistryTest {
       viewInstanceEntity.setResource(resourceEntity);
     }
 
-    Map<String, File> files = new HashMap<String, File>();
+    Map<String, File> files = new HashMap<>();
 
     if (System.getProperty("os.name").contains("Windows")) {
       files.put("\\var\\lib\\ambari-server\\resources\\views\\my_view-1.0.0.jar", viewArchive);
@@ -1549,10 +1573,10 @@ public class ViewRegistryTest {
       files.put("/var/lib/ambari-server/resources/views/work/MY_VIEW{1.0.0}/META-INF", metaInfDir);
     }
 
-    Map<File, FileOutputStream> outputStreams = new HashMap<File, FileOutputStream>();
+    Map<File, FileOutputStream> outputStreams = new HashMap<>();
     outputStreams.put(entryFile, fos);
 
-    Map<File, JarInputStream> jarFiles = new HashMap<File, JarInputStream>();
+    Map<File, JarInputStream> jarFiles = new HashMap<>();
     jarFiles.put(viewArchive, viewJarFile);
 
     // set expectations
@@ -1583,7 +1607,7 @@ public class ViewRegistryTest {
       expect(archiveDir.getAbsolutePath()).andReturn("/var/lib/ambari-server/resources/views/work/MY_VIEW{1.0.0}").anyTimes();
     }
 
-    Capture<ViewEntity> viewEntityCapture = new Capture<ViewEntity>();
+    Capture<ViewEntity> viewEntityCapture = EasyMock.newCapture();
     if (System.getProperty("os.name").contains("Windows")) {
       expect(viewExtractor.ensureExtractedArchiveDirectory("\\var\\lib\\ambari-server\\resources\\views\\work")).andReturn(true);
     }
@@ -1879,7 +1903,7 @@ public class ViewRegistryTest {
     return viewInstanceDefinition;
   }
 
-  private void testOnAmbariEventServiceCreation(String xml, Set<String> serviceNames, boolean success) throws Exception {
+  private void testOnAmbariEventServiceCreation(String xml, Set<String> serviceNames, String stackName, boolean success) throws Exception {
     ViewConfig config = ViewConfigTest.getConfig(xml);
 
     ViewEntity viewDefinition = ViewEntityTest.getViewEntity(config);
@@ -1890,26 +1914,27 @@ public class ViewRegistryTest {
     ViewInstanceEntity viewInstanceEntity = createNiceMock(ViewInstanceEntity.class);
     Cluster cluster = createNiceMock(Cluster.class);
     Service service = createNiceMock(Service.class);
+    StackId stackId = new StackId(stackName);
 
-    Map<String, Service> serviceMap = new HashMap<String, Service>();
 
+    Map<String, Service> serviceMap = new HashMap<>();
     for (String serviceName : serviceNames) {
       serviceMap.put(serviceName, service);
+      expect(cluster.getService(serviceName)).andReturn(service);
     }
-
-    StackId stackId = new StackId("HDP-2.0");
 
     expect(clusters.getClusterById(99L)).andReturn(cluster);
     expect(cluster.getClusterName()).andReturn("c1").anyTimes();
     expect(cluster.getCurrentStackVersion()).andReturn(stackId).anyTimes();
     expect(cluster.getServices()).andReturn(serviceMap).anyTimes();
+    expect(service.getDesiredStackId()).andReturn(stackId).anyTimes();
 
-    Capture<ViewInstanceEntity> viewInstanceCapture = new Capture<ViewInstanceEntity>();
+    Capture<ViewInstanceEntity> viewInstanceCapture = EasyMock.newCapture();
 
     expect(viewInstanceDAO.merge(capture(viewInstanceCapture))).andReturn(viewInstanceEntity).anyTimes();
     expect(viewInstanceDAO.findByName("MY_VIEW{1.0.0}", "AUTO-INSTANCE")).andReturn(viewInstanceEntity).anyTimes();
 
-    replay(securityHelper, configuration, viewInstanceDAO, clusters, cluster, viewInstanceEntity);
+    replay(securityHelper, configuration, viewInstanceDAO, clusters, cluster, service, viewInstanceEntity);
 
 
     ServiceInstalledEvent event = new ServiceInstalledEvent(99L, "HDP", "2.0", "HIVE");

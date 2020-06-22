@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,13 +17,6 @@
  */
 package org.apache.ambari.server.stack;
 
-import org.apache.ambari.server.AmbariException;
-import org.apache.ambari.server.state.QuickLinksConfigurationInfo;
-import org.apache.ambari.server.state.quicklinks.QuickLinks;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -34,6 +27,13 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.ambari.server.AmbariException;
+import org.apache.ambari.server.state.QuickLinksConfigurationInfo;
+import org.apache.ambari.server.state.quicklinks.QuickLinks;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class QuickLinksConfigurationModule extends BaseModule<QuickLinksConfigurationModule, QuickLinksConfigurationInfo> implements Validable {
 
   private static final Logger LOG = LoggerFactory.getLogger(QuickLinksConfigurationModule.class);
@@ -41,13 +41,9 @@ public class QuickLinksConfigurationModule extends BaseModule<QuickLinksConfigur
 
   public static final String QUICKLINKS_CONFIGURATION_KEY = "QuickLinksConfiguration";
 
-  static {
-  }
-
-
   private QuickLinksConfigurationInfo moduleInfo;
   private boolean valid = true;
-  private Set<String> errors = new HashSet<String>();
+  private Set<String> errors = new HashSet<>();
 
   public QuickLinksConfigurationModule(File quickLinksConfigurationFile) {
     this(quickLinksConfigurationFile, new QuickLinksConfigurationInfo());
@@ -65,7 +61,7 @@ public class QuickLinksConfigurationModule extends BaseModule<QuickLinksConfigur
       }
       try {
         QuickLinks quickLinksConfig = mapper.readValue(reader, QuickLinks.class);
-        Map<String, QuickLinks> map = new HashMap<String, QuickLinks>();
+        Map<String, QuickLinks> map = new HashMap<>();
         map.put(QUICKLINKS_CONFIGURATION_KEY, quickLinksConfig);
         moduleInfo.setQuickLinksConfigurationMap(map);
         LOG.debug("Loaded quicklinks configuration: {}", moduleInfo);

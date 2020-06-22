@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,22 @@
 
 package org.apache.ambari.server.api.services.parsers;
 
-import junit.framework.Assert;
-import org.apache.ambari.server.api.services.NamedPropertySet;
-import org.apache.ambari.server.api.services.RequestBody;
-import org.apache.ambari.server.controller.utilities.PropertyHelper;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-import static org.junit.Assert.*;
-import static org.junit.Assert.assertEquals;
+import org.apache.ambari.server.api.services.NamedPropertySet;
+import org.apache.ambari.server.api.services.RequestBody;
+import org.apache.ambari.server.controller.utilities.PropertyHelper;
+import org.junit.Test;
+
+import junit.framework.Assert;
 
 /**
  * Unit tests for JsonPropertyParser.
@@ -158,7 +162,7 @@ public class JsonRequestBodyParserTest {
     Set<NamedPropertySet> setProps = body.getNamedPropertySets();
     assertEquals(1, setProps.size());
 
-    Map<String, Object> mapExpected = new HashMap<String, Object>();
+    Map<String, Object> mapExpected = new HashMap<>();
     mapExpected.put(PropertyHelper.getPropertyId("Services", "service_name"), "HDFS");
     mapExpected.put(PropertyHelper.getPropertyId("Services", "display_name"), "HDFS");
     mapExpected.put(PropertyHelper.getPropertyId("ServiceInfo", "cluster_name"), "tbmetrictest");
@@ -233,15 +237,15 @@ public class JsonRequestBodyParserTest {
     boolean cluster2Matches = false;
     boolean cluster3Matches = false;
 
-    Map<String, String> mapCluster1 = new HashMap<String, String>();
+    Map<String, String> mapCluster1 = new HashMap<>();
     mapCluster1.put(PropertyHelper.getPropertyId("Clusters", "cluster_name"), "unitTestCluster1");
 
-    Map<String, String> mapCluster2 = new HashMap<String, String>();
+    Map<String, String> mapCluster2 = new HashMap<>();
     mapCluster2.put(PropertyHelper.getPropertyId("Clusters", "cluster_name"), "unitTestCluster2");
     mapCluster2.put(PropertyHelper.getPropertyId("Clusters", "property1"), "prop1Value");
 
 
-    Map<String, String> mapCluster3 = new HashMap<String, String>();
+    Map<String, String> mapCluster3 = new HashMap<>();
     mapCluster3.put(PropertyHelper.getPropertyId("Clusters", "cluster_name"), "unitTestCluster3");
     mapCluster3.put(PropertyHelper.getPropertyId("Clusters/Category", "property2"), null);
 
@@ -285,15 +289,15 @@ public class JsonRequestBodyParserTest {
     boolean cluster2Matches = false;
     boolean cluster3Matches = false;
 
-    Map<String, String> mapCluster1 = new HashMap<String, String>();
+    Map<String, String> mapCluster1 = new HashMap<>();
     mapCluster1.put(PropertyHelper.getPropertyId("Clusters", "cluster_name"), "unitTestCluster1");
 
-    Map<String, String> mapCluster2 = new HashMap<String, String>();
+    Map<String, String> mapCluster2 = new HashMap<>();
     mapCluster2.put(PropertyHelper.getPropertyId("Clusters", "cluster_name"), "unitTestCluster2");
     mapCluster2.put(PropertyHelper.getPropertyId("Clusters", "property1"), "prop1Value");
 
 
-    Map<String, String> mapCluster3 = new HashMap<String, String>();
+    Map<String, String> mapCluster3 = new HashMap<>();
     mapCluster3.put(PropertyHelper.getPropertyId("Clusters", "cluster_name"), "unitTestCluster3");
     mapCluster3.put(PropertyHelper.getPropertyId("Clusters/Category", "property2"), "prop2Value");
 
@@ -331,7 +335,7 @@ public class JsonRequestBodyParserTest {
     Set<NamedPropertySet> setProps = body.getNamedPropertySets();
     assertEquals(1, setProps.size());
 
-    Map<String, Object> mapExpected = new HashMap<String, Object>();
+    Map<String, Object> mapExpected = new HashMap<>();
     mapExpected.put(PropertyHelper.getPropertyId("Services", "service_name"), "HDFS");
     mapExpected.put(PropertyHelper.getPropertyId("Services", "display_name"), "HDFS");
     mapExpected.put(PropertyHelper.getPropertyId("ServiceInfo", "cluster_name"), "tbmetrictest");
@@ -540,7 +544,7 @@ public class JsonRequestBodyParserTest {
     Set<NamedPropertySet> setProps = body.getNamedPropertySets();
     assertEquals(1, setProps.size());
 
-    Map<String, Object> mapExpected = new HashMap<String, Object>();
+    Map<String, Object> mapExpected = new HashMap<>();
     mapExpected.put(PropertyHelper.getPropertyId("Services", "service_name"), "HDFS");
     mapExpected.put(PropertyHelper.getPropertyId("Services", "display_name"), "HDFS");
     mapExpected.put(PropertyHelper.getPropertyId("ServiceInfo", "cluster_name"), "tbmetrictest");
@@ -592,7 +596,7 @@ public class JsonRequestBodyParserTest {
     Assert.assertNotNull(requestBlob);
     body = parser.parse(requestBlob).iterator().next();
 
-    Map<String, Object> mapExpected = new HashMap<String, Object>();
+    Map<String, Object> mapExpected = new HashMap<>();
     mapExpected.put(PropertyHelper.getPropertyId("Services", "service_name"), "HDFS");
     mapExpected.put(PropertyHelper.getPropertyId("Services", "display_name"), "HDFS");
     mapExpected.put(PropertyHelper.getPropertyId("ServiceInfo", "cluster_name"), "tbmetrictest");

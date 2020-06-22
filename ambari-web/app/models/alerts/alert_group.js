@@ -55,8 +55,8 @@ App.AlertGroup = DS.Model.extend({
    * @type {string}
    */
   displayName: function () {
-    var name = App.config.truncateGroupName(this.get('name'));
-    return this.get('default') ? (name + ' Default') : name;
+    var name = App.config.truncateGroupName(App.format.role(this.get('name'), true));
+    return this.get('default') ? name + ' Default' : name;
   }.property('name', 'default'),
 
   /**

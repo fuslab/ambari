@@ -192,5 +192,20 @@ public class MetricCollectorHATest {
     protected String getHostname() {
       return "h1";
     }
+
+    @Override
+    protected boolean isHostInMemoryAggregationEnabled() {
+      return true;
+    }
+
+    @Override
+    protected int getHostInMemoryAggregationPort() {
+      return 61888;
+    }
+
+    @Override
+    protected String getHostInMemoryAggregationProtocol() {
+      return "http";
+    }
   }
 }

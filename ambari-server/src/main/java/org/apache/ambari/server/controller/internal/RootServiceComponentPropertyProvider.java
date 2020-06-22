@@ -18,17 +18,6 @@
 
 package org.apache.ambari.server.controller.internal;
 
-import org.apache.ambari.server.controller.RootServiceResponseFactory;
-import org.apache.ambari.server.controller.spi.Predicate;
-import org.apache.ambari.server.controller.spi.PropertyProvider;
-import org.apache.ambari.server.controller.spi.Request;
-import org.apache.ambari.server.controller.spi.Resource;
-import org.apache.ambari.server.controller.spi.SystemException;
-import org.apache.ambari.server.controller.utilities.PropertyHelper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.crypto.Cipher;
 import java.security.NoSuchAlgorithmException;
 import java.security.Provider;
 import java.security.Security;
@@ -37,6 +26,18 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+
+import javax.crypto.Cipher;
+
+import org.apache.ambari.server.controller.RootComponent;
+import org.apache.ambari.server.controller.spi.Predicate;
+import org.apache.ambari.server.controller.spi.PropertyProvider;
+import org.apache.ambari.server.controller.spi.Request;
+import org.apache.ambari.server.controller.spi.Resource;
+import org.apache.ambari.server.controller.spi.SystemException;
+import org.apache.ambari.server.controller.utilities.PropertyHelper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * RootServiceComponentPropertyProvider is a PropertyProvider implementation providing additional
@@ -98,7 +99,7 @@ public class RootServiceComponentPropertyProvider extends BaseProvider implement
   private final static Logger LOG = LoggerFactory.getLogger(RootServiceComponentPropertyProvider.class);
 
   static {
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
     propertyIds.add(JCE_POLICY_PROPERTY_ID);
     propertyIds.add(CIPHER_PROPERTIES_PROPERTY_ID);
     SUPPORTED_PROPERTY_IDS = Collections.unmodifiableSet(propertyIds);
@@ -109,7 +110,7 @@ public class RootServiceComponentPropertyProvider extends BaseProvider implement
    * <p/>
    * This is cached in memory after the first time it is needed.
    */
-  private static final Map<String, Integer> CACHED_CIPHER_MAX_KEY_LENGTHS = new HashMap<String, Integer>();
+  private static final Map<String, Integer> CACHED_CIPHER_MAX_KEY_LENGTHS = new HashMap<>();
 
   /**
    * Constructor
@@ -125,7 +126,7 @@ public class RootServiceComponentPropertyProvider extends BaseProvider implement
 
     for (Resource resource : resources) {
       // If this resource represents the AMBARI_SERVER component, handle it's specific properties...
-      if (RootServiceResponseFactory.Components.AMBARI_SERVER.name().equals(resource.getPropertyValue(RootServiceComponentResourceProvider.COMPONENT_NAME_PROPERTY_ID))) {
+      if (RootComponent.AMBARI_SERVER.name().equals(resource.getPropertyValue(RootServiceComponentResourceProvider.COMPONENT_NAME_PROPERTY_ID))) {
         // Attempt to fill in the cipher details only if explicitly asked for.
         if (requestedIds.contains(JCE_POLICY_PROPERTY_ID) || requestedIds.contains(CIPHER_PROPERTIES_PROPERTY_ID)) {
           setCipherDetails(resource, requestedIds);

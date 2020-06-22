@@ -1,5 +1,15 @@
 package org.apache.ambari.server.controller.internal;
 
+import static org.easymock.EasyMock.anyString;
+import static org.easymock.EasyMock.capture;
+import static org.easymock.EasyMock.reset;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.spi.Request;
 import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.orm.dao.KerberosDescriptorDAO;
@@ -15,16 +25,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-
-import static org.easymock.EasyMock.anyString;
-import static org.easymock.EasyMock.capture;
-import static org.easymock.EasyMock.reset;
 
 /**
  * Licensed to the Apache Software Foundation (ASF) under one
@@ -80,7 +80,7 @@ public class KerberosDescriptorResourceProviderTest {
     EasyMock.replay(request);
 
     kerberosDescriptorResourceProvider = new KerberosDescriptorResourceProvider(kerberosDescriptorDAO,
-        kerberosDescriptorFactory, Collections.EMPTY_SET, Collections.EMPTY_MAP, null);
+        kerberosDescriptorFactory, null);
 
     // WHEN
     kerberosDescriptorResourceProvider.createResources(request);
@@ -97,7 +97,7 @@ public class KerberosDescriptorResourceProviderTest {
     EasyMock.replay(request);
 
     kerberosDescriptorResourceProvider = new KerberosDescriptorResourceProvider(kerberosDescriptorDAO,
-        kerberosDescriptorFactory, Collections.EMPTY_SET, Collections.EMPTY_MAP, null);
+        kerberosDescriptorFactory, null);
 
     // WHEN
     kerberosDescriptorResourceProvider.createResources(request);
@@ -112,7 +112,7 @@ public class KerberosDescriptorResourceProviderTest {
 
     // GIVEN
     kerberosDescriptorResourceProvider = new KerberosDescriptorResourceProvider(kerberosDescriptorDAO,
-        kerberosDescriptorFactory, Collections.EMPTY_SET, Collections.EMPTY_MAP, null);
+        kerberosDescriptorFactory, null);
 
     EasyMock.expect(request.getProperties())
         .andReturn(requestPropertySet(KERBEROS_DESCRIPTORS_KERBEROS_DESCRIPTOR_NAME, TEST_KERBEROS_DESCRIPTOR_NAME))

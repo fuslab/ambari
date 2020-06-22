@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,12 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.ivory.IvoryService;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.spi.ResourceProvider;
-
-import java.util.Map;
-import java.util.Set;
 
 /**
  * Abstract resource provider implementation that maps to an Ivory service.
@@ -68,22 +68,19 @@ public abstract class AbstractDRResourceProvider extends AbstractResourceProvide
    * Factory method for obtaining a resource provider based on a given Ivory service instance.
    *
    * @param type         the resource type
-   * @param propertyIds  the property ids
    * @param service      the Ivory service
    *
    * @return a new resource provider
    */
   public static ResourceProvider getResourceProvider(Resource.Type type,
-                                                     Set<String> propertyIds,
-                                                     Map<Resource.Type, String> keyPropertyIds,
                                                      IvoryService service) {
     switch (type.getInternalType()) {
       case DRFeed:
-        return new FeedResourceProvider(service, propertyIds, keyPropertyIds);
+        return new FeedResourceProvider(service);
       case DRTargetCluster:
-        return new TargetClusterResourceProvider(service, propertyIds, keyPropertyIds);
+        return new TargetClusterResourceProvider(service);
       case DRInstance:
-        return new InstanceResourceProvider(service, propertyIds, keyPropertyIds);
+        return new InstanceResourceProvider(service);
       default:
         throw new IllegalArgumentException("Unknown type " + type);
     }

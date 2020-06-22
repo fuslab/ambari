@@ -29,9 +29,9 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.ambari.server.controller.AmbariManagementController;
-import org.apache.ambari.server.controller.RootServiceComponentRequest;
+import org.apache.ambari.server.controller.RootComponent;
+import org.apache.ambari.server.controller.RootService;
 import org.apache.ambari.server.controller.RootServiceComponentResponse;
-import org.apache.ambari.server.controller.RootServiceResponseFactory;
 import org.apache.ambari.server.controller.spi.Predicate;
 import org.apache.ambari.server.controller.spi.Request;
 import org.apache.ambari.server.controller.spi.Resource;
@@ -51,27 +51,25 @@ public class RootServiceComponentResourceProviderTest {
     AmbariManagementController managementController = createMock(AmbariManagementController.class);
 
     Set<RootServiceComponentResponse> allResponse = new HashSet<>();
-    String serviceName = RootServiceResponseFactory.Services.AMBARI.name();
+    String serviceName = RootService.AMBARI.name();
     Map<String, String> emptyMap = Collections.emptyMap();
     allResponse.add(new RootServiceComponentResponse(serviceName, "component1", "1.1.1", emptyMap));
     allResponse.add(new RootServiceComponentResponse(serviceName, "component2", "1.1.1", emptyMap));
     allResponse.add(new RootServiceComponentResponse(serviceName, "component3", "1.1.1", emptyMap));
-    allResponse.add(new RootServiceComponentResponse(serviceName, RootServiceResponseFactory.Components.AMBARI_SERVER.name(), "1.1.1", emptyMap));
+    allResponse.add(new RootServiceComponentResponse(serviceName, RootComponent.AMBARI_SERVER.name(), "1.1.1", emptyMap));
 
     Set<RootServiceComponentResponse> nameResponse = new HashSet<>();
     nameResponse.add(new RootServiceComponentResponse(serviceName, "component4", "1.1.1", emptyMap));
 
 
     // set expectations
-    expect(managementController.getRootServiceComponents(EasyMock.<Set<RootServiceComponentRequest>>anyObject())).andReturn(allResponse).once();
-    expect(managementController.getRootServiceComponents(EasyMock.<Set<RootServiceComponentRequest>>anyObject())).andReturn(nameResponse).once();
+    expect(managementController.getRootServiceComponents(EasyMock.anyObject())).andReturn(allResponse).once();
+    expect(managementController.getRootServiceComponents(EasyMock.anyObject())).andReturn(nameResponse).once();
     // replay
     replay(managementController);
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
         type,
-        PropertyHelper.getPropertyIds(type),
-        PropertyHelper.getKeyPropertyIds(type),
         managementController);
 
     Set<String> propertyIds = new HashSet<>();
@@ -80,7 +78,7 @@ public class RootServiceComponentResourceProviderTest {
     propertyIds.add(RootServiceComponentResourceProvider.COMPONENT_NAME_PROPERTY_ID);
     propertyIds.add(RootServiceComponentResourceProvider.PROPERTIES_PROPERTY_ID);
     propertyIds.add(RootServiceComponentResourceProvider.COMPONENT_VERSION_PROPERTY_ID);
-    propertyIds.add(RootServiceComponentResourceProvider.PROPERTIES_SERVER_CLOCK);
+    propertyIds.add(RootServiceComponentResourceProvider.SERVER_CLOCK_PROPERTY_ID);
 
     // create the request
     Request request = PropertyHelper.getReadRequest(propertyIds);
@@ -92,8 +90,8 @@ public class RootServiceComponentResourceProviderTest {
     for (Resource resource : resources) {
       String componentName = (String) resource.getPropertyValue(RootServiceComponentResourceProvider.COMPONENT_NAME_PROPERTY_ID);
       String componentVersion = (String) resource.getPropertyValue(RootServiceComponentResourceProvider.COMPONENT_VERSION_PROPERTY_ID);
-      Long server_clock = (Long) resource.getPropertyValue(RootServiceComponentResourceProvider.PROPERTIES_SERVER_CLOCK);
-      if (componentName.equals(RootServiceResponseFactory.Components.AMBARI_SERVER.name())){
+      Long server_clock = (Long) resource.getPropertyValue(RootServiceComponentResourceProvider.SERVER_CLOCK_PROPERTY_ID);
+      if (componentName.equals(RootComponent.AMBARI_SERVER.name())){
         Assert.assertNotNull(server_clock);
       } else {
         Assert.assertNull(server_clock);

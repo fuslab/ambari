@@ -45,3 +45,40 @@ class TestAmbariConfig(TestCase):
     config.set("security", "keysdir", " /tmp/non-stripped")
     self.assertEqual(config.get("security", "keysdir"), "/tmp/non-stripped")
 
+    # test default value
+    open_files_ulimit = config.get_ulimit_open_files()
+    self.assertEqual(open_files_ulimit, 0)
+
+    # set a value
+    open_files_ulimit = 128000
+    config.set_ulimit_open_files(open_files_ulimit)
+    self.assertEqual(config.get_ulimit_open_files(), open_files_ulimit)
+
+  def test_ambari_config_get_command_file_retention_policy(self):
+    config = AmbariConfig()
+
+    # unset value yields, "keep"
+    if config.has_option("agent", AmbariConfig.COMMAND_FILE_RETENTION_POLICY_PROPERTY):
+      config.remove_option("agent", AmbariConfig.COMMAND_FILE_RETENTION_POLICY_PROPERTY)
+    self.assertEqual(config.command_file_retention_policy,
+                     AmbariConfig.COMMAND_FILE_RETENTION_POLICY_KEEP)
+
+    config.set("agent", AmbariConfig.COMMAND_FILE_RETENTION_POLICY_PROPERTY,
+               AmbariConfig.COMMAND_FILE_RETENTION_POLICY_KEEP)
+    self.assertEqual(config.command_file_retention_policy,
+                     AmbariConfig.COMMAND_FILE_RETENTION_POLICY_KEEP)
+
+    config.set("agent", AmbariConfig.COMMAND_FILE_RETENTION_POLICY_PROPERTY,
+               AmbariConfig.COMMAND_FILE_RETENTION_POLICY_REMOVE)
+    self.assertEqual(config.command_file_retention_policy,
+                     AmbariConfig.COMMAND_FILE_RETENTION_POLICY_REMOVE)
+
+    config.set("agent", AmbariConfig.COMMAND_FILE_RETENTION_POLICY_PROPERTY,
+               AmbariConfig.COMMAND_FILE_RETENTION_POLICY_REMOVE_ON_SUCCESS)
+    self.assertEqual(config.command_file_retention_policy,
+                     AmbariConfig.COMMAND_FILE_RETENTION_POLICY_REMOVE_ON_SUCCESS)
+
+    # Invalid value yields, "keep"
+    config.set("agent", AmbariConfig.COMMAND_FILE_RETENTION_POLICY_PROPERTY, "invalid_value")
+    self.assertEqual(config.command_file_retention_policy,
+                     AmbariConfig.COMMAND_FILE_RETENTION_POLICY_KEEP)

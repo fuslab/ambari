@@ -21,7 +21,6 @@
   <target-stack>HDP-2.6</target-stack>
   <type>NON_ROLLING</type>
   <prerequisite-checks>
-    <check>org.apache.ambari.server.checks.KafkaPropertiesCheck</check>
     <check>org.apache.ambari.server.checks.RangerAuditDbCheck</check>
     <check>org.apache.ambari.server.checks.ServicePresenceCheck</check>
     <check>org.apache.ambari.server.checks.RangerSSLConfigCheck</check>
@@ -134,15 +133,6 @@
       <service name="MAPREDUCE2">
         <component>HISTORYSERVER</component>
       </service>
-      
-      <service name="RANGER">
-        <component>RANGER_USERSYNC</component>
-        <component>RANGER_ADMIN</component>
-      </service>
-
-      <service name="RANGER_KMS">
-        <component>RANGER_KMS_SERVER</component>
-      </service>
     </group>
 
     <group xsi:type="cluster" name="Backups" title="Perform Backups">
@@ -184,10 +174,10 @@
 
       <execute-stage service="RANGER" component="RANGER_ADMIN" title="Backup Ranger Database">
         <task xsi:type="manual">
-          <message>Before continuing, please backup the Ranger Admin database and Ranger Audit database on the following host(s): {{hosts.all}}. If audit database size is too large (greater than 3GB) then follow the below instructions:
-            1. Backup the audit table from audit database.
-            2. Truncate audit table.
-            3. Follow upgrade process and once completed then restore audit data to audit table.</message>
+          <message>Before continuing, please backup the Ranger Admin database and Ranger Audit database on the following host(s): {{hosts.all}}. If audit database size is too large (greater than 3GB) then follow the below instructions:</message>
+          <message>1. Backup the audit table from audit database.</message>
+          <message>2. Truncate audit table.</message>
+          <message>3. Follow upgrade process and once completed then restore audit data to audit table.</message>
         </task>
       </execute-stage>
 
@@ -221,6 +211,15 @@
         <component>ZKFC</component>
         <component>JOURNALNODE</component>
         <component>NFS_GATEWAY</component>
+      </service>
+
+      <service name="RANGER">
+        <component>RANGER_USERSYNC</component>
+        <component>RANGER_ADMIN</component>
+      </service>
+
+      <service name="RANGER_KMS">
+        <component>RANGER_KMS_SERVER</component>
       </service>
 
       <service name="ZOOKEEPER">
@@ -308,13 +307,17 @@
         <task xsi:type="configure" id="hdfs_user_agent" />
       </execute-stage>
 
+      <execute-stage service="HDFS" component="HDFS_CLIENT" title="Set properties for GCS">
+        <task xsi:type="configure" id="gcs_properties" />
+      </execute-stage>
+
       <!-- YARN -->
       <execute-stage service="YARN" component="RESOURCEMANAGER" title="Calculating Yarn Properties for Spark">
         <task xsi:type="server_action" class="org.apache.ambari.server.serveraction.upgrades.SparkShufflePropertyConfig">
           <summary>Calculating Yarn Properties for Spark Shuffle</summary>
         </task>
       </execute-stage>
-      
+
       <execute-stage service="YARN" component="RESOURCEMANAGER" title="Validate Root Queue Ordering Policy">
         <task xsi:type="server_action" class="org.apache.ambari.server.serveraction.upgrades.FixCapacitySchedulerOrderingPolicy">
           <summary>Validate Root Queue Ordering Policy</summary>
@@ -591,7 +594,7 @@
       <execute-stage service="RANGER" component="RANGER_ADMIN" title="Apply config changes for Ranger Admin">
         <task xsi:type="configure" id="hdp_2_6_0_0_remove_bind_anonymous"/>
       </execute-stage>
- 
+
       <execute-stage service="RANGER" component="RANGER_USERSYNC" title="Apply config changes for Ranger Usersync">
         <task xsi:type="configure" id="hdp_2_6_0_0_disable_delta_sync_during_upgrade"/>
       </execute-stage>
@@ -644,10 +647,6 @@
         <task xsi:type="configure" id="hdp_2_5_0_0_upgrade_storm_1.0"/>
       </execute-stage>
 
-      <execute-stage service="STORM" component="NIMBUS" title="Apply config changes for Storm AutoCreds">
-        <task xsi:type="configure" id="storm_nimbus_autocred_config"/>
-      </execute-stage>
-
       <execute-stage service="STORM" component="NIMBUS" title="Apply config changes for Storm">
         <!-- Remove Atlas configs that were incorrectly added to storm-site instead of Atlas' application.properties. -->
         <task xsi:type="configure" id="hdp_2_5_0_0_remove_storm_atlas_configs"/>
@@ -698,7 +697,8 @@
           <summary>Updating the Zookeeper Log4J properties to include parameterizations</summary>
         </task>
       </execute-stage>
-    </group>
+
+      </group>
 
     <!--
     After processing this group, the user-specified Kerberos descriptor will be updated to work with
@@ -708,23 +708,6 @@
       <condition xsi:type="security" type="kerberos"/>
       <execute-stage title="Update the user-specified Kerberos descriptor">
         <task xsi:type="server_action" class="org.apache.ambari.server.serveraction.upgrades.UpgradeUserKerberosDescriptor"/>
-      </execute-stage>
-    </group>
-
-    <!--
-    Invoke "hdp-select set all" to change any components we may have missed
-    that are installed on the hosts but not known by Ambari.
-    -->
-    <group xsi:type="cluster" name="ALL_HOST_OPS" title="Set Version On All Hosts">
-      <scope>COMPLETE</scope>
-      <skippable>true</skippable>
-      <supports-auto-skip-failure>false</supports-auto-skip-failure>
-
-      <execute-stage title="Update stack to {{version}}">
-        <task xsi:type="execute">
-          <script>scripts/ru_set_all.py</script>
-          <function>actionexecute</function>
-        </task>
       </execute-stage>
     </group>
 
@@ -1141,7 +1124,7 @@
             <function>setup_ranger_java_patches</function>
           </task>
         </pre-upgrade>
-        
+
         <pre-downgrade copy-upgrade="true" />
 
         <upgrade>
@@ -1160,7 +1143,7 @@
     <service name="HDFS">
       <component name="NAMENODE">
         <upgrade>
-          <task xsi:type="restart-task"/>
+          <task xsi:type="restart-task" timeout-config="upgrade.parameter.nn-restart.timeout"/>
         </upgrade>
       </component>
 
@@ -1498,7 +1481,7 @@
             <function>delete_storm_local_data</function>
           </task>
         </pre-upgrade>
-        
+
         <pre-downgrade copy-upgrade="true" />
 
         <upgrade>
@@ -1514,7 +1497,7 @@
             <function>delete_storm_local_data</function>
           </task>
         </pre-upgrade>
-        
+
         <pre-downgrade copy-upgrade="true" />
 
         <upgrade>
@@ -1526,9 +1509,9 @@
             <message>Please rebuild your topology using the new Storm version dependencies and resubmit it using the newly created jar.</message>
           </task>
         </post-upgrade>
-        
+
         <post-downgrade copy-upgrade="true" />
-        
+
       </component>
     </service>
 
@@ -1587,4 +1570,3 @@
     </service>
   </processing>
 </upgrade>
-

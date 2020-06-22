@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,15 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.verify;
+
+import java.util.HashSet;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.AmbariManagementController;
-import org.apache.ambari.server.controller.ExtensionRequest;
 import org.apache.ambari.server.controller.ExtensionResponse;
 import org.apache.ambari.server.controller.spi.Request;
 import org.apache.ambari.server.controller.spi.Resource;
@@ -28,14 +35,6 @@ import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.easymock.EasyMock;
 import org.junit.Assert;
 import org.junit.Test;
-
-import java.util.HashSet;
-import java.util.Set;
-
-import static org.easymock.EasyMock.createMock;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.verify;
 
 /**
  * ExtensionResourceProvider Test
@@ -47,23 +46,21 @@ public class ExtensionResourceProviderTest {
 
     AmbariManagementController managementController = createMock(AmbariManagementController.class);
 
-    Set<ExtensionResponse> allResponse = new HashSet<ExtensionResponse>();
+    Set<ExtensionResponse> allResponse = new HashSet<>();
     allResponse.add(new ExtensionResponse("Extension1"));
     allResponse.add(new ExtensionResponse("Extension2"));
 
     // set expectations
-    expect(managementController.getExtensions(EasyMock.<Set<ExtensionRequest>>anyObject())).andReturn(allResponse).once();
+    expect(managementController.getExtensions(EasyMock.anyObject())).andReturn(allResponse).once();
 
     // replay
     replay(managementController);
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
         type,
-        PropertyHelper.getPropertyIds(type),
-        PropertyHelper.getKeyPropertyIds(type),
         managementController);
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     propertyIds.add(ExtensionResourceProvider.EXTENSION_NAME_PROPERTY_ID);
 
@@ -76,7 +73,7 @@ public class ExtensionResourceProviderTest {
     Assert.assertEquals(2, resources.size());
 
 
-    Set<String> extensionNames = new HashSet<String>();
+    Set<String> extensionNames = new HashSet<>();
     extensionNames.add("Extension1");
     extensionNames.add("Extension2");
 

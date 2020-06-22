@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,13 @@
 
 package org.apache.ambari.server.api.services;
 
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 /**
  * NamedPropertySet unit tests.
@@ -31,7 +33,7 @@ public class NamedPropertySetTest {
 
   @Test
   public void testGetters() {
-    Map<String, Object> mapProps = new HashMap<String, Object>();
+    Map<String, Object> mapProps = new HashMap<>();
     mapProps.put("foo", "bar");
 
     NamedPropertySet propertySet = new NamedPropertySet("foo", mapProps);
@@ -41,7 +43,7 @@ public class NamedPropertySetTest {
 
   @Test
   public void testEquals() {
-    Map<String, Object> mapProps = new HashMap<String, Object>();
+    Map<String, Object> mapProps = new HashMap<>();
     mapProps.put("foo", "bar");
 
     NamedPropertySet propertySet = new NamedPropertySet("foo", mapProps);
@@ -52,13 +54,13 @@ public class NamedPropertySetTest {
     NamedPropertySet propertySet3 = new NamedPropertySet("bar", mapProps);
     assertFalse(propertySet.equals(propertySet3));
 
-    NamedPropertySet propertySet4 = new NamedPropertySet("foo", new HashMap<String, Object>());
+    NamedPropertySet propertySet4 = new NamedPropertySet("foo", new HashMap<>());
     assertFalse(propertySet.equals(propertySet4));
   }
 
   @Test
   public void testHashCode() {
-    Map<String, Object> mapProps = new HashMap<String, Object>();
+    Map<String, Object> mapProps = new HashMap<>();
 
     NamedPropertySet propertySet = new NamedPropertySet("foo", mapProps);
     NamedPropertySet propertySet2 = new NamedPropertySet("foo", mapProps);

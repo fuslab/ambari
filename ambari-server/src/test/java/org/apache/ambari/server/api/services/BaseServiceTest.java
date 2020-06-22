@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -151,7 +151,7 @@ public abstract class BaseServiceTest {
   private void testMethod_bodyParseException(ServiceTestInvocation testMethod) throws Exception {
     addExpectForInitialRequest(testMethod);
 
-    Capture<Result> resultCapture = new Capture<Result>();
+    Capture<Result> resultCapture = EasyMock.newCapture();
     BodyParseException e = new BodyParseException("TEST MSG");
     expect(bodyParser.parse(testMethod.getBody())).andThrow(e);
     expect(serializer.serialize(capture(resultCapture))).andReturn(serializedResult);
@@ -210,7 +210,7 @@ public abstract class BaseServiceTest {
     private Object[] m_args;
     private String m_body;
 
-    private static final Map<Request.Type, Integer> mapStatusCodes = new HashMap<Request.Type, Integer>();
+    private static final Map<Request.Type, Integer> mapStatusCodes = new HashMap<>();
 
     static {
       mapStatusCodes.put(Request.Type.GET, 200);

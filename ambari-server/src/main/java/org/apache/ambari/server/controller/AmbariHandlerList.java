@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,6 +17,21 @@
  */
 package org.apache.ambari.server.controller;
 
+import java.io.IOException;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import javax.inject.Inject;
+import javax.inject.Provider;
+import javax.inject.Singleton;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
 import org.apache.ambari.server.api.AmbariPersistFilter;
 import org.apache.ambari.server.orm.entities.ViewEntity;
 import org.apache.ambari.server.orm.entities.ViewInstanceEntity;
@@ -28,28 +43,14 @@ import org.apache.ambari.view.SystemException;
 import org.apache.ambari.view.ViewContext;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.SessionManager;
 import org.eclipse.jetty.server.handler.HandlerCollection;
+import org.eclipse.jetty.server.session.SessionCache;
 import org.eclipse.jetty.server.session.SessionHandler;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.webapp.WebAppContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.filter.DelegatingFilterProxy;
-
-import javax.inject.Inject;
-import javax.inject.Provider;
-import javax.inject.Singleton;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * An Ambari specific extension of the FailsafeHandlerList that allows for the addition
@@ -62,7 +63,7 @@ public class AmbariHandlerList extends HandlerCollection implements ViewInstance
    * The target pattern for a view resource request.
    */
   private static final Pattern VIEW_RESOURCE_TARGET_PATTERN =
-      Pattern.compile("/api/(\\S+)/views/(\\S+)/versions/(\\S+)/instances/(\\S+)/resources/(\\S+)");
+    Pattern.compile("/api/(\\S+)/views/(\\S+)/versions/(\\S+)/instances/(\\S+)/resources/(\\S+)");
 
   /**
    * The view registry.
@@ -74,7 +75,7 @@ public class AmbariHandlerList extends HandlerCollection implements ViewInstance
    * Session manager.
    */
   @Inject
-  SessionManager sessionManager;
+  SessionHandler sessionHandler;
 
   /**
    * The web app context provider.
@@ -100,20 +101,20 @@ public class AmbariHandlerList extends HandlerCollection implements ViewInstance
   @Inject
   AmbariViewsSecurityHeaderFilter ambariViewsSecurityHeaderFilter;
 
+  @Inject
+  SessionHandlerConfigurer sessionHandlerConfigurer;
+
   /**
    * Mapping of view instance entities to handlers.
    */
-  private final Map<ViewInstanceEntity, Handler> viewHandlerMap = new HashMap<ViewInstanceEntity, Handler>();
+  private final Map<ViewInstanceEntity, WebAppContext> viewHandlerMap = new HashMap<>();
 
   /**
    * The non-view handlers.
    */
-  private final Collection<Handler> nonViewHandlers = new HashSet<Handler>();
+  private final Collection<Handler> nonViewHandlers = new HashSet<>();
 
-  /**
-   * The logger.
-   */
-  protected final static Logger LOG = LoggerFactory.getLogger(AmbariHandlerList.class);
+  private static final Logger LOG = LoggerFactory.getLogger(AmbariHandlerList.class);
 
 
   // ----- Constructors ------------------------------------------------------
@@ -131,7 +132,7 @@ public class AmbariHandlerList extends HandlerCollection implements ViewInstance
   @Override
   public void handle(String target, Request baseRequest,
                      HttpServletRequest request, HttpServletResponse response)
-      throws IOException, ServletException {
+    throws IOException, ServletException {
 
     ViewEntity viewEntity = getTargetView(target);
 
@@ -143,7 +144,7 @@ public class AmbariHandlerList extends HandlerCollection implements ViewInstance
       try {
         ClassLoader viewClassLoader = viewEntity.getClassLoader();
         if (viewClassLoader == null) {
-          LOG.debug("No class loader associated with view " + viewEntity.getName() + ".");
+          LOG.debug("No class loader associated with view {}.", viewEntity.getName());
         } else {
           Thread.currentThread().setContextClassLoader(viewClassLoader);
         }
@@ -164,7 +165,7 @@ public class AmbariHandlerList extends HandlerCollection implements ViewInstance
 
   @Override
   public void addViewInstance(ViewInstanceEntity viewInstanceDefinition) throws SystemException {
-    Handler handler = getHandler(viewInstanceDefinition);
+    WebAppContext handler = getHandler(viewInstanceDefinition);
     viewHandlerMap.put(viewInstanceDefinition, handler);
     super.addHandler(handler);
     // if this is running then start the handler being added...
@@ -174,6 +175,14 @@ public class AmbariHandlerList extends HandlerCollection implements ViewInstance
       } catch (Exception e) {
         throw new SystemException("Caught exception adding a view instance.", e);
       }
+    }
+    handler.getSessionHandler().setSessionCache(sessionHandler.getSessionCache());
+  }
+
+  @Override
+  public void shareSessionCacheToViews(SessionCache serverSessionCache) {
+    for (WebAppContext webAppContext : viewHandlerMap.values()) {
+      webAppContext.getSessionHandler().setSessionCache(serverSessionCache);
     }
   }
 
@@ -192,7 +201,7 @@ public class AmbariHandlerList extends HandlerCollection implements ViewInstance
   // call the handlers until the request is handled
   private void processHandlers(String target, Request baseRequest,
                                HttpServletRequest request, HttpServletResponse response)
-      throws IOException, ServletException {
+    throws IOException, ServletException {
 
     final Handler[] handlers = getHandlers();
 
@@ -204,9 +213,9 @@ public class AmbariHandlerList extends HandlerCollection implements ViewInstance
   }
 
   // call the given handlers until the request is handled; return true if the request is handled
-  private boolean processHandlers(Collection<Handler> handlers, String target, Request baseRequest,
-                               HttpServletRequest request, HttpServletResponse response)
-      throws IOException, ServletException {
+  private boolean processHandlers(Collection<? extends Handler> handlers, String target, Request baseRequest,
+                                  HttpServletRequest request, HttpServletResponse response)
+    throws IOException, ServletException {
 
     for (Handler handler : handlers) {
       handler.handle(target, baseRequest, request, response);
@@ -226,8 +235,8 @@ public class AmbariHandlerList extends HandlerCollection implements ViewInstance
    *
    * @throws org.apache.ambari.view.SystemException if an handler can not be obtained for the given view instance
    */
-  private Handler getHandler(ViewInstanceEntity viewInstanceDefinition)
-      throws SystemException {
+  private WebAppContext getHandler(ViewInstanceEntity viewInstanceDefinition)
+    throws SystemException {
 
     ViewEntity    viewDefinition = viewInstanceDefinition.getViewEntity();
     WebAppContext webAppContext  = webAppContextProvider.get();
@@ -236,7 +245,7 @@ public class AmbariHandlerList extends HandlerCollection implements ViewInstance
     webAppContext.setContextPath(viewInstanceDefinition.getContextPath());
     webAppContext.setClassLoader(viewInstanceDefinition.getViewEntity().getClassLoader());
     webAppContext.setAttribute(ViewContext.CONTEXT_ATTRIBUTE, new ViewContextImpl(viewInstanceDefinition, viewRegistry));
-    webAppContext.setSessionHandler(new SharedSessionHandler(sessionManager));
+    webAppContext.setSessionHandler(new SharedSessionHandler(sessionHandler));
     webAppContext.addFilter(new FilterHolder(ambariViewsSecurityHeaderFilter), "/*", AmbariServer.DISPATCHER_TYPES);
     webAppContext.addFilter(new FilterHolder(persistFilter), "/*", AmbariServer.DISPATCHER_TYPES);
     webAppContext.addFilter(new FilterHolder(springSecurityFilter), "/*", AmbariServer.DISPATCHER_TYPES);
@@ -265,17 +274,18 @@ public class AmbariHandlerList extends HandlerCollection implements ViewInstance
    * A session handler that shares its session manager with another app.
    * This handler DOES NOT attempt stop the shared session manager.
    */
-  private static class SharedSessionHandler extends SessionHandler {
+  private class SharedSessionHandler extends SessionHandler {
 
     // ----- Constructors ----------------------------------------------------
 
     /**
      * Construct a SharedSessionHandler.
      *
-     * @param manager  the shared session manager.
+     * @param sessionHandler  the shared session manager.
      */
-    public SharedSessionHandler(SessionManager manager) {
-      super(manager);
+    public SharedSessionHandler(SessionHandler sessionHandler) {
+      setSessionIdManager(sessionHandler.getSessionIdManager());
+      sessionHandlerConfigurer.configureSessionHandler(this);
     }
 
 

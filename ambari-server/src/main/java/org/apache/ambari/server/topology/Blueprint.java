@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,10 +19,12 @@
 package org.apache.ambari.server.topology;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.ambari.server.controller.internal.Stack;
 import org.apache.ambari.server.orm.entities.BlueprintEntity;
+import org.apache.ambari.server.state.ServiceInfo;
 
 /**
  * Blueprint representation.
@@ -76,6 +78,11 @@ public interface Blueprint {
    * @return collection of all represented service names
    */
   Collection<String> getServices();
+
+  /**
+  * @return collection of all service infos
+   */
+  Collection<ServiceInfo> getServiceInfos();
 
   /**
    * Get the components that are included in the blueprint for the specified service.
@@ -167,4 +174,6 @@ public interface Blueprint {
    * @return entity representation of the blueprint
    */
   BlueprintEntity toEntity();
+
+  List<RepositorySetting> getRepositorySettings();
 }

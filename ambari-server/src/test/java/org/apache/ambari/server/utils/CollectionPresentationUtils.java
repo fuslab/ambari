@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,12 +17,6 @@
  */
 package org.apache.ambari.server.utils;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParser;
-import junit.framework.Assert;
-import org.junit.Test;
-
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -30,6 +24,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
+
+import org.junit.Test;
+
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
+
+import junit.framework.Assert;
 
 /**
  * Complementary class used in tests to check if string representation corresponds to Set/Map

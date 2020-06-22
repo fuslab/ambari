@@ -30,6 +30,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -59,6 +60,7 @@ import org.apache.ambari.server.orm.dao.StageDAO;
 import org.apache.ambari.server.orm.dao.UpgradeDAO;
 import org.apache.ambari.server.orm.entities.HostEntity;
 import org.apache.ambari.server.orm.entities.HostRoleCommandEntity;
+import org.apache.ambari.server.orm.entities.RepoOsEntity;
 import org.apache.ambari.server.orm.entities.RepositoryVersionEntity;
 import org.apache.ambari.server.orm.entities.RequestEntity;
 import org.apache.ambari.server.orm.entities.StackEntity;
@@ -147,9 +149,15 @@ public class UpgradeSummaryResourceProviderTest {
   public void createCluster() throws Exception {
     StackEntity stackEntity = stackDAO.find("HDP", "2.2.0");
 
+    List<RepoOsEntity> osRedhat6 = new ArrayList<>();
+    RepoOsEntity repoOsEntity = new RepoOsEntity();
+    repoOsEntity.setFamily("redhat6");
+    repoOsEntity.setAmbariManaged(true);
+    osRedhat6.add(repoOsEntity);
+
     RepositoryVersionEntity repoVersionEntity = new RepositoryVersionEntity();
     repoVersionEntity.setDisplayName("For Stack Version 2.2.0");
-    repoVersionEntity.setOperatingSystems("");
+    repoVersionEntity.addRepoOsEntities(osRedhat6);
     repoVersionEntity.setStack(stackEntity);
     repoVersionEntity.setVersion("2.2.0.0");
     repoVersionDAO.create(repoVersionEntity);
@@ -215,7 +223,7 @@ public class UpgradeSummaryResourceProviderTest {
     hrc1.setRoleCommand(RoleCommand.RESTART);
     hrc1.setHostEntity(h1);
 
-    stageEntity.setHostRoleCommands(new ArrayList<HostRoleCommandEntity>());
+    stageEntity.setHostRoleCommands(new ArrayList<>());
     stageEntity.getHostRoleCommands().add(hrc1);
     h1.getHostRoleCommandEntities().add(hrc1);
 
@@ -262,7 +270,7 @@ public class UpgradeSummaryResourceProviderTest {
     requestEntity.setRequestId(1L);
     requestEntity.setClusterId(cluster.getClusterId());
     requestEntity.setStatus(HostRoleStatus.PENDING);
-    requestEntity.setStages(new ArrayList<StageEntity>());
+    requestEntity.setStages(new ArrayList<>());
     requestDAO.create(requestEntity);
 
     UpgradeEntity upgrade = new UpgradeEntity();
@@ -320,7 +328,7 @@ public class UpgradeSummaryResourceProviderTest {
     hrc2.setCommandDetail("Restart ZOOKEEPER_SERVER");
     hrc2.setHostEntity(h1);
 
-    nextStage.setHostRoleCommands(new ArrayList<HostRoleCommandEntity>());
+    nextStage.setHostRoleCommands(new ArrayList<>());
     nextStage.getHostRoleCommands().add(hrc2);
     h1.getHostRoleCommandEntities().add(hrc2);
 

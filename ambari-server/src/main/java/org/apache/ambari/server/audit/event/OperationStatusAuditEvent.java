@@ -45,6 +45,7 @@ public class OperationStatusAuditEvent extends AbstractUserAuditEvent {
     private String operation;
 
     private OperationStatusAuditEventBuilder() {
+      super(OperationStatusAuditEventBuilder.class);
     }
 
     @Override

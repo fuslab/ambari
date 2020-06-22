@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -41,7 +41,6 @@ import org.apache.ambari.server.state.StackId;
 import org.apache.ambari.server.state.StackInfo;
 import org.apache.ambari.server.state.UpgradeContext;
 import org.apache.ambari.server.state.UpgradeContextFactory;
-import org.apache.ambari.server.state.cluster.ClusterImpl;
 import org.apache.ambari.server.state.stack.UpgradePack.ProcessingComponent;
 import org.apache.ambari.server.state.stack.upgrade.ClusterGrouping;
 import org.apache.ambari.server.state.stack.upgrade.ClusterGrouping.ExecuteStage;
@@ -57,6 +56,7 @@ import org.apache.commons.lang.StringUtils;
 import org.easymock.EasyMock;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
@@ -111,6 +111,7 @@ public class ConfigUpgradeValidityTest {
    * @throws Exception
    */
   @Test
+  @Ignore("Ignoring until active HDP stacks are available")
   public void testConfigurationDefinitionsExist() throws Exception {
     Collection<StackInfo> stacks = ambariMetaInfo.getStacks();
     Assert.assertFalse(stacks.isEmpty());

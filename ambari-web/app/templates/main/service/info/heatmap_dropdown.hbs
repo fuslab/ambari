@@ -16,16 +16,15 @@
 * limitations under the License.
 }}
 
-<div class="btn-group" id="select-metric-btn-group">
-  <button class="btn heatmap-select-metric-btn">{{t charts.heatmap.selectMetric}}</button>
-  <button class="btn dropdown-toggle heatmap-toggle-metrics-btn" data-toggle="dropdown">
-    <span class="caret"></span>
+<div class="dropdown" id="select-metric-btn-group">
+  <button class="btn btn-default btn-block dropdown-toggle heatmap-toggle-metrics-btn" data-toggle="dropdown">
+    {{t charts.heatmap.selectMetric}} <span class="caret"></span>
   </button>
 
   <ul class="dropdown-menu">
     {{#each heatmap in controller.allHeatmaps}}
       <li class="heatmap-metrics-dropdown-links">
-        <a tabindex="-1" {{action showHeatMapMetric heatmap target="controller"}}>{{heatmap.widget_name}}</a>
+        <a tabindex="-1" href="#" {{action showHeatMapMetric heatmap target="controller"}}>{{heatmap.widget_name}}</a>
       </li>
     {{/each}}
   </ul>

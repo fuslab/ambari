@@ -17,14 +17,18 @@
  */
 @import 'common.less';
 
+@left-menu-table-z-index: 999;
+@left-menu-table-margin-top: 150px;
+@version-line-height: 20px;
+
 #advancedRepoAccordion{
-  .accordion-heading {
+  .panel-heading {
     background-color: #f0f0f0;
     a:hover {
       text-decoration: none;
     }
   }
-  .accordion-body {
+  .panel-body {
     .repositories-table {
       overflow: auto;
       margin-bottom: 10px;
@@ -82,12 +86,12 @@
                 text-decoration: none;
                 &.disabled-clear-button {
                   cursor: default;
-                  .icon-remove-sign {
+                  .glyphicon-remove-sign {
                     cursor: default;
                   }
                 }
               }
-              .icon-remove-sign {
+              .glyphicon-remove-sign {
                 color: #808080;
               }
             }
@@ -97,14 +101,16 @@
               a {
                 cursor: pointer;
               }
+              .icon-undo {
+                color: rgb(243, 178, 11);
+                margin-right: 2px;
+              }
             }
           }
         }
       }
       .textfield-error input {
         border-color: #b94a48;
-        -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
-        -moz-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
         box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
       }
       .disabled-label {
@@ -122,52 +128,66 @@
 }
 .version-box-popup {
   .modal{
-    max-height: 563px;
-    max-width: 340px;
-    margin: -250px 0 0 -180px;
     overflow: visible;
+    .modal-dialog{
+      width: 340px;
+    }
     .modal-body {
       padding: 0px 0px;
       overflow: visible;
+      padding: 0;
     }
   }
   .version-box-in-popup.version-box {
-    padding: 0px 0px;
-    margin: 0px 0px;
+    padding: 0;
+    margin: 0;
     border: none;
-    .hosts-section {
-      padding-bottom: 16px;
+    .out-of-sync-badge {
+      top: 0;
+      left: 0;
     }
   }
 }
 
 #stack-upgrade-page,
-.version-box-popup,
-.install-repo-confirmation,
-.revert-patch-upgrade-confirmation {
+.version-box-popup {
   .versions-slides {
     overflow-x: auto;
     padding-bottom: 25px;
-    margin-left: 0;
-    margin-top: 5px;
+    padding-left: 0;
+    margin-top: 10px;
+    margin-left: -1px;
     .versions-slides-bar {
       display: inline-flex;
     }
   }
   .left-menu-table {
     padding: 10px 0;
-    margin-top: 149px;
-    td.service-display-name {
-      border-top: 2px solid #e4e4e4;
-      border-bottom: 2px solid #e4e4e4;
+    margin-top: @left-menu-table-margin-top;
+    &.has-special-type-repo-version {
+      margin-top: @left-menu-table-margin-top + @version-line-height;
     }
+    .border-extended-table {
+      width: 100%;
+      position: relative;
+      z-index: @left-menu-table-z-index;
+      background: transparent;
+      td.service-display-name {
+        border-top: 1px solid #d2d9dd;
+        border-bottom: 1px solid #d2d9dd;
+      }
+    }
+  }
+  div.current-version-box {
+    background: none repeat scroll 0 0 #e6f1f6;
+    box-shadow: 0 8px 6px -6px black;
   }
   .version-box {
     position: relative;
     background: none repeat scroll 0 0 #fff;
     border: 1px solid #d2d9dd;
     margin: 15px 15px 0 0;
-    padding: 5px 0;
+    padding: 0 5px;
     a.not-active:hover {
       text-decoration: none;
     }
@@ -189,16 +209,19 @@
       }
     }
     .state {
-      margin: 15px 0 30px;
+      margin: 15px 0;
       line-height: 30px;
       padding-top: 5px;
-      height: 30px;
+      height: 35px;
       i {
-        color: #fff;
+        color: #0088cc;
         font-size: 16px;
       }
       i[disabled='disabled'] {
         color: inherit;
+      }
+      i.glyphicon-warning-sign {
+        color: @health-status-red;
       }
       .label {
         padding: 5px 20px;
@@ -212,13 +235,14 @@
         text-align: left;
       }
     }
-    .installing, .upgrading {
+    .installing {
       margin-top: 10px;
-      padding: 0;
+      padding-top: 0;
+      padding-bottom: 10px;
       .progress {
         height: 15px;
         width: 60%;
-        margin: 5px 20%;
+        margin: 0 20%;
       }
     }
     .host-link a {
@@ -230,8 +254,8 @@
       color: #000;
       text-align: center;
       font-weight: 500;
-      font-size: 20px;
-      line-height: 20px;
+      font-size: @version-line-height;
+      line-height: @version-line-height;
       padding: 5px 5px 0 5px;
       margin-bottom: 0;
       span {
@@ -240,7 +264,7 @@
       .pull-right .not-active {
         font-size: 15px;
         color: #0088cc;
-        line-height: 20px;
+        line-height: @version-line-height;
       }
     }
     .repository-name {
@@ -252,190 +276,126 @@
     }
     .patch-icon {
       text-align: center;
-      color: #ff4500;
-      height: 20px;
+      color: @health-status-orange;
+      height: @version-line-height;
       font-size: 14px;
       margin: 18px 0px -18px 1px;
       padding: 1px;
     }
     .hosts-section {
       margin-top: 16px;
+      padding-bottom: 8px;
       width: 100%;
       text-align: center;
       background: #f8f8f8;
       border-top: 1px solid #e4e4e4;
-      padding-bottom: 4px;
     }
     .hosts-section .hosts-bar {
       font-size: 14px;
       font-weight: 500;
+      padding: 8px;
     }
     .hosts-section .host-link {
+      margin: 0;
       font-size: 12px;
-    }
-    .revert-dropdown{
-      position: absolute;
-      top: 0;
-      width: 100%;
-      z-index: 1000;
-      .btn {
-        position: relative;
-        top: 3px;
-        float: right;
-        background: transparent;
-        border: none;
-        box-shadow: none;
-        outline: none;
-        .caret{
-          border-top-color: #fff;
-        }
-      }
-      .dropdown-menu{
-        right: 0;
-        cursor: pointer;
-      }
     }
   }
   .version-column {
     min-height: 500px;
-    min-width: 190px;
+    width: 115px;
     margin: 15px 7px 0 7px;
-    padding-top: 0;
-    background-color: #efefef;
     .version-column-display-name {
       color: #000;
       text-align: center;
       font-weight: 500;
       font-size: 16px;
       line-height: 18px;
-      padding: 5px 5px 0 5px;
+      padding: 5px;
       margin-bottom: 0;
-      min-height: 36px;
+    }
+    .version-column-repository-name {
+      text-align: center;
+      font-size: 12px;
+      color: #888;
+    }
+    .version-column-display-type {
+      text-align: center;
+      height: @version-line-height;
+      margin-bottom: 0;
+      color: @health-status-orange;
     }
     .version-column-show-details {
       text-align: center;
       font-size: 13px;
-      padding: 5px 5px;
-      margin-bottom: 18px;
+      padding: 5px;
+      border-bottom: 1px solid #e4e4e4;
+      margin-bottom: 0;
       a {
         cursor: pointer;
       }
     }
-    .patch-icon {
-      margin: 0 0 -5px 0;
-    }
-    .icon-undo {
-      color: #000;
-      padding: 2px 3px;
-      border-radius: 15px;
-      border: 1px solid #000;
-      font-size: 14px;
-      cursor: pointer;
-      display: inline-block;
-    }
     .state {
-      margin: 10px 0;
-      .top-label {
-        font-size: inherit;
-        border-radius: 0;
-        width: 100%;
-        display: inline-block;
-        padding: 0;
-        line-height: 35px;
-        height: 30px;
-        position: relative;
-        z-index: 2;
-        &:after,&:before{
-          content: '';
-          position: absolute;
-          top: 100%;
-          width: 100%;
-          height: 100%;
-          background-color: @current-green;
-          z-index: -1;
-        }
-        &:after{
-          left: -49%;
-          transform: rotate(5deg) translate(0,-94%);
-        }
-        &:before {
-          left: 51%;
-          transform: rotate(175deg) translate(0,94%);
-        }
-
-      }
-      .btn-group {
-        display: inline-block;
-        width: 100%;
-        .btn:not(.dropdown-toggle) {
-          width: 81%;
-          border-radius: 0;
-          padding: 5px 5px;
-          min-width: 70px;
-        }
-        .dropdown-toggle {
-          width: 20%;
-          border-radius: 0;
-          padding: 5px 5px;
-          height: 32px;
+      margin: 5px 0 15px 0;
+      line-height: @version-line-height;
+      height: 35px;
+      .label-wrapper {
+        .btn {
+          cursor: auto;
+          text-transform: none;
+          .state-label-text {
+            cursor: text;
+          }
+          &.btn-primary {
+            background-color: @bootstrap-success;
+            border-color: @bootstrap-success;
+          }
+          &.dropdown-toggle {
+            cursor: pointer;
+            padding-right: 8px;
+            padding-left: 8px;
+          }
+          &:active {
+            box-shadow: none;
+          }
         }
       }
-      .btn {
-        width: 100%;
-        border-radius: 0;
-        padding: 5px 5px;
-        height: 32px;
-        &:focus{
-          background-color: #0044cc;
-        }
+      .btn.btn-primary:not(.dropdown-toggle) {
+        padding-left: 5px;
+        padding-right: 5px;
+        min-width: 70px;
       }
       .open .dropdown-menu {
-        min-width: 100px;
-        right: 0;
+        min-width: 90px;
+        z-index: @left-menu-table-z-index + 2;
       }
     }
-    .state.installing, .state.upgrading {
-      margin-top: 0;
-      margin-bottom: 23px;
-      background-color: #006dcc;
-      height: 32px;
-      line-height: 32px;
-      font-size: 13px;
-      a{
-        color: #fff;
-      }
-      &.attach-top{
-        background-color: transparent;
-        font-size: 14px;
-      }
-    }
-    .state.attach-top {
-      margin: 0;
-      line-height: 20px;
-      padding-top: 0;
-      padding-bottom: 25px;
-      &.overflow{
-        overflow: hidden;
-      }
+    .state.installing {
+      margin: 5px 0 15px 0;
     }
     .services-section {
       width: 100%;
       text-align: center;
       padding-bottom: 4px;
-      .line-separator, .line-separator-bottom{
-        height: 2px;
-        background: #e4e4e4;
-        position: relative;
-        margin: 0px 0px 0px -15px;
-      }
-      .line-separator {
-        top: -7px;
-      }
-      .line-separator-bottom {
-        top: -5px;
+      margin-top: -5px;
+      .service-version-info {
+        line-height: @version-line-height;
+        margin-bottom: 9px;
+        padding-top: 6px;
+        text-align: center;
+        span.label {
+          padding: 5px 15px;
+          background-color: #a3a3a3;
+          z-index: 100;
+          position: relative;
+        }
       }
     }
+  }
+  div.version-column {
     .not-upgradable {
+      position: absolute;
+      z-index: @left-menu-table-z-index + 1;
+      line-height: @version-line-height;
       padding-left: 10px;
       margin-right: -20px;
       cursor: pointer;
@@ -443,40 +403,55 @@
     .icon-info-sign {
       color: @blue;
     }
-    .icon-wrench, .icon-bug {
-      color: @gray;
+    .services-section {
+      .service-version-info {
+        span.label.available {
+          background-color: #468847;
+        }
+      }
     }
   }
-  .service-version-info {
-    margin-bottom: 14px;
-    text-align: center;
-    span.label {
-      padding: 5px 15px;
-      background-color: #a3a3a3;
-      z-index: 100;
-      position: relative;
+  .nav.nav-tabs {
+    margin-bottom: 20px;
+  }
+  .stack-error-row {
+    .image-container {
+      display: inline-block;
+      vertical-align: top;
+      margin-top: 5px;
+      margin-right: 15px;
+      i {
+        vertical-align: middle;
+        font-size: 22px;
+      }
     }
-    span.label.available {
-      background-color: @current-green;;
+    .message-container {
+      display: inline-block;
+      max-width: 70%;
+    }
+    .stack-name {
+      margin-left: 15px;
+    }
+    .btn-container {
+      line-height: 36px;
+      float: right;
     }
   }
 }
 
+.install-repo-confirmation,
 .revert-patch-upgrade-confirmation {
   table {
     td, th {
       padding: 5px 15px;
     }
   }
-}
-
-.install-repo-confirmation {
   .available-services-list {
     margin: 10px 0 30px;
     .service-version-info {
       text-align: left;
       margin-bottom: 20px;
-      .span1 {
+      .col-md-1 {
         width: 90px;
       }
     }
@@ -485,20 +460,23 @@
 
 #stack-upgrade-dialog,
 #stack-upgrade-record-dialog {
-  margin-top: 5px;
+  .row {
+    margin: 0;
+    padding: 5px 0;
+  }
+  .upgrade-item-text,
+  .upgrade-group-text {
+    padding-left: 0;
+  }
   .details-box {
     padding: 5px;
-    margin-top: 5px;
+    .button-row {
+      text-align: right;
+      padding: 5px;
+    }
     input[type="checkbox"] {
       margin: 0;
     }
-    .message {
-      line-height: 30px;
-    }
-  }
-  .button-row {
-    text-align: right;
-    padding: 5px;
   }
   .task-details {
     .manage-controls a {
@@ -512,33 +490,22 @@
     }
   }
   .task-list {
+    width: 100%;
     overflow-x: hidden;
     .progress {
       margin-bottom: 0;
     }
-    padding-left: 20px;
+    padding-left: 15px;
     i {
       margin-right: 5px;
-    }
-  }
-  .task-list-main-warp i {
-    font-size: 16px;
-    vertical-align: baseline;
-  }
-  ul.failed-info-list {
-    max-height: 500px;
-    margin-top: 5px;
-  }
-  .pause-button {
-    margin-top: -5px;
-    i {
-      padding-right: 4px;
-      font-size: 15px;
     }
   }
   .active-task-label {
     padding: 8px 15px;
     display: inline-block;
+  }
+  .col-md-2.task-list-main-wrap {
+    padding-left: 0;
   }
   .upgrade-groups {
     padding-left: 0;
@@ -551,12 +518,32 @@
       vertical-align: top;
     }
   }
+  .task-list-main-wrap i {
+    font-size: 16px;
+  }
+  ul.failed-info-list {
+    max-height: 500px;
+    margin-top: 5px;
+  }
+  .pause-button {
+    margin-top: -5px;
+    padding-right: 0;
+    i {
+      padding-right: 4px;
+      font-size: 15px;
+    }
+  }
+  .button-row {
+    text-align: right;
+    padding: 5px;
+  }
 }
 
 .upgrade-options-link {
-  cursor: pointer;
+  padding-left: 50px;
   display: inline-block;
-  padding-left: 20px;
+  cursor: pointer;
+  width: 150px;
   vertical-align: bottom;
   a {
     font-size: 14px;
@@ -579,10 +566,6 @@
 }
 
 .repository-list {
-  .os-block {
-    border-top: 1px solid #dddddd;
-    padding-top: 10px;
-  }
   input[type="text"] {
     width: 80%;
   }
@@ -591,16 +574,15 @@
 #upgrade-options-popup-content {
   .method-options {
     margin: 10px;
+
     .method-option {
-      width: 43.5%;
       margin-bottom: 5px;
     }
-    .thumbnail {
+    .img-thumbnail {
       background-color: #e4e4e4;
       .method-name,.method-icon,.method-description {
-        color: #333333;
+        color: #333;
       }
-
       cursor: pointer;
       border: none;
       width: 99%;
@@ -624,7 +606,7 @@
         margin-left: 88px;
       }
     }
-    .NON_ROLLING {
+    .NON_ROLLING, .HOST_ORDERED {
       .method-icon {
         margin-left: 94px;
       }
@@ -637,20 +619,20 @@
       background-color: #cbe3c2;
     }
 
-    .thumbnail.not-allowed:hover {
+    .img-thumbnail.not-allowed:hover {
       background-color: #e4e4e4;
     }
-    .thumbnail.not-allowed {
+    .img-thumbnail.not-allowed {
       cursor: not-allowed;
-      &.default-cursor{
-        cursor: default;
-      }
     }
   }
 
   .method-options.disabled {
-    .thumbnail {
+    .img-thumbnail {
       cursor: not-allowed;
+      &.default-cursor{
+        cursor: default;
+      }
       .method-name,.method-icon,.method-description {
         color: #a9a9a9;
       }
@@ -690,19 +672,19 @@
     }
   }
   .method-precheck-message.GREEN {
-    .icon-ok {
+    .glyphicon-ok {
       color: @health-status-green;
       font-size: 16px;
     }
   }
   .method-precheck-message.RED {
-    .icon-remove {
+    .glyphicon-remove {
       color: #cf2a27;
       font-size: 16px;
     }
   }
   .method-precheck-message.ORANGE {
-    .icon-warning-sign {
+    .glyphicon-warning-sign {
       color: @health-status-orange;
       font-size: 16px;
     }
@@ -716,7 +698,7 @@
   .text {
     margin-left: 10px;
   }
-  .icon-question-sign {
+  .glyphicon-question-sign {
     color: @blue;
   }
 }
@@ -724,7 +706,7 @@
 .admin-cluster {
   .repositories-table {
     margin-bottom: 10px;
-    border: 1px solid #dddddd;
+    border: 1px solid #ddd;
     overflow: auto;
     div {
       float: left;
@@ -750,7 +732,7 @@
       width: 100%;
       .trow {
         width: 100%;
-        border-top: 1px solid #dddddd;
+        border-top: 1px solid #ddd;
         padding-top: 8px;
         .os-td {
           padding-top: 4px;
@@ -797,7 +779,7 @@
               cursor: pointer;
               text-decoration: none;
             }
-            .icon-remove-sign {
+            .glyphicon-remove-sign {
               color: #808080;
             }
           }
@@ -806,8 +788,6 @@
     }
     .textfield-error input {
       border-color: #b94a48;
-      -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
-      -moz-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
       box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
     }
     .disabled-textfield input {
@@ -831,10 +811,9 @@
   }
 }
 
-#skip-validation,
-#use-redhat {
-  .icon-question-sign {
-    color: @blue;
+.upgrade-wizard-modal {
+  .modal-body {
+    position: static;
   }
 }
 
@@ -843,11 +822,11 @@
     overflow-y: auto;
     max-height: 320px;
     margin-right: -15px;
-    .accordion {
+    .panel {
       margin-bottom: 0;
-      .accordion-group {
+      .panel-group {
         border: none;
-        .accordion-toggle {
+        .panel-toggle {
           line-height: 20px;
           padding: 5px 0;
           .label {
@@ -857,35 +836,20 @@
       }
     }
   }
-  .sub-header {
-    padding: 0 15px;
-    width: 530px;
-    margin-left: -15px;
-    border-bottom: 1px solid #eee;
-  }
 }
 
 #upgrade-summary-table {
-  & > tbody > tr {
-    cursor: pointer;
-  }
   .wide-column {
     width: 14%;
   }
   .widest-column{
+    .ellipsis-overflow-nowrap;
     width: 20%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
   .accordion-group {
     border-right: none;
-    border-bottom: none;
-  }
-  .accordion-inner {
-    border-top: none;
-    padding-left: 0;
-    padding-top: 20px;
+    padding-left: 20px;
+    overflow-x: visible;
   }
   .accordion-heading {
     background-color: transparent;
@@ -896,9 +860,26 @@
     float: left;
     line-height: 10px;
     margin-left: -20px;
+    cursor: pointer;
   }
   .accordion-body {
-    min-width: 350px;
+    width: 400%;
+    min-width: 400px;
+    .accordion-inner {
+      padding-top: 20px;
+      .label {
+        padding: 5px 15px;
+        &.label-from {
+          margin-left: 8px;
+        }
+        &.label-to {
+          margin-left: -8px;
+        }
+        &.available {
+          background-color: #468847;
+        }
+      }
+    }
     .service-name {
       text-align: left;
       min-width: 95px;

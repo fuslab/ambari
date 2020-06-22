@@ -20,17 +20,21 @@ limitations under the License.
 
 import sys
 
-from resource_management import *
 from resource_management.core import shell
+from resource_management.libraries.script.script import Script
+from resource_management.libraries.functions.format import format
+from resource_management.libraries.functions.check_process_status import check_process_status
 from resource_management.libraries.functions.security_commons import build_expectations, \
   cached_kinit_executor, get_params_from_filesystem, validate_security_config_properties, \
   FILE_TYPE_XML
+
+from ambari_commons import OSCheck, OSConst
+from ambari_commons.os_family_impl import OsFamilyImpl
+
 from hbase import hbase
 from hbase_service import hbase_service
 import upgrade
 from setup_ranger_hbase import setup_ranger_hbase
-from ambari_commons import OSCheck, OSConst
-from ambari_commons.os_family_impl import OsFamilyImpl
 
 
 class HbaseRegionServer(Script):
@@ -99,8 +103,8 @@ class HbaseRegionServerDefault(HbaseRegionServer):
   def status(self, env):
     import status_params
     env.set_params(status_params)
-    pid_file = format("{pid_dir}/hbase-{hbase_user}-regionserver.pid")
-    check_process_status(pid_file)
+
+    check_process_status(status_params.regionserver_pid_file)
 
   def get_log_folder(self):
     import params
@@ -109,6 +113,10 @@ class HbaseRegionServerDefault(HbaseRegionServer):
   def get_user(self):
     import params
     return params.hbase_user
+
+  def get_pid_files(self):
+    import status_params
+    return [status_params.regionserver_pid_file]
 
 if __name__ == "__main__":
   HbaseRegionServer().execute()

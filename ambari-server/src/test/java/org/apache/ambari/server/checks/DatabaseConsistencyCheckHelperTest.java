@@ -56,8 +56,10 @@ import org.apache.ambari.server.state.Clusters;
 import org.apache.ambari.server.state.Host;
 import org.apache.ambari.server.state.Service;
 import org.apache.ambari.server.state.ServiceInfo;
+import org.apache.ambari.server.state.alert.AlertDefinition;
 import org.apache.ambari.server.state.configgroup.ConfigGroup;
 import org.apache.ambari.server.state.stack.OsFamily;
+import org.apache.ambari.server.testutils.PartialNiceMockBinder;
 import org.apache.commons.collections.MapUtils;
 import org.easymock.EasyMockSupport;
 import org.junit.Assert;
@@ -70,8 +72,6 @@ import com.google.inject.Injector;
 
 
 public class DatabaseConsistencyCheckHelperTest {
-
-
 
   @Test
   public void testCheckForConfigsSelectedMoreThanOnce() throws Exception {
@@ -99,10 +99,10 @@ public class DatabaseConsistencyCheckHelperTest {
     });
 
     expect(mockConnection.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE)).andReturn(mockStatement);
-    expect(mockStatement.executeQuery("select c.cluster_name, cc.type_name from clusterconfig cc " +
-            "join clusters c on cc.cluster_id=c.cluster_id " +
-            "group by c.cluster_name, cc.type_name " +
-            "having sum(cc.selected) > 1")).andReturn(mockResultSet);
+    expect(mockStatement.executeQuery("select c.cluster_name, cc.type_name from clusterconfig cc "
+        + "join clusters c on cc.cluster_id=c.cluster_id "
+        + "group by c.cluster_name, cc.type_name " +
+            "having sum(selected) > 1")).andReturn(mockResultSet);
 
 
 
@@ -160,69 +160,6 @@ public class DatabaseConsistencyCheckHelperTest {
   }
 
   @Test
-  public void testCheckTopologyTablesAreConsistent() throws Exception {
-    testCheckTopologyTablesConsistent(2);
-    Assert.assertFalse(DatabaseConsistencyCheckHelper.getLastCheckResult().isErrorOrWarning());
-  }
-
-  @Test
-  public void testCheckTopologyTablesAreNotConsistent() throws Exception {
-    testCheckTopologyTablesConsistent(1);
-    Assert.assertTrue(DatabaseConsistencyCheckHelper.getLastCheckResult().isErrorOrWarning());
-  }
-
-  private void testCheckTopologyTablesConsistent(int resultCount) throws Exception {
-    EasyMockSupport easyMockSupport = new EasyMockSupport();
-
-    final DBAccessor mockDBDbAccessor = easyMockSupport.createNiceMock(DBAccessor.class);
-    final Connection mockConnection = easyMockSupport.createNiceMock(Connection.class);
-    final ResultSet mockCountResultSet = easyMockSupport.createNiceMock(ResultSet.class);
-    final ResultSet mockJoinResultSet = easyMockSupport.createNiceMock(ResultSet.class);
-    final Statement mockStatement = easyMockSupport.createNiceMock(Statement.class);
-
-    final StackManagerFactory mockStackManagerFactory = easyMockSupport.createNiceMock(StackManagerFactory.class);
-    final EntityManager mockEntityManager = easyMockSupport.createNiceMock(EntityManager.class);
-    final Clusters mockClusters = easyMockSupport.createNiceMock(Clusters.class);
-    final OsFamily mockOSFamily = easyMockSupport.createNiceMock(OsFamily.class);
-    final Injector mockInjector = Guice.createInjector(new AbstractModule() {
-      @Override
-      protected void configure() {
-
-        bind(StackManagerFactory.class).toInstance(mockStackManagerFactory);
-        bind(EntityManager.class).toInstance(mockEntityManager);
-        bind(DBAccessor.class).toInstance(mockDBDbAccessor);
-        bind(Clusters.class).toInstance(mockClusters);
-        bind(OsFamily.class).toInstance(mockOSFamily);
-      }
-    });
-
-    expect(mockConnection.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE)).andReturn(mockStatement);
-    expect(mockCountResultSet.next()).andReturn(true).once();
-    expect(mockCountResultSet.getInt(1)).andReturn(2);
-    expect(mockJoinResultSet.next()).andReturn(true).once();
-    expect(mockJoinResultSet.getInt(1)).andReturn(resultCount);
-    expect(mockStatement.executeQuery("select count(tpr.id) from topology_request tpr")).andReturn(mockCountResultSet);
-    expect(mockStatement.executeQuery("select count(DISTINCT tpr.id) from topology_request tpr join " +
-            "topology_logical_request tlr on tpr.id = tlr.request_id")).andReturn(mockJoinResultSet);
-
-    expect(mockStatement.executeQuery("select count(thr.id) from topology_host_request thr")).andReturn(mockCountResultSet);
-    expect(mockStatement.executeQuery("select count(DISTINCT thr.id) from topology_host_request thr join " +
-            "topology_host_task tht on thr.id = tht.host_request_id join topology_logical_task " +
-            "tlt on tht.id = tlt.host_task_id")).andReturn(mockJoinResultSet);
-
-    DatabaseConsistencyCheckHelper.setInjector(mockInjector);
-    DatabaseConsistencyCheckHelper.setConnection(mockConnection);
-
-    easyMockSupport.replayAll();
-
-
-    DatabaseConsistencyCheckHelper.checkTopologyTables();
-
-    easyMockSupport.verifyAll();
-
-  }
-
-  @Test
   public void testCheckHostComponentStatesCountEqualsHostComponentsDesiredStates() throws Exception {
     EasyMockSupport easyMockSupport = new EasyMockSupport();
 
@@ -255,6 +192,7 @@ public class DatabaseConsistencyCheckHelperTest {
     expect(mockStatement.executeQuery("select count(*) FROM hostcomponentstate hcs " +
             "JOIN hostcomponentdesiredstate hcds ON hcs.service_name=hcds.service_name AND " +
             "hcs.component_name=hcds.component_name AND hcs.host_id=hcds.host_id")).andReturn(mockResultSet);
+    expect(mockStatement.executeQuery("select component_name, host_id from hostcomponentstate group by component_name, host_id having count(component_name) > 1")).andReturn(mockResultSet);
 
     DatabaseConsistencyCheckHelper.setInjector(mockInjector);
     DatabaseConsistencyCheckHelper.setConnection(mockConnection);
@@ -262,7 +200,7 @@ public class DatabaseConsistencyCheckHelperTest {
     easyMockSupport.replayAll();
 
 
-    DatabaseConsistencyCheckHelper.checkHostComponentStatesCountEqualsHostComponentsDesiredStates();
+    DatabaseConsistencyCheckHelper.checkHostComponentStates();
 
     easyMockSupport.verifyAll();
   }
@@ -283,23 +221,13 @@ public class DatabaseConsistencyCheckHelperTest {
     final EntityManager mockEntityManager = easyMockSupport.createNiceMock(EntityManager.class);
     final Clusters mockClusters = easyMockSupport.createNiceMock(Clusters.class);
     final OsFamily mockOSFamily = easyMockSupport.createNiceMock(OsFamily.class);
-    final Injector mockInjector = Guice.createInjector(new AbstractModule() {
-      @Override
-      protected void configure() {
-        bind(AmbariMetaInfo.class).toInstance(mockAmbariMetainfo);
-        bind(StackManagerFactory.class).toInstance(mockStackManagerFactory);
-        bind(EntityManager.class).toInstance(mockEntityManager);
-        bind(DBAccessor.class).toInstance(mockDBDbAccessor);
-        bind(Clusters.class).toInstance(mockClusters);
-        bind(OsFamily.class).toInstance(mockOSFamily);
-      }
-    });
+    final Injector mockInjector = createInjectorWithAmbariMetaInfo(mockAmbariMetainfo, mockDBDbAccessor);
 
     Map<String, ServiceInfo> services = new HashMap<>();
     services.put("HDFS", mockHDFSServiceInfo);
 
     Map<String, Map<String, Map<String, String>>> configAttributes = new HashMap<>();
-    configAttributes.put("core-site", new HashMap<String, Map<String, String>>());
+    configAttributes.put("core-site", new HashMap<>());
 
     expect(mockHDFSServiceInfo.getConfigTypeAttributes()).andReturn(configAttributes);
     expect(mockAmbariMetainfo.getServices("HDP", "2.2")).andReturn(services);
@@ -376,7 +304,7 @@ public class DatabaseConsistencyCheckHelperTest {
 
   @Test
   public void testSchemaName_NoAmbariSchema() throws Exception {
-    setupMocksForTestSchemaName("ambari", null, newArrayList("public"), Lists.<String>newArrayList());
+    setupMocksForTestSchemaName("ambari", null, newArrayList("public"), Lists.newArrayList());
     DatabaseConsistencyCheckHelper.checkSchemaName();
     assertTrue("Warnings were expected.", DatabaseConsistencyCheckHelper.getLastCheckResult() ==
         DatabaseConsistencyCheckResult.DB_CHECK_WARNING);
@@ -480,23 +408,13 @@ public class DatabaseConsistencyCheckHelperTest {
     final EntityManager mockEntityManager = easyMockSupport.createNiceMock(EntityManager.class);
     final Clusters mockClusters = easyMockSupport.createNiceMock(Clusters.class);
     final OsFamily mockOSFamily = easyMockSupport.createNiceMock(OsFamily.class);
-    final Injector mockInjector = Guice.createInjector(new AbstractModule() {
-      @Override
-      protected void configure() {
-        bind(AmbariMetaInfo.class).toInstance(mockAmbariMetainfo);
-        bind(StackManagerFactory.class).toInstance(mockStackManagerFactory);
-        bind(EntityManager.class).toInstance(mockEntityManager);
-        bind(DBAccessor.class).toInstance(mockDBDbAccessor);
-        bind(Clusters.class).toInstance(mockClusters);
-        bind(OsFamily.class).toInstance(mockOSFamily);
-      }
-    });
+    final Injector mockInjector = createInjectorWithAmbariMetaInfo(mockAmbariMetainfo, mockDBDbAccessor);
 
     Map<String, ServiceInfo> services = new HashMap<>();
     services.put("HDFS", mockHDFSServiceInfo);
 
     Map<String, Map<String, Map<String, String>>> configAttributes = new HashMap<>();
-    configAttributes.put("core-site", new HashMap<String, Map<String, String>>());
+    configAttributes.put("core-site", new HashMap<>());
 
     expect(mockHDFSServiceInfo.getConfigTypeAttributes()).andReturn(configAttributes);
     expect(mockAmbariMetainfo.getServices("HDP", "2.2")).andReturn(services);
@@ -552,6 +470,7 @@ public class DatabaseConsistencyCheckHelperTest {
         DatabaseConsistencyCheckHelper.getLastCheckResult().isError());
   }
 
+
   @Test
   public void testCheckForLargeTables() throws Exception {
     EasyMockSupport easyMockSupport = new EasyMockSupport();
@@ -570,17 +489,7 @@ public class DatabaseConsistencyCheckHelperTest {
     final ResultSet requestResultSet = easyMockSupport.createNiceMock(ResultSet.class);
     final ResultSet alertHistoryResultSet = easyMockSupport.createNiceMock(ResultSet.class);
 
-    final Injector mockInjector = Guice.createInjector(new AbstractModule() {
-      @Override
-      protected void configure() {
-        bind(AmbariMetaInfo.class).toInstance(mockAmbariMetainfo);
-        bind(StackManagerFactory.class).toInstance(mockStackManagerFactory);
-        bind(EntityManager.class).toInstance(mockEntityManager);
-        bind(DBAccessor.class).toInstance(mockDBDbAccessor);
-        bind(Clusters.class).toInstance(mockClusters);
-        bind(OsFamily.class).toInstance(mockOSFamily);
-      }
-    });
+    final Injector mockInjector = createInjectorWithAmbariMetaInfo(mockAmbariMetainfo, mockDBDbAccessor);
 
     expect(hostRoleCommandResultSet.next()).andReturn(true).once();
     expect(executionCommandResultSet.next()).andReturn(true).once();
@@ -758,6 +667,54 @@ public class DatabaseConsistencyCheckHelperTest {
     Assert.assertTrue(configGroups.containsKey(1L));
     Assert.assertFalse(configGroups.containsKey(2L));
     Assert.assertTrue(configGroups.containsKey(3L));
+  }
+
+  @Test
+  public void testCheckForStalealertdefs() throws Exception {
+    EasyMockSupport easyMockSupport = new EasyMockSupport();
+    final AlertDefinition alertDefinition = easyMockSupport.createNiceMock(AlertDefinition.class);
+    final DBAccessor mockDBDbAccessor = easyMockSupport.createNiceMock(DBAccessor.class);
+    final StackManagerFactory mockStackManagerFactory = easyMockSupport.createNiceMock(StackManagerFactory.class);
+    final EntityManager mockEntityManager = easyMockSupport.createNiceMock(EntityManager.class);
+    final Clusters mockClusters = easyMockSupport.createNiceMock(Clusters.class);
+    final OsFamily mockOSFamily = easyMockSupport.createNiceMock(OsFamily.class);
+
+    final Injector mockInjector = Guice.createInjector(new AbstractModule() {
+      @Override
+      protected void configure() {
+        bind(AlertDefinition.class).toInstance(alertDefinition);
+        bind(StackManagerFactory.class).toInstance(mockStackManagerFactory);
+        bind(EntityManager.class).toInstance(mockEntityManager);
+        bind(DBAccessor.class).toInstance(mockDBDbAccessor);
+        bind(Clusters.class).toInstance(mockClusters);
+        bind(OsFamily.class).toInstance(mockOSFamily);
+      }
+    });
+    final ResultSet staleAlertResultSet = easyMockSupport.createNiceMock(ResultSet.class);
+    expect(staleAlertResultSet.next()).andReturn(true).once();
+    expect(staleAlertResultSet.getString("definition_name")).andReturn("ALERT-NAME").atLeastOnce();
+    expect(staleAlertResultSet.getString("service_name")).andReturn("SERVICE-DELETED").atLeastOnce();
+    final Connection mockConnection = easyMockSupport.createNiceMock(Connection.class);
+    final Statement mockStatement = easyMockSupport.createNiceMock(Statement.class);
+
+    expect(mockDBDbAccessor.getConnection()).andReturn(mockConnection);
+    expect(mockDBDbAccessor.getDbType()).andReturn(DBAccessor.DbType.MYSQL);
+    expect(mockDBDbAccessor.getDbSchema()).andReturn("test_schema");
+
+    expect(mockConnection.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE)).andReturn(mockStatement).anyTimes();
+    expect(mockStatement.executeQuery("select definition_name, service_name from alert_definition where service_name not in " +
+            "(select service_name from clusterservices) and service_name not in ('AMBARI')")).andReturn(staleAlertResultSet);
+
+    expect(alertDefinition.getDefinitionId()).andReturn(1L);
+    expect(alertDefinition.getName()).andReturn("AlertTest");
+
+    DatabaseConsistencyCheckHelper.setInjector(mockInjector);
+
+    easyMockSupport.replayAll();
+
+    Map<String, String> stalealertdefs1 = DatabaseConsistencyCheckHelper.checkForStalealertdefs();
+
+    Assert.assertEquals(1, stalealertdefs1.size());
   }
 
   @Test
@@ -944,5 +901,19 @@ public class DatabaseConsistencyCheckHelperTest {
     DatabaseConsistencyCheckHelper.fixConfigsSelectedMoreThanOnce();
 
     easyMockSupport.verifyAll();
+  }
+
+  private Injector createInjectorWithAmbariMetaInfo(AmbariMetaInfo mockAmbariMetainfo,
+                                                    DBAccessor mockDBDbAccessor) {
+    return Guice.createInjector(new AbstractModule() {
+      @Override
+      protected void configure() {
+        PartialNiceMockBinder.newBuilder().addAmbariMetaInfoBinding()
+            .addDBAccessorBinding(mockDBDbAccessor).addLdapBindings().build()
+            .configure(binder());
+
+        bind(AmbariMetaInfo.class).toInstance(mockAmbariMetainfo);
+      }
+    });
   }
 }

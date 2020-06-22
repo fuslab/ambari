@@ -20,7 +20,6 @@ package org.apache.ambari.server.controller.internal;
 import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.JDK_LOCATION;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumSet;
@@ -41,7 +40,6 @@ import org.apache.ambari.server.actionmanager.ActionManager;
 import org.apache.ambari.server.actionmanager.RequestFactory;
 import org.apache.ambari.server.actionmanager.Stage;
 import org.apache.ambari.server.actionmanager.StageFactory;
-import org.apache.ambari.server.agent.ExecutionCommand.KeyNames;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
 import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.controller.ActionExecutionContext;
@@ -63,8 +61,8 @@ import org.apache.ambari.server.orm.dao.HostVersionDAO;
 import org.apache.ambari.server.orm.dao.RepositoryVersionDAO;
 import org.apache.ambari.server.orm.dao.UpgradeDAO;
 import org.apache.ambari.server.orm.entities.HostVersionEntity;
-import org.apache.ambari.server.orm.entities.OperatingSystemEntity;
-import org.apache.ambari.server.orm.entities.RepositoryEntity;
+import org.apache.ambari.server.orm.entities.RepoDefinitionEntity;
+import org.apache.ambari.server.orm.entities.RepoOsEntity;
 import org.apache.ambari.server.orm.entities.RepositoryVersionEntity;
 import org.apache.ambari.server.orm.entities.StackEntity;
 import org.apache.ambari.server.orm.entities.UpgradeEntity;
@@ -77,11 +75,9 @@ import org.apache.ambari.server.state.ConfigHelper;
 import org.apache.ambari.server.state.Host;
 import org.apache.ambari.server.state.RepositoryType;
 import org.apache.ambari.server.state.RepositoryVersionState;
-import org.apache.ambari.server.state.Service;
 import org.apache.ambari.server.state.ServiceComponentHost;
+import org.apache.ambari.server.state.ServiceOsSpecific;
 import org.apache.ambari.server.state.StackId;
-import org.apache.ambari.server.state.StackInfo;
-import org.apache.ambari.server.state.repository.AvailableService;
 import org.apache.ambari.server.state.repository.ClusterVersionSummary;
 import org.apache.ambari.server.state.repository.VersionDefinitionXml;
 import org.apache.ambari.server.state.stack.upgrade.RepositoryVersionHelper;
@@ -89,6 +85,8 @@ import org.apache.ambari.server.utils.StageUtils;
 import org.apache.ambari.server.utils.VersionUtils;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -104,6 +102,8 @@ import com.google.inject.persist.Transactional;
 @StaticallyInject
 public class ClusterStackVersionResourceProvider extends AbstractControllerResourceProvider {
 
+  private static final Logger LOG = LoggerFactory.getLogger(ClusterStackVersionResourceProvider.class);
+
   // ----- Property ID constants ---------------------------------------------
 
   protected static final String CLUSTER_STACK_VERSION_ID_PROPERTY_ID = PropertyHelper.getPropertyId("ClusterStackVersions", "id");
@@ -118,7 +118,6 @@ public class ClusterStackVersionResourceProvider extends AbstractControllerResou
 
   protected static final String CLUSTER_STACK_VERSION_REPOSITORY_VERSION_PROPERTY_ID  = PropertyHelper.getPropertyId("ClusterStackVersions", "repository_version");
   protected static final String CLUSTER_STACK_VERSION_STAGE_SUCCESS_FACTOR  = PropertyHelper.getPropertyId("ClusterStackVersions", "success_factor");
-  protected static final String CLUSTER_STACK_VERSION_IGNORE_PACKAGE_DEPENDENCIES = PropertyHelper.getPropertyId("ClusterStackVersions", KeyNames.IGNORE_PACKAGE_DEPENDENCIES);
 
   /**
    * Forces the {@link HostVersionEntity}s to a specific
@@ -156,7 +155,7 @@ public class ClusterStackVersionResourceProvider extends AbstractControllerResou
       CLUSTER_STACK_VERSION_CLUSTER_NAME_PROPERTY_ID, CLUSTER_STACK_VERSION_STACK_PROPERTY_ID,
       CLUSTER_STACK_VERSION_VERSION_PROPERTY_ID, CLUSTER_STACK_VERSION_HOST_STATES_PROPERTY_ID,
       CLUSTER_STACK_VERSION_STATE_PROPERTY_ID, CLUSTER_STACK_VERSION_REPOSITORY_VERSION_PROPERTY_ID,
-      CLUSTER_STACK_VERSION_STAGE_SUCCESS_FACTOR, CLUSTER_STACK_VERSION_IGNORE_PACKAGE_DEPENDENCIES,
+      CLUSTER_STACK_VERSION_STAGE_SUCCESS_FACTOR,
       CLUSTER_STACK_VERSION_FORCE, CLUSTER_STACK_VERSION_REPO_SUMMARY_PROPERTY_ID,
       CLUSTER_STACK_VERSION_REPO_SUPPORTS_REVERT, CLUSTER_STACK_VERSION_REPO_REVERT_UPGRADE_ID);
 
@@ -181,9 +180,6 @@ public class ClusterStackVersionResourceProvider extends AbstractControllerResou
   private static RepositoryVersionDAO repositoryVersionDAO;
 
   @Inject
-  private static Gson gson;
-
-  @Inject
   private static Provider<AmbariActionExecutionHelper> actionExecutionHelper;
 
   @Inject
@@ -197,6 +193,9 @@ public class ClusterStackVersionResourceProvider extends AbstractControllerResou
 
   @Inject
   private static RepositoryVersionHelper repoVersionHelper;
+
+  @Inject
+  private static Gson gson;
 
   @Inject
   private static Provider<AmbariMetaInfo> metaInfo;
@@ -217,7 +216,7 @@ public class ClusterStackVersionResourceProvider extends AbstractControllerResou
   @Inject
   public ClusterStackVersionResourceProvider(
           AmbariManagementController managementController) {
-    super(propertyIds, keyPropertyIds, managementController);
+    super(Type.ClusterStackVersion, propertyIds, keyPropertyIds, managementController);
 
     setRequiredCreateAuthorizations(EnumSet.of(RoleAuthorization.AMBARI_MANAGE_STACK_VERSIONS, RoleAuthorization.CLUSTER_UPGRADE_DOWNGRADE_STACK));
     setRequiredDeleteAuthorizations(EnumSet.of(RoleAuthorization.AMBARI_MANAGE_STACK_VERSIONS, RoleAuthorization.CLUSTER_UPGRADE_DOWNGRADE_STACK));
@@ -286,7 +285,7 @@ public class ClusterStackVersionResourceProvider extends AbstractControllerResou
       final List<RepositoryVersionState> allStates = new ArrayList<>();
       final Map<RepositoryVersionState, List<String>> hostStates = new HashMap<>();
       for (RepositoryVersionState state: RepositoryVersionState.values()) {
-        hostStates.put(state, new ArrayList<String>());
+        hostStates.put(state, new ArrayList<>());
       }
 
       StackEntity repoVersionStackEntity = repositoryVersion.getStack();
@@ -363,8 +362,6 @@ public class ClusterStackVersionResourceProvider extends AbstractControllerResou
 
     String clName;
     final String desiredRepoVersion;
-    String stackName;
-    String stackVersion;
 
     Map<String, Object> propertyMap = iterator.next();
 
@@ -403,30 +400,21 @@ public class ClusterStackVersionResourceProvider extends AbstractControllerResou
           cluster.getClusterName(), entity.getDirection().getText(false)));
     }
 
-    Set<StackId> stackIds = new HashSet<>();
-    if (propertyMap.containsKey(CLUSTER_STACK_VERSION_STACK_PROPERTY_ID) &&
-            propertyMap.containsKey(CLUSTER_STACK_VERSION_VERSION_PROPERTY_ID)) {
-      stackName = (String) propertyMap.get(CLUSTER_STACK_VERSION_STACK_PROPERTY_ID);
-      stackVersion = (String) propertyMap.get(CLUSTER_STACK_VERSION_VERSION_PROPERTY_ID);
-      StackId stackId = new StackId(stackName, stackVersion);
-      if (! ami.isSupportedStack(stackName, stackVersion)) {
-        throw new NoSuchParentResourceException(String.format("Stack %s is not supported",
-                stackId));
-      }
-      stackIds.add(stackId);
-    } else { // Using stack that is current for cluster
-      for (Service service : cluster.getServices().values()) {
-        stackIds.add(service.getDesiredStackId());
-      }
+    String stackName = (String) propertyMap.get(CLUSTER_STACK_VERSION_STACK_PROPERTY_ID);
+    String stackVersion = (String) propertyMap.get(CLUSTER_STACK_VERSION_VERSION_PROPERTY_ID);
+    if (StringUtils.isBlank(stackName) || StringUtils.isBlank(stackVersion)) {
+      String message = String.format(
+          "Both the %s and %s properties are required when distributing a new stack",
+          CLUSTER_STACK_VERSION_STACK_PROPERTY_ID, CLUSTER_STACK_VERSION_VERSION_PROPERTY_ID);
+
+      throw new SystemException(message);
     }
 
-    if (stackIds.size() > 1) {
-      throw new SystemException("Could not determine stack to add out of " + StringUtils.join(stackIds, ','));
-    }
+    StackId stackId = new StackId(stackName, stackVersion);
 
-    StackId stackId = stackIds.iterator().next();
-    stackName = stackId.getStackName();
-    stackVersion = stackId.getStackVersion();
+    if (!ami.isSupportedStack(stackName, stackVersion)) {
+      throw new NoSuchParentResourceException(String.format("Stack %s is not supported", stackId));
+    }
 
     // bootstrap the stack tools if necessary for the stack which is being
     // distributed
@@ -530,8 +518,6 @@ public class ClusterStackVersionResourceProvider extends AbstractControllerResou
       }
     }
 
-    checkPatchVDFAvailableServices(cluster, repoVersionEntity, versionDefinitionXml);
-
     // the cluster will create/update all of the host versions to the correct state
     List<Host> hostsNeedingInstallCommands = cluster.transitionHostsToInstalling(
         repoVersionEntity, versionDefinitionXml, forceInstalled);
@@ -555,13 +541,13 @@ public class ClusterStackVersionResourceProvider extends AbstractControllerResou
     final AmbariMetaInfo ami = managementController.getAmbariMetaInfo();
 
     // build the list of OS repos
-    List<OperatingSystemEntity> operatingSystems = repoVersionEnt.getOperatingSystems();
-    Map<String, List<RepositoryEntity>> perOsRepos = new HashMap<>();
-    for (OperatingSystemEntity operatingSystem : operatingSystems) {
-      if (operatingSystem.isAmbariManagedRepos()) {
-        perOsRepos.put(operatingSystem.getOsType(), operatingSystem.getRepositories());
+    List<RepoOsEntity> operatingSystems = repoVersionEnt.getRepoOsEntities();
+    Map<String, List<RepoDefinitionEntity>> perOsRepos = new HashMap<>();
+    for (RepoOsEntity operatingSystem : operatingSystems) {
+      if (operatingSystem.isAmbariManaged()) {
+        perOsRepos.put(operatingSystem.getFamily(), operatingSystem.getRepoDefinitionEntities());
       } else {
-        perOsRepos.put(operatingSystem.getOsType(), Collections.<RepositoryEntity> emptyList());
+        perOsRepos.put(operatingSystem.getFamily(), Collections.<RepoDefinitionEntity>emptyList());
       }
     }
 
@@ -571,15 +557,6 @@ public class ClusterStackVersionResourceProvider extends AbstractControllerResou
     Map<String, String> hostLevelParams = new HashMap<>();
     hostLevelParams.put(JDK_LOCATION, getManagementController().getJdkResourceUrl());
     String hostParamsJson = StageUtils.getGson().toJson(hostLevelParams);
-
-    // Generate cluster host info
-    String clusterHostInfoJson;
-    try {
-      clusterHostInfoJson = StageUtils.getGson().toJson(
-        StageUtils.getClusterHostInfo(cluster));
-    } catch (AmbariException e) {
-      throw new SystemException("Could not build cluster topology", e);
-    }
 
     int maxTasks = configuration.getAgentPackageParallelCommandsLimit();
     int hostCount = hosts.size();
@@ -596,9 +573,6 @@ public class ClusterStackVersionResourceProvider extends AbstractControllerResou
     if (StringUtils.isNotBlank(successFactorProperty)) {
       successFactor = Float.valueOf(successFactorProperty);
     }
-
-    Object ignorePackageDependenciesProperty = propertyMap.get(CLUSTER_STACK_VERSION_IGNORE_PACKAGE_DEPENDENCIES);
-    String ignorePackageDependencies = Boolean.valueOf(String.valueOf(ignorePackageDependenciesProperty)).toString();
 
     boolean hasStage = false;
 
@@ -637,6 +611,8 @@ public class ClusterStackVersionResourceProvider extends AbstractControllerResou
       if (RepositoryType.STANDARD != repoVersionEnt.getType()) {
         ClusterVersionSummary clusterSummary = desiredVersionDefinition.getClusterSummary(cluster);
         serviceNames.addAll(clusterSummary.getAvailableServiceNames());
+      } else {
+        serviceNames.addAll(ami.getStack(stackId).getServiceNames());
       }
 
       // Populate with commands for host
@@ -646,7 +622,6 @@ public class ClusterStackVersionResourceProvider extends AbstractControllerResou
           ActionExecutionContext actionContext = getHostVersionInstallCommand(repoVersionEnt,
                   cluster, managementController, ami, stackId, serviceNames, stage, host);
           if (null != actionContext) {
-            actionContext.getParameters().put(KeyNames.IGNORE_PACKAGE_DEPENDENCIES, ignorePackageDependencies);
             try {
               actionExecutionHelper.get().addExecutionCommandsToStage(actionContext, stage, null);
               hasStage = true;
@@ -664,43 +639,10 @@ public class ClusterStackVersionResourceProvider extends AbstractControllerResou
               repoVersionEnt.getDisplayName()));
     }
 
-    req.setClusterHostInfo(clusterHostInfoJson);
     req.addStages(stages);
     req.persist();
 
     return req;
-  }
-
-  /**
-   * Reject PATCH VDFs with Services that are not included in the Cluster
-   * @param cluster cluster instance
-   * @param repoVersionEnt repo version entity
-   * @param desiredVersionDefinition VDF
-   * @throws IllegalArgumentException thrown if VDF includes services that are not installed
-   * @throws AmbariException thrown if could not load stack for repo repoVersionEnt
-   */
-  protected void checkPatchVDFAvailableServices(Cluster cluster, RepositoryVersionEntity repoVersionEnt,
-                                              VersionDefinitionXml desiredVersionDefinition) throws SystemException, AmbariException {
-    if (repoVersionEnt.getType() == RepositoryType.PATCH) {
-
-      Collection<String> notPresentServices = new ArrayList<>();
-      Collection<String> presentServices = new ArrayList<>();
-
-      presentServices.addAll(cluster.getServices().keySet());
-      final StackInfo stack;
-      stack = metaInfo.get().getStack(repoVersionEnt.getStackName(), repoVersionEnt.getStackVersion());
-
-      for (AvailableService availableService : desiredVersionDefinition.getAvailableServices(stack)) {
-        String name = availableService.getName();
-        if (!presentServices.contains(name)) {
-          notPresentServices.add(name);
-        }
-      }
-      if (!notPresentServices.isEmpty()) {
-        throw new IllegalArgumentException(String.format("%s VDF includes services that are not installed: %s",
-            RepositoryType.PATCH, StringUtils.join(notPresentServices, ",")));
-      }
-    }
   }
 
   @Transactional
@@ -712,14 +654,15 @@ public class ClusterStackVersionResourceProvider extends AbstractControllerResou
 
     // Determine repositories for host
     String osFamily = host.getOsFamily();
-    OperatingSystemEntity osEntity = repoVersionHelper.getOSEntityForHost(host, repoVersion);
+    RepoOsEntity osEntity = repoVersionHelper.getOSEntityForHost(host, repoVersion);
 
-    if (CollectionUtils.isEmpty(osEntity.getRepositories())) {
+    if (CollectionUtils.isEmpty(osEntity.getRepoDefinitionEntities())) {
       throw new SystemException(String.format("Repositories for os type %s are not defined for version %s of Stack %s.",
             osFamily, repoVersion.getVersion(), stackId));
     }
 
     // determine packages for all services that are installed on host
+    List<ServiceOsSpecific.Package> packages = new ArrayList<>();
     Set<String> servicesOnHost = new HashSet<>();
     List<ServiceComponentHost> components = cluster.getServiceComponentHosts(host.getHostName());
     for (ServiceComponentHost component : components) {
@@ -739,15 +682,13 @@ public class ClusterStackVersionResourceProvider extends AbstractControllerResou
     RequestResourceFilter filter = new RequestResourceFilter(null, null,
             Collections.singletonList(host.getHostName()));
 
-    ActionExecutionContext actionContext = new ActionExecutionContext(
-            cluster.getClusterName(), INSTALL_PACKAGES_ACTION,
-            Collections.singletonList(filter),
-            roleParams);
+    ActionExecutionContext actionContext = new ActionExecutionContext(cluster.getClusterName(),
+        INSTALL_PACKAGES_ACTION, Collections.singletonList(filter), roleParams);
 
-    actionContext.setRepositoryVersion(repoVersion);
-    actionContext.setTimeout(Short.valueOf(configuration.getDefaultAgentTaskTimeout(true)));
+    actionContext.setStackId(repoVersion.getStackId());
+    actionContext.setTimeout(Integer.valueOf(configuration.getDefaultAgentTaskTimeout(true)));
 
-    repoVersionHelper.addCommandRepositoryToContext(actionContext, osEntity);
+    repoVersionHelper.addCommandRepositoryToContext(actionContext, repoVersion, osEntity);
 
     return actionContext;
   }
@@ -827,10 +768,8 @@ public class ClusterStackVersionResourceProvider extends AbstractControllerResou
   private void bootstrapStackTools(StackId stackId, Cluster cluster) throws AmbariException {
     // if the stack name is the same as the cluster's current stack name, then
     // there's no work to do
-    StackId clusterCurrentStackId = cluster.getCurrentStackVersion();
-
     if (StringUtils.equals(stackId.getStackName(),
-        clusterCurrentStackId.getStackName())) {
+        cluster.getCurrentStackVersion().getStackName())) {
       return;
     }
 
@@ -902,8 +841,9 @@ public class ClusterStackVersionResourceProvider extends AbstractControllerResou
       String serviceNote = String.format(
           "Adding stack tools for %s while distributing a new repository", stackId.toString());
 
-      configHelper.updateConfigType(cluster, clusterCurrentStackId, amc, clusterEnv.getType(),
-          updatedProperties, null, amc.getAuthName(), serviceNote);
+      configHelper.updateConfigType(cluster, stackId, amc, clusterEnv.getType(), updatedProperties,
+          null, amc.getAuthName(), serviceNote);
     }
   }
+
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,15 +17,18 @@
  */
 package org.apache.ambari.server.orm.dao;
 
+import java.util.List;
+
+import javax.persistence.EntityManager;
+import javax.persistence.TypedQuery;
+
+import org.apache.ambari.server.orm.RequiresSession;
+import org.apache.ambari.server.orm.entities.TopologyRequestEntity;
+
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.google.inject.Singleton;
 import com.google.inject.persist.Transactional;
-import org.apache.ambari.server.orm.RequiresSession;
-import org.apache.ambari.server.orm.entities.TopologyRequestEntity;
-import javax.persistence.EntityManager;
-import javax.persistence.TypedQuery;
-import java.util.List;
 
 @Singleton
 public class TopologyRequestDAO {
@@ -52,6 +55,12 @@ public class TopologyRequestDAO {
   @RequiresSession
   public List<TopologyRequestEntity> findAll() {
     return daoUtils.selectAll(entityManagerProvider.get(), TopologyRequestEntity.class);
+  }
+
+  @RequiresSession
+  public List<TopologyRequestEntity> findAllProvisionRequests() {
+    return daoUtils.selectList(entityManagerProvider.get().createNamedQuery("TopologyRequestEntity.findProvisionRequests",
+      TopologyRequestEntity.class));
   }
 
   @Transactional

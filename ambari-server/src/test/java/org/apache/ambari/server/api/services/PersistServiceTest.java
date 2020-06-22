@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,20 +21,17 @@ package org.apache.ambari.server.api.services;
 import java.io.IOException;
 import java.util.Map;
 
-import com.google.inject.persist.PersistService;
-import junit.framework.Assert;
-
 import org.apache.ambari.server.H2DatabaseCleaner;
 import org.apache.ambari.server.RandomPortJerseyTest;
 import org.apache.ambari.server.orm.GuiceJpaInitializer;
 import org.apache.ambari.server.orm.InMemoryDefaultTestModule;
 import org.apache.ambari.server.utils.StageUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.codehaus.jettison.json.JSONException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
@@ -46,12 +43,13 @@ import com.sun.jersey.api.client.config.ClientConfig;
 import com.sun.jersey.api.client.config.DefaultClientConfig;
 import com.sun.jersey.api.json.JSONConfiguration;
 import com.sun.jersey.spi.container.servlet.ServletContainer;
-import com.sun.jersey.test.framework.JerseyTest;
 import com.sun.jersey.test.framework.WebAppDescriptor;
+
+import junit.framework.Assert;
 
 public class PersistServiceTest extends RandomPortJerseyTest {
   static String PACKAGE_NAME = "org.apache.ambari.server.api.services";
-  private static Log LOG = LogFactory.getLog(PersistServiceTest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(PersistServiceTest.class);
   Injector injector;
   protected Client client;
 

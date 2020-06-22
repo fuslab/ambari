@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,10 +17,10 @@
  */
 package org.apache.ambari.server.events;
 
-import org.apache.ambari.server.state.Alert;
-
 import java.util.Collections;
 import java.util.List;
+
+import org.apache.ambari.server.state.Alert;
 
 /**
  * The {@link AlertEvent} class is the base for all events related to alerts.

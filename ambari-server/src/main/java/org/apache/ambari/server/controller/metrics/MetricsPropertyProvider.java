@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,6 +17,12 @@
  */
 package org.apache.ambari.server.controller.metrics;
 
+import static org.apache.ambari.server.controller.metrics.MetricsPaddingMethod.ZERO_PADDING_PARAM;
+
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
+
 import org.apache.ambari.server.configuration.ComponentSSLConfiguration;
 import org.apache.ambari.server.controller.internal.AbstractPropertyProvider;
 import org.apache.ambari.server.controller.internal.PropertyInfo;
@@ -28,14 +34,9 @@ import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.spi.SystemException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.util.Map;
-import java.util.Set;
-import java.util.regex.Pattern;
-
-import static org.apache.ambari.server.controller.metrics.MetricsPaddingMethod.ZERO_PADDING_PARAM;
 
 public abstract class MetricsPropertyProvider extends AbstractPropertyProvider {
-  protected final static Logger LOG =
+  private static final Logger LOG =
     LoggerFactory.getLogger(MetricsPropertyProvider.class);
 
   protected static final Pattern questionMarkPattern = Pattern.compile("\\?");

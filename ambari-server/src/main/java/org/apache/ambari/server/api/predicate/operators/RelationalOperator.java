@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -33,5 +33,5 @@ public interface RelationalOperator extends Operator {
    * @return  a predicate instance for this operator.
    * @throws  InvalidQueryException if unable to build the predicate because of invalid operands
    */
-  public Predicate toPredicate(String prop, String val) throws InvalidQueryException;
+  Predicate toPredicate(String prop, String val) throws InvalidQueryException;
 }

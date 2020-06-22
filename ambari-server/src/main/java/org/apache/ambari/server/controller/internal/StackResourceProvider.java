@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,29 +18,50 @@
 
 package org.apache.ambari.server.controller.internal;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.controller.AmbariManagementController;
 import org.apache.ambari.server.controller.RequestStatusResponse;
 import org.apache.ambari.server.controller.StackRequest;
 import org.apache.ambari.server.controller.StackResponse;
-import org.apache.ambari.server.controller.spi.*;
+import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
+import org.apache.ambari.server.controller.spi.NoSuchResourceException;
+import org.apache.ambari.server.controller.spi.Predicate;
+import org.apache.ambari.server.controller.spi.Request;
+import org.apache.ambari.server.controller.spi.RequestStatus;
+import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.spi.Resource.Type;
+import org.apache.ambari.server.controller.spi.SystemException;
+import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
+
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 
 public class StackResourceProvider extends ReadOnlyResourceProvider {
 
   public static final String STACK_NAME_PROPERTY_ID = PropertyHelper
       .getPropertyId("Stacks", "stack_name");
 
-  private static Set<String> pkPropertyIds = new HashSet<String>(
-      Arrays.asList(new String[] { STACK_NAME_PROPERTY_ID }));
+  /**
+   * The key property ids for a Stack resource.
+   */
+  protected static Map<Resource.Type, String> keyPropertyIds = ImmutableMap.<Resource.Type, String>builder()
+      .put(Type.Stack, STACK_NAME_PROPERTY_ID)
+      .build();
 
-  protected StackResourceProvider(Set<String> propertyIds,
-      Map<Type, String> keyPropertyIds,
-      AmbariManagementController managementController) {
-    super(propertyIds, keyPropertyIds, managementController);
+  /**
+   * The property ids for a Stack resource.
+   */
+  protected static Set<String> propertyIds = Sets.newHashSet(
+      STACK_NAME_PROPERTY_ID);
+
+  protected StackResourceProvider(AmbariManagementController managementController) {
+    super(Type.Stack, propertyIds, keyPropertyIds, managementController);
   }
 
 
@@ -49,10 +70,10 @@ public class StackResourceProvider extends ReadOnlyResourceProvider {
       throws SystemException, UnsupportedPropertyException,
       NoSuchResourceException, NoSuchParentResourceException {
 
-    final Set<StackRequest> requests = new HashSet<StackRequest>();
+    final Set<StackRequest> requests = new HashSet<>();
 
     if (predicate == null) {
-      requests.add(getRequest(Collections.<String, Object>emptyMap()));
+      requests.add(getRequest(Collections.emptyMap()));
     } else {
       for (Map<String, Object> propertyMap : getPropertyMaps(predicate)) {
         requests.add(getRequest(propertyMap));
@@ -68,7 +89,7 @@ public class StackResourceProvider extends ReadOnlyResourceProvider {
       }
     });
 
-    Set<Resource> resources = new HashSet<Resource>();
+    Set<Resource> resources = new HashSet<>();
 
     for (StackResponse response : responses) {
       Resource resource = new ResourceImpl(Resource.Type.Stack);
@@ -109,6 +130,6 @@ public class StackResourceProvider extends ReadOnlyResourceProvider {
 
   @Override
   protected Set<String> getPKPropertyIds() {
-    return pkPropertyIds;
+    return new HashSet<>(keyPropertyIds.values());
   }
 }

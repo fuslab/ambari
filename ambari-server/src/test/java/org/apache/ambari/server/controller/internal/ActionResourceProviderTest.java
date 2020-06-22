@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,8 +19,17 @@
 
 package org.apache.ambari.server.controller.internal;
 
-import com.google.inject.Guice;
-import com.google.inject.Injector;
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.verify;
+
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.H2DatabaseCleaner;
 import org.apache.ambari.server.actionmanager.ActionType;
@@ -43,16 +52,8 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
-import static org.easymock.EasyMock.createNiceMock;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.verify;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
 
 public class ActionResourceProviderTest {
 
@@ -64,8 +65,6 @@ public class ActionResourceProviderTest {
 
     return (ActionResourceProvider) AbstractControllerResourceProvider.getResourceProvider(
         type,
-        PropertyHelper.getPropertyIds(type),
-        PropertyHelper.getKeyPropertyIds(type),
         managementController);
   }
 
@@ -95,27 +94,27 @@ public class ActionResourceProviderTest {
     AmbariManagementController managementController = createNiceMock(AmbariManagementController.class);
     expect(managementController.getAmbariMetaInfo()).andReturn(am).anyTimes();
 
-    List<ActionDefinition> allDefinition = new ArrayList<ActionDefinition>();
+    List<ActionDefinition> allDefinition = new ArrayList<>();
     allDefinition.add(new ActionDefinition(
         "a1", ActionType.SYSTEM, "fileName", "HDFS", "DATANODE", "Does file exist", TargetHostType.ANY,
-        Short.valueOf("100"), null));
+        Integer.valueOf("100"), null));
     allDefinition.add(new ActionDefinition(
         "a2", ActionType.SYSTEM, "fileName", "HDFS", "DATANODE", "Does file exist", TargetHostType.ANY,
-        Short.valueOf("100"), null));
+        Integer.valueOf("100"), null));
     allDefinition.add(new ActionDefinition(
         "a3", ActionType.SYSTEM, "fileName", "HDFS", "DATANODE", "Does file exist", TargetHostType.ANY,
-        Short.valueOf("100"), null));
+        Integer.valueOf("100"), null));
 
-    Set<ActionResponse> allResponse = new HashSet<ActionResponse>();
+    Set<ActionResponse> allResponse = new HashSet<>();
     for (ActionDefinition definition : allDefinition) {
       allResponse.add(definition.convertToResponse());
     }
 
     ActionDefinition namedDefinition = new ActionDefinition(
         "a1", ActionType.SYSTEM, "fileName", "HDFS", "DATANODE", "Does file exist", TargetHostType.ANY,
-        Short.valueOf("100"), null);
+        Integer.valueOf("100"), null);
 
-    Set<ActionResponse> nameResponse = new HashSet<ActionResponse>();
+    Set<ActionResponse> nameResponse = new HashSet<>();
     nameResponse.add(namedDefinition.convertToResponse());
 
     expect(am.getAllActionDefinition()).andReturn(allDefinition).once();
@@ -125,11 +124,9 @@ public class ActionResourceProviderTest {
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
         type,
-        PropertyHelper.getPropertyIds(type),
-        PropertyHelper.getKeyPropertyIds(type),
         managementController);
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     propertyIds.add(ActionResourceProvider.ACTION_NAME_PROPERTY_ID);
     propertyIds.add(ActionResourceProvider.ACTION_TYPE_PROPERTY_ID);

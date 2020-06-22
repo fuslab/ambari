@@ -15,66 +15,80 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 }}
-<div id="common-progress-page">
-  <h2>{{view.headerTitle}}</h2>
+{{#if view.disableKerberos}}
+<div id="common-progress-page" class="wizard-content col-md-12">
+{{else}}
+<div id="common-progress-page" class="wizard-content col-md-9">
+{{/if}}
+  <h4 class="step-title">{{view.headerTitle}}</h4>
 
   <div {{bindAttr class="view.noticeClass"}}>{{{view.notice}}}
     {{#if controller.showRetry}}
-      <a href="#" {{action retry target="controller"}}>
+      <button class="btn btn-primary retry" {{action retry target="controller"}}>
+        <i class="glyphicon glyphicon-repeat glyphicon-white"></i>&nbsp;
         {{t common.retry}}
-      </a>
+      </button>
     {{/if}}
   </div>
-  {{#if controller.isLoaded}}
-    {{#each task in controller.tasks}}
-      {{#view view.taskView contentBinding="task"}}
-        <div class="item">
-          <div {{bindAttr class=":pull-left view.linkClass view.parentView.labelWidth"}}>
-            <i {{bindAttr class="view.icon view.iconColor"}}></i>
-            <a {{action "showHostProgressPopup" task target="controller"}} >{{task.title}}</a>
-          </div>
-          <div {{bindAttr class="view.showProgressBar::hide :row :span5 :pull-left" }}>
-            <div {{bindAttr class=":progress-bar controller.isRollback::span8 controller.isRollback:span3"}}>
-              <div class="progress-striped active progress-info progress">
-                <div class="bar" {{bindAttr style="view.barWidth"}}></div>
+
+  <div class="panel panel-default">
+    <div class="panel-body">
+      {{#if controller.isLoaded}}
+        {{#each task in controller.tasks}}
+          {{#view view.taskView contentBinding="task"}}
+            <div class="item row">
+              <div {{bindAttr class="view.linkClass view.parentView.labelWidth"}}>
+                <i {{bindAttr class="view.icon view.iconColor"}}></i>
+                <a {{action "showHostProgressPopup" task target="controller"}} >{{task.title}}</a>
+              </div>
+              <div {{bindAttr class="view.showProgressBar::hide :col-md-5" }}>
+                <div {{bindAttr class=":progress-wrapper controller.isRollback::col-md-8 controller.isRollback:col-md-3"}}>
+                  <div class="progress">
+                    <div class="progress-bar-striped active progress-bar-info progress-bar" {{bindAttr style="view.barWidth"}}></div>
+                  </div>
+                </div>
+                <div {{bindAttr class=":col-md-1 view.hidePercent:noDisplay"}}>{{task.progress}}&#37;</div>
+              </div>
+              <div>
+                {{#if task.showRetry}}
+                  <a {{action retryTask target="controller"}} class="btn btn-primary retry"
+                                                              rel="tooltip"
+                                                              data-trigger="click" {{bindAttr title="view.showDBTooltip:testDBRetryTooltip"}}>
+                    <i class="glyphicon glyphicon-repeat glyphicon-white"></i>&nbsp;
+                    {{t common.retry}}
+                  </a>
+                {{/if}}
+                {{#if task.showRollback}}
+                  <a {{action rollback target="controller"}} class="btn btn-primary retry">
+                    <i class="glyphicon glyphicon-repeat glyphicon-white"></i>
+                    {{t common.rollBack}}
+                  </a>
+                {{/if}}
+                {{#if task.showSkip}}
+                  <a {{action skipTask target="controller"}} class="btn btn-primary retry">
+                    <i class="glyphicon-step-forward glyphicon glyphicon-white"></i>
+                    {{t common.skip}}
+                  </a>
+                {{/if}}
               </div>
             </div>
-            <div {{bindAttr class=":span1 view.hidePercent:noDisplay"}}>{{task.progress}}&#37;</div>
-          </div>
-          <div>
-            {{#if task.showRetry}}
-              <a {{action retryTask target="controller"}} class="btn btn-primary retry"
-                                                          rel="tooltip"
-                                                          data-trigger="click" {{bindAttr title="view.showDBTooltip:testDBRetryTooltip"}}>
-                <i class="icon-repeat icon-white"></i>
-                {{t common.retry}}
-              </a>
-            {{/if}}
-            {{#if task.showRollback}}
-              <a {{action rollback target="controller"}} class="btn btn-primary retry">
-                <i class="icon-repeat icon-white"></i>
-                {{t common.rollBack}}
-              </a>
-            {{/if}}
-            {{#if task.showSkip}}
-              <a {{action skipTask target="controller"}} class="btn btn-primary retry">
-                <i class="icon-step-forward icon-white"></i>
-                {{t common.skip}}
-              </a>
-            {{/if}}
-          </div>
-        </div>
-      {{/view}}
-    {{/each}}
-  {{else}}
-    {{view App.SpinnerView}}
-  {{/if}}
-  <div class="btn-area">
-    {{#if view.showBackButton}}
-      {{view App.WizardBackButton action="back" target="controller"}}
-    {{/if}}
-    {{#view App.WizardNextButton action="done" target="controller"}}
-      {{{view.parentView.submitButtonText}}}
-    {{/view}}
+          {{/view}}
+        {{/each}}
+      {{else}}
+        {{view App.SpinnerView}}
+      {{/if}}
+    </div>
   </div>
 </div>
+{{#unless view.isSimpleModal}}
+  <div class="wizard-footer col-md-12">
+    <div class="btn-area">
+      {{#if view.showBackButton}}
+        {{view App.WizardBackButton action="back" target="controller" data-qa="wizard-back"}}
+      {{/if}}
+      {{#view App.WizardNextButton action="done" target="controller" data-qa="wizard-next"}}
+        {{{view.parentView.submitButtonText}}}
+      {{/view}}
+    </div>
+  </div>
+{{/unless}}

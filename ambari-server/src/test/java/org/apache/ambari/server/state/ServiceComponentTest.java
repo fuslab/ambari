@@ -23,6 +23,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +31,7 @@ import java.util.Map;
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.H2DatabaseCleaner;
 import org.apache.ambari.server.controller.ServiceComponentResponse;
+import org.apache.ambari.server.controller.internal.DeleteHostComponentStatusMetaData;
 import org.apache.ambari.server.orm.GuiceJpaInitializer;
 import org.apache.ambari.server.orm.InMemoryDefaultTestModule;
 import org.apache.ambari.server.orm.OrmTestHelper;
@@ -273,15 +275,28 @@ public class ServiceComponentTest {
     service.addServiceComponent(component);
 
     addHostToCluster("h1", service.getCluster().getClusterName());
+    addHostToCluster("h2", service.getCluster().getClusterName());
+    addHostToCluster("h3", service.getCluster().getClusterName());
     ServiceComponentHost sch =
       serviceComponentHostFactory.createNew(component, "h1");
+    ServiceComponentHost sch2 =
+      serviceComponentHostFactory.createNew(component, "h2");
+    ServiceComponentHost sch3 =
+      serviceComponentHostFactory.createNew(component, "h3");
     sch.setState(State.INSTALLED);
+    sch2.setState(State.INSTALLED);
+    sch3.setState(State.INSTALLED);
 
     Map<String, ServiceComponentHost> compHosts =
       new HashMap<>();
     compHosts.put("h1", sch);
+    compHosts.put("h2", sch2);
+    compHosts.put("h3", sch3);
     component.addServiceComponentHosts(compHosts);
-    Assert.assertEquals(1, component.getServiceComponentHosts().size());
+    Assert.assertEquals(3, component.getServiceComponentHosts().size());
+
+    component.getServiceComponentHost("h2").setMaintenanceState(MaintenanceState.ON);
+    sch3.setMaintenanceState(MaintenanceState.ON);
 
     ServiceComponent sc = service.getServiceComponent(componentName);
     Assert.assertNotNull(sc);
@@ -298,9 +313,11 @@ public class ServiceComponentTest {
     int totalCount = r.getServiceComponentStateCount().get("totalCount");
     int startedCount = r.getServiceComponentStateCount().get("startedCount");
     int installedCount = r.getServiceComponentStateCount().get("installedCount");
-    Assert.assertEquals(1, totalCount);
+    int installedAndMaintenanceOffCount = r.getServiceComponentStateCount().get("installedAndMaintenanceOffCount");
+    Assert.assertEquals(3, totalCount);
     Assert.assertEquals(0, startedCount);
-    Assert.assertEquals(1, installedCount);
+    Assert.assertEquals(3, installedCount);
+    Assert.assertEquals(1, installedAndMaintenanceOffCount);
 
     // TODO check configs
     // r.getConfigVersions()
@@ -371,7 +388,7 @@ public class ServiceComponentTest {
         serviceComponentHostFactory.createNew(sc, "h2");
 
     Map<String, ServiceComponentHost> compHosts =
-        new HashMap<>();
+      new HashMap<>();
     compHosts.put("h1", sch1);
     compHosts.put("h2", sch2);
     sc.addServiceComponentHosts(compHosts);
@@ -379,17 +396,14 @@ public class ServiceComponentTest {
     sch1.setState(State.STARTED);
     sch2.setState(State.STARTED);
 
-    try {
-      // delete the SC
-      sc.delete();
-      Assert.assertTrue("Delete must fail as some SCH are in STARTED state", false);
-    }catch(AmbariException e) {
-      // expected
-    }
+    // delete the SC
+    DeleteHostComponentStatusMetaData deleteMetaData = new DeleteHostComponentStatusMetaData();
+    sc.delete(deleteMetaData);
+    Assert.assertNotNull("Delete must fail as some SCH are in STARTED state", deleteMetaData.getAmbariException());
 
     sch1.setState(State.INSTALLED);
     sch2.setState(State.INSTALL_FAILED);
-    sc.delete();
+    sc.delete(new DeleteHostComponentStatusMetaData());
 
     // verify history is gone, too
     serviceComponentDesiredStateEntity = serviceComponentDesiredStateDAO.findByName(
@@ -420,7 +434,7 @@ public class ServiceComponentTest {
     StackEntity stackEntity = stackDAO.find("HDP", "2.2.0");
 
     RepositoryVersionEntity rve = new RepositoryVersionEntity(stackEntity, "HDP-2.2.0",
-        "2.2.0.1-1111", "[]");
+        "2.2.0.1-1111", new ArrayList<>());
 
     RepositoryVersionDAO repositoryDAO = injector.getInstance(RepositoryVersionDAO.class);
     repositoryDAO.create(rve);
@@ -475,7 +489,7 @@ public class ServiceComponentTest {
     StackEntity stackEntity = stackDAO.find("HDP", "2.2.0");
 
     RepositoryVersionEntity rve = new RepositoryVersionEntity(stackEntity, "HDP-2.2.0",
-        "2.2.0.1-1111", "[]");
+        "2.2.0.1-1111", new ArrayList<>());
 
     RepositoryVersionDAO repositoryDAO = injector.getInstance(RepositoryVersionDAO.class);
     repositoryDAO.create(rve);
@@ -506,7 +520,7 @@ public class ServiceComponentTest {
 
     assertEquals(RepositoryVersionState.CURRENT, persistedVersion.getState());
 
-    sc.delete();
+    sc.delete(new DeleteHostComponentStatusMetaData());
 
     serviceComponentDesiredStateEntity = serviceComponentDesiredStateDAO.findByName(
         cluster.getClusterId(), serviceName, componentName);
@@ -539,8 +553,7 @@ public class ServiceComponentTest {
     ServiceComponent sc = service.getServiceComponent(componentName);
     Assert.assertNotNull(sc);
 
-    ServiceComponentDesiredStateEntity entity = serviceComponentDesiredStateDAO.findByName(
-        cluster.getClusterId(), serviceName, componentName);
+    ServiceComponentDesiredStateEntity entity = serviceComponentDesiredStateDAO.findByName(cluster.getClusterId(), serviceName, componentName);
 
     RepositoryVersionEntity repoVersion2201 = helper.getOrCreateRepositoryVersion(
         component.getDesiredStackId(), "2.2.0.1");
@@ -562,8 +575,7 @@ public class ServiceComponentTest {
     sch1.setVersion("2.2.0.1");
     sch2.setVersion("2.2.0.2");
     sc.updateRepositoryState("2.2.0.2");
-    entity = serviceComponentDesiredStateDAO.findByName(cluster.getClusterId(), serviceName,
-        componentName);
+    entity = serviceComponentDesiredStateDAO.findByName(cluster.getClusterId(), serviceName, componentName);
     assertEquals(RepositoryVersionState.OUT_OF_SYNC, entity.getRepositoryState());
 
     // !!! case 2: component desired is UNKNOWN, all h-c same version
@@ -571,38 +583,31 @@ public class ServiceComponentTest {
     sch1.setVersion("2.2.0.1");
     sch2.setVersion("2.2.0.1");
     sc.updateRepositoryState("2.2.0.1");
-    entity = serviceComponentDesiredStateDAO.findByName(cluster.getClusterId(), serviceName,
-        componentName);
+    entity = serviceComponentDesiredStateDAO.findByName(cluster.getClusterId(), serviceName, componentName);
     assertEquals(RepositoryVersionState.OUT_OF_SYNC, entity.getRepositoryState());
 
-    // !!! case 3: component desired is known, any component reports different
-    // version
+    // !!! case 3: component desired is known, any component reports different version
     sc.setDesiredRepositoryVersion(repoVersion2201);
     sch1.setVersion("2.2.0.1");
     sch2.setVersion("2.2.0.2");
     sc.updateRepositoryState("2.2.0.2");
-    entity = serviceComponentDesiredStateDAO.findByName(cluster.getClusterId(), serviceName,
-        componentName);
+    entity = serviceComponentDesiredStateDAO.findByName(cluster.getClusterId(), serviceName, componentName);
     assertEquals(RepositoryVersionState.OUT_OF_SYNC, entity.getRepositoryState());
 
-    // !!! case 4: component desired is known, component reports same as
-    // desired, mix of h-c versions
+    // !!! case 4: component desired is known, component reports same as desired, mix of h-c versions
     sc.setDesiredRepositoryVersion(repoVersion2201);
     sch1.setVersion("2.2.0.1");
     sch2.setVersion("2.2.0.2");
     sc.updateRepositoryState("2.2.0.1");
-    entity = serviceComponentDesiredStateDAO.findByName(cluster.getClusterId(), serviceName,
-        componentName);
+    entity = serviceComponentDesiredStateDAO.findByName(cluster.getClusterId(), serviceName, componentName);
     assertEquals(RepositoryVersionState.OUT_OF_SYNC, entity.getRepositoryState());
 
-    // !!! case 5: component desired is known, component reports same as
-    // desired, all h-c the same
+    // !!! case 5: component desired is known, component reports same as desired, all h-c the same
     sc.setDesiredRepositoryVersion(repoVersion2201);
     sch1.setVersion("2.2.0.1");
     sch2.setVersion("2.2.0.1");
     sc.updateRepositoryState("2.2.0.1");
-    entity = serviceComponentDesiredStateDAO.findByName(cluster.getClusterId(), serviceName,
-        componentName);
+    entity = serviceComponentDesiredStateDAO.findByName(cluster.getClusterId(), serviceName, componentName);
     assertEquals(RepositoryVersionState.CURRENT, entity.getRepositoryState());
   }
 }

@@ -21,6 +21,10 @@ var App = require('app');
 module.exports = App.WizardRoute.extend({
   route: '/highAvailability/RangerAdmin/enable',
 
+  breadcrumbs: {
+    label: Em.I18n.t('admin.ra_highAvailability.wizard.header')
+  },
+
   enter: function (router) {
     var rAHighAvailabilityWizardController = router.get('rAHighAvailabilityWizardController');
     rAHighAvailabilityWizardController.dataLoading().done(function () {
@@ -30,7 +34,8 @@ module.exports = App.WizardRoute.extend({
     Em.run.next(function () {
       App.router.get('updateController').set('isWorking', false);
       var popup = App.ModalPopup.show({
-        classNames: ['full-width-modal'],
+        classNames: ['wizard-modal-wrapper'],
+        modalDialogClasses: ['modal-xlg'],
         header: Em.I18n.t('admin.ra_highAvailability.wizard.header'),
         bodyClass: App.RAHighAvailabilityWizardView.extend({
           controller: rAHighAvailabilityWizardController
@@ -136,7 +141,7 @@ module.exports = App.WizardRoute.extend({
       });
     },
     next: function (router) {
-      router.transitionTo('step4');iiii
+      router.transitionTo('step4');
     },
     back: function (router) {
       router.transitionTo('step2');

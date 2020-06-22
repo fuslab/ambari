@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,9 +28,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.ReadWriteLock;
 
+import javax.annotation.Nullable;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.DuplicateResourceException;
-import org.apache.ambari.server.HostNotFoundException;
 import org.apache.ambari.server.controller.ConfigGroupResponse;
 import org.apache.ambari.server.controller.internal.ConfigurationResourceProvider;
 import org.apache.ambari.server.logging.LockFactory;
@@ -52,7 +53,6 @@ import org.apache.ambari.server.state.Config;
 import org.apache.ambari.server.state.ConfigFactory;
 import org.apache.ambari.server.state.Host;
 import org.apache.ambari.server.state.Service;
-import org.apache.ambari.server.state.StackId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,6 +67,7 @@ public class ConfigGroupImpl implements ConfigGroup {
   private ConcurrentMap<Long, Host> m_hosts;
   private ConcurrentMap<String, Config> m_configurations;
   private String configGroupName;
+  private String serviceName;
   private long configGroupId;
 
   /**
@@ -93,14 +94,15 @@ public class ConfigGroupImpl implements ConfigGroup {
   private final ConfigFactory configFactory;
 
   @AssistedInject
-  public ConfigGroupImpl(@Assisted("cluster") Cluster cluster, @Assisted("name") String name,
-      @Assisted("tag") String tag, @Assisted("serviceName") String serviceName,
-      @Assisted("description") String description,
+  public ConfigGroupImpl(@Assisted("cluster") Cluster cluster,
+      @Assisted("serviceName") @Nullable String serviceName, @Assisted("name") String name,
+      @Assisted("tag") String tag, @Assisted("description") String description,
       @Assisted("configs") Map<String, Config> configurations,
       @Assisted("hosts") Map<Long, Host> hosts, Clusters clusters, ConfigFactory configFactory,
       ClusterDAO clusterDAO, HostDAO hostDAO, ConfigGroupDAO configGroupDAO,
       ConfigGroupConfigMappingDAO configGroupConfigMappingDAO,
-      ConfigGroupHostMappingDAO configGroupHostMappingDAO, LockFactory lockFactory) {
+      ConfigGroupHostMappingDAO configGroupHostMappingDAO, LockFactory lockFactory)
+      throws AmbariException {
 
     this.configFactory = configFactory;
     this.clusterDAO = clusterDAO;
@@ -112,19 +114,20 @@ public class ConfigGroupImpl implements ConfigGroup {
     hostLock = lockFactory.newReadWriteLock(hostLockLabel);
 
     this.cluster = cluster;
+    this.serviceName = serviceName;
     configGroupName = name;
 
     ConfigGroupEntity configGroupEntity = new ConfigGroupEntity();
     configGroupEntity.setClusterId(cluster.getClusterId());
     configGroupEntity.setGroupName(name);
     configGroupEntity.setTag(tag);
-    configGroupEntity.setServiceName(serviceName);
     configGroupEntity.setDescription(description);
+    configGroupEntity.setServiceName(serviceName);
 
-    m_hosts = hosts == null ? new ConcurrentHashMap<Long, Host>()
+    m_hosts = hosts == null ? new ConcurrentHashMap<>()
         : new ConcurrentHashMap<>(hosts);
 
-    m_configurations = configurations == null ? new ConcurrentHashMap<String, Config>()
+    m_configurations = configurations == null ? new ConcurrentHashMap<>()
         : new ConcurrentHashMap<>(configurations);
 
     // save the entity and grab the ID
@@ -151,6 +154,7 @@ public class ConfigGroupImpl implements ConfigGroup {
     this.cluster = cluster;
     configGroupId = configGroupEntity.getGroupId();
     configGroupName = configGroupEntity.getGroupName();
+    serviceName = configGroupEntity.getServiceName();
 
     m_configurations = new ConcurrentHashMap<>();
     m_hosts = new ConcurrentHashMap<>();
@@ -177,13 +181,10 @@ public class ConfigGroupImpl implements ConfigGroup {
         if (host != null && hostEntity != null) {
           m_hosts.put(hostEntity.getHostId(), host);
         }
-      } catch (HostNotFoundException e) {
+      } catch (Exception e) {
         LOG.warn("Host {} seems to be deleted but Config group {} mapping " +
           "still exists !", hostMappingEntity.getHostname(), configGroupName);
         LOG.debug("Host seems to be deleted but Config group mapping still exists !", e);
-      } catch (Exception ae) {
-        LOG.error("Exception retrieving host mapping for config group {} " +
-          "with id = {}", configGroupEntity.getGroupName(), configGroupEntity.getGroupId());
       }
     }
   }
@@ -266,10 +267,9 @@ public class ConfigGroupImpl implements ConfigGroup {
 
   /**
    * Helper method to recreate configs mapping
-   * @param configs
    */
   @Override
-  public void setConfigurations(Map<String, Config> configurations) {
+  public void setConfigurations(Map<String, Config> configurations) throws AmbariException {
     ConfigGroupEntity configGroupEntity = getConfigGroupEntity();
     ClusterEntity clusterEntity = configGroupEntity.getClusterEntity();
 
@@ -332,7 +332,7 @@ public class ConfigGroupImpl implements ConfigGroup {
   /**
    * @param configGroupEntity
    */
-  private void persist(ConfigGroupEntity configGroupEntity) {
+  private void persist(ConfigGroupEntity configGroupEntity) throws AmbariException {
     persistEntities(configGroupEntity);
     cluster.refresh();
   }
@@ -343,7 +343,7 @@ public class ConfigGroupImpl implements ConfigGroup {
    * @throws Exception
    */
   @Transactional
-  void persistEntities(ConfigGroupEntity configGroupEntity) {
+  void persistEntities(ConfigGroupEntity configGroupEntity) throws AmbariException {
     ClusterEntity clusterEntity = clusterDAO.findById(cluster.getClusterId());
     configGroupEntity.setClusterEntity(clusterEntity);
     configGroupEntity.setTimestamp(System.currentTimeMillis());
@@ -357,10 +357,6 @@ public class ConfigGroupImpl implements ConfigGroup {
 
   /**
    * Replaces all existing host mappings with the new collection of hosts.
-   *
-   * @param the
-   *          new hosts
-   * @throws Exception
    */
   @Transactional
   void replaceHostMappings(Map<Long, Host> hosts) {
@@ -368,8 +364,7 @@ public class ConfigGroupImpl implements ConfigGroup {
 
     // Delete existing mappings and create new ones
     configGroupHostMappingDAO.removeAllByGroup(configGroupEntity.getGroupId());
-    configGroupEntity.setConfigGroupHostMappingEntities(
-        new HashSet<ConfigGroupHostMappingEntity>());
+    configGroupEntity.setConfigGroupHostMappingEntities(new HashSet<>());
 
     if (hosts != null && !hosts.isEmpty()) {
       configGroupEntity = persistHostMapping(hosts.values(), configGroupEntity);
@@ -378,9 +373,6 @@ public class ConfigGroupImpl implements ConfigGroup {
 
   /**
    * Adds the collection of hosts to the configuration group.
-   *
-   * @param hostEntity
-   * @param configGroupEntity
    */
   @Transactional
   ConfigGroupEntity persistHostMapping(Collection<Host> hosts,
@@ -412,11 +404,10 @@ public class ConfigGroupImpl implements ConfigGroup {
    * @throws Exception
    */
   @Transactional
-  void persistConfigMapping(ClusterEntity clusterEntity,
-      ConfigGroupEntity configGroupEntity, Map<String, Config> configurations) {
+  void persistConfigMapping(ClusterEntity clusterEntity, ConfigGroupEntity configGroupEntity,
+      Map<String, Config> configurations) throws AmbariException {
     configGroupConfigMappingDAO.removeAllByGroup(configGroupEntity.getGroupId());
-    configGroupEntity.setConfigGroupConfigMappingEntities(
-        new HashSet<ConfigGroupConfigMappingEntity>());
+    configGroupEntity.setConfigGroupConfigMappingEntities(new HashSet<>());
 
     if (configurations != null && !configurations.isEmpty()) {
       for (Entry<String, Config> entry : configurations.entrySet()) {
@@ -426,10 +417,9 @@ public class ConfigGroupImpl implements ConfigGroup {
 
         if (clusterConfigEntity == null) {
           String serviceName = getServiceName();
-          Service service = cluster.getServices().get(serviceName);
-          StackId stackId = (null == service) ? cluster.getDesiredStackVersion() : service.getDesiredStackId();
+          Service service = cluster.getService(serviceName);
 
-          config = configFactory.createNew(stackId, cluster, config.getType(),
+          config = configFactory.createNew(service.getDesiredStackId(), cluster, config.getType(),
               config.getTag(), config.getProperties(), config.getPropertiesAttributes());
 
           entry.setValue(config);
@@ -501,10 +491,8 @@ public class ConfigGroupImpl implements ConfigGroup {
 
     for (Config config : m_configurations.values()) {
       Map<String, Object> configMap = new HashMap<>();
-      configMap.put(ConfigurationResourceProvider.CONFIGURATION_CONFIG_TYPE_PROPERTY_ID,
-          config.getType());
-      configMap.put(ConfigurationResourceProvider.CONFIGURATION_CONFIG_TAG_PROPERTY_ID,
-          config.getTag());
+      configMap.put(ConfigurationResourceProvider.TYPE, config.getType());
+      configMap.put(ConfigurationResourceProvider.TAG, config.getTag());
       configObjMap.add(configMap);
     }
 
@@ -518,8 +506,7 @@ public class ConfigGroupImpl implements ConfigGroup {
 
   @Override
   public String getServiceName() {
-    ConfigGroupEntity configGroupEntity = getConfigGroupEntity();
-    return configGroupEntity.getServiceName();
+    return serviceName;
   }
 
   @Override
@@ -527,6 +514,8 @@ public class ConfigGroupImpl implements ConfigGroup {
     ConfigGroupEntity configGroupEntity = getConfigGroupEntity();
     configGroupEntity.setServiceName(serviceName);
     configGroupDAO.merge(configGroupEntity);
+
+    this.serviceName = serviceName;
   }
 
   /**

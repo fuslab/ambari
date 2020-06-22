@@ -22,24 +22,29 @@ App.HighAvailabilityWizardStep7Controller = App.HighAvailabilityProgressPageCont
 
   name:"highAvailabilityWizardStep7Controller",
 
-  commands: ['startZooKeeperServers', 'startAmbariInfra', 'startRanger', 'startNameNode'],
+  commands: ['startZooKeeperServers', 'startAmbariInfra', 'startMysqlServer', 'startRanger', 'startNameNode'],
 
   initializeTasks: function () {
     this._super();
-    var tasksToRemove = [];
+    const tasksToRemove = [];
 
-    if (!App.Service.find().someProperty('serviceName', 'AMBARI_INFRA')) {
+    if (!App.Service.find('AMBARI_INFRA_SOLR').get('isLoaded')) {
       tasksToRemove.push('startAmbariInfra');
     }
 
-    if (!App.Service.find().someProperty('serviceName', 'RANGER')) {
+    if (App.ClientComponent.getModelByComponentName('RANGER_ADMIN').get('installedCount') === 0) {
       tasksToRemove.push('startRanger');
     }
+
+    if (App.ClientComponent.getModelByComponentName('MYSQL_SERVER').get('installedCount') === 0) {
+      tasksToRemove.push('startMysqlServer');
+    }
+
     this.removeTasks(tasksToRemove);
   },
 
   startAmbariInfra: function () {
-    this.startServices(false, ['AMBARI_INFRA'], true);
+    this.startServices(false, ['AMBARI_INFRA_SOLR'], true);
   },
 
   startRanger: function () {
@@ -47,6 +52,11 @@ App.HighAvailabilityWizardStep7Controller = App.HighAvailabilityProgressPageCont
     if(hostNames.length) {
       this.updateComponent('RANGER_ADMIN', hostNames, "RANGER", "Start");
     }
+  },
+
+  startMysqlServer: function () {
+    const hostNames = App.MasterComponent.find('MYSQL_SERVER').get('hostNames');
+    this.updateComponent('MYSQL_SERVER', hostNames, "HIVE", "Start");
   },
 
   startZooKeeperServers: function () {
@@ -59,4 +69,3 @@ App.HighAvailabilityWizardStep7Controller = App.HighAvailabilityProgressPageCont
     this.updateComponent('NAMENODE', hostName, "HDFS", "Start");
   }
 });
-

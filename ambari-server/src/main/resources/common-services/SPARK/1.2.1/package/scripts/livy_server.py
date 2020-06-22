@@ -32,6 +32,7 @@ from resource_management.libraries.functions.decorator import retry
 from resource_management.core.logger import Logger
 from resource_management.libraries.functions.format import format
 from resource_management.libraries.functions import stack_select
+from resource_management.libraries.functions import namenode_ha_utils
 
 from livy_service import livy_service
 from setup_livy import setup_livy
@@ -90,6 +91,10 @@ class LivyServer(Script):
     for dir_path in dirs:
       self.wait_for_dfs_directory_created(dir_path, ignored_dfs_dirs)
 
+  def get_pid_files(self):
+    import status_params
+    return [status_params.livy_server_pid_file]
+
 
   @retry(times=8, sleep_time=20, backoff_factor=1, err_class=Fail)
   def wait_for_dfs_directory_created(self, dir_path, ignored_dfs_dirs):
@@ -106,10 +111,12 @@ class LivyServer(Script):
       Logger.info("Verifying if DFS directory '" + dir_path + "' exists.")
 
       dir_exists = None
+      nameservices = namenode_ha_utils.get_nameservices(params.hdfs_site)
+      nameservice = None if not nameservices else nameservices[-1]
 
-      if WebHDFSUtil.is_webhdfs_available(params.is_webhdfs_enabled, params.default_fs):
+      if WebHDFSUtil.is_webhdfs_available(params.is_webhdfs_enabled, params.dfs_type):
         # check with webhdfs is much faster than executing hdfs dfs -test
-        util = WebHDFSUtil(params.hdfs_site, params.hdfs_user, params.security_enabled)
+        util = WebHDFSUtil(params.hdfs_site, nameservice, params.hdfs_user, params.security_enabled)
         list_status = util.run_command(dir_path, 'GETFILESTATUS', method='GET', ignore_status_codes=['404'], assertable_result=False)
         dir_exists = ('FileStatus' in list_status)
       else:

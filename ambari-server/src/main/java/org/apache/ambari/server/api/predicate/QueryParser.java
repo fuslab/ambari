@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -52,7 +52,7 @@ public class QueryParser {
    * Map of token type to token handlers.
    */
   private static final Map<Token.TYPE, TokenHandler> TOKEN_HANDLERS =
-      new HashMap<Token.TYPE, TokenHandler>();
+    new HashMap<>();
 
   /**
    * Constructor.
@@ -154,7 +154,7 @@ public class QueryParser {
    */
   private List<Expression> mergeExpressions(List<Expression> listExpressions, int precedenceLevel) {
     if (listExpressions.size() > 1) {
-      Stack<Expression> stack = new Stack<Expression>();
+      Stack<Expression> stack = new Stack<>();
 
       stack.push(listExpressions.remove(0));
       while (! listExpressions.isEmpty()) {
@@ -163,7 +163,7 @@ public class QueryParser {
         Expression right = listExpressions.remove(0);
         stack.addAll(exp.merge(left, right, precedenceLevel));
       }
-      return mergeExpressions(new ArrayList<Expression>(stack), precedenceLevel - 1);
+      return mergeExpressions(new ArrayList<>(stack), precedenceLevel - 1);
     }
     return listExpressions;
   }
@@ -195,7 +195,7 @@ public class QueryParser {
     /**
      * The list of expressions which are generated from the tokens.
      */
-    private List<Expression> m_listExpressions = new ArrayList<Expression>();
+    private List<Expression> m_listExpressions = new ArrayList<>();
 
     /**
      * Highest precedence level in expression.

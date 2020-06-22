@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,7 +17,18 @@
  */
 package org.apache.ambari.server.controller.internal;
 
-import junit.framework.Assert;
+import static junit.framework.Assert.assertEquals;
+import static org.easymock.EasyMock.capture;
+import static org.easymock.EasyMock.createStrictMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.reset;
+import static org.easymock.EasyMock.verify;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.predicate.AndPredicate;
 import org.apache.ambari.server.controller.predicate.CategoryIsEmptyPredicate;
 import org.apache.ambari.server.controller.predicate.OrPredicate;
@@ -27,19 +38,10 @@ import org.apache.ambari.server.controller.utilities.PredicateBuilder;
 import org.apache.ambari.server.controller.utilities.PredicateHelper;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.easymock.Capture;
+import org.easymock.EasyMock;
 import org.junit.Test;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-
-import static junit.framework.Assert.assertEquals;
-import static org.easymock.EasyMock.capture;
-import static org.easymock.EasyMock.createStrictMock;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.reset;
-import static org.easymock.EasyMock.verify;
+import junit.framework.Assert;
 
 /**
  * Tests for SimplifyingPredicateVisitor
@@ -72,13 +74,13 @@ public class SimplifyingPredicateVisitorTest {
   public void testVisit() {
 
     ResourceProvider provider = createStrictMock(ResourceProvider.class);
-    Capture<Set<String>> propertiesCapture = new Capture<Set<String>>();
+    Capture<Set<String>> propertiesCapture = EasyMock.newCapture();
 
     SimplifyingPredicateVisitor visitor = new SimplifyingPredicateVisitor(provider);
 
     //expectations
 
-    expect(provider.checkPropertyIds(capture(propertiesCapture))).andReturn(Collections.<String>emptySet()).anyTimes();
+    expect(provider.checkPropertyIds(capture(propertiesCapture))).andReturn(Collections.emptySet()).anyTimes();
 
     replay(provider);
 
@@ -156,8 +158,8 @@ public class SimplifyingPredicateVisitorTest {
     //reset assertions.  For property D, indicate that it is not supported.
     verify(provider);
     reset(provider);
-    expect(provider.checkPropertyIds(capture(propertiesCapture))).andReturn(Collections.<String>emptySet());
-    expect(provider.checkPropertyIds(capture(propertiesCapture))).andReturn(Collections.<String>singleton(PROPERTY_D));
+    expect(provider.checkPropertyIds(capture(propertiesCapture))).andReturn(Collections.emptySet());
+    expect(provider.checkPropertyIds(capture(propertiesCapture))).andReturn(Collections.singleton(PROPERTY_D));
     replay(provider);
 
     // ---
@@ -170,7 +172,7 @@ public class SimplifyingPredicateVisitorTest {
 
     verify(provider);
     reset(provider);
-    expect(provider.checkPropertyIds(capture(propertiesCapture))).andReturn(Collections.<String>emptySet()).anyTimes();
+    expect(provider.checkPropertyIds(capture(propertiesCapture))).andReturn(Collections.emptySet()).anyTimes();
     replay(provider);
 
     // ---

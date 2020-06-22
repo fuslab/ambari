@@ -28,10 +28,13 @@ angular.module('ambariAdminConsole', [
 .constant('Settings', {
   siteRoot: '{proxy_root}/'.replace(/\{.+\}/g, ''),
 	baseUrl: '{proxy_root}/api/v1'.replace(/\{.+\}/g, ''),
-  testMode: (window.location.port == 8000),
+  testMode: false,
   mockDataPrefix: 'assets/data/',
   isLDAPConfigurationSupported: false,
-  isLoginActivitiesSupported: false
+  isLoginActivitiesSupported: false,
+  maxStackTraceLength: 1000,
+  errorStorageSize: 500000,
+  minRowsToShowPagination: 10
 })
 .config(['RestangularProvider', '$httpProvider', '$provide', 'Settings', function(RestangularProvider, $httpProvider, $provide, Settings) {
   // Config Ajax-module
@@ -60,7 +63,7 @@ angular.module('ambariAdminConsole', [
     };
   }]);
 
-  $httpProvider.responseInterceptors.push(['$rootScope', '$q', function (scope, $q) {
+  $httpProvider.interceptors.push(['$rootScope', '$q', function (scope, $q) {
     function success(response) {
       return response;
     }
@@ -110,7 +113,7 @@ angular.module('ambariAdminConsole', [
     ngModel.controller = ['$scope', '$element', '$attrs', '$injector', function(scope, element, attrs, $injector) {
       var $interpolate = $injector.get('$interpolate');
       attrs.$set('name', $interpolate(attrs.name || '')(scope));
-      $injector.invoke(controller, this, {
+      $injector.invoke(controller, Object.setPrototypeOf(this, controller.prototype), {
         '$scope': scope,
         '$element': element,
         '$attrs': attrs
@@ -124,13 +127,53 @@ angular.module('ambariAdminConsole', [
     form.controller = ['$scope', '$element', '$attrs', '$injector', function(scope, element, attrs, $injector) {
       var $interpolate = $injector.get('$interpolate');
       attrs.$set('name', $interpolate(attrs.name || attrs.ngForm || '')(scope));
-        $injector.invoke(controller, this, {
+        $injector.invoke(controller, Object.setPrototypeOf(this, controller.prototype), {
         '$scope': scope,
         '$element': element,
         '$attrs': attrs
       });
     }];
     return $delegate;
+  }]);
+
+  $provide.decorator('$exceptionHandler', ['$delegate', 'Utility', '$window', function ($delegate, Utility, $window) {
+    return function (error, cause) {
+      var ls = JSON.parse($window.localStorage.getItem('errors')) || {},
+        key = new Date().getTime(),
+        origin = $window.location.origin || ($window.location.protocol + '//' + $window.location.host),
+        pattern = new RegExp(origin + '/.*scripts', 'g'),
+        stackTrace = error && error.stack && error.stack.replace(pattern, '').substr(0, Settings.maxStackTraceLength),
+        file = error && error.fileName,
+        line = error && error.lineNumber,
+        col = error && error.columnNumber;
+
+      if (error && error.stack && (!file || !line || !col)) {
+        var patternText = '(' + $window.location.protocol + '//.*\\.js):(\\d+):(\\d+)',
+          details = error.stack.match(new RegExp(patternText));
+        file = file || (details && details [1]);
+        line = line || (details && Number(details [2]));
+        col = col || (details && Number(details [3]));
+      }
+
+      var val = {
+        file: file,
+        line: line,
+        col: col,
+        error: error.toString(),
+        stackTrace: stackTrace
+      };
+
+      //overwrite errors if storage full
+      if (JSON.stringify(ls).length > Settings.errorStorageSize) {
+        delete ls[Object.keys(ls).sort()[0]];
+      }
+
+      ls[key] = val;
+      var lsString = JSON.stringify(ls);
+      $window.localStorage.setItem('errors', lsString);
+      Utility.postUserPref('errors', ls);
+      $delegate(error, cause);
+    };
   }]);
 
   if (!Array.prototype.find) {

@@ -71,10 +71,12 @@ App.repoVersionMapper = App.QuickDataMapper.create({
     mirrors_list : 'Repositories.mirrors_list',
     os_type : 'Repositories.os_type',
     repo_id : 'Repositories.repo_id',
+    original_repo_id : 'Repositories.repo_id',
     repo_name : 'Repositories.repo_name',
     stack_name : 'Repositories.stack_name',
     stack_version : 'Repositories.stack_version',
-    tags: 'Repositories.tags'
+    tags: 'Repositories.tags',
+    applicable_services: 'Repositories.applicable_services'
   },
 
   map: function (json, loadAll, isCurrentStackOnly) {
@@ -139,7 +141,7 @@ App.repoVersionMapper = App.QuickDataMapper.create({
               resultService.push(serviceObj);
             }, this);
           }
-          repo.use_redhat_satellite = item.operating_systems[0].OperatingSystems.ambari_managed_repositories === false;
+          repo.use_redhat_satellite = Em.get(item, 'operating_systems.0.OperatingSystems.ambari_managed_repositories') === false;
           repo.operating_systems = osArray;
           repo.stack_services = resultService;
           resultRepoVersion.push(this.parseIt(repo, this.modelRepoVersion(isCurrentStackOnly)));

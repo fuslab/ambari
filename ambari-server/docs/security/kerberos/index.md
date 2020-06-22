@@ -51,18 +51,18 @@ Stacks and services that can utilize Kerberos credentials for authentication mus
 Descriptor declaring required Kerberos identities and how to update configurations. The Ambari
 infrastructure uses this data, and any updates applied by an administrator, to perform Kerberos
 related operations such as initially enabling Kerberos, enabling Kerberos for on hosts and added
-components, regenerating credentials, and disabling Kerberos. 
+components, regenerating credentials, and disabling Kerberos.
 
 It should be notated that the Kerberos service is required to be installed on all hosts of the cluster
 before any automated tasks can be performed. If using the Ambari UI, this should happen as part of the
-Enable Kerberos wizard workflow. 
+Enable Kerberos wizard workflow.
 
 <a name="enabling-kerberos"></a>
-### Enabling Kerberos 
+### Enabling Kerberos
 
 When enabling Kerberos, all of the services in the cluster are expected to be stopped. The main
 reason for this is to avoid state issues as the services are stopped and then started when the cluster
-is transitioning to use Kerberos. 
+is transitioning to use Kerberos.
 
 The following steps are taken to enable Kerberos on the cluster en masse:
 
@@ -75,7 +75,7 @@ The following steps are taken to enable Kerberos on the cluster en masse:
 
 If Kerberos is enabled for the Ambari cluster, whenever new components are added, the new components
 will automatically be configured for Kerberos, and any necessary principals and  keytab files will be
-created and distributed as needed. 
+created and distributed as needed.
 
 For each new component, the following steps will occur before the component is installed and started:
 

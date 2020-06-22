@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,13 +17,13 @@
  */
 package org.apache.ambari.server.controller.internal;
 
+import java.util.Collections;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.spi.RequestStatus;
 import org.apache.ambari.server.controller.spi.RequestStatusMetaData;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
-
-import java.util.Collections;
-import java.util.Set;
 
 /**
  * Default request status implementation.
@@ -44,7 +44,7 @@ public class RequestStatusImpl implements RequestStatus{
   public RequestStatusImpl(Resource requestResource, Set<Resource> associatedResources, RequestStatusMetaData requestStatusMetaData) {
     this.requestResource     = requestResource;
     this.associatedResources = associatedResources == null ?
-        Collections.<Resource>emptySet() : associatedResources;
+        Collections.emptySet() : associatedResources;
     this.requestStatusMetaData = requestStatusMetaData;
   }
 

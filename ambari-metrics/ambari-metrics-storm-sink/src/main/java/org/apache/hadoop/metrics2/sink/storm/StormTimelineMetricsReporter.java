@@ -36,20 +36,23 @@ import org.apache.storm.metric.api.DataPoint;
 import org.apache.storm.metric.api.IClusterMetricsConsumer;
 
 public class StormTimelineMetricsReporter extends AbstractTimelineMetricsSink
-  implements IClusterMetricsConsumer {
+    implements IClusterMetricsConsumer {
 
   public static final String CLUSTER_REPORTER_APP_ID = "clusterReporterAppId";
   public static final String DEFAULT_CLUSTER_REPORTER_APP_ID = "nimbus";
 
   private String hostname;
-  private String applicationId;
-  private int timeoutSeconds;
   private String port;
   private Collection<String> collectorHosts;
   private String zkQuorum;
   private String protocol;
   private boolean setInstanceId;
   private String instanceId;
+  private String applicationId;
+  private int timeoutSeconds;
+  private boolean hostInMemoryAggregationEnabled;
+  private int hostInMemoryAggregationPort;
+  private String hostInMemoryAggregationProtocol;
 
   public StormTimelineMetricsReporter() {
 
@@ -75,13 +78,14 @@ public class StormTimelineMetricsReporter extends AbstractTimelineMetricsSink
     return zkQuorum;
   }
 
-  protected Collection<String> getConfiguredCollectorHosts() {
-    return collectorHosts;
-  }
-
   @Override
   protected String getCollectorPort() {
     return port;
+  }
+
+  @Override
+  protected Collection<String> getConfiguredCollectorHosts() {
+    return collectorHosts;
   }
 
   @Override
@@ -89,6 +93,20 @@ public class StormTimelineMetricsReporter extends AbstractTimelineMetricsSink
     return hostname;
   }
 
+  @Override
+  protected boolean isHostInMemoryAggregationEnabled() {
+    return hostInMemoryAggregationEnabled;
+  }
+
+  @Override
+  protected int getHostInMemoryAggregationPort() {
+    return hostInMemoryAggregationPort;
+  }
+
+  @Override
+  protected String getHostInMemoryAggregationProtocol() {
+    return hostInMemoryAggregationProtocol;
+  }
 
   @Override
   public void prepare(Object registrationArgument) {
@@ -96,7 +114,7 @@ public class StormTimelineMetricsReporter extends AbstractTimelineMetricsSink
     try {
       try {
         hostname = InetAddress.getLocalHost().getHostName();
-        //If not FQDN , call  DNS
+        // If not FQDN , call  DNS
         if ((hostname == null) || (!hostname.contains("."))) {
           hostname = InetAddress.getLocalHost().getCanonicalHostName();
         }
@@ -104,32 +122,35 @@ public class StormTimelineMetricsReporter extends AbstractTimelineMetricsSink
         LOG.error("Could not identify hostname.");
         throw new RuntimeException("Could not identify hostname.", e);
       }
-      Configuration conf = new Configuration("/storm-metrics2.properties");
 
-      collectorHosts = parseHostsStringIntoCollection(conf.getProperty(COLLECTOR_HOSTS_PROPERTY).toString());
-      port = conf.getProperty(COLLECTOR_PORT) != null ? conf.getProperty(COLLECTOR_PORT) : "6188";
-      protocol = conf.getProperty(COLLECTOR_PROTOCOL, "http");
+      Configuration configuration = new Configuration("/storm-metrics2.properties");
+      collectorHosts = parseHostsStringIntoCollection(configuration.getProperty(COLLECTOR_HOSTS_PROPERTY));
+      protocol = configuration.getProperty(COLLECTOR_PROTOCOL, "http");
+      port = configuration.getProperty(COLLECTOR_PORT, "6188");
+      
+      zkQuorum = StringUtils.isEmpty(configuration.getProperty(COLLECTOR_ZOOKEEPER_QUORUM)) ?
+        configuration.getProperty(ZOOKEEPER_QUORUM) : configuration.getProperty(COLLECTOR_ZOOKEEPER_QUORUM);
 
-      zkQuorum = StringUtils.isEmpty(conf.getProperty(COLLECTOR_ZOOKEEPER_QUORUM)) ?
-        conf.getProperty(ZOOKEEPER_QUORUM) : conf.getProperty(COLLECTOR_ZOOKEEPER_QUORUM);
+      timeoutSeconds = configuration.getProperty(METRICS_POST_TIMEOUT_SECONDS) != null ?
+          Integer.parseInt(configuration.getProperty(METRICS_POST_TIMEOUT_SECONDS)) :
+          DEFAULT_POST_TIMEOUT_SECONDS;
+      applicationId = configuration.getProperty(CLUSTER_REPORTER_APP_ID, DEFAULT_CLUSTER_REPORTER_APP_ID);
+      setInstanceId = Boolean.valueOf(configuration.getProperty(SET_INSTANCE_ID_PROPERTY));
+      instanceId = configuration.getProperty(INSTANCE_ID_PROPERTY);
 
-      timeoutSeconds = conf.getProperty(METRICS_POST_TIMEOUT_SECONDS) != null ?
-        Integer.parseInt(conf.getProperty(METRICS_POST_TIMEOUT_SECONDS).toString()) :
-        DEFAULT_POST_TIMEOUT_SECONDS;
-      applicationId = conf.getProperty(CLUSTER_REPORTER_APP_ID, DEFAULT_CLUSTER_REPORTER_APP_ID);
-      setInstanceId = Boolean.valueOf(conf.getProperty(SET_INSTANCE_ID_PROPERTY));
-      instanceId = conf.getProperty(INSTANCE_ID_PROPERTY);
-      if (protocol.contains("https")) {
-        String trustStorePath = conf.getProperty(SSL_KEYSTORE_PATH_PROPERTY).toString().trim();
-        String trustStoreType = conf.getProperty(SSL_KEYSTORE_TYPE_PROPERTY).toString().trim();
-        String trustStorePwd = conf.getProperty(SSL_KEYSTORE_PASSWORD_PROPERTY).toString().trim();
+      hostInMemoryAggregationEnabled = Boolean.valueOf(configuration.getProperty(HOST_IN_MEMORY_AGGREGATION_ENABLED_PROPERTY, "false"));
+      hostInMemoryAggregationPort = Integer.valueOf(configuration.getProperty(HOST_IN_MEMORY_AGGREGATION_PORT_PROPERTY, "61888"));
+      hostInMemoryAggregationProtocol = configuration.getProperty(HOST_IN_MEMORY_AGGREGATION_PROTOCOL_PROPERTY, "http");
+
+      if (protocol.contains("https") || hostInMemoryAggregationProtocol.contains("https")) {
+        String trustStorePath = configuration.getProperty(SSL_KEYSTORE_PATH_PROPERTY).trim();
+        String trustStoreType = configuration.getProperty(SSL_KEYSTORE_TYPE_PROPERTY).trim();
+        String trustStorePwd = configuration.getProperty(SSL_KEYSTORE_PASSWORD_PROPERTY).trim();
         loadTruststore(trustStorePath, trustStoreType, trustStorePwd);
       }
-
-
     } catch (Exception e) {
       LOG.warn("Could not initialize metrics collector, please specify " +
-        "protocol, host, port under $STORM_HOME/conf/config.yaml ", e);
+          "protocol, host, port, appId, zkQuorum under $STORM_HOME/conf/storm-metrics2.properties ", e);
     }
     // Initialize the collector write strategy
     super.init();
@@ -174,7 +195,6 @@ public class StormTimelineMetricsReporter extends AbstractTimelineMetricsSink
     } catch (UnableToConnectException e) {
       LOG.warn("Unable to connect to Metrics Collector " + e.getConnectUrl() + ". " + e.getMessage());
     }
-
   }
 
   @Override
@@ -238,7 +258,8 @@ public class StormTimelineMetricsReporter extends AbstractTimelineMetricsSink
     timelineMetric.setAppId(component);
     timelineMetric.setStartTime(currentTimeMillis);
     timelineMetric.setType(ClassUtils.getShortCanonicalName(attributeValue, "Number"));
-    timelineMetric.getMetricValues().put(currentTimeMillis, attributeValue);    return timelineMetric;
+    timelineMetric.getMetricValues().put(currentTimeMillis, attributeValue);
+    return timelineMetric;
   }
 
   enum StormAmbariMappedMetric {
@@ -260,5 +281,4 @@ public class StormTimelineMetricsReporter extends AbstractTimelineMetricsSink
       return ambariMetricName;
     }
   }
-
 }

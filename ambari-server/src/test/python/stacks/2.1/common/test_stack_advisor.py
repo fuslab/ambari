@@ -27,10 +27,17 @@ class TestHDP21StackAdvisor(TestCase):
     import imp
 
     self.testDirectory = os.path.dirname(os.path.abspath(__file__))
-    stackAdvisorPath = os.path.join(self.testDirectory, '../../../../../main/resources/stacks/stack_advisor.py')
-    hdp206StackAdvisorPath = os.path.join(self.testDirectory, '../../../../../main/resources/stacks/HDP/2.0.6/services/stack_advisor.py')
-    hdp21StackAdvisorPath = os.path.join(self.testDirectory, '../../../../../main/resources/stacks/HDP/2.1/services/stack_advisor.py')
+
+    stacksPath = os.path.join(self.testDirectory, '../../../../../main/resources/stacks')
+    stackAdvisorPath = os.path.join(stacksPath, 'stack_advisor.py')
+    ambariConfigurationPath = os.path.abspath(os.path.join(stacksPath, 'ambari_configuration.py'))
+    hdp206StackAdvisorPath = os.path.join(stacksPath, 'HDP/2.0.6/services/stack_advisor.py')
+    hdp21StackAdvisorPath = os.path.join(stacksPath, 'HDP/2.1/services/stack_advisor.py')
+
     hdp21StackAdvisorClassName = 'HDP21StackAdvisor'
+
+    with open(ambariConfigurationPath, 'rb') as fp:
+      imp.load_module('ambari_configuration', fp, ambariConfigurationPath, ('.py', 'rb', imp.PY_SOURCE))
     with open(stackAdvisorPath, 'rb') as fp:
       imp.load_module('stack_advisor', fp, stackAdvisorPath, ('.py', 'rb', imp.PY_SOURCE))
     with open(hdp206StackAdvisorPath, 'rb') as fp:
@@ -168,11 +175,8 @@ class TestHDP21StackAdvisor(TestCase):
       if len(components) > 0:
         groups.append(components)
 
-    def sort_nested_lists(list):
-      result_list = []
-      for sublist in list:
-        result_list.append(sorted(sublist))
-      return sorted(result_list)
+    def sort_nested_lists(l):
+      return sorted(reduce(lambda x,y: x+y, l))
 
     self.assertEquals(sort_nested_lists(expected_layout), sort_nested_lists(groups))
 
@@ -559,4 +563,32 @@ class TestHDP21StackAdvisor(TestCase):
                     ]
 
     res = self.stackAdvisor.validateHiveConfigurations(properties, recommendedDefaults, configurations, '', '')
+    self.assertEquals(res, res_expected)
+
+  def test_modifyComponentLayoutSchemes(self):
+    res_expected = {}
+    res_expected.update({
+      'NAMENODE': {"else": 0},
+      'SECONDARY_NAMENODE': {"else": 1},
+      'HBASE_MASTER': {6: 0, 31: 2, "else": 3},
+
+      'HISTORYSERVER': {31: 1, "else": 2},
+      'RESOURCEMANAGER': {31: 1, "else": 2},
+
+      'OOZIE_SERVER': {6: 1, 31: 2, "else": 3},
+
+      'HIVE_SERVER': {6: 1, 31: 2, "else": 4},
+      'HIVE_METASTORE': {6: 1, 31: 2, "else": 4},
+      'WEBHCAT_SERVER': {6: 1, 31: 2, "else": 4},
+      'METRICS_COLLECTOR': {3: 2, 6: 2, 31: 3, "else": 5},
+    })
+
+    res_expected.update({
+      'APP_TIMELINE_SERVER': {31: 1, "else": 2},
+      'FALCON_SERVER': {6: 1, 31: 2, "else": 3}
+    })
+
+    self.stackAdvisor.modifyComponentLayoutSchemes()
+    res = self.stackAdvisor.getComponentLayoutSchemes()
+
     self.assertEquals(res, res_expected)

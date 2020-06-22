@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,27 +19,23 @@
 package org.apache.ambari.server.bootstrap;
 
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-
 import java.io.IOException;
-import java.util.ArrayList;
 import java.net.ServerSocket;
+import java.util.ArrayList;
 
 import javax.ws.rs.core.MediaType;
-
-import junit.framework.Assert;
 
 import org.apache.ambari.server.api.rest.BootStrapResource;
 import org.apache.ambari.server.bootstrap.BSResponse.BSRunStat;
 import org.apache.ambari.server.bootstrap.BootStrapStatus.BSStat;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
@@ -50,13 +46,15 @@ import com.sun.jersey.spi.container.servlet.ServletContainer;
 import com.sun.jersey.test.framework.JerseyTest;
 import com.sun.jersey.test.framework.WebAppDescriptor;
 
+import junit.framework.Assert;
+
 /**
  *  Testing bootstrap API.
  */
 public class BootStrapResourceTest extends JerseyTest {
 
   static String PACKAGE_NAME = "org.apache.ambari.server.api.rest";
-  private static Log LOG = LogFactory.getLog(BootStrapResourceTest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BootStrapResourceTest.class);
   Injector injector;
   BootStrapImpl bsImpl;
 
@@ -112,7 +110,7 @@ public class BootStrapResourceTest extends JerseyTest {
     BootStrapStatus status = new BootStrapStatus();
     status.setLog("Logging ");
     status.setStatus(BSStat.ERROR);
-    status.setHostsStatus(new ArrayList<BSHostStatus>());
+    status.setHostsStatus(new ArrayList<>());
     return status;
   }
 

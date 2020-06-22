@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,13 @@
 
 package org.apache.ambari.server.api.query.render;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.api.query.QueryInfo;
 import org.apache.ambari.server.api.services.Request;
 import org.apache.ambari.server.api.services.Result;
@@ -27,13 +34,6 @@ import org.apache.ambari.server.api.util.TreeNode;
 import org.apache.ambari.server.api.util.TreeNodeImpl;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
-
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * Minimal Renderer.
@@ -69,7 +69,7 @@ public class MinimalRenderer extends BaseRenderer implements Renderer {
    * Map of requested properties.
    */
   private Map<Resource.Type, Set<String>> m_originalProperties =
-      new HashMap<Resource.Type, Set<String>>();
+    new HashMap<>();
 
   // ----- Renderer ----------------------------------------------------------
 
@@ -78,8 +78,8 @@ public class MinimalRenderer extends BaseRenderer implements Renderer {
       TreeNode<QueryInfo> queryTree, boolean isCollection) {
 
     QueryInfo queryInfo = queryTree.getObject();
-    TreeNode<Set<String>> resultTree = new TreeNodeImpl<Set<String>>(
-        null, queryInfo.getProperties(), queryTree.getName());
+    TreeNode<Set<String>> resultTree = new TreeNodeImpl<>(
+      null, queryInfo.getProperties(), queryTree.getName());
 
     copyPropertiesToResult(queryTree, resultTree);
 
@@ -123,7 +123,7 @@ public class MinimalRenderer extends BaseRenderer implements Renderer {
       Resource.Type type = queryInfo.getResource().getType();
       Set<String> properties = m_originalProperties.get(type);
       if (properties == null) {
-        properties = new HashSet<String>();
+        properties = new HashSet<>();
         m_originalProperties.put(type, properties);
       }
       properties.addAll(queryInfo.getProperties());
@@ -203,7 +203,7 @@ public class MinimalRenderer extends BaseRenderer implements Renderer {
    * @return set of pk's for a type
    */
   private Set<String> getPrimaryKeys(Resource.Type type) {
-    Set<String> primaryKeys = new HashSet<String>();
+    Set<String> primaryKeys = new HashSet<>();
 
     if (type == Resource.Type.Configuration) {
       primaryKeys.add("type");

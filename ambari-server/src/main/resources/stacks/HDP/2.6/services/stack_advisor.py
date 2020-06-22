@@ -16,18 +16,22 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-from resource_management.core.logger import Logger
 import json
 import math
 import re
 from resource_management.libraries.functions import format
 from resource_management.libraries.functions.version import compare_versions
 
+try:
+    from stack_advisor_hdp25 import *
+except ImportError:
+    #Ignore ImportError
+    print("stack_advisor_hdp25 not found")
 
 class HDP26StackAdvisor(HDP25StackAdvisor):
   def __init__(self):
       super(HDP26StackAdvisor, self).__init__()
-      Logger.initialize_logger()
+      self.initialize_logger("HDP26StackAdvisor")
 
   def getServiceConfigurationRecommenderDict(self):
       parentRecommendConfDict = super(HDP26StackAdvisor, self).getServiceConfigurationRecommenderDict()
@@ -43,62 +47,21 @@ class HDP26StackAdvisor(HDP25StackAdvisor):
         "HBASE": self.recommendHBASEConfigurations,
         "YARN": self.recommendYARNConfigurations,
         "KAFKA": self.recommendKAFKAConfigurations,
-        "STORM": self.recommendSTORMConfigurations,
         "SPARK2": self.recommendSPARK2Configurations,
         "ZEPPELIN": self.recommendZEPPELINConfigurations
       }
       parentRecommendConfDict.update(childRecommendConfDict)
       return parentRecommendConfDict
 
-  def recommendSTORMConfigurations(self, configurations, clusterData, services, hosts):
-    """
-    In HDF-2.6.1 we introduced a new way of doing Auto Credentials with services such as
-    HDFS, HIVE, HBASE. This method will update the required configs for autocreds if the users installs
-    STREAMLINE service.
-    """
-    super(HDP26StackAdvisor, self).recommendStormConfigurations(configurations, clusterData, services, hosts)
-    storm_site = self.getServicesSiteProperties(services, "storm-site")
-    storm_env = self.getServicesSiteProperties(services, "storm-env")
-    putStormSiteProperty = self.putProperty(configurations, "storm-site", services)
-    putStormSiteAttributes = self.putPropertyAttribute(configurations, "storm-site")
-    security_enabled = self.isSecurityEnabled(services)
-    servicesList = [service["StackServices"]["service_name"] for service in services["services"]]
+  def getServiceConfigurationRecommenderForSSODict(self):
+      return {
+        "ATLAS": self.recommendAtlasConfigurationsForSSO,
+        "RANGER": self.recommendRangerConfigurationsForSSO
+      }
 
-    if storm_env and storm_site and security_enabled and 'STREAMLINE' in servicesList:
-      storm_nimbus_impersonation_acl = storm_site["nimbus.impersonation.acl"] if "nimbus.impersonation.acl" in storm_site else None
-      streamline_env = self.getServicesSiteProperties(services, "streamline-env")
-      if streamline_env:
-        _streamline_principal_name = streamline_env['streamline_principal_name'] if 'streamline_principal_name' in streamline_env else None
-        if _streamline_principal_name is not None and storm_nimbus_impersonation_acl is not None:
-          streamline_bare_principal = get_bare_principal(_streamline_principal_name)
-          storm_nimbus_impersonation_acl.replace('{{streamline_bare_principal}}', streamline_bare_principal)
-          putStormSiteProperty('nimbus.impersonation.acl', storm_nimbus_impersonation_acl)
-
-      storm_nimbus_autocred_plugin_classes = storm_site["nimbus.autocredential.plugins.classes"] if "nimbus.autocredential.plugins.classes" in storm_site else None
-      if storm_nimbus_autocred_plugin_classes is not None:
-        new_storm_nimbus_autocred_plugin_classes = ['org.apache.storm.hdfs.security.AutoHDFS',
-                                                    'org.apache.storm.hbase.security.AutoHBase',
-                                                    'org.apache.storm.hive.security.AutoHive']
-        new_conf = DefaultStackAdvisor.appendToYamlString(storm_nimbus_autocred_plugin_classes,
-                                      new_storm_nimbus_autocred_plugin_classes)
-
-        putStormSiteProperty("nimbus.autocredential.plugins.classes", new_conf)
-      else:
-        putStormSiteProperty("nimbus.autocredential.plugins.classes", "['org.apache.storm.hdfs.security.AutoHDFS', 'org.apache.storm.hbase.security.AutoHBase', 'org.apache.storm.hive.security.AutoHive']")
-
-
-      storm_nimbus_credential_renewer_classes = storm_site["nimbus.credential.renewers.classes"] if "nimbus.credential.renewers.classes" in storm_site else None
-      if storm_nimbus_credential_renewer_classes is not None:
-        new_storm_nimbus_credential_renewer_classes_array = ['org.apache.storm.hdfs.security.AutoHDFS',
-                                                             'org.apache.storm.hbase.security.AutoHBase',
-                                                             'org.apache.storm.hive.security.AutoHive']
-        new_conf = DefaultStackAdvisor.appendToYamlString(storm_nimbus_credential_renewer_classes,
-                                      new_storm_nimbus_credential_renewer_classes_array)
-        putStormSiteProperty("nimbus.autocredential.plugins.classes", new_conf)
-      else:
-        putStormSiteProperty("nimbus.credential.renewers.classes", "['org.apache.storm.hdfs.security.AutoHDFS', 'org.apache.storm.hbase.security.AutoHBase', 'org.apache.storm.hive.security.AutoHive']")
-      putStormSiteProperty("nimbus.credential.renewers.freq.secs", "82800")
-    pass
+  def getServiceConfigurationRecommenderForKerberosDict(self):
+    # For backwards compatibility, return the dict use for general stack advisor calls.
+    return self.getServiceConfigurationRecommenderDict()
 
   def recommendSPARK2Configurations(self, configurations, clusterData, services, hosts):
     """
@@ -133,31 +96,54 @@ class HDP26StackAdvisor(HDP25StackAdvisor):
           if 'zeppelin.config.fs.dir' not in zeppelin_config:
             putZeppelinConfigProperty('zeppelin.config.fs.dir', 'conf')
 
-
     self.__addZeppelinToLivy2SuperUsers(configurations, services)
 
   def recommendAtlasConfigurations(self, configurations, clusterData, services, hosts):
     super(HDP26StackAdvisor, self).recommendAtlasConfigurations(configurations, clusterData, services, hosts)
-    servicesList = [service["StackServices"]["service_name"] for service in services["services"]]
+    self.recommendAtlasConfigurationsForSSO(configurations, clusterData, services, hosts)
+
+  def recommendAtlasConfigurationsForSSO(self, configurations, clusterData, services, hosts):
+    ambari_configuration = self.get_ambari_configuration(services)
+    ambari_sso_details = ambari_configuration.get_ambari_sso_details() if ambari_configuration else None
+
     putAtlasApplicationProperty = self.putProperty(configurations, "application-properties", services)
 
-    knox_host = 'localhost'
-    knox_port = '8443'
+    servicesList = [service["StackServices"]["service_name"] for service in services["services"]]
+
+    # If KNOX is installed, automatically enable SSO using details from KNOX
     if 'KNOX' in servicesList:
+      knox_host = 'localhost'
+      knox_port = '8443'
+
       knox_hosts = self.getComponentHostNames(services, "KNOX", "KNOX_GATEWAY")
       if len(knox_hosts) > 0:
         knox_hosts.sort()
         knox_host = knox_hosts[0]
+
       if 'gateway-site' in services['configurations'] and 'gateway.port' in services['configurations']["gateway-site"]["properties"]:
         knox_port = services['configurations']["gateway-site"]["properties"]['gateway.port']
       putAtlasApplicationProperty('atlas.sso.knox.providerurl', 'https://{0}:{1}/gateway/knoxsso/api/v1/websso'.format(knox_host, knox_port))
 
-    knox_service_user = ''
-    if 'KNOX' in servicesList and 'knox-env' in services['configurations']:
-      knox_service_user = services['configurations']['knox-env']['properties']['knox_user']
-    else:
-      knox_service_user = 'knox'
-    putAtlasApplicationProperty('atlas.proxyusers',knox_service_user)
+    if ambari_sso_details and ambari_sso_details.is_managing_services():
+      # If SSO should be enabled for this service
+      if ambari_sso_details.should_enable_sso('ATLAS'):
+        putAtlasApplicationProperty('atlas.sso.knox.enabled', "true")
+        putAtlasApplicationProperty('atlas.sso.knox.providerurl', ambari_sso_details.get_sso_provider_url())
+        putAtlasApplicationProperty('atlas.sso.knox.publicKey', ambari_sso_details.get_sso_provider_certificate(False, True))
+        putAtlasApplicationProperty('atlas.sso.knox.browser.useragent', 'Mozilla,chrome')
+
+      # If SSO should be disabled for this service
+      elif ambari_sso_details.should_disable_sso('ATLAS'):
+        putAtlasApplicationProperty('atlas.sso.knox.enabled', "false")
+
+    # Set the proxy user
+    knox_service_user = services['configurations']['knox-env']['properties']['knox_user'] \
+      if 'knox-env' in services['configurations'] and 'knox_user' in \
+         services['configurations']['knox-env']['properties'] \
+      else 'knox'
+    putAtlasApplicationProperty('atlas.proxyusers', knox_service_user)
+  pass
+
 
   def recommendDruidConfigurations(self, configurations, clusterData, services, hosts):
 
@@ -266,6 +252,8 @@ class HDP26StackAdvisor(HDP25StackAdvisor):
             putSupersetProperty("SUPERSET_DATABASE_PORT", "3306")
         elif superset_database_type == "postgresql":
             putSupersetProperty("SUPERSET_DATABASE_PORT", "5432")
+        elif superset_database_type == "sqlite":
+            putSupersetProperty("SUPERSET_DATABASE_PORT", "")
 
   def recommendYARNConfigurations(self, configurations, clusterData, services, hosts):
     super(HDP26StackAdvisor, self).recommendYARNConfigurations(configurations, clusterData, services, hosts)
@@ -277,7 +265,7 @@ class HDP26StackAdvisor(HDP25StackAdvisor):
                 services["configurations"]["yarn-site"]["properties"] and 'hive-env' in services['configurations'] and \
                 'hive_user' in services['configurations']['hive-env']['properties']:
       hive_user_name = services['configurations']['hive-env']['properties']['hive_user']
-      old_hive_user_name = getOldValue(self, services, "hive-env", "hive_user")
+      old_hive_user_name = self.getOldValue(services, "hive-env", "hive_user")
       yarn_nm_kill_escape_user = services["configurations"]["yarn-site"]["properties"]["yarn.nodemanager.kill-escape.user"]
       if not hive_user_name in yarn_nm_kill_escape_user:
         if not yarn_nm_kill_escape_user or yarn_nm_kill_escape_user.strip() == "":
@@ -330,11 +318,11 @@ class HDP26StackAdvisor(HDP25StackAdvisor):
         putYarnSiteProperty('yarn.log.server.web-service.url',webservice_url )
 
     if ranger_yarn_plugin_enabled and 'ranger-yarn-plugin-properties' in services['configurations'] and 'REPOSITORY_CONFIG_USERNAME' in services['configurations']['ranger-yarn-plugin-properties']['properties']:
-      Logger.info("Setting Yarn Repo user for Ranger.")
+      self.logger.info("Setting Yarn Repo user for Ranger.")
       putRangerYarnPluginProperty = self.putProperty(configurations, "ranger-yarn-plugin-properties", services)
       putRangerYarnPluginProperty("REPOSITORY_CONFIG_USERNAME",yarn_user)
     else:
-      Logger.info("Not setting Yarn Repo user for Ranger.")
+      self.logger.info("Not setting Yarn Repo user for Ranger.")
 
 
     yarn_timeline_app_cache_size = None
@@ -354,17 +342,17 @@ class HDP26StackAdvisor(HDP25StackAdvisor):
       if host_mem is not None:
         yarn_timeline_app_cache_size = self.calculate_yarn_apptimelineserver_cache_size(host_mem)
         putYarnSiteProperty('yarn.timeline-service.entity-group-fs-store.app-cache-size', yarn_timeline_app_cache_size)
-        Logger.info("Updated YARN config 'yarn.timeline-service.entity-group-fs-store.app-cache-size' as : {0}, "
+        self.logger.info("Updated YARN config 'yarn.timeline-service.entity-group-fs-store.app-cache-size' as : {0}, "
                     "using 'host_mem' = {1}".format(yarn_timeline_app_cache_size, host_mem))
       else:
-        Logger.info("Couldn't update YARN config 'yarn.timeline-service.entity-group-fs-store.app-cache-size' as "
+        self.logger.info("Couldn't update YARN config 'yarn.timeline-service.entity-group-fs-store.app-cache-size' as "
                     "'host_mem' read = {0}".format(host_mem))
 
     if yarn_timeline_app_cache_size is not None:
       # Calculation for 'ats_heapsize' is in MB.
       ats_heapsize = self.calculate_yarn_apptimelineserver_heapsize(host_mem, yarn_timeline_app_cache_size)
       putYarnEnvProperty('apptimelineserver_heapsize', ats_heapsize) # Value in MB
-      Logger.info("Updated YARN config 'apptimelineserver_heapsize' as : {0}, ".format(ats_heapsize))
+      self.logger.info("Updated YARN config 'apptimelineserver_heapsize' as : {0}, ".format(ats_heapsize))
 
   """
   Calculate YARN config 'apptimelineserver_heapsize' in MB.
@@ -388,7 +376,7 @@ class HDP26StackAdvisor(HDP25StackAdvisor):
       yarn_timeline_app_cache_size = 7
     elif host_mem >= 8192:
       yarn_timeline_app_cache_size = 10
-    Logger.info("Calculated and returning 'yarn_timeline_app_cache_size' : {0}".format(yarn_timeline_app_cache_size))
+    self.logger.info("Calculated and returning 'yarn_timeline_app_cache_size' : {0}".format(yarn_timeline_app_cache_size))
     return yarn_timeline_app_cache_size
 
 
@@ -406,10 +394,10 @@ class HDP26StackAdvisor(HDP25StackAdvisor):
 
     if yarn_site_in_services and yarn_ats_app_cache_size_config in yarn_site_in_services:
       yarn_ats_app_cache_size = yarn_site_in_services[yarn_ats_app_cache_size_config]
-      Logger.info("'yarn.scheduler.minimum-allocation-mb' read from services as : {0}".format(yarn_ats_app_cache_size))
+      self.logger.info("'yarn.scheduler.minimum-allocation-mb' read from services as : {0}".format(yarn_ats_app_cache_size))
 
     if not yarn_ats_app_cache_size:
-      Logger.error("'{0}' was not found in the services".format(yarn_ats_app_cache_size_config))
+      self.logger.error("'{0}' was not found in the services".format(yarn_ats_app_cache_size_config))
 
     return yarn_ats_app_cache_size
 
@@ -520,11 +508,11 @@ class HDP26StackAdvisor(HDP25StackAdvisor):
       else:
          webapp_address = services["configurations"]["yarn-site"]["properties"]["yarn.timeline-service.webapp.https.address"]
          propertyValue = "https://"+webapp_address+"/ws/v1/applicationhistory"
-      Logger.info("validateYarnSiteConfigurations: recommended value for webservice url"+services["configurations"]["yarn-site"]["properties"]["yarn.log.server.web-service.url"])
+      self.logger.info("validateYarnSiteConfigurations: recommended value for webservice url"+services["configurations"]["yarn-site"]["properties"]["yarn.log.server.web-service.url"])
       if services["configurations"]["yarn-site"]["properties"]["yarn.log.server.web-service.url"] != propertyValue:
-         validationItems = [
+         validationItems.append(
               {"config-name": "yarn.log.server.web-service.url",
-               "item": self.getWarnItem("Value should be %s" % propertyValue)}]
+               "item": self.getWarnItem("Value should be %s" % propertyValue)})
       return self.toConfigurationValidationProblems(validationItems, "yarn-site")
 
   def validateDruidHistoricalConfigurations(self, properties, recommendedDefaults, configurations, services, hosts):
@@ -563,7 +551,7 @@ class HDP26StackAdvisor(HDP25StackAdvisor):
     tez_jvm_updated_opts = tez_jvm_opts + jvmGCParams + "{{heap_dump_opts}}"
     putTezProperty('tez.am.launch.cmd-opts', tez_jvm_updated_opts)
     putTezProperty('tez.task.launch.cmd-opts', tez_jvm_updated_opts)
-    Logger.info("Updated 'tez-site' config 'tez.task.launch.cmd-opts' and 'tez.am.launch.cmd-opts' as "
+    self.logger.info("Updated 'tez-site' config 'tez.task.launch.cmd-opts' and 'tez.am.launch.cmd-opts' as "
                 ": {0}".format(tez_jvm_updated_opts))
 
   def recommendRangerConfigurations(self, configurations, clusterData, services, hosts):
@@ -579,6 +567,28 @@ class HDP26StackAdvisor(HDP25StackAdvisor):
       putRangerUgsyncSite("ranger.usersync.group.searchenabled", "true")
     else:
       putRangerUgsyncSite("ranger.usersync.group.searchenabled", "false")
+
+    self.recommendRangerConfigurationsForSSO(configurations, clusterData, services, hosts)
+
+
+  def recommendRangerConfigurationsForSSO(self, configurations, clusterData, services, hosts):
+    ambari_configuration = self.get_ambari_configuration(services)
+    ambari_sso_details = ambari_configuration.get_ambari_sso_details() if ambari_configuration else None
+
+    if ambari_sso_details and ambari_sso_details.is_managing_services():
+      putRangerAdminSiteProperty = self.putProperty(configurations, "ranger-admin-site", services)
+
+      # If SSO should be enabled for this service, continue
+      if ambari_sso_details.should_enable_sso('RANGER'):
+        putRangerAdminSiteProperty('ranger.sso.enabled', "true")
+        putRangerAdminSiteProperty('ranger.sso.providerurl', ambari_sso_details.get_sso_provider_url())
+        putRangerAdminSiteProperty('ranger.sso.publicKey', ambari_sso_details.get_sso_provider_certificate(False, True))
+        putRangerAdminSiteProperty('ranger.sso.browser.useragent', 'Mozilla,chrome')
+
+      # If SSO should be disabled for this service
+      elif ambari_sso_details.should_disable_sso('RANGER'):
+        putRangerAdminSiteProperty('ranger.sso.enabled', "false")
+
 
   def validateRangerUsersyncConfigurations(self, properties, recommendedDefaults, configurations, services, hosts):
     ranger_usersync_properties = properties
@@ -630,11 +640,11 @@ class HDP26StackAdvisor(HDP25StackAdvisor):
       ranger_hdfs_plugin_enabled = False
 
     if ranger_hdfs_plugin_enabled and 'ranger-hdfs-plugin-properties' in services['configurations'] and 'REPOSITORY_CONFIG_USERNAME' in services['configurations']['ranger-hdfs-plugin-properties']['properties']:
-      Logger.info("Setting HDFS Repo user for Ranger.")
+      self.logger.info("Setting HDFS Repo user for Ranger.")
       putRangerHDFSPluginProperty = self.putProperty(configurations, "ranger-hdfs-plugin-properties", services)
       putRangerHDFSPluginProperty("REPOSITORY_CONFIG_USERNAME",hdfs_user)
     else:
-      Logger.info("Not setting HDFS Repo user for Ranger.")
+      self.logger.info("Not setting HDFS Repo user for Ranger.")
 
   def recommendHIVEConfigurations(self, configurations, clusterData, services, hosts):
     super(HDP26StackAdvisor, self).recommendHIVEConfigurations(configurations, clusterData, services, hosts)
@@ -654,11 +664,11 @@ class HDP26StackAdvisor(HDP25StackAdvisor):
       ranger_hive_plugin_enabled = False
 
     if ranger_hive_plugin_enabled and 'ranger-hive-plugin-properties' in services['configurations'] and 'REPOSITORY_CONFIG_USERNAME' in services['configurations']['ranger-hive-plugin-properties']['properties']:
-      Logger.info("Setting Hive Repo user for Ranger.")
+      self.logger.info("Setting Hive Repo user for Ranger.")
       putRangerHivePluginProperty = self.putProperty(configurations, "ranger-hive-plugin-properties", services)
       putRangerHivePluginProperty("REPOSITORY_CONFIG_USERNAME",hive_user)
     else:
-      Logger.info("Not setting Hive Repo user for Ranger.")
+      self.logger.info("Not setting Hive Repo user for Ranger.")
 
     security_enabled = self.isSecurityEnabled(services)
     enable_atlas_hook = False
@@ -681,51 +691,38 @@ class HDP26StackAdvisor(HDP25StackAdvisor):
     # druid is not in list of services to be installed
     servicesList = [service["StackServices"]["service_name"] for service in services["services"]]
     if 'DRUID' in servicesList:
-        putHiveInteractiveSiteProperty = self.putProperty(configurations, "hive-interactive-site", services)
-        if 'druid-coordinator' in services['configurations']:
-            component_hosts = self.getHostsWithComponent("DRUID", 'DRUID_COORDINATOR', services, hosts)
-            if component_hosts is not None and len(component_hosts) > 0:
-                # pick the first
-                host = component_hosts[0]
-            druid_coordinator_host_port = str(host['Hosts']['host_name']) + ":" + str(
-                services['configurations']['druid-coordinator']['properties']['druid.port'])
+      putHiveInteractiveSiteProperty = self.putProperty(configurations, "hive-interactive-site", services)
+
+      druid_coordinator_host_port = self.druid_host('DRUID_COORDINATOR', 'druid-coordinator', services, hosts, default_host='localhost:8081')
+      druid_broker_host_port = self.druid_host('DRUID_ROUTER', 'druid-router', services, hosts)
+      if druid_broker_host_port is None:
+        druid_broker_host_port = self.druid_host('DRUID_BROKER', 'druid-broker', services, hosts, default_host='localhost:8083')
+
+      druid_metadata_uri = ""
+      druid_metadata_user = ""
+      druid_metadata_type = ""
+      if 'druid-common' in services['configurations']:
+        druid_metadata_uri = services['configurations']['druid-common']['properties']['druid.metadata.storage.connector.connectURI']
+        druid_metadata_type = services['configurations']['druid-common']['properties']['druid.metadata.storage.type']
+        if 'druid.metadata.storage.connector.user' in services['configurations']['druid-common']['properties']:
+          druid_metadata_user = services['configurations']['druid-common']['properties']['druid.metadata.storage.connector.user']
         else:
-            druid_coordinator_host_port = "localhost:8081"
+          druid_metadata_user = ""
 
-        if 'druid-router' in services['configurations']:
-            component_hosts = self.getHostsWithComponent("DRUID", 'DRUID_ROUTER', services, hosts)
-            if component_hosts is not None and len(component_hosts) > 0:
-                # pick the first
-                host = component_hosts[0]
-            druid_broker_host_port = str(host['Hosts']['host_name']) + ":" + str(
-                services['configurations']['druid-router']['properties']['druid.port'])
-        elif 'druid-broker' in services['configurations']:
-            component_hosts = self.getHostsWithComponent("DRUID", 'DRUID_BROKER', services, hosts)
-            if component_hosts is not None and len(component_hosts) > 0:
-                # pick the first
-                host = component_hosts[0]
-            druid_broker_host_port = str(host['Hosts']['host_name']) + ":" + str(
-                services['configurations']['druid-broker']['properties']['druid.port'])
-        else:
-            druid_broker_host_port = "localhost:8083"
+      putHiveInteractiveSiteProperty('hive.druid.broker.address.default', druid_broker_host_port)
+      putHiveInteractiveSiteProperty('hive.druid.coordinator.address.default', druid_coordinator_host_port)
+      putHiveInteractiveSiteProperty('hive.druid.metadata.uri', druid_metadata_uri)
+      putHiveInteractiveSiteProperty('hive.druid.metadata.username', druid_metadata_user)
+      putHiveInteractiveSiteProperty('hive.druid.metadata.db.type', druid_metadata_type)
 
-        druid_metadata_uri = ""
-        druid_metadata_user = ""
-        druid_metadata_type = ""
-        if 'druid-common' in services['configurations']:
-            druid_metadata_uri = services['configurations']['druid-common']['properties']['druid.metadata.storage.connector.connectURI']
-            druid_metadata_type = services['configurations']['druid-common']['properties']['druid.metadata.storage.type']
-            if 'druid.metadata.storage.connector.user' in services['configurations']['druid-common']['properties']:
-                druid_metadata_user = services['configurations']['druid-common']['properties']['druid.metadata.storage.connector.user']
-            else:
-                druid_metadata_user = ""
-
-        putHiveInteractiveSiteProperty('hive.druid.broker.address.default', druid_broker_host_port)
-        putHiveInteractiveSiteProperty('hive.druid.coordinator.address.default', druid_coordinator_host_port)
-        putHiveInteractiveSiteProperty('hive.druid.metadata.uri', druid_metadata_uri)
-        putHiveInteractiveSiteProperty('hive.druid.metadata.username', druid_metadata_user)
-        putHiveInteractiveSiteProperty('hive.druid.metadata.db.type', druid_metadata_type)
-
+  def druid_host(self, component_name, config_type, services, hosts, default_host=None):
+    hosts = self.getHostsWithComponent('DRUID', component_name, services, hosts)
+    if hosts and config_type in services['configurations']:
+      host = hosts[0]['Hosts']['host_name']
+      port = services['configurations'][config_type]['properties']['druid.port']
+      return "%s:%s" % (host, port)
+    else:
+      return default_host
 
   def recommendHBASEConfigurations(self, configurations, clusterData, services, hosts):
     super(HDP26StackAdvisor, self).recommendHBASEConfigurations(configurations, clusterData, services, hosts)
@@ -742,11 +739,11 @@ class HDP26StackAdvisor(HDP25StackAdvisor):
       ranger_hbase_plugin_enabled = False
 
     if ranger_hbase_plugin_enabled and 'ranger-hbase-plugin-properties' in services['configurations'] and 'REPOSITORY_CONFIG_USERNAME' in services['configurations']['ranger-hbase-plugin-properties']['properties']:
-      Logger.info("Setting Hbase Repo user for Ranger.")
+      self.logger.info("Setting Hbase Repo user for Ranger.")
       putRangerHbasePluginProperty = self.putProperty(configurations, "ranger-hbase-plugin-properties", services)
       putRangerHbasePluginProperty("REPOSITORY_CONFIG_USERNAME",hbase_user)
     else:
-      Logger.info("Not setting Hbase Repo user for Ranger.")
+      self.logger.info("Not setting Hbase Repo user for Ranger.")
 
   def recommendKAFKAConfigurations(self, configurations, clusterData, services, hosts):
     super(HDP26StackAdvisor, self).recommendKAFKAConfigurations(configurations, clusterData, services, hosts)
@@ -763,11 +760,11 @@ class HDP26StackAdvisor(HDP25StackAdvisor):
       ranger_kafka_plugin_enabled = False
 
     if ranger_kafka_plugin_enabled and 'ranger-kafka-plugin-properties' in services['configurations'] and 'REPOSITORY_CONFIG_USERNAME' in services['configurations']['ranger-kafka-plugin-properties']['properties']:
-      Logger.info("Setting Kafka Repo user for Ranger.")
+      self.logger.info("Setting Kafka Repo user for Ranger.")
       putRangerKafkaPluginProperty = self.putProperty(configurations, "ranger-kafka-plugin-properties", services)
       putRangerKafkaPluginProperty("REPOSITORY_CONFIG_USERNAME",kafka_user)
     else:
-      Logger.info("Not setting Kafka Repo user for Ranger.")
+      self.logger.info("Not setting Kafka Repo user for Ranger.")
 
   def __addZeppelinToLivy2SuperUsers(self, configurations, services):
     """

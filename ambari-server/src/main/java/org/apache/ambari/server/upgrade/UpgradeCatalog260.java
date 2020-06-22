@@ -151,6 +151,7 @@ public class UpgradeCatalog260 extends AbstractUpgradeCatalog {
   // Used to track whether YARN -> NODEMANAGER -> 'llap_zk_hive' kerberos descriptor was updated or not.
   private List<String> yarnKerberosDescUpdatedList = new ArrayList<>();
 
+
   /**
    * Logger.
    */

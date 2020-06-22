@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,19 +19,19 @@
 
 package org.apache.ambari.server.state.host;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.ambari.server.agent.AgentEnv;
 import org.apache.ambari.server.agent.DiskInfo;
 import org.apache.ambari.server.state.HostEvent;
 import org.apache.ambari.server.state.HostEventType;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class HostHealthyHeartbeatEvent extends HostEvent {
 
   private final long heartbeatTime;
   private AgentEnv agentEnv = null;
-  private List<DiskInfo> mounts = new ArrayList<DiskInfo>();;
+  private List<DiskInfo> mounts = new ArrayList<>();;
 
   public HostHealthyHeartbeatEvent(String hostName, long heartbeatTime, AgentEnv env, List<DiskInfo> mounts) {
     super(hostName, HostEventType.HOST_HEARTBEAT_HEALTHY);

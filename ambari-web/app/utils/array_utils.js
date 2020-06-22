@@ -20,7 +20,7 @@ function _parseId(id) {
   return id.replace(/[^\d|\.]/g, '').split('.').map(function (i) {return parseInt(i, 10);});
 }
 
-var flatten = function(list) {return list.reduce(function(a, b) {return a.concat(Array.isArray(b) ? flatten(b) : b)}, [])};
+const flatten = (list) => list.reduce((a, b) => a.concat(Array.isArray(b) ? flatten(b) : b), []);
 
 module.exports = {
   /**
@@ -87,6 +87,6 @@ module.exports = {
     return lId1 > lId2 ? 1 : -1;
   },
 
-  flatten: flatten
+  flatten
 
 };

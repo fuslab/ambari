@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,8 +17,15 @@
  */
 package org.apache.ambari.server.controller.metrics.timeline.cache;
 
+import static net.sf.ehcache.config.PersistenceConfiguration.Strategy;
+
+import org.apache.ambari.server.configuration.Configuration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+
 import net.sf.ehcache.Cache;
 import net.sf.ehcache.CacheManager;
 import net.sf.ehcache.config.CacheConfiguration;
@@ -26,12 +33,6 @@ import net.sf.ehcache.config.PersistenceConfiguration;
 import net.sf.ehcache.config.SizeOfPolicyConfiguration;
 import net.sf.ehcache.config.SizeOfPolicyConfiguration.MaxDepthExceededBehavior;
 import net.sf.ehcache.store.MemoryStoreEvictionPolicy;
-import org.apache.ambari.server.configuration.Configuration;
-import org.apache.commons.lang.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import static net.sf.ehcache.config.PersistenceConfiguration.*;
 
 /**
  * Cache implementation that provides ability to perform incremental reads

@@ -18,11 +18,10 @@
 
 
 var App = require('app');
-var persistUtils = require('utils/persist');
 
 require('models/host');
 
-App.WizardController = Em.Controller.extend(App.LocalStorage, App.ThemesMappingMixin, App.Persist, {
+App.WizardController = Em.Controller.extend(App.LocalStorage, App.ThemesMappingMixin, {
 
   isStepDisabled: null,
 
@@ -239,9 +238,11 @@ App.WizardController = Em.Controller.extend(App.LocalStorage, App.ThemesMappingM
     if (this.get('isStepDisabled').findProperty('step', step).get('value') !== false) {
       return false;
     }
+    var currentStep = this.get('currentStep');
+    var currentControllerName = this.get('content.controllerName');
     // if going back from Step 9 in Install Wizard, delete the checkpoint so that the user is not redirected
     // to Step 9
-    if (this.get('content.controllerName') === 'installerController' && this.get('currentStep') === '9' && step < 9) {
+    if (currentControllerName === 'installerController' && currentStep === '9' && step < 9) {
       App.clusterStatus.setClusterStatus({
         clusterName: this.get('clusterName'),
         clusterState: 'CLUSTER_NOT_CREATED_1',
@@ -249,7 +250,12 @@ App.WizardController = Em.Controller.extend(App.LocalStorage, App.ThemesMappingM
         localdb: {}
       });
     }
-    if ((this.get('currentStep') - step) > 1 && !disableNaviWarning) {
+    var isCustomizeServicesStep = false;
+    if ((currentControllerName === 'installerController' && currentStep === '7') || ((currentControllerName === 'addServiceController'|| currentControllerName === 'addHostController' ) && currentStep === '4')) {
+      isCustomizeServicesStep = true;
+    }
+    var stepDiff = currentStep - step;
+    if (!disableNaviWarning && (stepDiff  > 1 || (isCustomizeServicesStep && stepDiff > 0))) {
       App.ModalPopup.show({
         header: Em.I18n.t('installer.navigation.warning.header'),
         onPrimary: function () {
@@ -315,11 +321,13 @@ App.WizardController = Em.Controller.extend(App.LocalStorage, App.ThemesMappingM
 
     var hostInfo = this.getDBProperty('hosts');
     for (var index in hostInfo) {
-      hostInfo[index].status = "pending";
-      hostInfo[index].message = 'Waiting';
-      hostInfo[index].logTasks = [];
-      hostInfo[index].tasks = [];
-      hostInfo[index].progress = '0';
+      if (hostInfo.hasOwnProperty(index)) {
+        hostInfo[index].status = "pending";
+        hostInfo[index].message = 'Waiting';
+        hostInfo[index].logTasks = [];
+        hostInfo[index].tasks = [];
+        hostInfo[index].progress = '0';
+      }
     }
     this.setDBProperty('hosts', hostInfo);
   },
@@ -637,9 +645,7 @@ App.WizardController = Em.Controller.extend(App.LocalStorage, App.ThemesMappingM
     this.set('content.selectedServiceNames', savedSelectedServices);
     this.set('content.installedServiceNames', savedInstalledServices);
     if (!savedSelectedServices) {
-      jsonData.items.forEach(function (service) {
-        service.StackServices.is_selected = !(service.StackServices.selection === "TECH_PREVIEW");
-      }, this);
+      jsonData.items.forEach(this.setStackServiceSelectedByDefault);
     } else {
       jsonData.items.forEach(function (service) {
         service.StackServices.is_selected = savedSelectedServices.contains(service.StackServices.service_name);
@@ -660,6 +666,16 @@ App.WizardController = Em.Controller.extend(App.LocalStorage, App.ThemesMappingM
   },
 
   loadServiceComponentsErrorCallback: function (request, ajaxOptions, error) {
+  },
+  
+  /**
+   * @param {object} service
+   */
+  setStackServiceSelectedByDefault: function (service) {
+    service.StackServices.is_selected = !(service.StackServices.selection === "TECH_PREVIEW");
+    if (service.StackServices.service_type === 'HCFS' && service.StackServices.service_name !== 'HDFS') {
+      service.StackServices.is_selected = false;
+    }
   },
 
   /**
@@ -859,7 +875,10 @@ App.WizardController = Em.Controller.extend(App.LocalStorage, App.ThemesMappingM
     var interval = setInterval(function () {
       if (miscController.get('dataIsLoaded')) {
         if (self.get("content.hdfsUser")) {
-          self.set('content.hdfsUser', miscController.get('content.hdfsUser'));
+          var hdfsUser = miscController.get('users').filterProperty('filename', 'hadoop-env.xml').findProperty('name','hdfs_user');
+          if (hdfsUser) {
+            self.set('content.hdfsUser', hdfsUser.get('value'));
+          }
         }
         dfd.resolve();
         clearInterval(interval);
@@ -883,26 +902,45 @@ App.WizardController = Em.Controller.extend(App.LocalStorage, App.ThemesMappingM
   },
 
   /**
-   * Load serviceConfigProperties from persist
-   * @return {$.Deferred}
+   * Load serviceConfigProperties from localStorage
    */
   loadServiceConfigProperties: function () {
-    var dfd = $.Deferred();
-    var self = this;
-    this.getPersistentProperty('serviceConfigProperties').always(function(data) {
-      if (data && !data.error) {
-        self.set('content.serviceConfigProperties', data);
-      }
-      dfd.resolve();
-    });
-    return dfd.promise();
+    var stackConfigs = App.configsCollection.getAll();
+    var serviceConfigProperties = this.getDBProperty('serviceConfigProperties');
+    this.set('content.serviceConfigProperties', this.applyStoredConfigs(stackConfigs, serviceConfigProperties));
   },
+
+  /**
+   *
+   * @param {array} configs
+   * @param {?array} storedConfigs
+   * @returns {?array}
+   */
+  applyStoredConfigs: function(configs, storedConfigs) {
+    if (storedConfigs && storedConfigs.length) {
+      let result = [];
+      let configsMap = configs.toMapByProperty('id');
+      storedConfigs.forEach(function(stored) {
+        var config = configsMap[stored.id];
+        if (config) {
+          result.push(Object.assign({}, config, stored, {savedValue: null}));
+        } else if (stored.isUserProperty) {
+          result.push(Object.assign({}, stored));
+        }
+      });
+      return result;
+    }
+    return storedConfigs;
+  },
+
   /**
    * Save config properties
    * @param stepController Step7WizardController
    */
   saveServiceConfigProperties: function (stepController) {
     var serviceConfigProperties = [];
+    // properties in db should contain only mutable info to avoid localStorage overflow
+    var dbConfigProperties = [];
     var fileNamesToUpdate = this.getDBProperty('fileNamesToUpdate') || [];
     var installedServiceNames = stepController.get('installedServiceNames') || [];
     var installedServiceNamesMap = installedServiceNames.toWickMap();
@@ -923,9 +961,19 @@ App.WizardController = Em.Controller.extend(App.LocalStorage, App.ThemesMappingM
         );
         configProperty = App.config.mergeStaticProperties(configProperty, _configProperties, [], ['name', 'filename', 'isUserProperty', 'value']);
 
+        var dbConfigProperty = {
+          id: _configProperties.get('id'),
+          value: _configProperties.get('value'),
+          isFinal: _configProperties.get('isFinal')
+        };
+        if (_configProperties.get('isUserProperty') || _configProperties.get('filename') === 'capacity-scheduler.xml') {
+          dbConfigProperty = configProperty;
+        }
         if (this.isExcludedConfig(configProperty)) {
           configProperty.value = '';
+          dbConfigProperty.value = '';
         }
+        dbConfigProperties.push(dbConfigProperty);
         serviceConfigProperties.push(configProperty);
       }, this);
       // check for configs that need to update for installed services
@@ -944,8 +992,10 @@ App.WizardController = Em.Controller.extend(App.LocalStorage, App.ThemesMappingM
       }
     }, this);
     this.set('content.serviceConfigProperties', serviceConfigProperties);
-    this.setDBProperty('fileNamesToUpdate', fileNamesToUpdate);
-    return this.setPersistentProperty('serviceConfigProperties', serviceConfigProperties);
+    this.setDBProperties({
+      fileNamesToUpdate: fileNamesToUpdate,
+      serviceConfigProperties: dbConfigProperties
+    });
   },
 
   isExcludedConfig: function (configProperty) {
@@ -1399,7 +1449,7 @@ App.WizardController = Em.Controller.extend(App.LocalStorage, App.ThemesMappingM
 
   clearServiceConfigProperties: function() {
     this.get('content.serviceConfigProperties', null);
-    return this.removePersistentProperty('serviceConfigProperties');
+    return this.setDBProperty('serviceConfigProperties', null);
   },
 
   saveTasksStatuses: function (tasksStatuses) {
@@ -1450,6 +1500,15 @@ App.WizardController = Em.Controller.extend(App.LocalStorage, App.ThemesMappingM
     return App.get('router.configurationController').loadFromServer([{'siteName': 'hadoop-env'}]);
   },
 
+  loadKerberosDescriptorConfigs: function () {
+    var kerberosDescriptorConfigs = this.getDBProperty('kerberosDescriptorConfigs');
+    this.set('kerberosDescriptorConfigs', kerberosDescriptorConfigs);
+  },
+
+  saveKerberosDescriptorConfigs: function (kerberosDescriptorConfigs) {
+    this.setDBProperty('kerberosDescriptorConfigs', kerberosDescriptorConfigs);
+    this.set('kerberosDescriptorConfigs', kerberosDescriptorConfigs);
+  },
   /**
    * reset stored wizard data and reload App
    * @param {App.WizardController} controller - wizard controller
@@ -1473,5 +1532,18 @@ App.WizardController = Em.Controller.extend(App.LocalStorage, App.ThemesMappingM
         });
       }
     });
+  },
+
+  /**
+   * Replace placeholders for config properties which have dynamic names/values with actual data
+   * @param value
+   * @param dependencies
+   * @returns {*}
+     */
+  replaceDependencies: function (value, dependencies) {
+    Em.keys(dependencies).forEach(function (key) {
+      value = value.replace(new RegExp('{{' + key + '}}', 'g'), dependencies[key]);
+    });
+    return value;
   }
 });

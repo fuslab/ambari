@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,10 +17,20 @@
  */
 package org.apache.ambari.server.orm.dao;
 
-import com.google.inject.Guice;
-import com.google.inject.Injector;
-import org.apache.ambari.server.controller.internal.StageResourceProvider;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+
+import org.apache.ambari.server.AmbariException;
+import org.apache.ambari.server.H2DatabaseCleaner;
 import org.apache.ambari.server.controller.internal.SortRequestImpl;
+import org.apache.ambari.server.controller.internal.StageResourceProvider;
 import org.apache.ambari.server.controller.spi.Predicate;
 import org.apache.ambari.server.controller.spi.Request;
 import org.apache.ambari.server.controller.spi.SortRequest;
@@ -36,17 +46,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-
-import org.apache.ambari.server.AmbariException;
-import org.apache.ambari.server.H2DatabaseCleaner;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
 
 /**
  * StageDAO tests.
@@ -123,7 +124,7 @@ public class StageDAOTest {
    */
   @Test
   public void testStageSorting() throws Exception {
-    List<SortRequestProperty> sortProperties = new ArrayList<SortRequestProperty>();
+    List<SortRequestProperty> sortProperties = new ArrayList<>();
     SortRequest sortRequest = new SortRequestImpl(sortProperties);
 
     Predicate predicate = new PredicateBuilder().property(
@@ -133,7 +134,7 @@ public class StageDAOTest {
     sortProperties.add(new SortRequestProperty(
         StageResourceProvider.STAGE_LOG_INFO, SortRequest.Order.ASC));
 
-    Request request = PropertyHelper.getReadRequest(new HashSet<String>(Arrays.<String>asList()),
+    Request request = PropertyHelper.getReadRequest(new HashSet<>(Arrays.asList()),
         null, null, null, sortRequest);
 
     // get back all 5

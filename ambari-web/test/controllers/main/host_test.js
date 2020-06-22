@@ -35,21 +35,6 @@ describe('MainHostController', function () {
     hostController.destroy();
   });
 
-  describe("#totalCount()", function () {
-
-    it("TOTAL is undefined", function () {
-      hostController.set('hostsCountMap', {});
-      hostController.propertyDidChange('totalCount');
-      expect(hostController.get('totalCount')).to.be.equal(0);
-    });
-
-    it("TOTAL is 1", function () {
-      hostController.set('hostsCountMap', {TOTAL: 1});
-      hostController.propertyDidChange('totalCount');
-      expect(hostController.get('totalCount')).to.be.equal(1);
-    });
-  });
-
   describe('#getRegExp()', function () {
     var message = '`{0}` should convert to `{1}`',
       tests = [
@@ -128,50 +113,6 @@ describe('MainHostController', function () {
       expect(db.mainHostController).to.eql([{name: 'hostName', status: 'sorting_asc'}]);
     });
 
-  });
-
-  describe("#updateStatusCounters()", function() {
-
-    it("isCountersUpdating is false", function() {
-      hostController.set('isCountersUpdating', false);
-      hostController.updateStatusCounters();
-      expect(testHelpers.findAjaxRequest('name', 'host.status.counters')).to.be.undefined;
-    });
-
-    it("isCountersUpdating is true", function() {
-      hostController.set('isCountersUpdating', true);
-      hostController.updateStatusCounters();
-      expect(testHelpers.findAjaxRequest('name', 'host.status.counters')).to.be.exist;
-    });
-  });
-
-  describe("#updateStatusCountersSuccessCallback()", function() {
-    var data = {
-      Clusters: {
-        health_report: {
-          'Host/host_status/HEALTHY': 1,
-          'Host/host_status/UNHEALTHY': 2,
-          'Host/host_status/ALERT': 3,
-          'Host/host_status/UNKNOWN': 4,
-          'Host/stale_config': 5,
-          'Host/maintenance_state': 6
-        },
-        total_hosts: 21
-      }
-    };
-
-    it("hostsCountMap should be set", function() {
-      hostController.updateStatusCountersSuccessCallback(data);
-      expect(hostController.get('hostsCountMap')).to.be.eql({
-        "HEALTHY": 1,
-        "UNHEALTHY": 2,
-        "ALERT": 3,
-        "UNKNOWN": 4,
-        "health-status-RESTART": 5,
-        "health-status-PASSIVE_STATE": 6,
-        "TOTAL": 21
-      });
-    });
   });
 
   describe("#getProperValue()", function() {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,10 +18,6 @@
 
 package org.apache.ambari.server.api.services;
 
-import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.UriInfo;
-
 import static org.easymock.EasyMock.createMock;
 import static org.easymock.EasyMock.createNiceMock;
 import static org.easymock.EasyMock.createStrictMock;
@@ -30,15 +26,18 @@ import static org.easymock.EasyMock.replay;
 import static org.easymock.EasyMock.verify;
 import static org.junit.Assert.assertEquals;
 
-import com.sun.jersey.core.util.MultivaluedMapImpl;
-import org.apache.ambari.server.api.resources.ResourceDefinition;
-import org.apache.ambari.server.api.resources.ResourceInstance;
-import org.junit.Test;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.MultivaluedMap;
+import javax.ws.rs.core.UriInfo;
+
+import org.apache.ambari.server.api.resources.ResourceDefinition;
+import org.apache.ambari.server.api.resources.ResourceInstance;
+import org.junit.Test;
 
 /**
  * RequestFactory unit tests.
@@ -56,7 +55,7 @@ public class RequestFactoryTest {
 
     //expectations
     expect(uriInfo.getQueryParameters()).andReturn(mapQueryParams).anyTimes();
-    expect(mapQueryParams.entrySet()).andReturn(Collections.<Map.Entry<String, List<String>>>emptySet()).anyTimes();
+    expect(mapQueryParams.entrySet()).andReturn(Collections.emptySet()).anyTimes();
     expect(body.getQueryString()).andReturn(null);
 
     replay(headers, uriInfo, body, resource, mapQueryParams);
@@ -82,7 +81,7 @@ public class RequestFactoryTest {
     ResourceDefinition resourceDefinition = createNiceMock(ResourceDefinition.class);
     @SuppressWarnings("unchecked")
     MultivaluedMap<String, String> mapQueryParams = createMock(MultivaluedMap.class);
-    Map<String, List<String>> mapProps = new HashMap<String, List<String>>();
+    Map<String, List<String>> mapProps = new HashMap<>();
     mapProps.put("foo", Collections.singletonList("bar"));
 
 
@@ -90,7 +89,7 @@ public class RequestFactoryTest {
     expect(uriInfo.getQueryParameters()).andReturn(mapQueryParams).anyTimes();
     expect(mapQueryParams.entrySet()).andReturn(mapProps.entrySet()).anyTimes();
     expect(resource.getResourceDefinition()).andReturn(resourceDefinition).anyTimes();
-    expect(resourceDefinition.getCreateDirectives()).andReturn(Collections.<String>emptySet());
+    expect(resourceDefinition.getCreateDirectives()).andReturn(Collections.emptySet());
     expect(body.getQueryString()).andReturn(null);
 
     replay(headers, uriInfo, body, resource, mapQueryParams, resourceDefinition);
@@ -117,10 +116,10 @@ public class RequestFactoryTest {
 
     @SuppressWarnings("unchecked")
     MultivaluedMap<String, String> mapQueryParams = createMock(MultivaluedMap.class);
-    Map<String, List<String>> mapProps = new HashMap<String, List<String>>();
+    Map<String, List<String>> mapProps = new HashMap<>();
     mapProps.put("foo", Collections.singletonList("bar"));
 
-    Map<String, String> requestInfoMap = new HashMap<String, String>();
+    Map<String, String> requestInfoMap = new HashMap<>();
 
     //expectations
     expect(uriInfo.getQueryParameters()).andReturn(mapQueryParams).anyTimes();
@@ -155,10 +154,10 @@ public class RequestFactoryTest {
 
     @SuppressWarnings("unchecked")
     MultivaluedMap<String, String> mapQueryParams = createMock(MultivaluedMap.class);
-    Map<String, List<String>> mapProps = new HashMap<String, List<String>>();
+    Map<String, List<String>> mapProps = new HashMap<>();
     mapProps.put("foo", Collections.singletonList("bar"));
 
-    Map<String, String> requestInfoMap = new HashMap<String, String>();
+    Map<String, String> requestInfoMap = new HashMap<>();
 
     //expectations
     expect(uriInfo.getQueryParameters()).andReturn(mapQueryParams).anyTimes();
@@ -240,7 +239,7 @@ public class RequestFactoryTest {
     expect(uriInfo.getQueryParameters()).andReturn(mapQueryParams).anyTimes();
     expect(mapQueryParams.entrySet()).andReturn(mapProps.entrySet()).anyTimes();
     expect(resource.getResourceDefinition()).andReturn(resourceDefinition).anyTimes();
-    expect(resourceDefinition.getDeleteDirectives()).andReturn(Collections.<String>emptySet());
+    expect(resourceDefinition.getDeleteDirectives()).andReturn(Collections.emptySet());
     expect(body.getQueryString()).andReturn(null);
     expect(body.getRequestInfoProperties()).andReturn(requestInfoMap).anyTimes();
 
@@ -270,9 +269,9 @@ public class RequestFactoryTest {
 
     //expectations
     expect(uriInfo.getQueryParameters()).andReturn(mapQueryParams).anyTimes();
-    expect(mapQueryParams.entrySet()).andReturn(Collections.<Map.Entry<String, List<String>>>emptySet()).anyTimes();
+    expect(mapQueryParams.entrySet()).andReturn(Collections.emptySet()).anyTimes();
     expect(resource.getResourceDefinition()).andReturn(resourceDefinition).anyTimes();
-    expect(resourceDefinition.getCreateDirectives()).andReturn(Collections.<String>emptySet());
+    expect(resourceDefinition.getCreateDirectives()).andReturn(Collections.emptySet());
     expect(body.getQueryString()).andReturn("foo=bar");
 
     replay(headers, uriInfo, body, resource, mapQueryParams, resourceDefinition);
@@ -299,14 +298,14 @@ public class RequestFactoryTest {
 
     @SuppressWarnings("unchecked")
     MultivaluedMap<String, String> mapQueryParams = createMock(MultivaluedMap.class);
-    Map<String, List<String>> mapProps = new HashMap<String, List<String>>();
+    Map<String, List<String>> mapProps = new HashMap<>();
     mapProps.put("foo", Collections.singletonList("bar"));
 
-    Map<String, String> requestInfoMap = new HashMap<String, String>();
+    Map<String, String> requestInfoMap = new HashMap<>();
 
     //expectations
     expect(uriInfo.getQueryParameters()).andReturn(mapQueryParams).anyTimes();
-    expect(mapQueryParams.entrySet()).andReturn(Collections.<Map.Entry<String, List<String>>>emptySet()).anyTimes();
+    expect(mapQueryParams.entrySet()).andReturn(Collections.emptySet()).anyTimes();
     expect(resource.getResourceDefinition()).andReturn(resourceDefinition).anyTimes();
     expect(resourceDefinition.getCreateDirectives()).andReturn(Collections.singleton("foo"));
     expect(body.getQueryString()).andReturn("foo=bar");
@@ -337,10 +336,10 @@ public class RequestFactoryTest {
 
     @SuppressWarnings("unchecked")
     MultivaluedMap<String, String> mapQueryParams = createMock(MultivaluedMap.class);
-    Map<String, List<String>> mapProps = new HashMap<String, List<String>>();
+    Map<String, List<String>> mapProps = new HashMap<>();
     mapProps.put("foo", Collections.singletonList("bar"));
 
-    Map<String, String> requestInfoMap = new HashMap<String, String>();
+    Map<String, String> requestInfoMap = new HashMap<>();
 
     //expectations
     expect(uriInfo.getQueryParameters()).andReturn(mapQueryParams).anyTimes();

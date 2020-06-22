@@ -84,6 +84,7 @@ public class UpgradeCatalogTest {
       catalogBinder.addBinding().to(UpgradeCatalog201.class);
       catalogBinder.addBinding().to(UpgradeCatalog251.class);
       catalogBinder.addBinding().to(UpgradeCatalog252.class);
+      catalogBinder.addBinding().to(UpgradeCatalog270.class);
     }
   }
 
@@ -113,7 +114,7 @@ public class UpgradeCatalogTest {
     Set<UpgradeCatalog> upgradeCatalogSet = schemaUpgradeHelper.getAllUpgradeCatalogs();
 
     Assert.assertNotNull(upgradeCatalogSet);
-    Assert.assertEquals(3, upgradeCatalogSet.size());
+    Assert.assertEquals(4, upgradeCatalogSet.size());
 
     List<UpgradeCatalog> upgradeCatalogs = schemaUpgradeHelper.getUpgradePath(null, "2.5.1");
 

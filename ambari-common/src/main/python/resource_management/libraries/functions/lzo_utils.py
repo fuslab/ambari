@@ -42,43 +42,35 @@ def get_lzo_packages():
   elif OSCheck.is_ubuntu_family():
     lzo_packages += ["liblzo2-2"]
 
-  if OSCheck.is_ubuntu_family():
-    lzo_packages += [script_instance.format_package_name("hadooplzo-${stack_version}") ,
-                     script_instance.format_package_name("hadooplzo-${stack_version}-native")]
-  else:
-    lzo_packages += [script_instance.format_package_name("hadooplzo_${stack_version}"),
-                     script_instance.format_package_name("hadooplzo_${stack_version}-native")]
-    
+
+  stack_version_unformatted = stack_features.get_stack_feature_version(Script.get_config()) # only used to check stack_feature, NOT as package version!
+  if stack_version_unformatted and check_stack_feature(StackFeature.ROLLING_UPGRADE, stack_version_unformatted):
+    if OSCheck.is_ubuntu_family():
+      lzo_packages += [script_instance.format_package_name("hadooplzo-${stack_version}") ,
+                       script_instance.format_package_name("hadooplzo-${stack_version}-native")]
+    else:
+      lzo_packages += [script_instance.format_package_name("hadooplzo_${stack_version}"),
+                       script_instance.format_package_name("hadooplzo_${stack_version}-native")]
+
   return lzo_packages
 
 def is_gpl_license_accepted():
-  return default("/hostLevelParams/gpl_license_accepted", False)
+  return default("/ambariLevelParams/gpl_license_accepted", False)
 
 def should_install_lzo():
   """
   Return true if lzo is enabled via core-site.xml and GPL license (required for lzo) is accepted.
   """
   config = Script.get_config()
+  io_compression_codecs = default("/configurations/core-site/io.compression.codecs", None)
+  lzo_enabled = io_compression_codecs is not None and "com.hadoop.compression.lzo" in io_compression_codecs.lower()
 
-  stack_version_unformatted = stack_features.get_stack_feature_version(config)
-  if check_stack_feature(StackFeature.LZO, stack_version_unformatted):
-    io_compression_codecs = default("/configurations/core-site/io.compression.codecs", None)
-    lzo_enabled = io_compression_codecs is not None and "com.hadoop.compression.lzo" in io_compression_codecs.lower()
+  if not lzo_enabled:
+    return False
 
-    if not lzo_enabled:
-      return False
-
-    if not is_gpl_license_accepted():
-      Logger.warning(INSTALLING_LZO_WITHOUT_GPL)
-      return False
-    
-    # happens for autostart commands
-    if not 'repositoryFile' in config:
-      Logger.warning("Cannot download lzo packages, since repositories are not provided.")
-      return False
-  else:
-    Logger.info("This stack does not indicate that it supports LZO installation.")
-    return False # No LZO support
+  if not is_gpl_license_accepted():
+    Logger.warning(INSTALLING_LZO_WITHOUT_GPL)
+    return False
 
   return True
 
@@ -87,7 +79,7 @@ def skip_package_operations():
   Return true if LZO packages are assumed to be pre-installed
   Needs to be separate from should_install_lzo, as that one is used during tarball creation, too
   """
-  return default("/hostLevelParams/host_sys_prepped", False) and default("/configurations/cluster-env/sysprep_skip_lzo_package_operations", False)
+  return default("/ambariLevelParams/host_sys_prepped", False) and default("/configurations/cluster-env/sysprep_skip_lzo_package_operations", False)
 
 def install_lzo_if_needed():
   """
@@ -106,8 +98,8 @@ def install_lzo_if_needed():
   lzo_packages = get_lzo_packages()
 
   config = Script.get_config()
-  agent_stack_retry_on_unavailability = config['hostLevelParams']['agent_stack_retry_on_unavailability']
-  agent_stack_retry_count = expect("/hostLevelParams/agent_stack_retry_count", int)
+  agent_stack_retry_on_unavailability = config['ambariLevelParams']['agent_stack_retry_on_unavailability']
+  agent_stack_retry_count = expect("/ambariLevelParams/agent_stack_retry_count", int)
 
   Package(lzo_packages,
           retry_on_repo_unavailability=agent_stack_retry_on_unavailability,

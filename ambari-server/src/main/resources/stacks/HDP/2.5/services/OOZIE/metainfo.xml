@@ -25,6 +25,12 @@
         <enabled>true</enabled>
       </credential-store>
       <extends>common-services/OOZIE/4.2.0.2.5</extends>
+      <themes>
+        <theme>
+          <fileName>theme.json</fileName>
+          <default>true</default>
+        </theme>
+      </themes>
     </service>
   </services>
 </metainfo>

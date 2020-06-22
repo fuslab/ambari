@@ -29,13 +29,13 @@
   </property>
   <property>
     <name>logfeeder.checkpoint.folder</name>
-    <value>/etc/ambari-logsearch-logfeeder/conf/checkpoints</value>
+    <value>/usr/lib/ambari-logsearch-logfeeder/conf/checkpoints</value>
     <description>Checkpoint folder for Log Feeder</description>
     <display-name>Log Feeder checkpoint dir</display-name>
     <value-attributes>
       <type>directory</type>
     </value-attributes>
-    <on-ambari-upgrade add="true"/>
+    <on-ambari-upgrade add="true" update="true"/>
   </property>
   <property>
     <name>logfeeder.metrics.collector.hosts</name>
@@ -61,6 +61,18 @@
     <display-name>Fetch Solr config interval</display-name>
     <value-attributes>
       <type>int</type>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+  <property>
+    <name>logfeeder.solr.implicit.routing</name>
+    <value>false</value>
+    <description>
+      Use implicit routing for Solr Collections.
+    </description>
+    <display-name>Log Feeder Solr implicit routing</display-name>
+    <value-attributes>
+      <type>boolean</type>
     </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
@@ -118,6 +130,16 @@
       Key field, which will be used as keys in the Input cache. (by defalt, log_message represets the message part of processed data)
     </description>
     <display-name>Input cache key field</display-name>
+    <on-ambari-upgrade add="true"/>
+  </property>
+  <property>
+    <name>logfeeder.include.default.level</name>
+    <value>FATAL,ERROR,WARN</value>
+    <description>Include default Log Feeder Log Levels for Log Search. Used for bootstrapping the configuration only. (levels: FATAL,ERROR,WARN,INFO,DEBUG,TRACE)</description>
+    <display-name>Log Feeder Log Levels</display-name>
+    <value-attributes>
+      <editable-only-at-install>true</editable-only-at-install>
+    </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
 </configuration>

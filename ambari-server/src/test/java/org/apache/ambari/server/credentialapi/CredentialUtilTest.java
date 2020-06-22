@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,18 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.ambari.server.credentialapi;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.util.ToolRunner;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-
-import org.junit.rules.TemporaryFolder;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -36,6 +25,16 @@ import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Properties;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.util.ToolRunner;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+
 
 /**
  * Tests CredentialUtilTest.
@@ -95,7 +94,7 @@ public class CredentialUtilTest {
    * @return
    */
   private String[] getCreateArgs(String alias, String credential, String providerPath) {
-    List<String> args = new ArrayList<String>();
+    List<String> args = new ArrayList<>();
 
     args.add(CREATE_VERB);
     args.add(alias);
@@ -116,7 +115,7 @@ public class CredentialUtilTest {
    * @return
    */
   private String[] getSafeCreateArgs(String alias, String credential, String providerPath) {
-    List<String> args = new ArrayList<String>();
+    List<String> args = new ArrayList<>();
 
     args.add(CREATE_VERB);
     args.add(alias);
@@ -138,7 +137,7 @@ public class CredentialUtilTest {
    * @return
    */
   private String[] getUpdateArgs(String alias, String credential, String providerPath) {
-    List<String> args = new ArrayList<String>();
+    List<String> args = new ArrayList<>();
 
     args.add(CREATE_VERB);
     args.add(alias);
@@ -159,7 +158,7 @@ public class CredentialUtilTest {
    * @return
    */
   private String[] getDeleteArgs(String alias, String providerPath) {
-    List<String> args = new ArrayList<String>();
+    List<String> args = new ArrayList<>();
 
     args.add(DELETE_VERB);
     args.add(alias);
@@ -177,7 +176,7 @@ public class CredentialUtilTest {
    * @return
    */
   private String[] getListArgs(String providerPath) {
-    List<String> args = new ArrayList<String>();
+    List<String> args = new ArrayList<>();
 
     args.add(LIST_VERB);
     args.add("-provider");
@@ -194,7 +193,7 @@ public class CredentialUtilTest {
    * @return
    */
   private String[] getGetArgs(String alias, String providerPath) {
-    List<String> args = new ArrayList<String>();
+    List<String> args = new ArrayList<>();
 
     args.add(GET_VERB);
     args.add(alias);

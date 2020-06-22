@@ -18,7 +18,7 @@
 
 var App = require('app');
 var date = require('utils/date/date');
-var arrayUtils = require('utils/array_utils');
+const arrayUtils = require('utils/array_utils');
 
 App.MainAdminStackUpgradeHistoryView = App.TableView.extend(App.TableServerViewMixin, {
 
@@ -204,12 +204,12 @@ App.MainAdminStackUpgradeHistoryView = App.TableView.extend(App.TableServerViewM
 
   didInsertElement: function () {
     this.observesCategories();
-    this.$(".accordion").on("show hide", function (e) {
+    this.$(".accordion").on("show.bs.collapse hide.bs.collapse", function (e) {
       $(e.target).siblings(".accordion-heading").find("i.accordion-toggle").toggleClass('icon-caret-right icon-caret-down');
     });
 
     Em.run.later(this, function(){
-      App.tooltip( $('.widest-column span') );
+      App.tooltip($('.widest-column span'));
     }, 1000)
   },
 
@@ -310,20 +310,19 @@ App.MainAdminStackUpgradeHistoryView = App.TableView.extend(App.TableServerViewM
   },
 
   showUpgradeHistoryRecord: function (event) {
-    event.stopPropagation();
     var record = event.context;
     var direction = App.format.normalizeName(record.get('direction'));
     var associatedVersion = record.get('associatedVersion');
     var type = this.get('upgradeMethods').findProperty('type', record.get('upgradeType'));
     var displayName = type ? type.get('displayName') : App.format.normalizeName(record.get('upgradeType'));
-    var i18nKeySuffix = direction.toLowerCase() === 'upgrade' ? 'upgrade' : 'downgrade';
+    const i18nKeySuffix = direction.toLowerCase() === 'upgrade' ? 'upgrade' : 'downgrade';
 
     this.get('controller').set('currentUpgradeRecord', record);
 
     App.ModalPopup.show({
-      classNames: ['wizard-modal-wrapper'],
+      classNames: ['wide-modal-wrapper'],
       modalDialogClasses: ['modal-xlg'],
-      header: Em.I18n.t('admin.stackVersions.upgradeHistory.record.title.' + i18nKeySuffix).format(displayName, direction, associatedVersion),
+      header: Em.I18n.t(`admin.stackVersions.upgradeHistory.record.title.${i18nKeySuffix}`).format(displayName, direction, associatedVersion),
       bodyClass: App.MainAdminStackUpgradeHistoryDetailsView,
       primary: Em.I18n.t('common.dismiss'),
       secondary: null,
@@ -333,8 +332,8 @@ App.MainAdminStackUpgradeHistoryView = App.TableView.extend(App.TableServerViewM
         this.fitInnerHeight();
       },
       fitInnerHeight: function () {
-        var block = this.$().find('#modal > .modal-body');
-        var scrollable = this.$().find('#modal .scrollable-block');
+        var block = this.$().find('.modal .modal-body');
+        var scrollable = this.$().find('.modal .scrollable-block');
         scrollable.css('max-height', Number(block.css('max-height').slice(0, -2)) - block.height());
         block.css('max-height', 'none');
       }

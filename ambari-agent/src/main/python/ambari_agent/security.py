@@ -20,6 +20,7 @@ import gzip
 import httplib
 import urllib2
 import socket
+import copy
 import ssl
 import os
 import logging
@@ -29,36 +30,43 @@ import pprint
 import traceback
 import hostname
 import platform
+import ambari_stomp
+import threading
+from ambari_stomp.adapter.websocket import WsConnection
+from socket import error as socket_error
 
 logger = logging.getLogger(__name__)
 
-GEN_AGENT_KEY = 'openssl req -new -newkey rsa:1024 -nodes -keyout "%(keysdir)s' \
+GEN_AGENT_KEY = 'openssl req -new -newkey rsa -nodes -keyout "%(keysdir)s' \
                 + os.sep + '%(hostname)s.key" -subj /OU=%(hostname)s/ ' \
                 '-out "%(keysdir)s' + os.sep + '%(hostname)s.csr"'
 KEY_FILENAME = '%(hostname)s.key'
 
 
-class VerifiedHTTPSConnection(httplib.HTTPSConnection):
+class VerifiedHTTPSConnection:
   """ Connecting using ssl wrapped sockets """
-  def __init__(self, host, port=None, config=None):
-    httplib.HTTPSConnection.__init__(self, host, port=port)
+  def __init__(self, host, connection_url, config):
     self.two_way_ssl_required = False
     self.host = host
+    self.connection_url = connection_url
     self.config = config
 
   def connect(self):
     self.two_way_ssl_required = self.config.isTwoWaySSLConnection(self.host)
-    logger.debug("Server two-way SSL authentication required: %s" % str(
-      self.two_way_ssl_required))
+    logger.debug("Server two-way SSL authentication required: %s", self.two_way_ssl_required)
     if self.two_way_ssl_required is True:
       logger.info(
         'Server require two-way SSL authentication. Use it instead of one-way...')
 
+    logging.info("Connecting to {0}".format(self.connection_url))
+
+
     if not self.two_way_ssl_required:
-      sock = self.create_connection()
-      self.sock = ssl.wrap_socket(sock, cert_reqs=ssl.CERT_NONE)
+      conn = AmbariStompConnection(self.connection_url)
+      self.establish_connection(conn)
       logger.info('SSL connection established. Two-way SSL authentication is '
                   'turned off on the server.')
+      return conn
     else:
       self.certMan = CertificateManager(self.config, self.host)
       self.certMan.initSecurity()
@@ -66,17 +74,20 @@ class VerifiedHTTPSConnection(httplib.HTTPSConnection):
       agent_crt = self.certMan.getAgentCrtName()
       server_crt = self.certMan.getSrvrCrtName()
 
-      sock = self.create_connection()
+      ssl_options = {
+        'keyfile': agent_key,
+        'certfile': agent_crt,
+        'cert_reqs': ssl.CERT_REQUIRED,
+        'ca_certs': server_crt
+      }
+
+      conn = AmbariStompConnection(self.connection_url, ssl_options=ssl_options)
 
       try:
-        self.sock = ssl.wrap_socket(sock,
-                                    keyfile=agent_key,
-                                    certfile=agent_crt,
-                                    cert_reqs=ssl.CERT_REQUIRED,
-                                    ca_certs=server_crt)
+        self.establish_connection(conn)
         logger.info('SSL connection established. Two-way SSL authentication '
                     'completed successfully.')
-      except ssl.SSLError as err:
+      except ssl.SSLError:
         logger.error('Two-way SSL authentication failed. Ensure that '
                      'server and agent certificates were signed by the same CA '
                      'and restart the agent. '
@@ -85,20 +96,51 @@ class VerifiedHTTPSConnection(httplib.HTTPSConnection):
                      'workaround you can turn off two-way SSL authentication in '
                      'server configuration(ambari.properties) '
                      '\nExiting..')
-        raise err
+        raise
+      return conn
 
-  def create_connection(self):
-    if self.sock:
-      self.sock.close()
-    logger.info("SSL Connect being called.. connecting to the server")
-    sock = socket.create_connection((self.host, self.port), 60)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-    if self._tunnel_host:
-      self.sock = sock
-      self._tunnel()
+  def establish_connection(self, conn):
+    """
+    Create a stomp connection
+    """
+    try:
+      conn.start()
+      conn.connect(wait=True)
+    except Exception as ex:
+      try:
+        conn.disconnect()
+      except:
+        logger.exception("Exception during conn.disconnect()")
 
-    return sock
+      if isinstance(ex, socket_error):
+        logger.warn("Could not connect to {0}. {1}".format(self.connection_url, str(ex)))
 
+      raise
+
+class AmbariStompConnection(WsConnection):
+  def __init__(self, *args, **kwargs):
+    self.lock = threading.RLock()
+    self.correlation_id = -1
+    WsConnection.__init__(self, *args, **kwargs)
+
+  def send(self, destination, message, content_type=None, headers=None, log_message_function=lambda x:x, presend_hook=None, **keyword_headers):
+    with self.lock:
+      self.correlation_id += 1
+      correlation_id = self.correlation_id
+      
+    if presend_hook:
+      presend_hook(self.correlation_id)
+
+    logged_message = log_message_function(copy.deepcopy(message))
+    logger.info("Event to server at {0} (correlation_id={1}): {2}".format(destination, correlation_id, logged_message))
+
+    body = json.dumps(message)
+    WsConnection.send(self, destination, body, content_type=content_type, headers=headers, correlationId=correlation_id, **keyword_headers)
+
+    return correlation_id
+
+  def add_listener(self, listener):
+    self.set_listener(listener.__class__.__name__, listener)
 
 class CachedHTTPSConnection:
   """ Caches a ssl socket and uses a single https connection to the server. """
@@ -207,12 +249,14 @@ class CertificateManager():
     stream.close()
     srvr_crt_f = open(self.getSrvrCrtName(), 'w+')
     srvr_crt_f.write(response)
+    srvr_crt_f.close()
 
   def reqSignCrt(self):
     sign_crt_req_url = self.server_url + '/certs/' + hostname.hostname(
       self.config)
     agent_crt_req_f = open(self.getAgentCrtReqName())
     agent_crt_req_content = agent_crt_req_f.read()
+    agent_crt_req_f.close()
     passphrase_env_var = self.config.get('security', 'passphrase_env_var_name')
     passphrase = os.environ[passphrase_env_var]
     register_data = {'csr': agent_crt_req_content,
@@ -228,9 +272,10 @@ class CertificateManager():
     f.close()
     try:
       data = json.loads(response)
-      logger.debug("Sign response from Server: \n" + pprint.pformat(data))
+      if logger.isEnabledFor(logging.DEBUG):
+        logger.debug("Sign response from Server: \n" + pprint.pformat(data))
     except Exception:
-      logger.warn("Malformed response! data: " + str(data))
+      logger.warn("Malformed response! data: %s", data)
       data = {'result': 'ERROR'}
     result = data['result']
     if result == 'OK':
@@ -252,7 +297,7 @@ class CertificateManager():
     generate_script = GEN_AGENT_KEY % {
       'hostname': hostname.hostname(self.config),
       'keysdir': keysdir}
-    
+
     logger.info(generate_script)
     if platform.system() == 'Windows':
       p = subprocess32.Popen(generate_script, stdout=subprocess32.PIPE)

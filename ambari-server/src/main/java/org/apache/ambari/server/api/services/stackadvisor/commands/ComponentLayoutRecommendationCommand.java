@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,6 +25,8 @@ import org.apache.ambari.server.api.services.stackadvisor.StackAdvisorException;
 import org.apache.ambari.server.api.services.stackadvisor.StackAdvisorRequest;
 import org.apache.ambari.server.api.services.stackadvisor.StackAdvisorRunner;
 import org.apache.ambari.server.api.services.stackadvisor.recommendations.RecommendationResponse;
+import org.apache.ambari.server.controller.internal.AmbariServerConfigurationHandler;
+import org.apache.ambari.server.state.ServiceInfo;
 
 /**
  * {@link StackAdvisorCommand} implementation for component-layout
@@ -35,11 +37,12 @@ public class ComponentLayoutRecommendationCommand extends
 
   public ComponentLayoutRecommendationCommand(File recommendationsDir,
                                               String recommendationsArtifactsLifetime,
-                                              String stackAdvisorScript,
+                                              ServiceInfo.ServiceAdvisorType serviceAdvisorType,
                                               int requestId,
                                               StackAdvisorRunner saRunner,
-                                              AmbariMetaInfo metaInfo) {
-    super(recommendationsDir, recommendationsArtifactsLifetime, stackAdvisorScript, requestId, saRunner, metaInfo);
+                                              AmbariMetaInfo metaInfo,
+                                              AmbariServerConfigurationHandler ambariServerConfigurationHandler) {
+    super(recommendationsDir, recommendationsArtifactsLifetime, serviceAdvisorType, requestId, saRunner, metaInfo, ambariServerConfigurationHandler);
   }
 
   @Override

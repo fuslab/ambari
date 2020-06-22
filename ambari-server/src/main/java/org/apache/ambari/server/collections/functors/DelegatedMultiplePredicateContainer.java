@@ -18,13 +18,13 @@
 
 package org.apache.ambari.server.collections.functors;
 
-import org.apache.ambari.server.collections.Predicate;
-import org.apache.commons.collections.functors.PredicateDecorator;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+
+import org.apache.ambari.server.collections.Predicate;
+import org.apache.commons.collections.functors.PredicateDecorator;
 
 /**
  * DelegatedMultiplePredicateContainer is an abstract class providing functionality related to
@@ -51,7 +51,7 @@ abstract class DelegatedMultiplePredicateContainer extends Predicate implements 
 
   @Override
   public Map<String, Object> toMap() {
-    return Collections.<String, Object>singletonMap(getName(), containedPredicatesToMaps());
+    return Collections.singletonMap(getName(), containedPredicatesToMaps());
   }
 
   @Override
@@ -92,7 +92,7 @@ abstract class DelegatedMultiplePredicateContainer extends Predicate implements 
    */
   private List<Map<String, Object>> containedPredicatesToMaps() {
 
-    List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
+    List<Map<String, Object>> list = new ArrayList<>();
 
     if (delegate != null) {
       org.apache.commons.collections.Predicate[] predicates = delegate.getPredicates();

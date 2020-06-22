@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -33,8 +33,8 @@ public class HostRoleCommandStatusSummaryDTO {
   private Long m_minTime = Long.valueOf(0L);
   private Long m_maxTime = Long.valueOf(Long.MAX_VALUE);
   private boolean m_skippable = false;
-  private Map<HostRoleStatus, Integer> m_counts = new HashMap<HostRoleStatus, Integer>();
-  private List<HostRoleStatus> m_tasksStatus = new ArrayList<HostRoleStatus>();
+  private Map<HostRoleStatus, Integer> m_counts = new HashMap<>();
+  private List<HostRoleStatus> m_tasksStatus = new ArrayList<>();
 
   /**
    * Constructor invoked by JPA.  See {{@link HostRoleCommandDAO#findAggregateCounts(Long)}}

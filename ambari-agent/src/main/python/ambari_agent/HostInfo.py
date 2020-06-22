@@ -21,6 +21,7 @@ limitations under the License.
 import glob
 import logging
 import os
+import pwd
 import re
 import shlex
 import socket
@@ -35,6 +36,7 @@ from resource_management.core import shell
 from ambari_agent.HostCheckReportFileHandler import HostCheckReportFileHandler
 from AmbariConfig import AmbariConfig
 from resource_management.core.resources.jcepolicyinfo import JcePolicyInfo
+import Hardware
 
 logger = logging.getLogger()
 
@@ -71,9 +73,22 @@ class HostInfo(object):
     return 'unknown'
 
   def checkLiveServices(self, services, result):
+    is_redhat7_or_higher = False
+    is_redhat = False
+
+    if OSCheck.is_redhat_family():
+      is_redhat = True
+      if int(OSCheck.get_os_major_version()) >= 7:
+        is_redhat7_or_higher = True
+
     for service in services:
       svcCheckResult = {}
-      svcCheckResult['name'] = " or ".join(service)
+      if "ntpd" in service and is_redhat7_or_higher:
+        svcCheckResult['name'] = "chronyd"
+      elif "chronyd" in service and is_redhat:
+        svcCheckResult['name'] = "ntpd"
+      else:
+        svcCheckResult['name'] = " or ".join(service)
       svcCheckResult['status'] = "UNKNOWN"
       svcCheckResult['desc'] = ""
       try:
@@ -132,6 +147,8 @@ def get_ntp_service():
     return ("ntpd", "ntp",)
   elif OSCheck.is_ubuntu_family():
     return ("ntp", "chrony",)
+  else:
+    return ("ntpd",)
 
 
 @OsFamilyImpl(os_family=OsFamilyImpl.DEFAULT)
@@ -143,7 +160,7 @@ class HostInfoLinux(HostInfo):
     "storm", "hive-hcatalog", "tez", "falcon", "ambari_qa", "hadoop_deploy",
     "rrdcached", "hcat", "ambari-qa", "sqoop-ambari-qa", "sqoop-ambari_qa",
     "webhcat", "hadoop-hdfs", "hadoop-yarn", "hadoop-mapreduce",
-    "knox", "yarn", "hive-webhcat", "kafka", "slider", "storm-slider-client",
+    "knox", "yarn", "hive-webhcat", "kafka",
     "mahout", "spark", "pig", "phoenix", "ranger", "accumulo",
     "ambari-metrics-collector", "ambari-metrics-monitor", "atlas", "zeppelin"
   ]
@@ -160,13 +177,13 @@ class HostInfoLinux(HostInfo):
     "hue", "yarn", "tez", "storm", "falcon", "kafka", "knox", "ams",
     "hadoop", "spark", "accumulo", "atlas", "mahout", "ranger", "kms", "zeppelin"
   ]
-  
+
   # Default set of directories that are checked for existence of files and folders
   DEFAULT_BASEDIRS = [
     "/etc", "/var/run", "/var/log", "/usr/lib", "/var/lib", "/var/tmp", "/tmp", "/var",
     "/hadoop", "/usr/hdp"
   ]
-  
+
   # Exact directories names which are checked for existance
   EXACT_DIRECTORIES = [
     "/kafka-logs"
@@ -183,15 +200,17 @@ class HostInfoLinux(HostInfo):
     super(HostInfoLinux, self).__init__(config)
 
   def checkUsers(self, users, results):
-    f = open('/etc/passwd', 'r')
-    for userLine in f:
-      fields = userLine.split(":")
-      if fields[0] in users:
-        result = {}
-        result['name'] = fields[0]
-        result['homeDir'] = fields[5]
-        result['status'] = "Available"
-        results.append(result)
+    for user in users:
+      try:
+          pw = pwd.getpwnam(user)
+          result = {}
+          result['name'] = pw.pw_name
+          result['homeDir'] = pw.pw_dir
+          result['status'] = "Available"
+          results.append(result)
+      except Exception as e:
+          #User doesnot exist, so skip it
+          pass
 
   def checkFolders(self, basePaths, projectNames, exactDirectories, existingUsers, dirs):
     foldersToIgnore = []
@@ -206,13 +225,13 @@ class HostInfoLinux(HostInfo):
             obj['type'] = self.dirType(path)
             obj['name'] = path
             dirs.append(obj)
-            
+
       for path in exactDirectories:
         if os.path.exists(path):
           obj = {}
           obj['type'] = self.dirType(path)
           obj['name'] = path
-          dirs.append(obj)     
+          dirs.append(obj)
     except:
       logger.exception("Checking folders failed")
 
@@ -298,17 +317,15 @@ class HostInfoLinux(HostInfo):
       logger.exception('Unable to get information about JCE')
       return None
 
-  def register(self, metrics, componentsMapped=True, commandsInProgress=True):
-    """ Return various details about the host
-    componentsMapped: indicates if any components are mapped to this host
-    commandsInProgress: indicates if any commands are in progress
-    """
+  def register(self, metrics, runExpensiveChecks=False, checkJavaProcs=False):
+    """ Return various details about the host"""
 
     metrics['hostHealth'] = {}
 
-    java = []
-    self.javaProcs(java)
-    metrics['hostHealth']['activeJavaProcs'] = java
+    if checkJavaProcs:
+      java = []
+      self.javaProcs(java)
+      metrics['hostHealth']['activeJavaProcs'] = java
 
     liveSvcs = []
     self.checkLiveServices(self.DEFAULT_LIVE_SERVICES, liveSvcs)
@@ -323,7 +340,7 @@ class HostInfoLinux(HostInfo):
     metrics['hasUnlimitedJcePolicy'] = self.checkUnlimitedJce()
     # If commands are in progress or components are already mapped to this host
     # Then do not perform certain expensive host checks
-    if componentsMapped or commandsInProgress:
+    if not runExpensiveChecks:
       metrics['alternatives'] = []
       metrics['stackFoldersAndFiles'] = []
       metrics['existingUsers'] = []
@@ -420,10 +437,8 @@ class HostInfoWindows(HostInfo):
     code, out, err = run_powershell_script(self.SERVICE_STATUS_CMD.format(serivce_name))
     return out, err, code
 
-  def register(self, metrics, componentsMapped=True, commandsInProgress=True):
+  def register(self, metrics, runExpensiveChecks=False):
     """ Return various details about the host
-    componentsMapped: indicates if any components are mapped to this host
-    commandsInProgress: indicates if any commands are in progress
     """
     metrics['hostHealth'] = {}
 
@@ -440,9 +455,8 @@ class HostInfoWindows(HostInfo):
     metrics['firewallRunning'] = self.checkFirewall()
     metrics['firewallName'] = self.getFirewallName()
     metrics['reverseLookup'] = self.checkReverseLookup()
-    # If commands are in progress or components are already mapped to this host
-    # Then do not perform certain expensive host checks
-    if componentsMapped or commandsInProgress:
+
+    if not runExpensiveChecks:
       metrics['alternatives'] = []
       metrics['stackFoldersAndFiles'] = []
       metrics['existingUsers'] = []

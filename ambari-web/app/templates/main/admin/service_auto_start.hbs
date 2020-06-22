@@ -16,66 +16,59 @@
 * limitations under the License.
 }}
 
-<div class="admin-auto-start">
-  <div class="header background-text">
-    <strong>{{t admin.serviceAutoStart.header}}</strong>
-  </div>
-  <div>
-    {{t admin.serviceAutoStart.header.text}}
-  </div>
-  <br/>
-  {{#if view.isLoaded}}
-  <div class="cluster-switcher row-fluid">
-      <div class="span3">
-          <strong>{{t admin.serviceAutoStart.body.text}}</strong>
-      </div>
-      <div class="span4">
-          {{view Ember.Checkbox checkedBinding="view.switcherValue"}}
-      </div>
-      <div class="pull-right operations-button pull-right">
-          <button class="btn" {{action revertStatus target="controller"}} {{bindAttr disabled="controller.isSaveDisabled"}}>{{t common.discard}}</button>
-          <button class="btn btn-success" {{action showSavePopup target="controller"}} {{bindAttr disabled="controller.isSaveDisabled"}}>{{t common.save}}</button>
-      </div>
-  </div>
-    {{#if view.switcherValue}}
-        <hr>
-        <div class="row-fluid mlm"><h5 class="span3">{{t common.service}}</h5><h5 class="span4">{{t common.component}}</h5><h5 class="span4">{{t common.status}}</h5></div>
-        <div class="tabs-left">
-            <ul class="nav nav-tabs span3">
-                {{#each tab in controller.tabs}}
-                    <li {{bindAttr class="tab.isActive:active"}}>
-                        <a href="#" data-toggle="tab" {{bindAttr data-target="tab.headingClass"}}>
-                            {{tab.display_name}}
-                            {{view App.MainAdminServiceAutoStartIndicatorView tabBinding="tab"}}
-                        </a>
-                    </li>
-                {{/each}}
-            </ul>
-            <div class="tab-content">
-                {{#each tab in controller.tabs}}
-                    <div {{bindAttr class=":tab-pane tab.isActive:active tab.service_name :row-fluid :mtm"}}>
-                        {{#each component in tab.componentRecovery}}
-                            <div class="row-fluid mbm">
-                                <div class="span4">
-                                    {{component.display_name}}
-                                </div>
-                                <div class="span8">
-                                    {{view App.MainAdminServiceAutoStartComponentView recoveryEnabledBinding="component.recovery_enabled" componentBinding="component" tabBinding="tab"}}
-                                </div>
-                            </div>
-                        {{/each}}
-                        {{#isAuthorized "SERVICE.MANAGE_AUTO_START"}}
-                            <div class="offset4">
-                                <a href="#" class="enable-all-link" {{action enableAll tab target="controller"}}>{{t common.enableAll}}</a> |
-                                <a href="#" {{action disableAll tab target="controller"}}>{{t common.disableAll}}</a>
-                            </div>
-                        {{/isAuthorized}}
-                    </div>
-                {{/each}}
-            </div>
-        </div>
-    {{/if}}
+<div id="admin-auto-start">
+  <p class="description">{{t admin.serviceAutoStart.header.text}}</p>
+  {{#if controller.isLoaded}}
+    <div class="cluster-level-switcher">
+      <span class="h2">{{t admin.serviceAutoStart.general.switcher}}</span>
+      {{view App.CheckboxView
+             didInsertElementBinding="view.initSwitcher"
+             classNames="general-auto-start circle-toggle-switch"
+             disabledBinding="view.isDisabled"
+             checkedBinding="controller.isGeneralRecoveryEnabled"}}
+    </div>
+    <div class="form-horizontal">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>{{t common.service}}</th>
+            <th>{{t common.components}}</th>
+            <th>
+              {{view App.CheckboxView
+                     disabledBinding="view.isDisabled"
+                     classNames="all-checkbox"
+                     labelTranslate="admin.serviceAutoStart.column.autoStart"
+                     checkedBinding="view.allComponentsChecked"}}
+            </th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+        {{#each component in componentsConfigsGrouped}}
+          <tr>
+            <td {{bindAttr class="component.isFirst::skip-border"}}>
+              {{#if component.isFirst}}
+                {{component.serviceDisplayName}}
+              {{/if}}
+            </td>
+            <td>{{component.displayName}}</td>
+            <td>{{view App.CheckboxView
+                       disabledBinding="view.isDisabled"
+                       checkedBinding="component.recoveryEnabled"}}</td>
+            <td></td>
+          </tr>
+        {{/each}}
+        </tbody>
+      </table>
+    </div>
   {{else}}
     {{view App.SpinnerView}}
   {{/if}}
+  <div {{bindAttr class="view.isDisablad:hidden :configs-save-panel"}}>
+    <div class="pull-right">
+      <button class="btn btn-default" {{action restoreCachedValues target="controller"}} {{bindAttr disabled="view.isSaveDisabled"}}>{{t common.cancel}}</button>
+      <button class="btn btn-success" {{action showSavePopup target="controller"}} {{bindAttr disabled="view.isSaveDisabled"}}>{{t common.save}}</button>
+    </div>
+    <div class="clearfix"></div>
+  </div>
 </div>

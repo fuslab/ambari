@@ -17,82 +17,88 @@
  */
 
 var App = require('app');
-var stringUtils = require('utils/string_utils');
 
 App.UpgradeVersionColumnView = App.UpgradeVersionBoxView.extend({
   templateName: require('templates/main/admin/stack_upgrade/upgrade_version_column'),
   isVersionColumnView: true,
-  classNames: ['version-column'],
+  classNames: ['version-column', 'col-md-4'],
+
+  /**
+   * Indicates whether block for version type should be displayed.
+   * True if any of available versions is of PATCH, MAINT or SERVICE type
+   * @type {Boolean}
+   */
+  displayVersionTypeBlock: false,
+
+  currentLabelClass: 'btn btn-primary',
 
   didInsertElement: function () {
     App.tooltip($('.out-of-sync-badge'), {title: Em.I18n.t('hosts.host.stackVersions.status.out_of_sync')});
-    App.tooltip($('.not-upgradable'), {title: Em.I18n.t('admin.stackVersions.version.service.notUpgradable')});
-    App.tooltip($('.icon-bug'), {title: Em.I18n.t('common.patch')});
-    App.tooltip($('.icon-wrench'), {title: Em.I18n.t('common.maint')});
+    App.tooltip($('.not-upgradable'));
     if (!this.get('content.isCompatible')) {
       App.tooltip(this.$(".repo-version-tooltip"), {
         title: Em.I18n.t('admin.stackVersions.version.noCompatible.tooltip')
       });
     }
+    this.adjustColumnWidth();
+  },
 
-    var height = App.Service.find().get('length') > 9 ? ((App.Service.find().get('length') - 9) * 38 + 500) : 500;
+  adjustColumnWidth: function() {
+    //set the width, height of each version column dynamically
+    var reposCount = App.RepositoryVersion.find().filterProperty('isVisible').get('length');
+    var widthFactor = reposCount > 3 ? 0.18: 0.31;
+    $('.version-column').width($('.versions-slides').width() * widthFactor);
+    var height = App.Service.find().get('length') > 10 ? ((App.Service.find().get('length') - 10) * 40 + 500) : 500;
     $('.version-column').height(height);
 
-    // fix the line up minor diff issue
-    var serviceNamesOffset = $('.service-display-name').offset().top;
-    var separatorOffset = $('.line-separator').offset().top;
-    this.fixSeparator(serviceNamesOffset - separatorOffset);
-  },
-
-  /**
-   * Move line-separator and line-separator bottom on gap
-   * @param gap
-   */
-  fixSeparator: function (gap) {
-    if (gap !== 1) {
-      var topSeparators = $('.line-separator');
-      var bottomSeparators = $('.line-separator-bottom');
-      var topPosition = parseInt(topSeparators.css('top'), 10);
-      var bottomPosition = parseInt(bottomSeparators.css('top'), 10);
-      topSeparators.css('top', topPosition + gap - 1 + 'px');
-      bottomSeparators.css('top', bottomPosition + gap - 1 +'px');
-    }
-  },
+    // set the lines width of the table, line up the labels
+    $('.border-extended-table').width(reposCount * 100 + 100 + "%");
+    $('.border-extended-table').css("max-width", reposCount * 100 + 100 + "%");
+  }.observes('parentView.repoVersions.@each.isVisible'),
 
   services: function() {
-    var originalServices = this.get('content.stackServices');
-    var isStandard = this.get('content.isStandard');
+    const originalServices = this.get('content.stackServices');
     // sort the services in the order the same as service menu
-    return App.Service.find().map(function (service) {
+    return App.Service.find().map(service => {
 
-      var stackService = originalServices.findProperty('name', service.get('serviceName'));
-      var isAvailable = this.isStackServiceAvailable(stackService);
-      var isUpgradable = stackService && stackService.get('isUpgradable');
+      const stackService = originalServices.findProperty('name', service.get('serviceName')),
+        isAvailable = this.isStackServiceAvailable(stackService);
+      let notUpgradable = false,
+        notUpgradableTitle = '';
+      if (!stackService) {
+        console.error(`${stackService} definition does not exist in the stack.`);
+        notUpgradable = true;
+        notUpgradableTitle = Em.I18n.t('admin.stackVersions.version.service.notSupported');
+      } else {
+        notUpgradable = this.getNotUpgradable(isAvailable, stackService.get('isUpgradable'));
+        if (notUpgradable) {
+          notUpgradableTitle = Em.I18n.t('admin.stackVersions.version.service.notUpgradable');
+        }
+      }
+
       return Em.Object.create({
         displayName: service.get('displayName'),
         name: service.get('serviceName'),
         latestVersion: stackService ? stackService.get('latestVersion') : '',
         isVersionInvisible: !stackService,
-        notUpgradable: this.getNotUpgradable(isAvailable, isUpgradable),
-        isAvailable: isAvailable
+        notUpgradable,
+        notUpgradableTitle,
+        isAvailable
       });
-    }, this);
+    });
   }.property(),
 
-  /**
-   * @param {boolean} isAvailable
-   * @param {boolean} isUpgradable
-   * @returns {boolean}
-   */
   getNotUpgradable: function(isAvailable, isUpgradable) {
     return this.get('content.isMaint') && !this.get('isUpgrading') && this.get('content.status') !== 'CURRENT' && isAvailable && !isUpgradable;
   },
+
 
   /**
    * @param {Em.Object} stackService
    * @returns {boolean}
    */
   isStackServiceAvailable: function(stackService) {
+    var self = this;
     if (!stackService) {
       return false;
     }
@@ -103,8 +109,6 @@ App.UpgradeVersionColumnView = App.UpgradeVersionBoxView.extend({
     else{
       return stackService.get('isAvailable')
     }
-
-
   },
 
   /**

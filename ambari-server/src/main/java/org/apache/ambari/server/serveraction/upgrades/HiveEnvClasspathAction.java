@@ -22,21 +22,19 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.actionmanager.HostRoleStatus;
 import org.apache.ambari.server.agent.CommandReport;
-import org.apache.ambari.server.serveraction.AbstractServerAction;
 import org.apache.ambari.server.state.Cluster;
-import org.apache.ambari.server.state.Clusters;
 import org.apache.ambari.server.state.Config;
-
-import com.google.inject.Inject;
+import org.apache.ambari.server.state.Host;
 
 /**
  * Append hive-env config type with HIVE_HOME and HIVE_CONF_DIR variables if they are absent
  */
-public class HiveEnvClasspathAction extends AbstractServerAction {
+public class HiveEnvClasspathAction extends AbstractUpgradeServerAction {
   private static final String TARGET_CONFIG_TYPE = "hive-env";
   private static final String CONTENT_PROPERTY_NAME = "content";
 
@@ -48,16 +46,13 @@ public class HiveEnvClasspathAction extends AbstractServerAction {
 
   private static final String VERIFY_REGEXP = "^\\s*export\\s(?<property>%s|%s)\\s*=\\s*.*$";
 
-  @Inject
-  private Clusters clusters;
-
   @Override
   public CommandReport execute(ConcurrentMap<String, Object> requestSharedDataContext)
     throws AmbariException, InterruptedException {
 
 
     String clusterName = getExecutionCommand().getClusterName();
-    Cluster cluster = clusters.getCluster(clusterName);
+    Cluster cluster = getClusters().getCluster(clusterName);
     Config config = cluster.getDesiredConfigByType(TARGET_CONFIG_TYPE);
 
     if (config == null) {
@@ -105,6 +100,7 @@ public class HiveEnvClasspathAction extends AbstractServerAction {
 
     config.setProperties(properties);
     config.save();
+    agentConfigsHolder.updateData(cluster.getClusterId(), cluster.getHosts().stream().map(Host::getHostId).collect(Collectors.toList()));
 
     return createCommandReport(0, HostRoleStatus.COMPLETED, "{}",
       String.format("Added %s, %s to content at %s", HIVE_CONF_DIR, HIVE_HOME, TARGET_CONFIG_TYPE), "");

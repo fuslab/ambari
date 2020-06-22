@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,14 @@
 
 package org.apache.ambari.server.view;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.ambari.server.controller.AmbariManagementController;
 import org.apache.ambari.server.controller.AmbariSessionManager;
 import org.apache.ambari.server.controller.internal.URLStreamProvider;
@@ -27,14 +35,6 @@ import org.apache.ambari.view.AmbariStreamProvider;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Provider of an input stream for a request to the Ambari server.
@@ -55,7 +55,7 @@ public class ViewAmbariStreamProvider implements AmbariStreamProvider {
    */
   private final AmbariManagementController controller;
 
-  private static Logger LOG = LoggerFactory.getLogger(ViewAmbariStreamProvider.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ViewAmbariStreamProvider.class);
 
 
   // ----- Constructor -----------------------------------------------------
@@ -106,7 +106,7 @@ public class ViewAmbariStreamProvider implements AmbariStreamProvider {
       if (headers == null || headers.isEmpty()) {
         headers = Collections.singletonMap(URLStreamProvider.COOKIE, ambariSessionCookie);
       } else {
-        headers = new HashMap<String, String>(headers);
+        headers = new HashMap<>(headers);
 
         String cookies = headers.get(URLStreamProvider.COOKIE);
 
@@ -115,7 +115,7 @@ public class ViewAmbariStreamProvider implements AmbariStreamProvider {
     }
 
     // adapt the headers for the internal URLStreamProvider signature
-    Map<String, List<String>> headerMap = new HashMap<String, List<String>>();
+    Map<String, List<String>> headerMap = new HashMap<>();
     for (Map.Entry<String, String> entry : headers.entrySet()) {
       headerMap.put(entry.getKey(), Collections.singletonList(entry.getValue()));
     }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,7 +24,6 @@ import java.util.Set;
 
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.HostNotFoundException;
-import org.apache.ambari.server.controller.RootServiceResponseFactory.Services;
 import org.apache.ambari.server.controller.internal.RequestOperationLevel;
 import org.apache.ambari.server.controller.internal.RequestResourceFilter;
 import org.apache.ambari.server.controller.spi.Resource;
@@ -265,7 +264,7 @@ public class MaintenanceStateHelper {
     }
 
     // the AMBARI service is not a real service; it's never in MM
-    if( StringUtils.equals(Services.AMBARI.name(), serviceName)){
+    if( StringUtils.equals(RootService.AMBARI.name(), serviceName)){
       return MaintenanceState.OFF;
     }
 
@@ -302,7 +301,7 @@ public class MaintenanceStateHelper {
    */
   public Set<Map<String, String>> getMaintenanceHostComponents(
       Clusters clusters, Cluster cluster) throws AmbariException {
-    Set<Map<String, String>> set = new HashSet<Map<String, String>>();
+    Set<Map<String, String>> set = new HashSet<>();
 
     Map<String, Host> hosts = clusters.getHostsForCluster(cluster.getClusterName());
 
@@ -317,7 +316,7 @@ public class MaintenanceStateHelper {
 
           if (MaintenanceState.OFF != getEffectiveState(cluster.getClusterId(),
               service, host, sch)) {
-            Map<String, String> map = new HashMap<String, String>();
+            Map<String, String> map = new HashMap<>();
             map.put("host", sch.getHostName());
             map.put("service", sch.getServiceName());
             map.put("component", sch.getServiceComponentName());
@@ -419,7 +418,7 @@ public class MaintenanceStateHelper {
   public Set<String> filterHostsInMaintenanceState(Set<String> candidateHosts,
       HostPredicate condition) throws AmbariException {
     // Filter hosts that are in MS
-    Set<String> removedHosts = new HashSet<String>();
+    Set<String> removedHosts = new HashSet<>();
     for (String hostname : candidateHosts) {
       if (condition.shouldHostBeRemoved(hostname)) {
         removedHosts.add(hostname);
@@ -435,7 +434,7 @@ public class MaintenanceStateHelper {
    * {@link MaintenanceStateHelper#isOperationAllowed(org.apache.ambari.server.controller.spi.Resource.Type, Service)}
    * methods.
    */
-  public static interface HostPredicate {
+  public interface HostPredicate {
     /**
      * Gets whether the specified host should not be included in a result set.
      *
@@ -445,6 +444,6 @@ public class MaintenanceStateHelper {
      *         choice, {@code false} otherwise.
      * @throws AmbariException
      */
-    public boolean shouldHostBeRemoved(String hostname) throws AmbariException;
+    boolean shouldHostBeRemoved(String hostname) throws AmbariException;
   }
 }

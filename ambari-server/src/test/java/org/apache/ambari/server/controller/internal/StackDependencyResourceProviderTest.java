@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,16 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.reset;
+import static org.easymock.EasyMock.verify;
+import static org.junit.Assert.assertEquals;
+
+import java.util.Set;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.StackAccessException;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
@@ -32,21 +42,10 @@ import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.spi.ResourceProvider;
 import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
-import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.apache.ambari.server.state.DependencyInfo;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import java.util.Set;
-
-import static org.easymock.EasyMock.createMock;
-import static org.easymock.EasyMock.createNiceMock;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.reset;
-import static org.easymock.EasyMock.verify;
-import static org.junit.Assert.assertEquals;
 
 /**
  * StackDependencyResourceProvider unit tests.
@@ -74,16 +73,16 @@ public class StackDependencyResourceProviderTest {
     dependencyInfo.setName("service_name/comp_name");
     dependencyInfo.setScope("cluster");
 
-    Predicate namePredicate = new EqualsPredicate<String>(
-        StackDependencyResourceProvider.COMPONENT_NAME_ID, "comp_name");
-    Predicate depServicePredicate = new EqualsPredicate<String>(
-        StackDependencyResourceProvider.DEPENDENT_SERVICE_NAME_ID, "dep_service_name");
-    Predicate depCompPredicate = new EqualsPredicate<String>(
-        StackDependencyResourceProvider.DEPENDENT_COMPONENT_NAME_ID, "dep_comp_name");
-    Predicate stackNamePredicate = new EqualsPredicate<String>
-        (StackDependencyResourceProvider.STACK_NAME_ID, "stack_name");
-    Predicate stackVersionPredicate = new EqualsPredicate<String>(
-        StackDependencyResourceProvider.STACK_VERSION_ID, "stack_version");
+    Predicate namePredicate = new EqualsPredicate<>(
+      StackDependencyResourceProvider.COMPONENT_NAME_ID, "comp_name");
+    Predicate depServicePredicate = new EqualsPredicate<>(
+      StackDependencyResourceProvider.DEPENDENT_SERVICE_NAME_ID, "dep_service_name");
+    Predicate depCompPredicate = new EqualsPredicate<>(
+      StackDependencyResourceProvider.DEPENDENT_COMPONENT_NAME_ID, "dep_comp_name");
+    Predicate stackNamePredicate = new EqualsPredicate<>
+      (StackDependencyResourceProvider.STACK_NAME_ID, "stack_name");
+    Predicate stackVersionPredicate = new EqualsPredicate<>(
+      StackDependencyResourceProvider.STACK_VERSION_ID, "stack_version");
 
     Predicate andPredicate = new AndPredicate(namePredicate, depServicePredicate,
         depCompPredicate, stackNamePredicate, stackVersionPredicate);
@@ -120,18 +119,18 @@ public class StackDependencyResourceProviderTest {
     dependencyInfo.setName("service_name/comp_name");
     dependencyInfo.setScope("cluster");
 
-    Predicate namePredicate = new EqualsPredicate<String>(
-        StackDependencyResourceProvider.COMPONENT_NAME_ID, "comp_name");
-    Predicate name2Predicate = new EqualsPredicate<String>(
-        StackDependencyResourceProvider.COMPONENT_NAME_ID, "comp_name2");
-    Predicate depServicePredicate = new EqualsPredicate<String>(
-        StackDependencyResourceProvider.DEPENDENT_SERVICE_NAME_ID, "dep_service_name");
-    Predicate depCompPredicate = new EqualsPredicate<String>(
-        StackDependencyResourceProvider.DEPENDENT_COMPONENT_NAME_ID, "dep_comp_name");
-    Predicate stackNamePredicate = new EqualsPredicate<String>
-        (StackDependencyResourceProvider.STACK_NAME_ID, "stack_name");
-    Predicate stackVersionPredicate = new EqualsPredicate<String>(
-        StackDependencyResourceProvider.STACK_VERSION_ID, "stack_version");
+    Predicate namePredicate = new EqualsPredicate<>(
+      StackDependencyResourceProvider.COMPONENT_NAME_ID, "comp_name");
+    Predicate name2Predicate = new EqualsPredicate<>(
+      StackDependencyResourceProvider.COMPONENT_NAME_ID, "comp_name2");
+    Predicate depServicePredicate = new EqualsPredicate<>(
+      StackDependencyResourceProvider.DEPENDENT_SERVICE_NAME_ID, "dep_service_name");
+    Predicate depCompPredicate = new EqualsPredicate<>(
+      StackDependencyResourceProvider.DEPENDENT_COMPONENT_NAME_ID, "dep_comp_name");
+    Predicate stackNamePredicate = new EqualsPredicate<>
+      (StackDependencyResourceProvider.STACK_NAME_ID, "stack_name");
+    Predicate stackVersionPredicate = new EqualsPredicate<>(
+      StackDependencyResourceProvider.STACK_VERSION_ID, "stack_version");
 
     Predicate andPredicate1 = new AndPredicate(namePredicate, depServicePredicate,
         depCompPredicate, stackNamePredicate, stackVersionPredicate);
@@ -164,8 +163,6 @@ public class StackDependencyResourceProviderTest {
   }
 
   private StackDependencyResourceProvider createProvider() {
-    return new StackDependencyResourceProvider(
-        PropertyHelper.getPropertyIds(Resource.Type.StackServiceComponentDependency),
-        PropertyHelper.getKeyPropertyIds(Resource.Type.StackServiceComponentDependency));
+    return new StackDependencyResourceProvider();
   }
 }

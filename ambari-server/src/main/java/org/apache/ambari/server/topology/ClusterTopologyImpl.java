@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,7 @@ package org.apache.ambari.server.topology;
 
 import static org.apache.ambari.server.controller.internal.ProvisionAction.INSTALL_AND_START;
 import static org.apache.ambari.server.controller.internal.ProvisionAction.INSTALL_ONLY;
+import static org.apache.ambari.server.state.ServiceInfo.HADOOP_COMPATIBLE_FS;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -74,6 +75,8 @@ public class ClusterTopologyImpl implements ClusterTopology {
 
     registerHostGroupInfo(topologyRequest.getHostGroupInfo());
 
+    // todo extract validation to specialized service
+    validateTopology();
     this.ambariContext = ambariContext;
   }
 
@@ -202,6 +205,24 @@ public class ClusterTopologyImpl implements ClusterTopology {
       && configProperties.get("yarn-site").get("yarn.resourcemanager.ha.enabled").equals("true");
   }
 
+  private void validateTopology()
+      throws InvalidTopologyException {
+
+    if(isNameNodeHAEnabled()){
+        Collection<String> nnHosts = getHostAssignmentsForComponent("NAMENODE");
+        if (nnHosts.size() < 2) {
+            throw new InvalidTopologyException("NAMENODE HA requires at least 2 hosts running NAMENODE but there are: " +
+                nnHosts.size() + " Hosts: " + nnHosts);
+        }
+        Map<String, String> hadoopEnvConfig = configuration.getFullProperties().get("hadoop-env");
+        if(hadoopEnvConfig != null && !hadoopEnvConfig.isEmpty() && hadoopEnvConfig.containsKey("dfs_ha_initial_namenode_active") && hadoopEnvConfig.containsKey("dfs_ha_initial_namenode_standby")) {
+           if((!HostGroup.HOSTGROUP_REGEX.matcher(hadoopEnvConfig.get("dfs_ha_initial_namenode_active")).matches() && !nnHosts.contains(hadoopEnvConfig.get("dfs_ha_initial_namenode_active")))
+             || (!HostGroup.HOSTGROUP_REGEX.matcher(hadoopEnvConfig.get("dfs_ha_initial_namenode_standby")).matches() && !nnHosts.contains(hadoopEnvConfig.get("dfs_ha_initial_namenode_standby")))){
+              throw new IllegalArgumentException("NAMENODE HA hosts mapped incorrectly for properties 'dfs_ha_initial_namenode_active' and 'dfs_ha_initial_namenode_standby'. Expected hosts are: " + nnHosts);
+        }
+        }
+    }
+  }
 
   @Override
   public boolean isClusterKerberosEnabled() {
@@ -291,6 +312,12 @@ public class ClusterTopologyImpl implements ClusterTopology {
   @Override
   public String getDefaultPassword() {
     return defaultPassword;
+  }
+
+  @Override
+  public boolean hasHadoopCompatibleService() {
+    return blueprint.getServiceInfos().stream()
+      .anyMatch(service -> HADOOP_COMPATIBLE_FS.equals(service.getServiceType()));
   }
 
   private void registerHostGroupInfo(Map<String, HostGroupInfo> requestedHostGroupInfoMap) throws InvalidTopologyException {

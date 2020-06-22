@@ -25,6 +25,8 @@ App.MainViewsController = Em.Controller.extend({
 
   ambariViews: [],
 
+  visibleAmbariViews: Em.computed.filterBy('ambariViews', 'visible', true),
+
   dataLoading: function () {
     var viewsController = this;
     var dfd = $.Deferred();
@@ -107,7 +109,7 @@ App.MainViewsController = Em.Controller.extend({
 
   setView: function (event) {
     if (event.context) {
-      App.router.route(event.context.get('internalAmbariUrl'));
+      window.open(event.context.get('internalAmbariUrl'));
     }
   }
 });

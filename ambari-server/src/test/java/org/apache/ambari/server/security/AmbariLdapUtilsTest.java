@@ -18,16 +18,6 @@
 
 package org.apache.ambari.server.security;
 
-import junit.framework.Assert;
-
-import org.apache.ambari.server.security.authorization.AmbariLdapUtils;
-import org.junit.Test;
-import org.springframework.ldap.core.DirContextAdapter;
-import org.springframework.ldap.support.LdapUtils;
-
-import javax.naming.Name;
-import javax.naming.NamingException;
-
 import static junit.framework.Assert.assertFalse;
 import static junit.framework.Assert.assertTrue;
 import static org.easymock.EasyMock.createNiceMock;
@@ -35,6 +25,15 @@ import static org.easymock.EasyMock.createStrictMock;
 import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.replay;
 import static org.easymock.EasyMock.verify;
+
+import javax.naming.Name;
+import javax.naming.NamingException;
+
+import org.apache.ambari.server.security.authorization.AmbariLdapUtils;
+import org.junit.Assert;
+import org.junit.Test;
+import org.springframework.ldap.core.DirContextAdapter;
+import org.springframework.ldap.support.LdapUtils;
 
 public class AmbariLdapUtilsTest {
 

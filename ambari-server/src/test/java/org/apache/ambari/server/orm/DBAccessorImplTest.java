@@ -18,9 +18,14 @@
 
 package org.apache.ambari.server.orm;
 
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.reset;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.junit.matchers.JUnitMatchers.containsString;
 
 import java.io.ByteArrayInputStream;
@@ -42,6 +47,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.ambari.server.H2DatabaseCleaner;
 import org.apache.ambari.server.orm.DBAccessor.DBColumnInfo;
+import org.apache.ambari.server.state.State;
+import org.eclipse.persistence.platform.database.DatabasePlatform;
 import org.eclipse.persistence.sessions.DatabaseSession;
 import org.junit.After;
 import org.junit.Before;
@@ -85,7 +92,7 @@ public class DBAccessorImplTest {
   private void createMyTable(String tableName) throws Exception {
     DBAccessorImpl dbAccessor = injector.getInstance(DBAccessorImpl.class);
 
-    List<DBColumnInfo> columns = new ArrayList<DBColumnInfo>();
+    List<DBColumnInfo> columns = new ArrayList<>();
     columns.add(new DBColumnInfo("id", Long.class, null, null, false));
     columns.add(new DBColumnInfo("name", String.class, 20000, null, true));
     columns.add(new DBColumnInfo("time", Long.class, null, null, true));
@@ -232,7 +239,7 @@ public class DBAccessorImplTest {
     createMyTable(tableName);
     DBAccessorImpl dbAccessor = injector.getInstance(DBAccessorImpl.class);
 
-    List<DBColumnInfo> columns = new ArrayList<DBColumnInfo>();
+    List<DBColumnInfo> columns = new ArrayList<>();
     columns.add(new DBColumnInfo("fid", Long.class, null, null, false));
     columns.add(new DBColumnInfo("fname", String.class, null, null, false));
 
@@ -267,7 +274,7 @@ public class DBAccessorImplTest {
 
     DBAccessorImpl dbAccessor = injector.getInstance(DBAccessorImpl.class);
 
-    List<DBColumnInfo> columns = new ArrayList<DBColumnInfo>();
+    List<DBColumnInfo> columns = new ArrayList<>();
     columns.add(new DBColumnInfo("id", Long.class, null, null, false));
     columns.add(new DBColumnInfo("sid", Long.class, null, null, false));
     columns.add(new DBColumnInfo("data", char[].class, null, null, true));
@@ -329,7 +336,7 @@ public class DBAccessorImplTest {
 
     DBAccessorImpl dbAccessor = injector.getInstance(DBAccessorImpl.class);
 
-    List<DBColumnInfo> columns = new ArrayList<DBColumnInfo>();
+    List<DBColumnInfo> columns = new ArrayList<>();
     columns.add(new DBColumnInfo("fid", Long.class, null, null, false));
     columns.add(new DBColumnInfo("fname", String.class, null, null, false));
 
@@ -351,7 +358,7 @@ public class DBAccessorImplTest {
 
     DBAccessorImpl dbAccessor = injector.getInstance(DBAccessorImpl.class);
 
-    List<DBColumnInfo> columns = new ArrayList<DBColumnInfo>();
+    List<DBColumnInfo> columns = new ArrayList<>();
     columns.add(new DBColumnInfo("fid", Long.class, null, null, false));
     columns.add(new DBColumnInfo("fname", String.class, null, null, false));
 
@@ -363,6 +370,28 @@ public class DBAccessorImplTest {
             tableName + " (id)");
 
     Assert.assertEquals("FK_TEST1", dbAccessor.getCheckedForeignKey(foreignTableName, "fk_test1"));
+  }
+
+  @Test
+  public void getCheckedForeignKeyReferencingUniqueKey() throws Exception {
+    String tableName = getFreeTableName();
+    createMyTable(tableName);
+
+    DBAccessorImpl dbAccessor = injector.getInstance(DBAccessorImpl.class);
+    Statement statement = dbAccessor.getConnection().createStatement();
+    statement.execute(String.format("ALTER TABLE %s ADD CONSTRAINT UC_name UNIQUE (%s)", tableName, "name"));
+
+    List<DBColumnInfo> columns = new ArrayList<>();
+    columns.add(new DBColumnInfo("fid", Long.class, null, null, false));
+    columns.add(new DBColumnInfo("fname", String.class, null, null, false));
+
+    String foreignTableName = getFreeTableName();
+    dbAccessor.createTable(foreignTableName, columns);
+
+    statement = dbAccessor.getConnection().createStatement();
+    statement.execute(String.format("ALTER TABLE %s ADD CONSTRAINT FK_name FOREIGN KEY (%s) REFERENCES %s (%s)", foreignTableName, "fname", tableName, "name"));
+
+    Assert.assertEquals("FK_NAME", dbAccessor.getCheckedForeignKey(foreignTableName, "fk_name"));
   }
 
   @Test
@@ -756,4 +785,142 @@ public class DBAccessorImplTest {
 
     // should not result in exception due to unknown column in source table
   }
+
+  @Test
+  public void testDbColumnInfoEqualsAndHash() {
+    DBColumnInfo column1 = new DBColumnInfo("col", String.class, null, null, false);
+    DBColumnInfo equalsColumn1 = new DBColumnInfo("col", String.class, null, null, false);
+    DBColumnInfo notEqualsColumn1Name = new DBColumnInfo("col1", String.class, null, null, false);
+    DBColumnInfo notEqualsColumn1Type = new DBColumnInfo("col", Integer.class, null, null, false);
+    DBColumnInfo notEqualsColumn1Length = new DBColumnInfo("col", String.class, 10, null, false);
+    DBColumnInfo notEqualsColumn1DefaultValue = new DBColumnInfo("col", String.class, null, "default", false);
+    DBColumnInfo notEqualsColumn1DefaultValueEmptyString = new DBColumnInfo("col", String.class, null, "", false);
+    DBColumnInfo notEqualsColumn1Nullable = new DBColumnInfo("col", String.class, null, null, true);
+
+    assertTrue(column1.hashCode() == equalsColumn1.hashCode());
+    assertFalse(column1.hashCode() == notEqualsColumn1Name.hashCode());
+    assertFalse(column1.hashCode() == notEqualsColumn1Type.hashCode());
+    assertFalse(column1.hashCode() == notEqualsColumn1Length.hashCode());
+    assertFalse(column1.hashCode() == notEqualsColumn1DefaultValue.hashCode());
+    assertTrue(column1.hashCode() == notEqualsColumn1DefaultValueEmptyString.hashCode()); // null and "" yield the same hashcode
+    assertFalse(column1.hashCode() == notEqualsColumn1Nullable.hashCode());
+
+    assertTrue(column1.equals(equalsColumn1));
+    assertFalse(column1.equals(notEqualsColumn1Name));
+    assertFalse(column1.equals(notEqualsColumn1Type));
+    assertFalse(column1.equals(notEqualsColumn1Length));
+    assertFalse(column1.equals(notEqualsColumn1DefaultValue));
+    assertFalse(column1.equals(notEqualsColumn1DefaultValueEmptyString));
+    assertFalse(column1.equals(notEqualsColumn1Nullable));
+  }
+
+  @Test
+  public void testFromSqlTypeToClass() throws Exception {
+    String tableName = getFreeTableName();
+    String columnName = "col1";
+
+    createMyTable(tableName, columnName);
+
+    DBAccessorImpl dbAccessor = injector.getInstance(DBAccessorImpl.class);
+    DBColumnInfo columnInfo =  dbAccessor.getColumnInfo(tableName, columnName);
+
+    assertEquals(columnName.toUpperCase(), columnInfo.getName());
+    assertEquals(String.class, columnInfo.getType());
+  }
+
+  @Test
+  public void testBuildQuery() throws Exception {
+    String tableName = getFreeTableName();
+    createMyTable(tableName);
+
+    DBAccessorImpl dbAccessor = injector.getInstance(DBAccessorImpl.class);
+
+    assertEquals(String.format("SELECT id FROM %s WHERE name='value1'", tableName),
+    dbAccessor.buildQuery(tableName, new String[] {"id"}, new String[] {"name"}, new String[] {"value1"}));
+
+    assertEquals(String.format("SELECT id FROM %s WHERE name='value1' AND time='100'", tableName),
+    dbAccessor.buildQuery(tableName, new String[] {"id"}, new String[] {"name", "time"}, new String[] {"value1", "100"}));
+
+    assertEquals(String.format("SELECT id, name FROM %s WHERE time='100'", tableName),
+    dbAccessor.buildQuery(tableName, new String[] {"id", "name"}, new String[] {"time"}, new String[] {"100"}));
+
+    assertEquals(String.format("SELECT id, name FROM %s", tableName),
+    dbAccessor.buildQuery(tableName, new String[] {"id", "name"}, null, null));
+
+    try {
+      dbAccessor.buildQuery("invalid_table_name", new String[] {"id", "name"}, new String[] {"time"}, new String[] {"100"});
+      fail("Expected IllegalArgumentException due to bad table name");
+    }
+    catch (IllegalArgumentException e) {
+      // This is expected
+    }
+
+    try {
+      dbAccessor.buildQuery(tableName, new String[] {"invalid_column_name"}, new String[] {"time"}, new String[] {"100"});
+      fail("Expected IllegalArgumentException due to bad column name");
+    }
+    catch (IllegalArgumentException e) {
+      // This is expected
+    }
+
+    try {
+      dbAccessor.buildQuery(tableName, new String[] {"id"}, new String[] {"invalid_column_name"}, new String[] {"100"});
+      fail("Expected IllegalArgumentException due to bad column name");
+    }
+    catch (IllegalArgumentException e) {
+      // This is expected
+    }
+
+    try {
+      dbAccessor.buildQuery(tableName, new String[] {}, new String[] {"name"}, new String[] {"100"});
+      fail("Expected IllegalArgumentException due missing select columns");
+    }
+    catch (IllegalArgumentException e) {
+      // This is expected
+    }
+
+    try {
+      dbAccessor.buildQuery(tableName, null, new String[] {"name"}, new String[] {"100"});
+      fail("Expected IllegalArgumentException due missing select columns");
+    }
+    catch (IllegalArgumentException e) {
+      // This is expected
+    }
+
+    try {
+      dbAccessor.buildQuery(tableName, new String[] {"id"}, new String[] {"name", "time"}, new String[] {"100"});
+      fail("Expected IllegalArgumentException due mismatch condition column and value arrays");
+    }
+    catch (IllegalArgumentException e) {
+      // This is expected
+    }
+  }
+
+  @Test
+  public void escapesEnumValue() {
+    DatabasePlatform platform = createNiceMock(DatabasePlatform.class);
+    Object value = State.UNKNOWN;
+    expect(platform.convertToDatabaseType(value)).andReturn(value).anyTimes();
+    reset(platform);
+    assertEquals("'" + value + "'", DBAccessorImpl.escapeParameter(value, platform));
+  }
+
+  @Test
+  public void escapesString() {
+    DatabasePlatform platform = createNiceMock(DatabasePlatform.class);
+    Object value = "hello, world";
+    expect(platform.convertToDatabaseType(value)).andReturn(value).anyTimes();
+    reset(platform);
+    assertEquals("'" + value + "'", DBAccessorImpl.escapeParameter(value, platform));
+  }
+
+  @Test
+  public void doesNotEscapeNumbers() {
+    DatabasePlatform platform = createNiceMock(DatabasePlatform.class);
+    Object value = 123;
+    expect(platform.convertToDatabaseType(value)).andReturn(value).anyTimes();
+    reset(platform);
+    assertEquals("123", DBAccessorImpl.escapeParameter(value, platform));
+  }
+
 }

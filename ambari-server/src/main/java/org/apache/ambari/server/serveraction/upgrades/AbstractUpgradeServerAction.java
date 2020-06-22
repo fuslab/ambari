@@ -17,6 +17,7 @@
  */
 package org.apache.ambari.server.serveraction.upgrades;
 
+import org.apache.ambari.server.agent.stomp.AgentConfigsHolder;
 import org.apache.ambari.server.orm.dao.UpgradeDAO;
 import org.apache.ambari.server.orm.entities.UpgradeEntity;
 import org.apache.ambari.server.serveraction.AbstractServerAction;
@@ -26,12 +27,17 @@ import org.apache.ambari.server.state.UpgradeContext;
 import org.apache.ambari.server.state.UpgradeContextFactory;
 import org.apache.ambari.server.state.UpgradeHelper;
 
+import com.google.gson.Gson;
 import com.google.inject.Inject;
 
 /**
  * Abstract class that reads values from command params in a consistent way.
  */
 public abstract class AbstractUpgradeServerAction extends AbstractServerAction {
+
+  public Clusters getClusters() {
+    return m_clusters;
+  }
 
   @Inject
   protected Clusters m_clusters;
@@ -54,6 +60,18 @@ public abstract class AbstractUpgradeServerAction extends AbstractServerAction {
    */
   @Inject
   private UpgradeContextFactory m_upgradeContextFactory;
+
+  @Inject
+  protected AgentConfigsHolder agentConfigsHolder;
+
+  /**
+   * Gets the injected instance of the {@link Gson} serializer/deserializer.
+   *
+   * @return the injected {@link Gson} instance.
+   */
+  protected Gson getGson() {
+    return gson;
+  }
 
   /**
    * Gets an initialized {@link UpgradeContext} for the in-progress upgrade.

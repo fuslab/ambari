@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,11 +17,14 @@
  */
 package org.apache.ambari.server.actionmanager;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
-import com.google.inject.Guice;
-import com.google.inject.Inject;
-import com.google.inject.Injector;
+import java.sql.SQLException;
+import java.util.Map;
+import java.util.TreeMap;
+
+import org.apache.ambari.server.AmbariException;
+import org.apache.ambari.server.H2DatabaseCleaner;
 import org.apache.ambari.server.Role;
 import org.apache.ambari.server.RoleCommand;
 import org.apache.ambari.server.agent.ExecutionCommand;
@@ -32,12 +35,10 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.sql.SQLException;
-import java.util.Map;
-import java.util.TreeMap;
+import com.google.inject.Guice;
+import com.google.inject.Inject;
+import com.google.inject.Injector;
 
-import org.apache.ambari.server.AmbariException;
-import org.apache.ambari.server.H2DatabaseCleaner;
 public class TestStage {
 
   private static final String CLUSTER_HOST_INFO = "cluster_host_info";
@@ -65,7 +66,7 @@ public class TestStage {
     s.addHostRoleExecutionCommand("h1", Role.HBASE_MASTER, RoleCommand.INSTALL,
         null, "c1", "HBASE", false, false);
     for (ExecutionCommandWrapper wrapper : s.getExecutionCommands("h1")) {
-      Map<String, String> commandParams = new TreeMap<String, String>();
+      Map<String, String> commandParams = new TreeMap<>();
       commandParams.put(ExecutionCommand.KeyNames.COMMAND_TIMEOUT, "600");
       wrapper.getExecutionCommand().setCommandParams(commandParams);
     }

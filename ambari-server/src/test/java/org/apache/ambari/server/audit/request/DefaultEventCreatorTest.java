@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,8 +17,6 @@
  */
 
 package org.apache.ambari.server.audit.request;
-
-import junit.framework.Assert;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -56,7 +54,6 @@ import org.apache.ambari.server.api.services.Result;
 import org.apache.ambari.server.api.services.ResultImpl;
 import org.apache.ambari.server.api.services.ResultStatus;
 import org.apache.ambari.server.audit.request.eventcreator.DefaultEventCreator;
-import org.apache.ambari.server.controller.spi.Resource;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -67,6 +64,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+
+import junit.framework.Assert;
 
 public class DefaultEventCreatorTest {
 
@@ -96,7 +95,7 @@ public class DefaultEventCreatorTest {
 
           @Override
           public Object getPrincipal() {
-            return new User("testuser", "password", Collections.EMPTY_LIST);
+            return new User("testuser", "password", Collections.emptyList());
           }
 
           @Override
@@ -478,7 +477,7 @@ public class DefaultEventCreatorTest {
 
   @Test
   public void defaultEventCreatorTest__okWithMessage() {
-    ResourceInstance resource = new QueryImpl(new HashMap<Resource.Type, String>(), new HostComponentResourceDefinition(), null);
+    ResourceInstance resource = new QueryImpl(new HashMap<>(), new HostComponentResourceDefinition(), null);
     Request request =  requestFactory.createRequest(null, new RequestBody(), new LocalUriInfo("http://apache.org"), Request.Type.POST, resource);
     Result result = new ResultImpl(new ResultStatus(ResultStatus.STATUS.OK, "message"));
 
@@ -489,7 +488,7 @@ public class DefaultEventCreatorTest {
 
   @Test
   public void defaultEventCreatorTest__errorWithMessage() {
-    ResourceInstance resource = new QueryImpl(new HashMap<Resource.Type, String>(), new HostComponentResourceDefinition(), null);
+    ResourceInstance resource = new QueryImpl(new HashMap<>(), new HostComponentResourceDefinition(), null);
     Request request =  requestFactory.createRequest(null, new RequestBody(), new LocalUriInfo("http://apache.org"), Request.Type.POST, resource);
     Result result = new ResultImpl(new ResultStatus(ResultStatus.STATUS.BAD_REQUEST, "message"));
 
@@ -500,7 +499,7 @@ public class DefaultEventCreatorTest {
 
   @Test
   public void defaultEventCreatorTest__okWithoutMessage() {
-    ResourceInstance resource = new QueryImpl(new HashMap<Resource.Type, String>(), new HostComponentResourceDefinition(), null);
+    ResourceInstance resource = new QueryImpl(new HashMap<>(), new HostComponentResourceDefinition(), null);
     Request request =  requestFactory.createRequest(null, new RequestBody(), new LocalUriInfo("http://apache.org"), Request.Type.POST, resource);
     Result result = new ResultImpl(new ResultStatus(ResultStatus.STATUS.OK));
 

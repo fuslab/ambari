@@ -18,11 +18,11 @@
 
 package org.apache.ambari.server.collections.functors;
 
-import org.apache.ambari.server.collections.Predicate;
-import org.apache.commons.collections.functors.PredicateDecorator;
-
 import java.util.Collections;
 import java.util.Map;
+
+import org.apache.ambari.server.collections.Predicate;
+import org.apache.commons.collections.functors.PredicateDecorator;
 
 /**
  * DelegatedSinglePredicateContainer is an abstract class providing functionality to managing a
@@ -48,7 +48,7 @@ abstract class DelegatedSinglePredicateContainer extends Predicate implements Pr
 
   @Override
   public Map<String, Object> toMap() {
-    return Collections.<String, Object>singletonMap(getName(), containedPredicateToMap());
+    return Collections.singletonMap(getName(), containedPredicateToMap());
   }
 
   @Override

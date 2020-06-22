@@ -1,0 +1,10 @@
+{
+  "_comment" : "Record format:",
+  "_comment" : "blockedRole-blockedCommand: [blockerRole1-blockerCommand1, blockerRole2-blockerCommand2, ...]",
+  "general_deps" : {
+      "_comment" : "dependencies for all cases",
+      "NIMBUS-START" : ["ZOOKEEPER_SERVER-START", "RANGER_USERSYNC-START", "NAMENODE-START", "LOGSEARCH_LOGFEEDER-START"],
+      "LOGSEARCH_SERVER-RESTART" : ["INFRA_SOLR-RESTART"],
+      "LOGSEARCH_LOGFEEDER-RESTART" : ["INFRA_SOLR-RESTART","LOGSEARCH_SERVER-RESTART"]
+    }
+}

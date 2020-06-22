@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,8 +24,8 @@ import java.util.List;
 import org.apache.ambari.server.api.services.Request;
 import org.apache.ambari.server.api.util.TreeNode;
 import org.apache.ambari.server.controller.spi.Resource;
-import org.apache.ambari.server.controller.spi.Schema;
 import org.apache.ambari.server.controller.spi.Resource.Type;
+import org.apache.ambari.server.controller.spi.Schema;
 import org.apache.ambari.server.controller.utilities.ClusterControllerHelper;
 
 public class RootServiceHostComponentResourceDefinition extends
@@ -51,7 +51,7 @@ public class RootServiceHostComponentResourceDefinition extends
   
   @Override
   public List<PostProcessor> getPostProcessors() {
-    List<PostProcessor> listProcessors = new ArrayList<PostProcessor>();
+    List<PostProcessor> listProcessors = new ArrayList<>();
     listProcessors.add(new RootServiceHostComponentHrefProcessor());
 
     return listProcessors;

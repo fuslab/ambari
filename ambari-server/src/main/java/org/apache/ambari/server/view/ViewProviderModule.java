@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,13 +18,13 @@
 
 package org.apache.ambari.server.view;
 
+import java.util.List;
+import java.util.Map;
+
 import org.apache.ambari.server.controller.spi.PropertyProvider;
 import org.apache.ambari.server.controller.spi.ProviderModule;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.spi.ResourceProvider;
-
-import java.util.List;
-import java.util.Map;
 
 /**
  * Module which allows for discovery of view resource providers.

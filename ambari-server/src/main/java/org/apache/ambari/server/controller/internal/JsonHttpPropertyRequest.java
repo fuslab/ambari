@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,18 +17,19 @@
  */
 package org.apache.ambari.server.controller.internal;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
+import java.io.IOException;
+import java.io.InputStream;
+import java.lang.reflect.Type;
+import java.util.Map;
+
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.lang.reflect.Type;
-import java.util.Map;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 /**
  * Represents an HTTP request to another server for properties to be used to populate an Ambari resource.
@@ -36,7 +37,7 @@ import java.util.Map;
  * instance.
  */
 public abstract class JsonHttpPropertyRequest extends HttpPropertyProvider.HttpPropertyRequest {
-  protected final static Logger LOG = LoggerFactory.getLogger(JsonHttpPropertyRequest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(JsonHttpPropertyRequest.class);
 
   private static final Type MAP_TYPE = new TypeToken<Map<String, Object>>() {}.getType();
 

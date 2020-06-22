@@ -50,9 +50,9 @@ public class PersistHostResourcesTask extends TopologyHostTask  {
     LOG.info("HostRequest: Executing RESOURCE_CREATION task for host: {}", hostRequest.getHostName());
 
     HostGroup group = hostRequest.getHostGroup();
-    Map<String, Collection<String>> serviceComponents = new HashMap<String, Collection<String>>();
+    Map<String, Collection<String>> serviceComponents = new HashMap<>();
     for (String service : group.getServices()) {
-      serviceComponents.put(service, new HashSet<String>(group.getComponents(service)));
+      serviceComponents.put(service, new HashSet<>(group.getComponents(service)));
     }
     clusterTopology.getAmbariContext().createAmbariHostResources(hostRequest.getClusterId(),
       hostRequest.getHostName(), serviceComponents);

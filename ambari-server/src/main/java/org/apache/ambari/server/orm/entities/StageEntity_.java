@@ -18,14 +18,15 @@
 
 package org.apache.ambari.server.orm.entities;
 
-import org.apache.ambari.server.controller.internal.StageResourceProvider;
-
-import javax.persistence.metamodel.SingularAttribute;
-import javax.persistence.metamodel.StaticMetamodel;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import javax.persistence.metamodel.SingularAttribute;
+import javax.persistence.metamodel.StaticMetamodel;
+
+import org.apache.ambari.server.controller.internal.StageResourceProvider;
 
 /**
  * The {@link StageEntity_} is a strongly typed metamodel for creating
@@ -58,7 +59,7 @@ public class StageEntity_ {
    * @return a mapping of between a resource provider property
    */
   public static Map<String, List<? extends SingularAttribute<StageEntity, ?>>> getPredicateMapping() {
-    Map<String, List<? extends SingularAttribute<StageEntity, ?>>> mapping = new HashMap<String, List<? extends SingularAttribute<StageEntity, ?>>>();
+    Map<String, List<? extends SingularAttribute<StageEntity, ?>>> mapping = new HashMap<>();
 
     mapping.put(StageResourceProvider.STAGE_REQUEST_ID,
         Collections.singletonList(requestId));

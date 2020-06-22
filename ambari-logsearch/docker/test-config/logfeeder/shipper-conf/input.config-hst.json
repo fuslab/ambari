@@ -3,7 +3,8 @@
     {
       "type": "hst_agent",
       "rowtype": "service",
-      "path": "/root/test-logs/smartsense/hst-agent-test-log.txt"
+      "path": "/root/test-logs/smartsense/hst-agent-test-log.txt",
+      "group": "Smartsense"
     }
   ],
   "filter": [
@@ -22,11 +23,11 @@
       "post_map_values": {
         "logtime": {
           "map_date": {
-            "date_pattern":"dd MMM yyyy HH:mm:ss"
+            "target_date_pattern":"dd MMM yyyy HH:mm:ss"
           }
         },
         "level": {
-          "map_fieldvalue": {
+          "map_field_value": {
             "pre_value": "WARNING",
             "post_value": "WARN"
           }

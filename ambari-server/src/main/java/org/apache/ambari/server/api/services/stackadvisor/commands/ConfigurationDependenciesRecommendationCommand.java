@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,8 @@
 
 package org.apache.ambari.server.api.services.stackadvisor.commands;
 
-import org.apache.ambari.server.api.services.AmbariMetaInfo;
-import org.apache.ambari.server.api.services.stackadvisor.StackAdvisorException;
-import org.apache.ambari.server.api.services.stackadvisor.StackAdvisorRequest;
-import org.apache.ambari.server.api.services.stackadvisor.StackAdvisorRunner;
-import org.apache.ambari.server.api.services.stackadvisor.recommendations.RecommendationResponse;
+import static org.apache.ambari.server.api.services.stackadvisor.recommendations.RecommendationResponse.BindingHostGroup;
+import static org.apache.ambari.server.api.services.stackadvisor.recommendations.RecommendationResponse.HostGroup;
 
 import java.io.File;
 import java.util.HashMap;
@@ -30,8 +27,13 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import static org.apache.ambari.server.api.services.stackadvisor.recommendations.RecommendationResponse.BindingHostGroup;
-import static org.apache.ambari.server.api.services.stackadvisor.recommendations.RecommendationResponse.HostGroup;
+import org.apache.ambari.server.api.services.AmbariMetaInfo;
+import org.apache.ambari.server.api.services.stackadvisor.StackAdvisorException;
+import org.apache.ambari.server.api.services.stackadvisor.StackAdvisorRequest;
+import org.apache.ambari.server.api.services.stackadvisor.StackAdvisorRunner;
+import org.apache.ambari.server.api.services.stackadvisor.recommendations.RecommendationResponse;
+import org.apache.ambari.server.controller.internal.AmbariServerConfigurationHandler;
+import org.apache.ambari.server.state.ServiceInfo;
 
 /**
  * {@link StackAdvisorCommand} implementation for
@@ -40,9 +42,14 @@ import static org.apache.ambari.server.api.services.stackadvisor.recommendations
 public class ConfigurationDependenciesRecommendationCommand extends
     StackAdvisorCommand<RecommendationResponse> {
 
-  public ConfigurationDependenciesRecommendationCommand(File recommendationsDir, String recommendationsArtifactsLifetime, String stackAdvisorScript, int requestId,
-                                                        StackAdvisorRunner saRunner, AmbariMetaInfo metaInfo) {
-    super(recommendationsDir, recommendationsArtifactsLifetime, stackAdvisorScript, requestId, saRunner, metaInfo);
+  public ConfigurationDependenciesRecommendationCommand(File recommendationsDir,
+                                                        String recommendationsArtifactsLifetime,
+                                                        ServiceInfo.ServiceAdvisorType serviceAdvisorType,
+                                                        int requestId,
+                                                        StackAdvisorRunner saRunner,
+                                                        AmbariMetaInfo metaInfo,
+                                                        AmbariServerConfigurationHandler ambariServerConfigurationHandler) {
+    super(recommendationsDir, recommendationsArtifactsLifetime, serviceAdvisorType, requestId, saRunner, metaInfo, ambariServerConfigurationHandler);
   }
 
   @Override
@@ -70,15 +77,15 @@ public class ConfigurationDependenciesRecommendationCommand extends
   }
 
   protected Set<HostGroup> processHostGroups(StackAdvisorRequest request) {
-    Set<HostGroup> resultSet = new HashSet<HostGroup>();
+    Set<HostGroup> resultSet = new HashSet<>();
     for (Map.Entry<String, Set<String>> componentHost : request.getHostComponents().entrySet()) {
       String hostGroupName = componentHost.getKey();
       Set<String> components = componentHost.getValue();
       if (hostGroupName != null && components != null) {
         HostGroup hostGroup = new HostGroup();
-        Set<Map<String, String>> componentsSet = new HashSet<Map<String, String>>();
+        Set<Map<String, String>> componentsSet = new HashSet<>();
         for (String component : components) {
-          Map<String, String> componentMap = new HashMap<String, String>();
+          Map<String, String> componentMap = new HashMap<>();
           componentMap.put("name", component);
           componentsSet.add(componentMap);
         }
@@ -91,15 +98,15 @@ public class ConfigurationDependenciesRecommendationCommand extends
   }
 
   private Set<BindingHostGroup> processHostGroupBindings(StackAdvisorRequest request) {
-    Set<BindingHostGroup> resultSet = new HashSet<BindingHostGroup>();
+    Set<BindingHostGroup> resultSet = new HashSet<>();
     for (Map.Entry<String, Set<String>> hostBinding : request.getHostGroupBindings().entrySet()) {
       String hostGroupName = hostBinding.getKey();
       Set<String> hosts = hostBinding.getValue();
       if (hostGroupName != null && hosts != null) {
         BindingHostGroup bindingHostGroup = new BindingHostGroup();
-        Set<Map<String, String>> hostsSet = new HashSet<Map<String, String>>();
+        Set<Map<String, String>> hostsSet = new HashSet<>();
         for (String host : hosts) {
-          Map<String, String> hostMap = new HashMap<String, String>();
+          Map<String, String> hostMap = new HashMap<>();
           hostMap.put("name", host);
           hostsSet.add(hostMap);
         }

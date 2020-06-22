@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,8 +29,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import junit.framework.Assert;
-
 import org.apache.ambari.server.controller.AmbariManagementController;
 import org.apache.ambari.server.controller.spi.Predicate;
 import org.apache.ambari.server.controller.spi.Request;
@@ -42,6 +40,8 @@ import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.Clusters;
 import org.apache.ambari.server.state.ServiceComponentHost;
 import org.junit.Test;
+
+import junit.framework.Assert;
 
 /**
  * Tests the {@link HostComponentProcessResourceProvider} class
@@ -61,13 +61,13 @@ public class HostComponentProcessResourceProviderTest {
         }});
 
     PredicateBuilder pb = new PredicateBuilder().property(
-        HostComponentProcessResourceProvider.HC_PROCESS_CLUSTER_NAME_ID).equals("c1").and();
+        HostComponentProcessResourceProvider.CLUSTER_NAME).equals("c1").and();
     pb = pb.property(
-        HostComponentProcessResourceProvider.HC_PROCESS_HOST_NAME_ID).equals("h1").and();
+        HostComponentProcessResourceProvider.HOST_NAME).equals("h1").and();
     Predicate predicate = pb.property(
-        HostComponentProcessResourceProvider.HC_PROCESS_COMPONENT_NAME_ID).equals("comp1").toPredicate();
+        HostComponentProcessResourceProvider.COMPONENT_NAME).equals("comp1").toPredicate();
     
-    Request request = PropertyHelper.getReadRequest(Collections.<String>emptySet());
+    Request request = PropertyHelper.getReadRequest(Collections.emptySet());
     
     Set<Resource> resources = provider.getResources(request, predicate);
     
@@ -75,9 +75,9 @@ public class HostComponentProcessResourceProviderTest {
     Resource res = resources.iterator().next();
     
     Assert.assertNotNull(res.getPropertyValue(
-        HostComponentProcessResourceProvider.HC_PROCESS_NAME_ID));
+        HostComponentProcessResourceProvider.NAME));
     Assert.assertNotNull(res.getPropertyValue(
-        HostComponentProcessResourceProvider.HC_PROCESS_STATUS_ID));
+        HostComponentProcessResourceProvider.STATUS));
   }
   
   @Test
@@ -87,13 +87,13 @@ public class HostComponentProcessResourceProviderTest {
     ResourceProvider provider = init();
 
     PredicateBuilder pb = new PredicateBuilder().property(
-        HostComponentProcessResourceProvider.HC_PROCESS_CLUSTER_NAME_ID).equals("c1").and();
+        HostComponentProcessResourceProvider.CLUSTER_NAME).equals("c1").and();
     pb = pb.property(
-        HostComponentProcessResourceProvider.HC_PROCESS_HOST_NAME_ID).equals("h1").and();
+        HostComponentProcessResourceProvider.HOST_NAME).equals("h1").and();
     Predicate predicate = pb.property(
-        HostComponentProcessResourceProvider.HC_PROCESS_COMPONENT_NAME_ID).equals("comp1").toPredicate();
+        HostComponentProcessResourceProvider.COMPONENT_NAME).equals("comp1").toPredicate();
     
-    Request request = PropertyHelper.getReadRequest(Collections.<String>emptySet());
+    Request request = PropertyHelper.getReadRequest(Collections.emptySet());
     
     Set<Resource> resources = provider.getResources(request, predicate);
     
@@ -119,21 +119,21 @@ public class HostComponentProcessResourceProviderTest {
         }});        
 
     PredicateBuilder pb = new PredicateBuilder().property(
-        HostComponentProcessResourceProvider.HC_PROCESS_CLUSTER_NAME_ID).equals("c1").and();
+        HostComponentProcessResourceProvider.CLUSTER_NAME).equals("c1").and();
     pb = pb.property(
-        HostComponentProcessResourceProvider.HC_PROCESS_HOST_NAME_ID).equals("h1").and();
+        HostComponentProcessResourceProvider.HOST_NAME).equals("h1").and();
     Predicate predicate = pb.property(
-        HostComponentProcessResourceProvider.HC_PROCESS_COMPONENT_NAME_ID).equals("comp1").toPredicate();
+        HostComponentProcessResourceProvider.COMPONENT_NAME).equals("comp1").toPredicate();
     
-    Request request = PropertyHelper.getReadRequest(Collections.<String>emptySet());
+    Request request = PropertyHelper.getReadRequest(Collections.emptySet());
     
     Set<Resource> resources = provider.getResources(request, predicate);
     
     Assert.assertEquals(Integer.valueOf(3), Integer.valueOf(resources.size()));
     
     for (Resource r : resources) {
-      Assert.assertNotNull(r.getPropertyValue(HostComponentProcessResourceProvider.HC_PROCESS_NAME_ID));
-      Assert.assertNotNull(r.getPropertyValue(HostComponentProcessResourceProvider.HC_PROCESS_STATUS_ID));
+      Assert.assertNotNull(r.getPropertyValue(HostComponentProcessResourceProvider.NAME));
+      Assert.assertNotNull(r.getPropertyValue(HostComponentProcessResourceProvider.STATUS));
     }
   }
   
@@ -161,8 +161,6 @@ public class HostComponentProcessResourceProviderTest {
     
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
         type,
-        PropertyHelper.getPropertyIds(type),
-        PropertyHelper.getKeyPropertyIds(type),
         amc);
     
     return provider;

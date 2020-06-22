@@ -17,13 +17,14 @@
  */
 package org.apache.ambari.server.controller.internal;
 
-import junit.framework.Assert;
+import java.util.HashSet;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.spi.QueryResponse;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.junit.Test;
 
-import java.util.HashSet;
-import java.util.Set;
+import junit.framework.Assert;
 
 /**
  * QueryResponseImpl tests
@@ -32,7 +33,7 @@ public class QueryResponseImplTest {
 
   @Test
   public void testGetResources() throws Exception {
-    Set<Resource> resources = new HashSet<Resource>();
+    Set<Resource> resources = new HashSet<>();
     resources.add(new ResourceImpl(Resource.Type.Stage));
 
     QueryResponse queryResponse = new QueryResponseImpl(resources);
@@ -41,7 +42,7 @@ public class QueryResponseImplTest {
 
   @Test
   public void testIsSortedResponse() throws Exception {
-    Set<Resource> resources = new HashSet<Resource>();
+    Set<Resource> resources = new HashSet<>();
     resources.add(new ResourceImpl(Resource.Type.Stage));
 
     QueryResponse queryResponse = new QueryResponseImpl(resources);
@@ -56,7 +57,7 @@ public class QueryResponseImplTest {
 
   @Test
   public void testIsPagedResponse() throws Exception {
-    Set<Resource> resources = new HashSet<Resource>();
+    Set<Resource> resources = new HashSet<>();
     resources.add(new ResourceImpl(Resource.Type.Stage));
 
     QueryResponse queryResponse = new QueryResponseImpl(resources);
@@ -71,7 +72,7 @@ public class QueryResponseImplTest {
 
   @Test
   public void testGetTotalResourceCount() throws Exception {
-    Set<Resource> resources = new HashSet<Resource>();
+    Set<Resource> resources = new HashSet<>();
     resources.add(new ResourceImpl(Resource.Type.Stage));
 
     QueryResponse queryResponse = new QueryResponseImpl(resources);

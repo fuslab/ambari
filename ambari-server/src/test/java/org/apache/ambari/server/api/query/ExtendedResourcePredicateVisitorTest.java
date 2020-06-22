@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,6 +17,11 @@
  */
 package org.apache.ambari.server.api.query;
 
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.internal.ResourceImpl;
 import org.apache.ambari.server.controller.spi.Predicate;
 import org.apache.ambari.server.controller.spi.Resource;
@@ -24,11 +29,6 @@ import org.apache.ambari.server.controller.utilities.PredicateBuilder;
 import org.apache.ambari.server.controller.utilities.PredicateHelper;
 import org.junit.Assert;
 import org.junit.Test;
-
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * ExtendedResourcePredicateVisitor tests.
@@ -42,49 +42,49 @@ public class ExtendedResourcePredicateVisitorTest {
     Resource resource2 = new ResourceImpl(Resource.Type.Service);
     resource2.setProperty("name", "service2");
 
-    Map<String, Object> resource1SubProperties1 = new HashMap<String, Object>();
+    Map<String, Object> resource1SubProperties1 = new HashMap<>();
     resource1SubProperties1.put("sub1/category/p1", 1);
     resource1SubProperties1.put("sub1/category/p2", 2);
     resource1SubProperties1.put("sub1/category/p3", 3);
 
-    Map<String, Object> resource1SubProperties2 = new HashMap<String, Object>();
+    Map<String, Object> resource1SubProperties2 = new HashMap<>();
     resource1SubProperties2.put("sub1/category/p1", 1);
     resource1SubProperties2.put("sub1/category/p2", 4);
     resource1SubProperties2.put("sub1/category/p3", 6);
 
-    Map<String, Object> resource1SubProperties3 = new HashMap<String, Object>();
+    Map<String, Object> resource1SubProperties3 = new HashMap<>();
     resource1SubProperties3.put("sub1/category/p1", 1);
     resource1SubProperties3.put("sub1/category/p2", 8);
     resource1SubProperties3.put("sub1/category/p3", 12);
 
-    Set<Map<String, Object>> resource1SubPropertiesSet = new HashSet<Map<String, Object>>();
+    Set<Map<String, Object>> resource1SubPropertiesSet = new HashSet<>();
 
     resource1SubPropertiesSet.add(resource1SubProperties1);
     resource1SubPropertiesSet.add(resource1SubProperties2);
     resource1SubPropertiesSet.add(resource1SubProperties3);
 
-    Map<String, Object> resource2SubProperties1 = new HashMap<String, Object>();
+    Map<String, Object> resource2SubProperties1 = new HashMap<>();
     resource2SubProperties1.put("sub1/category/p1", 2);
     resource2SubProperties1.put("sub1/category/p2", 2);
     resource2SubProperties1.put("sub1/category/p3", 3);
 
-    Map<String, Object> resource2SubProperties2 = new HashMap<String, Object>();
+    Map<String, Object> resource2SubProperties2 = new HashMap<>();
     resource2SubProperties2.put("sub1/category/p1", 2);
     resource2SubProperties2.put("sub1/category/p2", 4);
     resource2SubProperties2.put("sub1/category/p3", 6);
 
-    Map<String, Object> resource2SubProperties3 = new HashMap<String, Object>();
+    Map<String, Object> resource2SubProperties3 = new HashMap<>();
     resource2SubProperties3.put("sub1/category/p1", 2);
     resource2SubProperties3.put("sub1/category/p2", 8);
     resource2SubProperties3.put("sub1/category/p3", 12);
 
-    Set<Map<String, Object>> resource2SubPropertiesSet = new HashSet<Map<String, Object>>();
+    Set<Map<String, Object>> resource2SubPropertiesSet = new HashSet<>();
 
     resource2SubPropertiesSet.add(resource2SubProperties1);
     resource2SubPropertiesSet.add(resource2SubProperties2);
     resource2SubPropertiesSet.add(resource2SubProperties3);
 
-    Map<Resource, Set<Map<String, Object>>> extendedPropertyMap = new HashMap<Resource, Set<Map<String, Object>>>();
+    Map<Resource, Set<Map<String, Object>>> extendedPropertyMap = new HashMap<>();
 
     extendedPropertyMap.put(resource1, resource1SubPropertiesSet);
     extendedPropertyMap.put(resource2, resource2SubPropertiesSet);

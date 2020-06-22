@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,9 @@
 
 package org.apache.ambari.server.security;
 
-import org.springframework.security.core.GrantedAuthority;
-
 import java.util.Collection;
+
+import org.springframework.security.core.GrantedAuthority;
 
 /**
  * Security related utilities.
@@ -32,12 +32,12 @@ public interface SecurityHelper {
    *
    * @return the current user.
    */
-  public String getCurrentUserName();
+  String getCurrentUserName();
 
   /**
    * Get the granted authorities for the current user.
    *
    * @return the granted authorities
    */
-  public Collection<? extends GrantedAuthority> getCurrentAuthorities();
+  Collection<? extends GrantedAuthority> getCurrentAuthorities();
 }

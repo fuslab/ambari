@@ -24,12 +24,13 @@ import java.util.Set;
 
 import org.apache.ambari.annotations.Experimental;
 import org.apache.ambari.annotations.ExperimentalFeature;
-import org.apache.ambari.server.orm.entities.RepositoryEntity;
+import org.apache.ambari.server.orm.entities.RepoDefinitionEntity;
 import org.apache.ambari.server.state.RepositoryInfo;
 import org.apache.ambari.server.state.stack.RepoTag;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.builder.ToStringBuilder;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.gson.annotations.SerializedName;
 
 /**
@@ -39,21 +40,27 @@ import com.google.gson.annotations.SerializedName;
 public class CommandRepository {
 
   @SerializedName("repositories")
+  @JsonProperty("repositories")
   private List<Repository> m_repositories = new ArrayList<>();
 
   @SerializedName("repoVersion")
+  @JsonProperty("repoVersion")
   private String m_repoVersion;
 
   @SerializedName("repoVersionId")
+  @JsonProperty("repoVersionId")
   private long m_repoVersionId;
 
   @SerializedName("stackName")
+  @JsonProperty("stackName")
   private String m_stackName;
 
   @SerializedName("repoFileName")
+  @JsonProperty("repoFileName")
   private String m_repoFileName;
 
   @SerializedName("feature")
+  @JsonProperty("feature")
   private final CommandRepositoryFeature feature = new CommandRepositoryFeature();
 
   /**
@@ -70,6 +77,7 @@ public class CommandRepository {
    * version after distribution.
    */
   @SerializedName("resolved")
+  @JsonProperty("resolved")
   private boolean m_resolved;
 
   /**
@@ -108,10 +116,10 @@ public class CommandRepository {
    * @param osType        the OS type for the repositories
    * @param repositories  the repository entities that should be processed into a file
    */
-  public void setRepositories(String osType, Collection<RepositoryEntity> repositories) {
+  public void setRepositories(String osType, Collection<RepoDefinitionEntity> repositories) {
     m_repositories = new ArrayList<>();
 
-    for (RepositoryEntity entity : repositories) {
+    for (RepoDefinitionEntity entity : repositories) {
       m_repositories.add(new Repository(osType, entity));
     }
   }
@@ -145,15 +153,8 @@ public class CommandRepository {
     }
   }
 
-  /**
-   * Gets whether this repository has been marked as having its version
-   * resolved.
-   *
-   * @return {@code true} if this repository has been confirmed to have the
-   *         right version.
-   */
-  public boolean isResolved() {
-    return m_resolved;
+  public long getRepoVersionId() {
+    return m_repoVersionId;
   }
 
   /**
@@ -210,6 +211,7 @@ public class CommandRepository {
      * Repository is pre-installed on the host
      */
     @SerializedName("preInstalled")
+    @JsonProperty("preInstalled")
     private Boolean m_isPreInstalled = false;
 
     /**
@@ -218,6 +220,7 @@ public class CommandRepository {
      * Currently affecting: getting available packages from the repository
      */
     @SerializedName("scoped")
+    @JsonProperty("scoped")
     private boolean m_isScoped = true;
 
     public void setIsScoped(boolean isScoped){
@@ -227,7 +230,6 @@ public class CommandRepository {
     public void setPreInstalled(String isPreInstalled) {
       this.m_isPreInstalled = isPreInstalled.equalsIgnoreCase("true");
     }
-
   }
 
   /**
@@ -237,34 +239,42 @@ public class CommandRepository {
   public static class Repository {
 
     @SerializedName("baseUrl")
+    @JsonProperty("baseUrl")
     private String m_baseUrl;
 
     @SerializedName("repoId")
+    @JsonProperty("repoId")
     private String m_repoId;
 
     @SerializedName("ambariManaged")
+    @JsonProperty("ambariManaged")
     private boolean m_ambariManaged = true;
 
-
     @SerializedName("repoName")
+    @JsonProperty("repoName")
     private final String m_repoName;
 
     @SerializedName("distribution")
+    @JsonProperty("distribution")
     private final String m_distribution;
 
     @SerializedName("components")
+    @JsonProperty("components")
     private final String m_components;
 
     @SerializedName("mirrorsList")
+    @JsonProperty("mirrorsList")
     private String m_mirrorsList;
-
-    @SerializedName("tags")
-    private Set<RepoTag> m_tags;
 
     @SerializedName("applicableServices")
     @Experimental(feature = ExperimentalFeature.CUSTOM_SERVICE_REPOS,
       comment = "Remove logic for handling custom service repos after enabling multi-mpack cluster deployment")
     private List<String> m_applicableServices;
+
+    @SerializedName("tags")
+    @JsonProperty("tags")
+    private Set<RepoTag> m_tags;
+
 
     private transient String m_osType;
 
@@ -277,17 +287,18 @@ public class CommandRepository {
       m_components = info.getComponents();
       m_mirrorsList = info.getMirrorsList();
       m_applicableServices = info.getApplicableServices();
+      m_tags = info.getTags();
     }
 
-    private Repository(String osType, RepositoryEntity entity) {
+    private Repository(String osType, RepoDefinitionEntity entity) {
       m_baseUrl = entity.getBaseUrl();
-      m_repoId = entity.getRepositoryId();
-      m_repoName = entity.getName();
+      m_repoId = entity.getRepoID();
+      m_repoName = entity.getRepoName();
       m_distribution = entity.getDistribution();
       m_components = entity.getComponents();
-      m_mirrorsList = entity.getMirrorsList();
-      m_osType = osType;
+      m_mirrorsList = entity.getMirrors();
       m_applicableServices = entity.getApplicableServices();
+      m_osType = osType;
       m_tags = entity.getTags();
     }
 
@@ -299,24 +310,12 @@ public class CommandRepository {
       m_baseUrl = url;
     }
 
-    public String getOsType() {
-      return m_osType;
-    }
-
-    public String getRepoId() {
-      return m_repoId;
-    }
-
     public String getRepoName() {
       return m_repoName;
     }
 
-    public String getDistribution() {
-      return m_distribution;
-    }
-
-    public String getComponents() {
-      return m_components;
+    public String getRepoId() {
+      return m_repoId;
     }
 
     public String getBaseUrl() {
@@ -354,5 +353,20 @@ public class CommandRepository {
           .append("applicableServices", (m_applicableServices != null? StringUtils.join(m_applicableServices, ",") : ""))
           .toString();
     }
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+
+    CommandRepository that = (CommandRepository) o;
+
+    return m_repoVersionId == that.m_repoVersionId;
+  }
+
+  @Override
+  public int hashCode() {
+    return (int) (m_repoVersionId ^ (m_repoVersionId >>> 32));
   }
 }

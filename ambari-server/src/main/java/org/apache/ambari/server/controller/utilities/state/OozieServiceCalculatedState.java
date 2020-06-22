@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,9 @@
 
 package org.apache.ambari.server.controller.utilities.state;
 
+import java.util.Collections;
+import java.util.Set;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.ObjectNotFoundException;
 import org.apache.ambari.server.StaticallyInject;
@@ -26,11 +29,11 @@ import org.apache.ambari.server.controller.ServiceComponentHostRequest;
 import org.apache.ambari.server.controller.ServiceComponentHostResponse;
 import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.ComponentInfo;
+import org.apache.ambari.server.state.Service;
 import org.apache.ambari.server.state.StackId;
 import org.apache.ambari.server.state.State;
-
-import java.util.Collections;
-import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Calculator of Oozie service state.
@@ -39,19 +42,23 @@ import java.util.Set;
 public final class OozieServiceCalculatedState extends DefaultServiceCalculatedState
   implements ServiceCalculatedState {
 
+  private static final Logger LOG = LoggerFactory.getLogger(DefaultServiceCalculatedState.class);
+
   @Override
   public State getState(String clusterName, String serviceName) {
     try {
       Cluster cluster = getCluster(clusterName);
       if (cluster != null && managementControllerProvider != null) {
         AmbariMetaInfo ambariMetaInfo = managementControllerProvider.get().getAmbariMetaInfo();
-        StackId stackId = cluster.getDesiredStackVersion();
+        Service service = cluster.getService(serviceName);
+        StackId stackId = service.getDesiredStackId();
+
 
         ServiceComponentHostRequest request = new ServiceComponentHostRequest(clusterName,
           serviceName, null, null, null);
 
         Set<ServiceComponentHostResponse> hostComponentResponses =
-          managementControllerProvider.get().getHostComponents(Collections.singleton(request));
+          managementControllerProvider.get().getHostComponents(Collections.singleton(request), true);
 
         int     oozieServerActiveCount = 0;
         State   nonStartedState        = null;

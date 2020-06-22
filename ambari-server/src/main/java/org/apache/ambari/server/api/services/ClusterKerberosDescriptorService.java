@@ -18,8 +18,8 @@
 
 package org.apache.ambari.server.api.services;
 
-import org.apache.ambari.server.api.resources.ResourceInstance;
-import org.apache.ambari.server.controller.spi.Resource;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -29,8 +29,10 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
-import java.util.HashMap;
-import java.util.Map;
+
+import org.apache.ambari.annotations.ApiIgnore;
+import org.apache.ambari.server.api.resources.ResourceInstance;
+import org.apache.ambari.server.controller.spi.Resource;
 
 /**
  * Read-only service responsible for Kerberos descriptor resource requests.
@@ -65,7 +67,7 @@ public class ClusterKerberosDescriptorService extends BaseService {
    * @param ui      uri info
    * @return Kerberos descriptor resource representation
    */
-  @GET
+  @GET @ApiIgnore // until documented
   @Produces("text/plain")
   public Response getKerberosDescriptors(@Context HttpHeaders headers, @Context UriInfo ui) {
     return handleRequest(headers, null, ui, Request.Type.GET, createResource(null));
@@ -80,14 +82,13 @@ public class ClusterKerberosDescriptorService extends BaseService {
    * @param type    Kerberos descriptor type (COMPOSITE, STACK, USER)
    * @return Kerberos descriptor instance representation
    */
-  @GET
+  @GET @ApiIgnore // until documented
   @Path("{type}")
   @Produces("text/plain")
   public Response getKerberosDescriptor(@Context HttpHeaders headers, @Context UriInfo ui,
                                 @PathParam("type") String type) {
     return handleRequest(headers, null, ui, Request.Type.GET, createResource(type));
   }
-
 
   /**
    * Create a composite Kerberos Descriptor resource instance.
@@ -96,7 +97,7 @@ public class ClusterKerberosDescriptorService extends BaseService {
    * @return a service resource instance
    */
   ResourceInstance createResource(String type) {
-    Map<Resource.Type, String> mapIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type, String> mapIds = new HashMap<>();
     mapIds.put(Resource.Type.Cluster, clusterName);
     mapIds.put(Resource.Type.ClusterKerberosDescriptor, type);
     return createResource(Resource.Type.ClusterKerberosDescriptor, mapIds);

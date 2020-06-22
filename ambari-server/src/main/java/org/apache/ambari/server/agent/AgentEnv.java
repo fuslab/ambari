@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,6 @@
 package org.apache.ambari.server.agent;
 
 import com.google.gson.annotations.SerializedName;
-import org.codehaus.jackson.map.annotate.JsonSerialize;
-import org.codehaus.jackson.map.annotate.JsonSerialize.Inclusion;
 
 /**
  * Agent environment data.
@@ -165,24 +163,28 @@ public class AgentEnv {
      * Java processes running on the system.  Default empty array.
      */
     @SerializedName("activeJavaProcs")
+    @com.fasterxml.jackson.annotation.JsonProperty("activeJavaProcs")
     private JavaProc[] activeJavaProcs = new JavaProc[0];
 
     /**
      * The current time when agent send the host check report
      */
     @SerializedName("agentTimeStampAtReporting")
+    @com.fasterxml.jackson.annotation.JsonProperty("agentTimeStampAtReporting")
     private long agentTimeStampAtReporting = 0;
 
     /**
      * The current time when host check report was received
      */
     @SerializedName("serverTimeStampAtReporting")
+    @com.fasterxml.jackson.annotation.JsonProperty("serverTimeStampAtReporting")
     private long serverTimeStampAtReporting = 0;
 
     /**
      * Live services running on the agent
      */
     @SerializedName("liveServices")
+    @com.fasterxml.jackson.annotation.JsonProperty("liveServices")
     private LiveService[] liveServices = new LiveService[0];
 
     public void setAgentTimeStampAtReporting(long currentTime) {
@@ -220,10 +222,13 @@ public class AgentEnv {
 
   public static class PackageDetail {
     @SerializedName("name")
+    @com.fasterxml.jackson.annotation.JsonProperty("name")
     private String pkgName;
     @SerializedName("version")
+    @com.fasterxml.jackson.annotation.JsonProperty("version")
     private String pkgVersion;
     @SerializedName("repoName")
+    @com.fasterxml.jackson.annotation.JsonProperty("repoName")
     private String pkgRepoName;
 
     public void setName(String name) {
@@ -256,8 +261,10 @@ public class AgentEnv {
    */
   public static class Directory {
     @SerializedName("name")
+    @com.fasterxml.jackson.annotation.JsonProperty("name")
     private String dirName;
     @SerializedName("type")
+    @com.fasterxml.jackson.annotation.JsonProperty("type")
     private String dirType;
     
     public void setName(String name) {
@@ -282,12 +289,16 @@ public class AgentEnv {
    */
   public static class JavaProc {
     @SerializedName("user")        
+    @com.fasterxml.jackson.annotation.JsonProperty("user")
     private String user;
     @SerializedName("pid") 
+    @com.fasterxml.jackson.annotation.JsonProperty("pid")
     private int pid = 0;
     @SerializedName("hadoop") 
+    @com.fasterxml.jackson.annotation.JsonProperty("hadoop")
     private boolean is_hadoop = false;
     @SerializedName("command") 
+    @com.fasterxml.jackson.annotation.JsonProperty("command")
     private String command;
     
     public void setUser(String user) {
@@ -325,8 +336,10 @@ public class AgentEnv {
   
   public static class Alternative {
     @SerializedName("name")
+    @com.fasterxml.jackson.annotation.JsonProperty("name")
     private String altName;
     @SerializedName("target")
+    @com.fasterxml.jackson.annotation.JsonProperty("target")
     private String altTarget;
     
     public void setName(String name) {
@@ -348,10 +361,13 @@ public class AgentEnv {
 
   public static class LiveService {
     @SerializedName("name")
+    @com.fasterxml.jackson.annotation.JsonProperty("name")
     private String svcName;
     @SerializedName("status")
+    @com.fasterxml.jackson.annotation.JsonProperty("status")
     private String svcStatus;
     @SerializedName("desc")
+    @com.fasterxml.jackson.annotation.JsonProperty("desc")
     private String svcDesc;
 
     public void setName(String name) {
@@ -381,10 +397,13 @@ public class AgentEnv {
 
   public static class ExistingUser {
     @SerializedName("name")
+    @com.fasterxml.jackson.annotation.JsonProperty("name")
     private String name;
     @SerializedName("homeDir")
+    @com.fasterxml.jackson.annotation.JsonProperty("homeDir")
     private String homeDir;
     @SerializedName("status")
+    @com.fasterxml.jackson.annotation.JsonProperty("status")
     private String status;
 
     public void setUserName(String userName) {

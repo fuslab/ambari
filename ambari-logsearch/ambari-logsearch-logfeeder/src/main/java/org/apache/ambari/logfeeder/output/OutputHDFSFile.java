@@ -19,13 +19,16 @@
 
 package org.apache.ambari.logfeeder.output;
 
-import org.apache.ambari.logfeeder.input.InputMarker;
+import org.apache.ambari.logfeeder.conf.LogFeederProps;
+import org.apache.ambari.logfeeder.input.InputFileMarker;
 import org.apache.ambari.logfeeder.output.spool.LogSpooler;
 import org.apache.ambari.logfeeder.output.spool.LogSpoolerContext;
 import org.apache.ambari.logfeeder.output.spool.RolloverCondition;
 import org.apache.ambari.logfeeder.output.spool.RolloverHandler;
+import org.apache.ambari.logfeeder.plugin.input.InputMarker;
+import org.apache.ambari.logfeeder.plugin.output.Output;
+import org.apache.ambari.logfeeder.util.LogFeederHDFSUtil;
 import org.apache.ambari.logfeeder.util.LogFeederUtil;
-import org.apache.ambari.logfeeder.util.LogfeederHDFSUtil;
 import org.apache.ambari.logfeeder.util.PlaceholderUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
@@ -42,7 +45,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *
  * The events are spooled on the local file system and uploaded in batches asynchronously.
  */
-public class OutputHDFSFile extends Output implements RolloverHandler, RolloverCondition {
+public class OutputHDFSFile extends Output<LogFeederProps, InputFileMarker> implements RolloverHandler, RolloverCondition {
   private static final Logger LOG = Logger.getLogger(OutputHDFSFile.class);
   
   private static final long DEFAULT_ROLLOVER_THRESHOLD_TIME_SECONDS = 5 * 60L;// 5 min by default
@@ -63,9 +66,11 @@ public class OutputHDFSFile extends Output implements RolloverHandler, RolloverC
 
   private LogSpooler logSpooler;
 
+  private LogFeederProps logFeederProps;
+
   @Override
-  public void init() throws Exception {
-    super.init();
+  public void init(LogFeederProps logFeederProps) throws Exception {
+    this.logFeederProps = logFeederProps;
     hdfsOutDir = getStringValue("hdfs_out_dir");
     hdfsHost = getStringValue("hdfs_host");
     hdfsPort = getStringValue("hdfs_port");
@@ -87,7 +92,7 @@ public class OutputHDFSFile extends Output implements RolloverHandler, RolloverC
     HashMap<String, String> contextParam = buildContextParam();
     hdfsOutDir = PlaceholderUtil.replaceVariables(hdfsOutDir, contextParam);
     LOG.info("hdfs Output dir=" + hdfsOutDir);
-    String localFileDir = LogFeederUtil.getLogfeederTempDir() + "hdfs/service/";
+    String localFileDir = logFeederProps.getTmpDir() + "hdfs/service/";
     logSpooler = new LogSpooler(localFileDir, filenamePrefix, this, this);
     this.startHDFSCopyThread();
   }
@@ -97,11 +102,11 @@ public class OutputHDFSFile extends Output implements RolloverHandler, RolloverC
     LOG.info("Closing file." + getShortDescription());
     logSpooler.rollover();
     this.stopHDFSCopyThread();
-    isClosed = true;
+    setClosed(true);
   }
 
   @Override
-  public synchronized void write(String block, InputMarker inputMarker) throws Exception {
+  public synchronized void write(String block, InputFileMarker inputMarker) throws Exception {
     if (block != null) {
       logSpooler.add(block);
       statMetric.value++;
@@ -124,13 +129,13 @@ public class OutputHDFSFile extends Output implements RolloverHandler, RolloverC
             Iterator<File> localFileIterator = localReadyFiles.iterator();
             while (localFileIterator.hasNext()) {
               File localFile = localFileIterator.next();
-              fileSystem = LogfeederHDFSUtil.buildFileSystem(hdfsHost, hdfsPort);
+              fileSystem = LogFeederHDFSUtil.buildFileSystem(hdfsHost, hdfsPort);
               if (fileSystem != null && localFile.exists()) {
                 String destFilePath = hdfsOutDir + "/" + localFile.getName();
                 String localPath = localFile.getAbsolutePath();
                 boolean overWrite = true;
                 boolean delSrc = true;
-                boolean isCopied = LogfeederHDFSUtil.copyFromLocal(localFile.getAbsolutePath(), destFilePath, fileSystem,
+                boolean isCopied = LogFeederHDFSUtil.copyFromLocal(localFile.getAbsolutePath(), destFilePath, fileSystem,
                     overWrite, delSrc);
                 if (isCopied) {
                   LOG.debug("File copy to hdfs hdfspath :" + destFilePath + " and deleted local file :" + localPath);
@@ -179,7 +184,7 @@ public class OutputHDFSFile extends Output implements RolloverHandler, RolloverC
         LOG.error(" Current thread : '" + Thread.currentThread().getName() +
             "' does not have permission to interrupt the Thread: '" + hdfsCopyThread.getName() + "'");
       }
-      LogfeederHDFSUtil.closeFileSystem(fileSystem);
+      LogFeederHDFSUtil.closeFileSystem(fileSystem);
     }
   }
 
@@ -232,5 +237,25 @@ public class OutputHDFSFile extends Output implements RolloverHandler, RolloverC
           " has crossed threshold (msecs) " + rolloverThresholdTimeMillis);
     }
     return shouldRollover;
+  }
+
+  @Override
+  public String getOutputType() {
+    throw new IllegalStateException("This method should be overriden if the Output wants to monitor the configuration");
+  }
+
+  @Override
+  public Long getPendingCount() {
+    return 0L;
+  }
+
+  @Override
+  public String getWriteBytesMetricName() {
+    return "output.hdfs.write_bytes";
+  }
+
+  @Override
+  public String getStatMetricName() {
+    return "output.hdfs.write_logs";
   }
 }

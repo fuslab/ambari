@@ -1,4 +1,4 @@
-/**
+/*
 * Licensed to the Apache Software Foundation (ASF) under one
 * or more contributor license agreements.  See the NOTICE file
 * distributed with this work for additional information
@@ -21,8 +21,8 @@ package org.apache.ambari.server.state.fsm;
 public interface StateMachine
                  <STATE extends Enum<STATE>,
                   EVENTTYPE extends Enum<EVENTTYPE>, EVENT> {
-  public STATE getCurrentState();
-  public void setCurrentState(STATE state);
-  public STATE doTransition(EVENTTYPE eventType, EVENT event)
+  STATE getCurrentState();
+  void setCurrentState(STATE state);
+  STATE doTransition(EVENTTYPE eventType, EVENT event)
         throws InvalidStateTransitionException;
 }

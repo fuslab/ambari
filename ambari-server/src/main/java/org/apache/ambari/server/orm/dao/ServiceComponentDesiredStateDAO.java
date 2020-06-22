@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,17 +18,23 @@
 
 package org.apache.ambari.server.orm.dao;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
-import javax.persistence.CascadeType;
 import javax.persistence.EntityManager;
 import javax.persistence.NoResultException;
 import javax.persistence.TypedQuery;
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Predicate;
+import javax.persistence.criteria.Root;
 
 import org.apache.ambari.server.orm.RequiresSession;
 import org.apache.ambari.server.orm.entities.ServiceComponentDesiredStateEntity;
-import org.apache.ambari.server.orm.entities.ServiceComponentHistoryEntity;
 import org.apache.ambari.server.orm.entities.ServiceComponentVersionEntity;
+import org.apache.commons.collections.MapUtils;
 
 import com.google.inject.Inject;
 import com.google.inject.Provider;
@@ -101,6 +107,35 @@ public class ServiceComponentDesiredStateDAO {
     return entity;
   }
 
+  /**
+   * Finds a {@link ServiceComponentDesiredStateEntity} by a combination of cluster id, service and component names.
+   * @param serviceComponentDesiredStates - component names mapped by service names and cluster ids.
+   * @return all found entities according to input map.
+   */
+  @RequiresSession
+  public List<ServiceComponentDesiredStateEntity> findByNames(Map<Long, Map<String, List<String>>> serviceComponentDesiredStates) {
+    if (MapUtils.isEmpty(serviceComponentDesiredStates)) {
+      return Collections.emptyList();
+    }
+    CriteriaBuilder cb = entityManagerProvider.get().getCriteriaBuilder();
+    CriteriaQuery<ServiceComponentDesiredStateEntity> cq = cb.createQuery(ServiceComponentDesiredStateEntity.class);
+    Root<ServiceComponentDesiredStateEntity> desiredStates = cq.from(ServiceComponentDesiredStateEntity.class);
+
+    List<Predicate> clusters = new ArrayList<>();
+    for (Map.Entry<Long, Map<String, List<String>>> cluster : serviceComponentDesiredStates.entrySet()) {
+      List<Predicate> services = new ArrayList<>();
+      for (Map.Entry<String, List<String>> service : cluster.getValue().entrySet()) {
+        services.add(cb.and(cb.equal(desiredStates.get("serviceName"), service.getKey()),
+            desiredStates.get("componentName").in(service.getValue())));
+      }
+      clusters.add(cb.and(cb.equal(desiredStates.get("clusterId"), cluster.getKey()),
+          cb.or(services.toArray(new Predicate[services.size()]))));
+    }
+    cq.where(cb.or(clusters.toArray(new Predicate[clusters.size()])));
+    TypedQuery<ServiceComponentDesiredStateEntity> query = entityManagerProvider.get().createQuery(cq);
+    return daoUtils.selectList(query);
+  }
+
   @Transactional
   public void refresh(ServiceComponentDesiredStateEntity serviceComponentDesiredStateEntity) {
     entityManagerProvider.get().refresh(serviceComponentDesiredStateEntity);
@@ -130,56 +165,6 @@ public class ServiceComponentDesiredStateDAO {
   }
 
   /**
-   * Creates a service component upgrade/downgrade historical event.
-   *
-   * @param serviceComponentHistoryEntity
-   */
-  @Transactional
-  public void create(ServiceComponentHistoryEntity serviceComponentHistoryEntity) {
-    entityManagerProvider.get().persist(serviceComponentHistoryEntity);
-  }
-
-  /**
-   * Merges a service component upgrade/downgrade historical event, creating it
-   * in the process if it does not already exist. The associated
-   * {@link ServiceComponentDesiredStateEntity} is automatically merged via its
-   * {@link CascadeType}.
-   *
-   * @param serviceComponentHistoryEntity
-   * @return
-   */
-  @Transactional
-  public ServiceComponentHistoryEntity merge(
-      ServiceComponentHistoryEntity serviceComponentHistoryEntity) {
-    return entityManagerProvider.get().merge(serviceComponentHistoryEntity);
-  }
-
-  /**
-   * Gets the history for a component.
-   *
-   * @param clusterId
-   *          the component's cluster.
-   * @param serviceName
-   *          the component's service (not {@code null}).
-   * @param componentName
-   *          the component's name (not {@code null}).
-   * @return
-   */
-  @RequiresSession
-  public List<ServiceComponentHistoryEntity> findHistory(long clusterId, String serviceName,
-      String componentName) {
-    EntityManager entityManager = entityManagerProvider.get();
-    TypedQuery<ServiceComponentHistoryEntity> query = entityManager.createNamedQuery(
-        "ServiceComponentHistoryEntity.findByComponent", ServiceComponentHistoryEntity.class);
-
-    query.setParameter("clusterId", clusterId);
-    query.setParameter("serviceName", serviceName);
-    query.setParameter("componentName", componentName);
-
-    return daoUtils.selectList(query);
-  }
-
-  /**
    * @param clusterId     the cluster id
    * @param serviceName   the service name
    * @param componentName the component name
@@ -197,6 +182,30 @@ public class ServiceComponentDesiredStateDAO {
     query.setParameter("componentName", componentName);
 
     return daoUtils.selectList(query);
+  }
+
+  /**
+   * Gets a specific version for a component
+   * @param clusterId     the cluster id
+   * @param serviceName   the service name
+   * @param componentName the component name
+   * @param version       the component version to find
+   * @return the version entity, or {@code null} if not found
+   */
+  @RequiresSession
+  public ServiceComponentVersionEntity findVersion(long clusterId, String serviceName,
+      String componentName, String version) {
+
+    EntityManager entityManager = entityManagerProvider.get();
+    TypedQuery<ServiceComponentVersionEntity> query = entityManager.createNamedQuery(
+        "ServiceComponentVersionEntity.findByComponentAndVersion", ServiceComponentVersionEntity.class);
+
+    query.setParameter("clusterId", clusterId);
+    query.setParameter("serviceName", serviceName);
+    query.setParameter("componentName", componentName);
+    query.setParameter("repoVersion", version);
+
+    return daoUtils.selectSingle(query);
   }
 
 }

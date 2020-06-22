@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,6 +26,7 @@ import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.H2DatabaseCleaner;
 import org.apache.ambari.server.orm.GuiceJpaInitializer;
 import org.apache.ambari.server.orm.InMemoryDefaultTestModule;
+import org.apache.ambari.server.orm.OrmTestHelper;
 import org.apache.ambari.server.orm.dao.ConfigGroupDAO;
 import org.apache.ambari.server.orm.dao.ConfigGroupHostMappingDAO;
 import org.apache.ambari.server.orm.entities.ConfigGroupConfigMappingEntity;
@@ -65,8 +66,12 @@ public class ConfigGroupTest {
     configGroupHostMappingDAO = injector.getInstance
       (ConfigGroupHostMappingDAO.class);
 
+    StackId stackId = new StackId("HDP-0.1");
+    OrmTestHelper helper = injector.getInstance(OrmTestHelper.class);
+    helper.createStack(stackId);
+
     clusterName = "foo";
-    clusters.addCluster(clusterName, new StackId("HDP-0.1"));
+    clusters.addCluster(clusterName, stackId);
     cluster = clusters.getCluster(clusterName);
     Assert.assertNotNull(cluster);
     clusters.addHost("h1");
@@ -83,25 +88,25 @@ public class ConfigGroupTest {
   @Transactional
   ConfigGroup createConfigGroup() throws AmbariException {
     // Create config without persisting and save group
-    Map<String, String> properties = new HashMap<String, String>();
+    Map<String, String> properties = new HashMap<>();
     properties.put("a", "b");
     properties.put("c", "d");
-    Map<String, Map<String, String>> propertiesAttributes = new HashMap<String, Map<String,String>>();
-    Map<String, String> attributes = new HashMap<String, String>();
+    Map<String, Map<String, String>> propertiesAttributes = new HashMap<>();
+    Map<String, String> attributes = new HashMap<>();
     attributes.put("a", "true");
     propertiesAttributes.put("final", attributes);
     Config config = configFactory.createNew(cluster, "hdfs-site", "testversion", properties, propertiesAttributes);
 
     Host host = clusters.getHost("h1");
 
-    Map<String, Config> configs = new HashMap<String, Config>();
-    Map<Long, Host> hosts = new HashMap<Long, Host>();
+    Map<String, Config> configs = new HashMap<>();
+    Map<Long, Host> hosts = new HashMap<>();
 
     configs.put(config.getType(), config);
     hosts.put(host.getHostId(), host);
 
-    ConfigGroup configGroup = configGroupFactory.createNew(cluster, "cg-test",
-      "HDFS", "HDFS", "New HDFS configs for h1", configs, hosts);
+    ConfigGroup configGroup = configGroupFactory.createNew(cluster, "HDFS", "cg-test",
+      "HDFS", "New HDFS configs for h1", configs, hosts);
 
     cluster.addConfigGroup(configGroup);
     return configGroup;
@@ -147,10 +152,10 @@ public class ConfigGroupTest {
     Assert.assertEquals(2, configGroup.getHosts().values().size());
 
     // Create a new config
-    Map<String, String> properties = new HashMap<String, String>();
+    Map<String, String> properties = new HashMap<>();
     properties.put("key1", "value1");
-    Map<String, Map<String, String>> propertiesAttributes = new HashMap<String, Map<String,String>>();
-    Map<String, String> attributes = new HashMap<String, String>();
+    Map<String, Map<String, String>> propertiesAttributes = new HashMap<>();
+    Map<String, String> attributes = new HashMap<>();
     attributes.put("key1", "true");
     propertiesAttributes.put("final", attributes);
 

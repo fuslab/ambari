@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -37,7 +37,7 @@ import com.google.common.collect.Sets;
 
 
 /**
- * Test to check the sanity and conisistence of DDL scripts for different SQL dialects.
+ * Test to check the sanity and consistence of DDL scripts for different SQL dialects.
  * (e.g. no unnamed constraints, the same tables with the same columns and constraints must exist)
  */
 public class DDLTests {
@@ -213,19 +213,19 @@ public class DDLTests {
       diffs.addAll(
           compareSets(String.format("Comparing columns of table %s.", tableName), baseTable.columns, otherTable.columns));
       diffs.addAll(
-          DDLTests.<FKConstraintContent>compareConstraints(tableName, "FK", baseTable.foreignKeys, otherTable.foreignKeys, false));
+          DDLTests.compareConstraints(tableName, "FK", baseTable.foreignKeys, otherTable.foreignKeys, false));
       diffs.addAll(
-          DDLTests.<Set<String>>compareConstraints(tableName, "UQ", baseTable.uniqueConstraints, otherTable.uniqueConstraints, false));
+          DDLTests.compareConstraints(tableName, "UQ", baseTable.uniqueConstraints, otherTable.uniqueConstraints, false));
       boolean comparePKName = !tableName.contains("qrtz"); // we are more lenient with quartz tables
       diffs.addAll(
-          DDLTests.<Set<String>>compareConstraints(tableName, "PK", toSet(baseTable.primaryKey), toSet(otherTable.primaryKey), comparePKName));
+          DDLTests.compareConstraints(tableName, "PK", toSet(baseTable.primaryKey), toSet(otherTable.primaryKey), comparePKName));
     }
 
     return diffs;
   }
 
   static <T> Set<T> toSet(Optional<T> arg) {
-    return arg.isPresent() ? ImmutableSet.of(arg.get()) : ImmutableSet.<T>of();
+    return arg.isPresent() ? ImmutableSet.of(arg.get()) : ImmutableSet.of();
   }
 
   static <ContentType> List<String> compareSets(String message, Set<ContentType> base, Set<ContentType> other) {

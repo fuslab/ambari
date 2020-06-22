@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,6 +30,7 @@ import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 
+import org.apache.ambari.annotations.ApiIgnore;
 import org.apache.ambari.server.api.resources.ResourceInstance;
 import org.apache.ambari.server.controller.spi.Resource;
 
@@ -48,7 +49,7 @@ public class UpgradeItemService extends BaseService {
     m_upgradeGroupId = upgradeGroupId;
   }
 
-  @GET
+  @GET @ApiIgnore // until documented
   @Produces("text/plain")
   public Response getUpgrades(
       @Context HttpHeaders headers,
@@ -57,7 +58,7 @@ public class UpgradeItemService extends BaseService {
         createResourceInstance(null));
   }
 
-  @GET
+  @GET @ApiIgnore // until documented
   @Path("{upgradeItemId}")
   @Produces("text/plain")
   public Response getUpgradeItem(String body,
@@ -80,7 +81,7 @@ public class UpgradeItemService extends BaseService {
    *
    * @return information regarding the created services
    */
-  @PUT
+  @PUT @ApiIgnore // until documented
   @Path("{upgradeItemId}")
   @Produces("text/plain")
   public Response updateUpgradeItem(String body,
@@ -102,7 +103,7 @@ public class UpgradeItemService extends BaseService {
    * @return the resource instance
    */
   ResourceInstance createResourceInstance(Long upgradeItemId) {
-    Map<Resource.Type, String> mapIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type, String> mapIds = new HashMap<>();
     mapIds.put(Resource.Type.Cluster, m_clusterName);
     mapIds.put(Resource.Type.Upgrade, m_upgradeId);
     mapIds.put(Resource.Type.UpgradeGroup, m_upgradeGroupId);

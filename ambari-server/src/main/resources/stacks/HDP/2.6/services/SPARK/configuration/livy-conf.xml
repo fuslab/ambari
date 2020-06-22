@@ -71,6 +71,14 @@
      <on-ambari-upgrade add="true"/>
   </property>
   <property>
+     <name>livy.repl.enableHiveContext</name>
+     <value>true</value>
+     <description>
+            Whether to enable HiveContext in livy interpreter
+     </description>
+     <on-ambari-upgrade add="true"/>
+  </property>
+  <property>
     <name>livy.server.recovery.mode</name>
     <value>recovery</value>
     <description>
@@ -93,13 +101,5 @@
           Where Livy should store state for recovery.
     </description>
     <on-ambari-upgrade add="false"/>
-  </property>
-  <property>
-    <name>livy.repl.enableHiveContext</name>
-    <value>true</value>
-    <description>
-            Whether to enable HiveContext in livy interpreter
-    </description>
-    <on-ambari-upgrade add="true"/>
   </property>
 </configuration>

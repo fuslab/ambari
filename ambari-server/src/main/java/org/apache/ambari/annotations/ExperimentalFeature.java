@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,20 +17,12 @@
  */
 package org.apache.ambari.annotations;
 
-import java.util.concurrent.Executor;
-
 /**
  * The {@link ExperimentalFeature} enumeration is meant to be used with the
  * {@link Experimental} annotation to indicate which feature set experimental
  * code belongs to.
  */
 public enum ExperimentalFeature {
-  /**
-   * The processing of arbitrary, atomic list elements by an {@link Executor} in
-   * order to arrive at a full processed list faster.
-   */
-  PARALLEL_PROCESSING,
-
   /**
    * The caching of current alert information in order to reduce overall load on
    * the database by preventing frequent updates and JPA entity invalidation.
@@ -43,12 +35,18 @@ public enum ExperimentalFeature {
   PATCH_UPGRADES,
 
   /**
-   * Upgrades from one stack vendor (FOO-1.0) to another (BAR-5.5.0).
+   * For code that is for multi-service
    */
-  STACK_UPGRADES_BETWEEN_VENDORS,
+  MULTI_SERVICE,
 
   /**
    * Support for service-specific repos for custom services
    */
-  CUSTOM_SERVICE_REPOS
+  CUSTOM_SERVICE_REPOS,
+
+  /**
+   * Automatically removing Kerberos identities when a service or component is
+   * removed.
+   */
+  ORPHAN_KERBEROS_IDENTITY_REMOVAL;
 }

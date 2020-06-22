@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 package org.apache.ambari.server.state.stack.upgrade;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.xml.bind.annotation.XmlType;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Used for a group that restarts services.
@@ -27,7 +28,7 @@ import javax.xml.bind.annotation.XmlType;
 @XmlType(name="restart")
 public class RestartGrouping extends Grouping implements UpgradeFunction {
 
-  private static Logger LOG = LoggerFactory.getLogger(RestartGrouping.class);
+  private static final Logger LOG = LoggerFactory.getLogger(RestartGrouping.class);
 
   @Override
   public Task.Type getFunction() {

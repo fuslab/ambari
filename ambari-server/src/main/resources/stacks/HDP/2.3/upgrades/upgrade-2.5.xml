@@ -102,11 +102,10 @@
 
       <execute-stage service="RANGER" component="RANGER_ADMIN" title="Pre Upgrade Ranger Backup">
         <task xsi:type="manual">
-          <message>Before continuing, please backup the Ranger Admin database and Ranger Audit database.
-                If audit database size is too large( > 3GB ) then follow the below instructions:
-                1. Backup the audit table from audit database.
-                2. Truncate audit table.
-                3. Follow upgrade process and once completed then restore audit data to audit table.</message>
+          <message>Before continuing, please backup the Ranger Admin database and Ranger Audit database. If audit database size is too large( > 3GB ) then follow the below instructions:</message>
+          <message>1. Backup the audit table from audit database.</message>
+          <message>2. Truncate audit table.</message>
+          <message>3. Follow upgrade process and once completed then restore audit data to audit table.</message>
         </task>
       </execute-stage>
 
@@ -159,7 +158,7 @@
       </service>
     </group>
 
-    <group name="HBASE" title="Update HBase Configuration">
+    <group xsi:type="cluster" name="HBASE" title="Update HBase Configuration">
       <skippable>true</skippable>
 
       <execute-stage service="HBASE" component="HBASE_MASTER" title="Update HBase Configuration">
@@ -493,16 +492,6 @@
         <component>ACCUMULO_TRACER</component>
         <component>ACCUMULO_CLIENT</component>
       </service>
-    </group>
-
-    <group xsi:type="cluster" name="ALL_HOST_OPS" title="Finalize Hosts">
-      <scope>COMPLETE</scope>
-      <execute-stage title="Update remaining HDP stack to {{version}}">
-        <task xsi:type="execute">
-          <script>scripts/ru_set_all.py</script>
-          <function>actionexecute</function>
-        </task>
-      </execute-stage>
     </group>
 
     <group xsi:type="cluster" name="FINALIZE_PRE_CHECK" title="Finalize {{direction.text.proper}} Pre-Check">
@@ -1076,9 +1065,6 @@
         <pre-upgrade>
           <task xsi:type="configure" id="hdp_2_5_0_0_remove_ranger_storm_audit_db" />
           <task xsi:type="configure" id="hdp_2_5_0_0_upgrade_storm_1.0"/>
-          <task xsi:type="server_action" class="org.apache.ambari.server.serveraction.upgrades.StormUpgradeKerberosDescriptorConfig">
-            <summary>Upgrade Storm Security Configs to 1.0</summary>
-          </task>
 
           <!-- Remove Atlas configs that were incorrectly added to storm-site instead of Atlas' application.properties. -->
           <task xsi:type="configure" id="hdp_2_5_0_0_remove_storm_atlas_configs" />
@@ -1239,6 +1225,6 @@
       </upgrade>
     </component>
     </service>
+
   </processing>
 </upgrade>
-

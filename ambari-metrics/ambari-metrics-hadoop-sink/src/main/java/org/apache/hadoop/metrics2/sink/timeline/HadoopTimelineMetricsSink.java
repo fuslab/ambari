@@ -17,7 +17,8 @@
  */
 package org.apache.hadoop.metrics2.sink.timeline;
 
-import org.apache.commons.configuration.SubsetConfiguration;
+import org.apache.commons.configuration2.SubsetConfiguration;
+import org.apache.commons.configuration2.convert.DefaultListDelimiterHandler;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
@@ -34,7 +35,6 @@ import java.io.IOException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -75,6 +75,9 @@ public class HadoopTimelineMetricsSink extends AbstractTimelineMetricsSink imple
       return t;
     }
   });
+  private int hostInMemoryAggregationPort;
+  private boolean hostInMemoryAggregationEnabled;
+  private String hostInMemoryAggregationProtocol;
 
   @Override
   public void init(SubsetConfiguration conf) {
@@ -105,13 +108,20 @@ public class HadoopTimelineMetricsSink extends AbstractTimelineMetricsSink imple
 
     // Load collector configs
     protocol = conf.getString(COLLECTOR_PROTOCOL, "http");
-    collectorHosts = parseHostsStringArrayIntoCollection(conf.getStringArray(COLLECTOR_HOSTS_PROPERTY));
+    String collectorHostStr = conf.getString(COLLECTOR_HOSTS_PROPERTY);
+    String[] collectorHostArr = null;
+    if(collectorHostStr !=null) {
+      collectorHostArr = collectorHostStr.split(",");
+    }
+    collectorHosts = parseHostsStringArrayIntoCollection(collectorHostArr);
     port = conf.getString(COLLECTOR_PORT, "6188");
-
+    hostInMemoryAggregationEnabled = conf.getBoolean(HOST_IN_MEMORY_AGGREGATION_ENABLED_PROPERTY, false);
+    hostInMemoryAggregationPort = conf.getInt(HOST_IN_MEMORY_AGGREGATION_PORT_PROPERTY, 61888);
+    hostInMemoryAggregationProtocol = conf.getString(HOST_IN_MEMORY_AGGREGATION_PROTOCOL_PROPERTY, "http");
     if (collectorHosts.isEmpty()) {
       LOG.error("No Metric collector configured.");
     } else {
-      if (protocol.contains("https")) {
+      if (protocol.contains("https") || hostInMemoryAggregationProtocol.contains("https")) {
         String trustStorePath = conf.getString(SSL_KEYSTORE_PATH_PROPERTY).trim();
         String trustStoreType = conf.getString(SSL_KEYSTORE_TYPE_PROPERTY).trim();
         String trustStorePwd = conf.getString(SSL_KEYSTORE_PASSWORD_PROPERTY).trim();
@@ -140,7 +150,7 @@ public class HadoopTimelineMetricsSink extends AbstractTimelineMetricsSink imple
     metricsCache = new TimelineMetricsCache(maxRowCacheSize,
       metricsSendInterval, conf.getBoolean(SKIP_COUNTER_TRANSFROMATION, true));
 
-    conf.setListDelimiter(',');
+    conf.setListDelimiterHandler(new DefaultListDelimiterHandler(','));
     Iterator<String> it = (Iterator<String>) conf.getKeys();
     while (it.hasNext()) {
       String propertyName = it.next();
@@ -249,6 +259,21 @@ public class HadoopTimelineMetricsSink extends AbstractTimelineMetricsSink imple
   }
 
   @Override
+  protected boolean isHostInMemoryAggregationEnabled() {
+    return hostInMemoryAggregationEnabled;
+  }
+
+  @Override
+  protected int getHostInMemoryAggregationPort() {
+    return hostInMemoryAggregationPort;
+  }
+
+  @Override
+  protected String getHostInMemoryAggregationProtocol() {
+    return hostInMemoryAggregationProtocol;
+  }
+
+  @Override
   public void putMetrics(MetricsRecord record) {
     try {
       String recordName = record.name();
@@ -307,11 +332,11 @@ public class HadoopTimelineMetricsSink extends AbstractTimelineMetricsSink imple
       }
 
       int sbBaseLen = sb.length();
-
       List<TimelineMetric> metricList = new ArrayList<TimelineMetric>();
-      Map<String, String> metadata = null;
+      HashMap<String, String> metadata = null;
       if (skipAggregation) {
-        metadata = Collections.singletonMap("skipAggregation", "true");
+        metadata = new HashMap<>();
+        metadata.put("skipAggregation", "true");
       }
       long startTime = record.timestamp();
 
@@ -489,7 +514,7 @@ public class HadoopTimelineMetricsSink extends AbstractTimelineMetricsSink imple
         LOG.debug("Closing HadoopTimelineMetricSink. Flushing metrics to collector...");
         TimelineMetrics metrics = metricsCache.getAllMetrics();
         if (metrics != null) {
-          emitMetrics(metrics);
+          emitMetrics(metrics, true);
         }
       }
     });

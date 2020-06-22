@@ -59,7 +59,7 @@ class TestResourceFilesKeeper(TestCase):
                                     ResourceFilesKeeper.PACKAGE_DIR)
 
   if get_platform() != PLATFORM_WINDOWS:
-    DUMMY_UNCHANGEABLE_PACKAGE_HASH="c4ef4816f727010c3e1ef110cd7c9fe6bd69f38e"
+    DUMMY_UNCHANGEABLE_PACKAGE_HASH="a6e939662fce1f116054a1bfb8a5915f87e09319"
   else:
     DUMMY_UNCHANGEABLE_PACKAGE_HASH="2e438f4f9862420ed8930a56b8809b8aca359e87"
   DUMMY_HASH="dummy_hash"
@@ -85,6 +85,7 @@ class TestResourceFilesKeeper(TestCase):
       "call('../resources/TestAmbaryServer.samples/" \
       "dummy_common_services/HIVE/0.11.0.2.0.5.0/package'),\n " \
       "call('../resources/TestAmbaryServer.samples/dummy_extension/HIVE/package'),\n " \
+      "call('../resources/stack-hooks'),\n " \
       "call('../resources/custom_actions'),\n " \
       "call('../resources/host_scripts'),\n " \
       "call('../resources/dashboards')]"

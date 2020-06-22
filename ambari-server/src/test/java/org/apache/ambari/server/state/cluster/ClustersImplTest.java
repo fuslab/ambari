@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,25 +18,25 @@
 
 package org.apache.ambari.server.state.cluster;
 
-import org.apache.ambari.server.state.Cluster;
-import org.junit.Test;
-
-import java.util.HashMap;
-import java.util.Map;
-
 import static org.easymock.EasyMock.createMock;
 import static org.easymock.EasyMock.createMockBuilder;
 import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.replay;
 import static org.easymock.EasyMock.verify;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import org.apache.ambari.server.state.Cluster;
+import org.junit.Test;
 
 public class ClustersImplTest {
 
   @Test
   public void testAddSessionAttributes() throws Exception {
 
-    Map<String, Object> attributes = new HashMap<String, Object>();
+    Map<String, Object> attributes = new HashMap<>();
     attributes.put("foo", "bar");
 
     Cluster cluster = createMock(Cluster.class);
@@ -54,7 +54,7 @@ public class ClustersImplTest {
 
   @Test
   public void testGetSessionAttributes() throws Exception {
-    Map<String, Object> attributes = new HashMap<String, Object>();
+    Map<String, Object> attributes = new HashMap<>();
     attributes.put("foo", "bar");
 
     Cluster cluster = createMock(Cluster.class);

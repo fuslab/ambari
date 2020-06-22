@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,7 +17,6 @@
  */
 package org.apache.ambari.server.utils;
 
-import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.List;
@@ -27,13 +26,11 @@ import java.util.Set;
 import javax.servlet.http.HttpServletRequest;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.http.NameValuePair;
-import org.apache.http.client.utils.URLEncodedUtils;
 import org.slf4j.Logger;
-import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import com.google.common.collect.ImmutableSet;
 
@@ -183,16 +180,25 @@ public class RequestUtils {
     // could interfere with processing the body of this request later since the body needs to be
     // parsed to find any form parameters.
     String queryString = request.getQueryString();
-    return (StringUtils.isEmpty(queryString)) ? null : parseQueryParameters(queryString);
+    return (StringUtils.isEmpty(queryString))
+        ? null
+        : UriComponentsBuilder.newInstance().query(queryString).build().getQueryParams();
   }
 
-  private static MultiValueMap<String, String> parseQueryParameters(String queryString) {
-    LinkedMultiValueMap result = new LinkedMultiValueMap();
-    List<NameValuePair> params = URLEncodedUtils.parse(queryString, Charset.forName("UTF-8"));
-    for (NameValuePair each : params) {
-      result.add(each.getName(), each.getValue());
-    }
-    return result;
+  /**
+   * Returns a {@link List} of values parsed from the request's query string for the given parameter
+   * name.
+   *
+   * @param request the {@link HttpServletRequest}
+   * @return a List of values for the specified query parameter; or <code>null</code> if the
+   * requested parameter is not present
+   * @see #getQueryStringParameters(HttpServletRequest)
+   */
+  public static List<String> getQueryStringParameterValues(HttpServletRequest request, String parameterName) {
+    MultiValueMap<String, String> valueMap = getQueryStringParameters(request);
+    return ((valueMap == null) || !valueMap.containsKey(parameterName))
+        ? null
+        : valueMap.get(parameterName);
   }
 
   /**

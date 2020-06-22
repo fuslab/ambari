@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,11 +19,11 @@
 
 package org.apache.ambari.server;
 
-import com.sun.jersey.test.framework.AppDescriptor;
-import com.sun.jersey.test.framework.JerseyTest;
-
 import java.io.IOException;
 import java.net.ServerSocket;
+
+import com.sun.jersey.test.framework.AppDescriptor;
+import com.sun.jersey.test.framework.JerseyTest;
 
 /**
  * Makes JerseyTest use random port in case default one is unavailable.

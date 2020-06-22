@@ -18,9 +18,10 @@ limitations under the License.
 
 """
 
-import status_params
-from resource_management import *
+from resource_management.libraries.script.script import Script
 from resource_management.libraries.functions import conf_select
+from resource_management.libraries.functions.default import default
+from resource_management.libraries.functions.format import format
 from resource_management.core.shell import as_user
 from ambari_commons import OSCheck
 from ambari_commons.constants import AMBARI_SUDO_BINARY
@@ -37,7 +38,7 @@ rpm_version = default("/configurations/hadoop-env/rpm_version", None)
 
 ams_grafana_pid_dir = config['configurations']['ams-grafana-env']['metrics_grafana_pid_dir']
 
-stack_version_unformatted = config['hostLevelParams']['stack_version']
+stack_version_unformatted = config['clusterLevelParams']['stack_version']
 stack_version_formatted = format_stack_version(stack_version_unformatted)
 
 major_stack_version = get_major_version(stack_version_formatted)
@@ -60,7 +61,10 @@ hbase_conf_dir = "/etc/ams-hbase/conf"
 limits_conf_dir = "/etc/security/limits.d"
 sudo = AMBARI_SUDO_BINARY
 
-dfs_type = default("/commandParams/dfs_type", "")
+dfs_type = default("/clusterLevelParams/dfs_type", "")
+
+zk_principal_name = default("/configurations/zookeeper-env/zookeeper_principal_name", "zookeeper/_HOST@EXAMPLE.COM")
+zk_principal_user = zk_principal_name.split('/')[0]
 
 hbase_regionserver_shutdown_timeout = expect('/configurations/ams-hbase-env/hbase_regionserver_shutdown_timeout', int,
                                              30)

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,15 +19,15 @@
 
 package org.apache.ambari.server.topology;
 
-import org.apache.ambari.server.controller.internal.ProvisionClusterRequest;
-
 import java.util.Map;
+
+import org.apache.ambari.server.controller.internal.ProvisionClusterRequest;
 
 /**
  * Factory for creating topology requests.
  */
 public interface TopologyRequestFactory {
 
-  public ProvisionClusterRequest createProvisionClusterRequest(Map<String, Object> properties, SecurityConfiguration securityConfiguration) throws InvalidTopologyTemplateException;
+  ProvisionClusterRequest createProvisionClusterRequest(Map<String, Object> properties, SecurityConfiguration securityConfiguration) throws InvalidTopologyTemplateException;
   // todo: use to create other request types
 }

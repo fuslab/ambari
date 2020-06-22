@@ -46,6 +46,12 @@
     <value-attributes>
       <type>user</type>
       <overridable>false</overridable>
+      <user-groups>
+        <property>
+          <type>cluster-env</type>
+          <name>user_group</name>
+        </property>
+      </user-groups>
     </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
@@ -95,6 +101,7 @@
   <!--embeddedmq properties-->
   <property>
     <name>falcon.embeddedmq.data</name>
+    <display-name>Falcon Embedded MQ Data</display-name>
     <value>/hadoop/falcon/embeddedmq/data</value>
     <description>Directory in which embeddedmq data is stored.</description>
     <value-attributes>

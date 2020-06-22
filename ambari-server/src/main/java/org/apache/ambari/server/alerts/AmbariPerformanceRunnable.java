@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -157,7 +157,7 @@ public class AmbariPerformanceRunnable extends AlertRunnable {
         SecurityContextHolder.getContext().setAuthentication(authenticationToken);
 
         // create the request
-        Map<Resource.Type, String> mapIds = new HashMap<Resource.Type, String>();
+        Map<Resource.Type, String> mapIds = new HashMap<>();
         mapIds.put(Resource.Type.Cluster, cluster.getClusterName());
 
         ClusterController clusterController = ClusterControllerHelper.getClusterController();
@@ -221,8 +221,8 @@ public class AmbariPerformanceRunnable extends AlertRunnable {
      *          the default value to use if the definition does not have a
      *          critical threshold paramter.
      */
-    private PerformanceArea(String label, String warningParameter, int defaultWarningThreshold,
-        String criticalParameter, int defaultCriticalThreshold) {
+    PerformanceArea(String label, String warningParameter, int defaultWarningThreshold,
+                    String criticalParameter, int defaultCriticalThreshold) {
       m_label = label;
       m_warningParameter = warningParameter;
       m_defaultWarningThreshold = defaultWarningThreshold;
@@ -343,7 +343,7 @@ public class AmbariPerformanceRunnable extends AlertRunnable {
     alert.setLabel(entity.getLabel());
     alert.setText(overview);
     alert.setTimestamp(System.currentTimeMillis());
-    alert.setCluster(cluster.getClusterName());
+    alert.setClusterId(cluster.getClusterId());
 
     return Collections.singletonList(alert);
   }
@@ -371,11 +371,11 @@ public class AmbariPerformanceRunnable extends AlertRunnable {
       Object value = parameter.getValue();
 
       if (StringUtils.equals(parameter.getName(), area.m_warningParameter)) {
-        warningThreshold = getThresholdValue(value, warningThreshold);
+        warningThreshold = alertHelper.getThresholdValue(value, warningThreshold);
       }
 
       if (StringUtils.equals(parameter.getName(), area.m_criticalParameter)) {
-        criticalThreshold = getThresholdValue(value, criticalThreshold);
+        criticalThreshold = alertHelper.getThresholdValue(value, criticalThreshold);
       }
     }
 

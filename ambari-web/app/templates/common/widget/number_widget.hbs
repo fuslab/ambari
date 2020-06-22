@@ -16,21 +16,35 @@
 * limitations under the License.
 }}
 
-<div class="number-widget thumbnail">
+<div class="number-widget img-thumbnail">
   {{#if view.isLoaded}}
-    <a {{bindAttr class=":corner-icon :span1 view.parentView.isMoving:hidden"}} href="#" {{action hideWidget view.id target="view"}}>
-      <i class="icon-remove-sign icon-large"></i>
-    </a>
-    <div class="caption title span11">{{view.content.widgetName}}</div>
-    <div class="widget-icons">
-      {{#if controller.isAmbariMetricsInstalled}}
-        <a class="corner-icon pull-right" href="#" {{action editWidget target="view"}}>
-          <i class="icon-edit"></i>
-        </a>
-        <a class="corner-icon pull-right" href="#" {{action cloneWidget target="view"}}>
-          <i class="icon-copy"></i>
-        </a>
+    <div class="caption title col-md-11">
+      {{view.content.widgetName}}
+      {{#if view.content.tag}}
+        - {{view.content.tag}}
       {{/if}}
+    </div>
+    <div {{bindAttr class="view.parentView.isMoving:hidden :corner-icon :widget-icons view.isPreview:hidden"}}>
+      <button class="dropdown-toggle ellipsis-menu button-border" data-toggle="dropdown" href="#"></button>
+      <ul class="dropdown-menu">
+        {{#if controller.isAmbariMetricsInstalled}}
+          <li>
+            <a href="#" {{action editWidget target="view"}}>
+              <i class="icon-pencil"></i>&nbsp;{{t common.edit}}
+            </a>
+          </li>
+          <li>
+            <a href="#" {{action cloneWidget target="view"}}>
+              <i class="icon-copy"></i>&nbsp;{{t common.clone}}
+            </a>
+          </li>
+        {{/if}}
+        <li>
+          <a href="#" {{action hideWidget view.id view.nsLayout target="view"}}>
+            <i class="icon-trash"></i>&nbsp;{{t common.delete}}
+          </a>
+        </li>
+      </ul>
     </div>
     <div {{bindAttr class="view.contentColor :content"}}>{{view.displayValue}}</div>
     {{#if view.content.description}}

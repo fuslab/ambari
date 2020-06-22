@@ -18,6 +18,7 @@
 
 package org.apache.ambari.server.controller;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -27,11 +28,13 @@ import java.util.Set;
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.controller.internal.RequestStageContainer;
 import org.apache.ambari.server.security.credential.PrincipalKeyCredential;
+import org.apache.ambari.server.serveraction.kerberos.Component;
 import org.apache.ambari.server.serveraction.kerberos.KerberosAdminAuthenticationException;
 import org.apache.ambari.server.serveraction.kerberos.KerberosIdentityDataFileWriter;
 import org.apache.ambari.server.serveraction.kerberos.KerberosInvalidConfigurationException;
 import org.apache.ambari.server.serveraction.kerberos.KerberosMissingAdminCredentialsException;
 import org.apache.ambari.server.serveraction.kerberos.KerberosOperationException;
+import org.apache.ambari.server.serveraction.kerberos.stageutils.ResolvedKerberosKeytab;
 import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.SecurityType;
 import org.apache.ambari.server.state.ServiceComponentHost;
@@ -58,9 +61,25 @@ public interface KerberosHelper {
    */
   String DIRECTIVE_COMPONENTS = "regenerate_components";
   /**
-   * directive used to pass host list to regenerate keytabs on
+   * directive used to indicate configurations are not to be updated (if set to "true") when regenerating
+   * keytab files
+   * @deprecated use {@link #DIRECTIVE_CONFIG_UPDATE_POLICY}
    */
   String DIRECTIVE_IGNORE_CONFIGS = "ignore_config_updates";
+  /**
+   * directive used to indicate how to handle configuration updates when regenerating keytab files
+   *
+   * expected values:
+   * <ul>
+   * <li>none</li>
+   * <li>identities_only</li>
+   * <li>new_and_identities</li>
+   * <li>all</li>
+   * </ul>
+   *
+   * @see UpdateConfigurationPolicy
+   */
+  String DIRECTIVE_CONFIG_UPDATE_POLICY = "config_update_policy";
   /**
    * directive used to indicate that the enable Kerberos operation should proceed even if the
    * cluster's security type is not changing
@@ -84,13 +103,13 @@ public interface KerberosHelper {
    */
   String AMBARI_SERVER_HOST_NAME = "ambari_server";
   /**
-   * The name of the Ambari server's Kerberos identities as defined in the Kerberos descriptor
-   */
-  String AMBARI_SERVER_KERBEROS_IDENTITY_NAME = "ambari-server";
-  /**
    * The name of the Kerberos environment configuration type
    */
   String KERBEROS_ENV = "kerberos-env";
+  /**
+   * The name of the Ambari server's Kerberos identities as defined in the Kerberos descriptor
+   */
+  String AMBARI_SERVER_KERBEROS_IDENTITY_NAME = "ambari-server";
   /**
    * The kerberos-env property name declaring whether Ambari should manage its own required
    * identities or not
@@ -127,6 +146,13 @@ public interface KerberosHelper {
    * @see org.apache.ambari.server.serveraction.kerberos.PreconfigureServiceType
    */
   String PRECONFIGURE_SERVICES = "preconfigure_services";
+
+  /**
+   * If {@code true}, then this will create the stages and tasks as being
+   * retry-able. A failure during Kerberos operations will not cause the entire
+   * request to be aborted.
+   */
+  String ALLOW_RETRY = "allow_retry_on_failure";
 
   /**
    * Toggles Kerberos security to enable it or remove it depending on the state of the cluster.
@@ -275,6 +301,8 @@ public interface KerberosHelper {
                                          RequestStageContainer requestStageContainer, Boolean manageIdentities)
       throws AmbariException, KerberosOperationException;
 
+  void deleteIdentities(Cluster cluster, List<Component> components, Set<String> identities) throws AmbariException, KerberosOperationException;
+
   /**
    * Updates the relevant configurations for the components specified in the service filter.
    * <p/>
@@ -421,8 +449,7 @@ public interface KerberosHelper {
    * @param includePreconfigureData <code>true</code> to include the preconfigure data; <code>false</code> otherwise
    * @throws AmbariException
    */
-  void setAuthToLocalRules(Cluster cluster,
-                           KerberosDescriptor kerberosDescriptor,
+  void setAuthToLocalRules(Cluster cluster, KerberosDescriptor kerberosDescriptor,
                            String realm,
                            Map<String, Set<String>> installedServices,
                            Map<String, Map<String, String>> existingConfigurations,
@@ -440,12 +467,6 @@ public interface KerberosHelper {
    * @param hostFilter             a set of hostname indicating the set of hosts to process -
    *                               if null, no filter is relevant; if empty, the filter
    *                               indicates no relevant hosts
-   * @param identityFilter         a Collection of identity names indicating the relevant
-   *                               identities - if null, no filter is relevant; if empty,
-   *                               the filter indicates no relevant identities
-   * @param shouldProcessCommand   a Command implementation to determine if the relevant component
-   *                               is in a state in which is should be process for the current
-   *                               Kerberos operation.
    * @return a list of ServiceComponentHost instances and should be processed during the relevant
    * Kerberos operation.
    * @throws AmbariException
@@ -453,8 +474,7 @@ public interface KerberosHelper {
   List<ServiceComponentHost> getServiceComponentHostsToProcess(Cluster cluster,
                                                                KerberosDescriptor kerberosDescriptor,
                                                                Map<String, ? extends Collection<String>> serviceComponentFilter,
-                                                               Collection<String> hostFilter, Collection<String> identityFilter,
-                                                               Command<Boolean, ServiceComponentHost> shouldProcessCommand)
+                                                               Collection<String> hostFilter)
       throws AmbariException;
 
   Set<String> getHostsWithValidKerberosClient(Cluster cluster) throws AmbariException;
@@ -509,8 +529,7 @@ public interface KerberosHelper {
    * @throws AmbariException
    */
   KerberosDescriptor getKerberosDescriptor(KerberosDescriptorType kerberosDescriptorType, Cluster cluster,
-                                           boolean evaluateWhenClauses, Collection<String> additionalServices,
-                                           boolean includePreconfigureData)
+                                           boolean evaluateWhenClauses, Collection<String> additionalServices, boolean includePreconfigureData)
       throws AmbariException;
 
   /**
@@ -594,15 +613,15 @@ public interface KerberosHelper {
    *                                       values
    * @param configurations                 a Map of configurations to use a replacements for variables
    *                                       in identity fields
-   * @param ignoreHeadless                 boolean value to specify if headless principals must not be processed
    * @return an integer indicating the number of identities added to the data file
    * @throws java.io.IOException if an error occurs while writing a record to the data file
    */
   int addIdentities(KerberosIdentityDataFileWriter kerberosIdentityDataFileWriter,
                     Collection<KerberosIdentityDescriptor> identities,
-                    Collection<String> identityFilter, String hostname, String serviceName,
+                    Collection<String> identityFilter, String hostname, Long hostId, String serviceName,
                     String componentName, Map<String, Map<String, String>> kerberosConfigurations,
-                    Map<String, Map<String, String>> configurations, boolean ignoreHeadless)
+                    Map<String, Map<String, String>> configurations,
+                    Map<String, ResolvedKerberosKeytab> resolvedKeytabs, String realm)
       throws IOException;
   /**
    * Calculates the map of configurations relative to the cluster and host.
@@ -741,6 +760,30 @@ public interface KerberosHelper {
   PrincipalKeyCredential getKDCAdministratorCredentials(String clusterName) throws AmbariException;
 
   /**
+   * Saves underlying entities in persistent storage.
+   *
+   * @param resolvedKerberosKeytab kerberos keytab to be persisted
+   */
+  void createResolvedKeytab(ResolvedKerberosKeytab resolvedKerberosKeytab);
+
+  /**
+   * Removes existent persisted keytabs if they are not in {@code expectedKeytabs} collection.
+   *
+   * @param expectedKeytabs collection to compare existent keytabs
+   */
+  void removeStaleKeytabs(Collection<ResolvedKerberosKeytab> expectedKeytabs);
+
+  /**
+   * Creates a temporary directory within the system temporary directory
+   * <p/>
+   * The resulting directory is to be removed by the caller when desired.
+   *
+   * @return a File pointing to the new temporary directory, or null if one was not created
+   * @throws AmbariException if a new temporary directory cannot be created
+   */
+  File createTemporaryDirectory() throws AmbariException;
+
+  /**
    * Translates a collection of configuration specifications (<code>config-type/property-name</code>)
    * to a map of configuration types to a set of property names.
    * <p>
@@ -771,6 +814,20 @@ public interface KerberosHelper {
    * @return a map of configuration types to sets of property names
    */
   Map<String, Set<String>> translateConfigurationSpecifications(Collection<String> configurationSpecifications);
+  
+  /**
+   * Gathers the Kerberos-related data from configurations and stores it in a new KerberosDetails
+   * instance.
+   *
+   * @param cluster          the relevant Cluster
+   * @param manageIdentities a Boolean value indicating how to override the configured behavior
+   *                         of managing Kerberos identities; if null the configured behavior
+   *                         will not be overridden
+   * @return a new KerberosDetails with the collected configuration data
+   * @throws AmbariException
+   */
+  KerberosDetails getKerberosDetails(Cluster cluster, Boolean manageIdentities)
+    throws KerberosInvalidConfigurationException, AmbariException;  
 
   /**
    * Types of Kerberos descriptors related to where the data is stored.
@@ -813,6 +870,6 @@ public interface KerberosHelper {
      * @return the response
      * @throws AmbariException thrown if a problem occurred during invocation
      */
-    public T invoke(A arg) throws AmbariException;
+    T invoke(A arg) throws AmbariException;
   }
 }

@@ -32,7 +32,6 @@ import java.util.UUID;
 
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.StaticallyInject;
-import org.apache.ambari.server.agent.ActionQueue;
 import org.apache.ambari.server.agent.AlertExecutionCommand;
 import org.apache.ambari.server.api.resources.AlertDefResourceDefinition;
 import org.apache.ambari.server.controller.AmbariManagementController;
@@ -61,6 +60,8 @@ import org.apache.ambari.server.state.alert.Scope;
 import org.apache.ambari.server.state.alert.SourceType;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.math.NumberUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
@@ -72,6 +73,8 @@ import com.google.inject.Inject;
  */
 @StaticallyInject
 public class AlertDefinitionResourceProvider extends AbstractControllerResourceProvider {
+
+  private static final Logger LOG = LoggerFactory.getLogger(AlertDefinitionResourceProvider.class);
 
   protected static final String ALERT_DEF = "AlertDefinition";
 
@@ -94,8 +97,8 @@ public class AlertDefinitionResourceProvider extends AbstractControllerResourceP
   protected static final String ALERT_DEF_SOURCE = "AlertDefinition/source";
   protected static final String ALERT_DEF_SOURCE_TYPE = "AlertDefinition/source/type";
 
-  private static Set<String> pkPropertyIds = new HashSet<String>(
-      Arrays.asList(ALERT_DEF_ID, ALERT_DEF_NAME));
+  private static Set<String> pkPropertyIds = new HashSet<>(
+    Arrays.asList(ALERT_DEF_ID, ALERT_DEF_NAME));
 
   private static Gson gson = new Gson();
 
@@ -113,13 +116,6 @@ public class AlertDefinitionResourceProvider extends AbstractControllerResourceP
   private static AlertDefinitionFactory definitionFactory;
 
   /**
-   * Used to enqueue commands to send to the agents when running an alert
-   * on-demand.
-   */
-  @Inject
-  private static ActionQueue actionQueue;
-
-  /**
    * Publishes the following events:
    * <ul>
    * <li>{@link AlertDefinitionDisabledEvent} when an alert definition is
@@ -132,12 +128,12 @@ public class AlertDefinitionResourceProvider extends AbstractControllerResourceP
   /**
    * The property ids for an alert defintion resource.
    */
-  private static final Set<String> PROPERTY_IDS = new HashSet<String>();
+  private static final Set<String> PROPERTY_IDS = new HashSet<>();
 
   /**
    * The key property ids for an alert definition resource.
    */
-  private static final Map<Resource.Type, String> KEY_PROPERTY_IDS = new HashMap<Resource.Type, String>();
+  private static final Map<Resource.Type, String> KEY_PROPERTY_IDS = new HashMap<>();
 
   static {
     // properties
@@ -168,7 +164,7 @@ public class AlertDefinitionResourceProvider extends AbstractControllerResourceP
    * @param controller
    */
   AlertDefinitionResourceProvider(AmbariManagementController controller) {
-    super(PROPERTY_IDS, KEY_PROPERTY_IDS, controller);
+    super(Resource.Type.AlertDefinition, PROPERTY_IDS, KEY_PROPERTY_IDS, controller);
   }
 
   @Override
@@ -195,7 +191,7 @@ public class AlertDefinitionResourceProvider extends AbstractControllerResourceP
 
   private void createAlertDefinitions(Set<Map<String, Object>> requestMaps)
       throws AmbariException, AuthorizationException {
-    List<AlertDefinitionEntity> entities = new ArrayList<AlertDefinitionEntity>();
+    List<AlertDefinitionEntity> entities = new ArrayList<>();
 
     String clusterName = null;
     for (Map<String, Object> requestMap : requestMaps) {
@@ -232,7 +228,7 @@ public class AlertDefinitionResourceProvider extends AbstractControllerResourceP
     Set<String> requestPropertyIds = getRequestPropertyIds(request, predicate);
 
     // use a collection which preserves order since JPA sorts the results
-    Set<Resource> results = new LinkedHashSet<Resource>();
+    Set<Resource> results = new LinkedHashSet<>();
 
     for (Map<String, Object> propertyMap : getPropertyMaps(predicate)) {
       String clusterName = (String) propertyMap.get(ALERT_DEF_CLUSTER_NAME);
@@ -332,7 +328,7 @@ public class AlertDefinitionResourceProvider extends AbstractControllerResourceP
         // a disabled event
         if (oldEnabled && !entity.getEnabled()) {
           AlertDefinitionDisabledEvent event = new AlertDefinitionDisabledEvent(
-              entity.getClusterId(), entity.getDefinitionId());
+              entity.getClusterId(), entity.getDefinitionId(), entity.getDefinitionName());
 
           eventPublisher.publish(event);
         }
@@ -354,7 +350,7 @@ public class AlertDefinitionResourceProvider extends AbstractControllerResourceP
     Set<Resource> resources = getResources(
         new RequestImpl(null, null, null, null), predicate);
 
-    Set<Long> definitionIds = new HashSet<Long>();
+    Set<Long> definitionIds = new HashSet<>();
 
     for (final Resource resource : resources) {
       Long id = (Long) resource.getPropertyValue(ALERT_DEF_ID);
@@ -496,7 +492,7 @@ public class AlertDefinitionResourceProvider extends AbstractControllerResourceP
     // !!! The AlertDefinition "source" field is a nested JSON object;
     // build a JSON representation from the flat properties and then
     // serialize that JSON object as a string
-    Map<String,JsonObject> jsonObjectMapping = new HashMap<String, JsonObject>();
+    Map<String,JsonObject> jsonObjectMapping = new HashMap<>();
 
     // for every property in the request, if it's a source property, then
     // add it to the JSON model
@@ -789,7 +785,8 @@ public class AlertDefinitionResourceProvider extends AbstractControllerResourceP
       AlertExecutionCommand command = new AlertExecutionCommand(
           cluster.getClusterName(), hostName, definition);
 
-      actionQueue.enqueue(hostName, command);
+      //TODO implement alert execution commands logic
+      //actionQueue.enqueue(hostName, command);
     }
   }
 }

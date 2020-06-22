@@ -18,18 +18,6 @@
 
 package org.apache.ambari.server.state.scheduler;
 
-import org.apache.ambari.server.actionmanager.HostRoleStatus;
-import org.apache.ambari.server.scheduler.ExecutionScheduleManager;
-import org.easymock.Capture;
-import org.junit.Assert;
-import org.junit.Test;
-import org.quartz.JobDataMap;
-import org.quartz.JobDetail;
-import org.quartz.JobExecutionContext;
-import org.quartz.JobKey;
-import org.quartz.Trigger;
-import java.util.HashMap;
-import java.util.Map;
 import static org.easymock.EasyMock.anyObject;
 import static org.easymock.EasyMock.capture;
 import static org.easymock.EasyMock.captureLong;
@@ -42,6 +30,21 @@ import static org.easymock.EasyMock.expectLastCall;
 import static org.easymock.EasyMock.replay;
 import static org.easymock.EasyMock.verify;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import org.apache.ambari.server.actionmanager.HostRoleStatus;
+import org.apache.ambari.server.scheduler.ExecutionScheduleManager;
+import org.easymock.Capture;
+import org.easymock.EasyMock;
+import org.junit.Assert;
+import org.junit.Test;
+import org.quartz.JobDataMap;
+import org.quartz.JobDetail;
+import org.quartz.JobExecutionContext;
+import org.quartz.JobKey;
+import org.quartz.Trigger;
+
 public class BatchRequestJobTest {
 
   @Test
@@ -53,7 +56,7 @@ public class BatchRequestJobTest {
     long executionId = 31L;
     long batchId = 1L;
 
-    Map<String, Object> properties = new HashMap<String, Object>();
+    Map<String, Object> properties = new HashMap<>();
     properties.put(BatchRequestJob.BATCH_REQUEST_EXECUTION_ID_KEY, executionId);
     properties.put(BatchRequestJob.BATCH_REQUEST_BATCH_ID_KEY, batchId);
     properties.put(BatchRequestJob.BATCH_REQUEST_CLUSTER_NAME_KEY, clusterName);
@@ -70,9 +73,9 @@ public class BatchRequestJobTest {
     BatchRequestResponse completedResponse = new BatchRequestResponse();
     completedResponse.setStatus(HostRoleStatus.COMPLETED.toString());
 
-    Capture<Long> executionIdCapture = new Capture<Long>();
-    Capture<Long> batchIdCapture = new Capture<Long>();
-    Capture<String> clusterNameCapture = new Capture<String>();
+    Capture<Long> executionIdCapture = EasyMock.newCapture();
+    Capture<Long> batchIdCapture = EasyMock.newCapture();
+    Capture<String> clusterNameCapture = EasyMock.newCapture();
 
 
     expect(scheduleManagerMock.executeBatchRequest(captureLong(executionIdCapture),
@@ -114,7 +117,7 @@ public class BatchRequestJobTest {
     JobExecutionContext executionContext = createNiceMock(JobExecutionContext.class);
     JobDataMap jobDataMap = createNiceMock(JobDataMap.class);
     JobDetail jobDetail = createNiceMock(JobDetail.class);
-    Map<String, Object> properties = new HashMap<String, Object>();
+    Map<String, Object> properties = new HashMap<>();
     properties.put(BatchRequestJob.BATCH_REQUEST_FAILED_TASKS_KEY, 10);
     properties.put(BatchRequestJob.BATCH_REQUEST_TOTAL_TASKS_KEY, 20);
 
@@ -125,7 +128,7 @@ public class BatchRequestJobTest {
     expect(jobDataMap.getWrappedMap()).andReturn(properties);
     expect(jobDataMap.getString((String) anyObject())).andReturn("testJob").anyTimes();
 
-    Capture<Trigger> triggerCapture = new Capture<Trigger>();
+    Capture<Trigger> triggerCapture = EasyMock.newCapture();
     scheduleManagerMock.scheduleJob(capture(triggerCapture));
     expectLastCall().once();
 

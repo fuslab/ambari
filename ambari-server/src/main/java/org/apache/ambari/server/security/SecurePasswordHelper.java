@@ -18,11 +18,11 @@
 
 package org.apache.ambari.server.security;
 
-import com.google.inject.Singleton;
-
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
+
+import com.google.inject.Singleton;
 
 @Singleton
 public class SecurePasswordHelper {
@@ -146,7 +146,7 @@ public class SecurePasswordHelper {
     }
 
     // Gather the set of characters that meet the specified requirements
-    List<Character> characters = new ArrayList<Character>(length);
+    List<Character> characters = new ArrayList<>(length);
 
     for (int i = 0; i < minLowercaseLetters; i++) {
       characters.add(SecurePasswordHelper.SECURE_PASSWORD_CHARACTER_CLASS_LOWERCASE_LETTERS[secureRandom.nextInt(SecurePasswordHelper.SECURE_PASSWORD_CHARACTER_CLASS_LOWERCASE_LETTERS.length)]);

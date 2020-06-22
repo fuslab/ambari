@@ -21,6 +21,8 @@ var date = require('utils/date/date');
 
 App.WizardStep9HostLogPopupBodyView = Em.View.extend({
 
+  classNames: ['col-sm-12'],
+
   templateName: require('templates/wizard/step9/step9HostTasksLogPopup'),
 
   /**
@@ -134,7 +136,7 @@ App.WizardStep9HostLogPopupBodyView = Em.View.extend({
         taskInfo.set('id', _task.Tasks.id);
         taskInfo.set('requestId', _task.Tasks.request_id);
         taskInfo.set('command', _task.Tasks.command.toLowerCase() === 'service_check' ? '' : _task.Tasks.command.toLowerCase());
-        taskInfo.set('commandDetail', App.format.commandDetail(_task.Tasks.command_detail, _task.Tasks.request_inputs));
+        taskInfo.set('commandDetail', App.format.commandDetail(_task.Tasks.command_detail, _task.Tasks.request_inputs, _task.Tasks.ops_display_name));
         taskInfo.set('status', App.format.taskStatus(_task.Tasks.status));
         taskInfo.set('role', App.format.role(_task.Tasks.role, false));
         taskInfo.set('stderr', _task.Tasks.stderr);
@@ -147,17 +149,17 @@ App.WizardStep9HostLogPopupBodyView = Em.View.extend({
         taskInfo.set('icon', '');
         taskInfo.set('hostName', _task.Tasks.host_name);
         if (taskInfo.get('status') == 'pending' || taskInfo.get('status') == 'queued') {
-          taskInfo.set('icon', 'icon-cog');
+          taskInfo.set('icon', 'glyphicon glyphicon-cog');
         } else if (taskInfo.get('status') == 'in_progress') {
           taskInfo.set('icon', 'icon-cogs');
         } else if (taskInfo.get('status') == 'completed') {
-          taskInfo.set('icon', 'icon-ok');
+          taskInfo.set('icon', 'glyphicon glyphicon-ok');
         } else if (taskInfo.get('status') == 'failed') {
-          taskInfo.set('icon', 'icon-exclamation-sign');
+          taskInfo.set('icon', 'glyphicon glyphicon-exclamation-sign');
         } else if (taskInfo.get('status') == 'aborted') {
-          taskInfo.set('icon', 'icon-minus');
+          taskInfo.set('icon', 'glyphicon glyphicon-minus');
         } else if (taskInfo.get('status') == 'timedout') {
-          taskInfo.set('icon', 'icon-time');
+          taskInfo.set('icon', 'glyphicon glyphicon-time');
         }
         tasksArr.push(taskInfo);
       }, this);
@@ -192,10 +194,10 @@ App.WizardStep9HostLogPopupBodyView = Em.View.extend({
    * @method openTaskLogInDialog
    */
   openTaskLogInDialog: function () {
-    var newwindow = window.open();
-    var newdocument = newwindow.document;
-    newdocument.write($(".task-detail-log-info").html());
-    newdocument.close();
+    var newWindow = window.open();
+    var newDocument = newWindow.document;
+    newDocument.write('<pre>' + this.get('formattedLogsForOpenedTask') + '<pre>');
+    newDocument.close();
   },
 
   /**
@@ -204,7 +206,16 @@ App.WizardStep9HostLogPopupBodyView = Em.View.extend({
    */
   openedTask: function () {
     return this.get('tasks').findProperty('id', this.get('parentView.c.currentOpenTaskId'))
-  }.property('parentView.c.currentOpenTaskId', 'tasks.@each'),
+  }.property('parentView.c.currentOpenTaskId', 'tasks.[]'),
+
+  /**
+   * @type {string}
+   */
+  formattedLogsForOpenedTask: function () {
+    var stderr = this.get('openedTask.stderr');
+    var stdout = this.get('openedTask.stdout');
+    return 'stderr: \n' + stderr + '\n stdout:\n' + stdout;
+  }.property('openedTask.stderr', 'openedTask.stdout'),
 
   /**
    * Click-handler for toggle task's log view (textarea to box and back)
@@ -234,7 +245,7 @@ App.WizardStep9HostLogPopupBodyView = Em.View.extend({
    * @method textTrigger
    */
   textTrigger: function () {
-    if ($(".task-detail-log-clipboard").length > 0) {
+    if (this.get('showClipBoard')) {
       this.destroyClipBoard();
     }
     else {
@@ -243,20 +254,17 @@ App.WizardStep9HostLogPopupBodyView = Em.View.extend({
   },
 
   /**
+   * @type {boolean}
+   */
+  showClipBoard: false,
+
+  /**
    * Create clipboard with task's log
    * @method createClipBoard
    */
   createClipBoard: function () {
-    var log = $(".task-detail-log-maintext"),
-      logRect = log[0].getBoundingClientRect();
-    $(".task-detail-log-clipboard-wrap").html('<textarea class="task-detail-log-clipboard"></textarea>');
-    $(".task-detail-log-clipboard")
-      .html("stderr: \n" + $(".stderr").html() + "\n stdout:\n" + $(".stdout").html())
-      .css("display", "block")
-      .width(logRect.width)
-      .height(logRect.height)
-      .select();
-    log.css("display", "none")
+    this.set('showClipBoard', true);
+    $('.task-detail-log-maintext').css('display', 'none');
   },
 
   /**
@@ -264,7 +272,7 @@ App.WizardStep9HostLogPopupBodyView = Em.View.extend({
    * @method destroyClipBoard
    */
   destroyClipBoard: function () {
-    $(".task-detail-log-clipboard").remove();
-    $(".task-detail-log-maintext").css("display", "block");
+    this.set('showClipBoard', false);
+    $('.task-detail-log-maintext').css('display', 'block');
   }
 });

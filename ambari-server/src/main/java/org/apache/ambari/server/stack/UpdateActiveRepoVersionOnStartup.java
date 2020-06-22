@@ -28,7 +28,7 @@ import org.apache.ambari.server.orm.dao.ClusterDAO;
 import org.apache.ambari.server.orm.dao.RepositoryVersionDAO;
 import org.apache.ambari.server.orm.entities.ClusterEntity;
 import org.apache.ambari.server.orm.entities.ClusterServiceEntity;
-import org.apache.ambari.server.orm.entities.OperatingSystemEntity;
+import org.apache.ambari.server.orm.entities.RepoOsEntity;
 import org.apache.ambari.server.orm.entities.RepositoryVersionEntity;
 import org.apache.ambari.server.state.RepositoryInfo;
 import org.apache.ambari.server.state.StackId;
@@ -89,8 +89,13 @@ public class UpdateActiveRepoVersionOnStartup {
           StackId stackId = repositoryVersion.getStackId();
           StackInfo stack = stackManager.getStack(stackId.getStackName(), stackId.getStackVersion());
 
-          if (updateRepoVersion(stack, repositoryVersion)) {
-            repositoryVersionDao.merge(repositoryVersion);
+          if (stack !=null) {
+            if (updateRepoVersion(stack, repositoryVersion)) {
+              repositoryVersionDao.merge(repositoryVersion);
+            }
+          } else {
+            throw new AmbariException(String.format("Stack %s %s was not found on the file system. In the event that it was removed, " +
+              "please ensure that it exists before starting Ambari Server.",  stackId.getStackName(), stackId.getStackVersion()));
           }
         }
       }
@@ -105,11 +110,10 @@ public class UpdateActiveRepoVersionOnStartup {
   private boolean updateRepoVersion(StackInfo stackInfo, RepositoryVersionEntity repoVersion) throws Exception {
     ListMultimap<String, RepositoryInfo> serviceReposByOs = stackInfo.getRepositoriesByOs();
 
-    // Update repos in the JSON representation
-    List<OperatingSystemEntity> operatingSystems = repoVersion.getOperatingSystems();
+    List<RepoOsEntity> operatingSystems = repoVersion.getRepoOsEntities();
     boolean changed = RepoUtil.addServiceReposToOperatingSystemEntities(operatingSystems, serviceReposByOs);
     if (changed) {
-      repoVersion.setOperatingSystems(repositoryVersionHelper.serializeOperatingSystemEntities(operatingSystems));
+      repoVersion.addRepoOsEntities(operatingSystems);
     }
     return changed;
   }

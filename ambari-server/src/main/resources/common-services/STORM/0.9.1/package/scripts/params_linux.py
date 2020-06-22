@@ -58,8 +58,8 @@ stack_name = status_params.stack_name
 upgrade_direction = default("/commandParams/upgrade_direction", None)
 version = default("/commandParams/version", None)
 
-agent_stack_retry_on_unavailability = config['hostLevelParams']['agent_stack_retry_on_unavailability']
-agent_stack_retry_count = expect("/hostLevelParams/agent_stack_retry_count", int)
+agent_stack_retry_on_unavailability = config['ambariLevelParams']['agent_stack_retry_on_unavailability']
+agent_stack_retry_count = expect("/ambariLevelParams/agent_stack_retry_count", int)
 
 storm_component_home_dir = status_params.storm_component_home_dir
 conf_dir = status_params.conf_dir
@@ -94,7 +94,7 @@ log_dir = config['configurations']['storm-env']['storm_log_dir']
 pid_dir = status_params.pid_dir
 local_dir = config['configurations']['storm-site']['storm.local.dir']
 user_group = config['configurations']['cluster-env']['user_group']
-java64_home = config['hostLevelParams']['java_home']
+java64_home = config['ambariLevelParams']['java_home']
 jps_binary = format("{java64_home}/bin/jps")
 nimbus_port = config['configurations']['storm-site']['nimbus.thrift.port']
 storm_zookeeper_root_dir = default('/configurations/storm-site/storm.zookeeper.root', None)
@@ -146,33 +146,28 @@ storm_user_nofile_limit = default('/configurations/storm-env/storm_user_nofile_l
 storm_user_nproc_limit = default('/configurations/storm-env/storm_user_noproc_limit', 65536)
 
 if security_enabled:
-  _hostname_lowercase = config['hostname'].lower()
+  _hostname_lowercase = config['agentLevelParams']['hostname'].lower()
   _storm_principal_name = config['configurations']['storm-env']['storm_principal_name']
   storm_jaas_principal = _storm_principal_name.replace('_HOST',_hostname_lowercase)
   _ambari_principal_name = default('/configurations/cluster-env/ambari_principal_name', None)
   storm_keytab_path = config['configurations']['storm-env']['storm_keytab']
 
-  if stack_supports_storm_kerberos:
-    storm_ui_keytab_path = config['configurations']['storm-env']['storm_ui_keytab']
-    _storm_ui_jaas_principal_name = config['configurations']['storm-env']['storm_ui_principal_name']
-    storm_ui_jaas_principal = _storm_ui_jaas_principal_name.replace('_HOST',_hostname_lowercase)
-    storm_bare_jaas_principal = get_bare_principal(_storm_principal_name)
-    if _ambari_principal_name:
-      ambari_bare_jaas_principal = get_bare_principal(_ambari_principal_name)
-    _nimbus_principal_name = config['configurations']['storm-env']['nimbus_principal_name']
-    nimbus_jaas_principal = _nimbus_principal_name.replace('_HOST', _hostname_lowercase)
-    nimbus_bare_jaas_principal = get_bare_principal(_nimbus_principal_name)
-    nimbus_keytab_path = config['configurations']['storm-env']['nimbus_keytab']
+  storm_ui_keytab_path = config['configurations']['storm-env']['storm_ui_keytab']
+  _storm_ui_jaas_principal_name = config['configurations']['storm-env']['storm_ui_principal_name']
+  storm_ui_jaas_principal = _storm_ui_jaas_principal_name.replace('_HOST',_hostname_lowercase)
+  storm_bare_jaas_principal = get_bare_principal(_storm_principal_name)
+  if _ambari_principal_name:
+    ambari_bare_jaas_principal = get_bare_principal(_ambari_principal_name)
+  _nimbus_principal_name = config['configurations']['storm-env']['nimbus_principal_name']
+  nimbus_jaas_principal = _nimbus_principal_name.replace('_HOST', _hostname_lowercase)
+  nimbus_bare_jaas_principal = get_bare_principal(_nimbus_principal_name)
+  nimbus_keytab_path = config['configurations']['storm-env']['nimbus_keytab']
 
 kafka_bare_jaas_principal = None
-if stack_supports_storm_kerberos:
-  if security_enabled:
-    storm_thrift_transport = config['configurations']['storm-site']['_storm.thrift.secure.transport']
-    # generate KafkaClient jaas config if kafka is kerberoized
-    _kafka_principal_name = default("/configurations/kafka-env/kafka_principal_name", None)
-    kafka_bare_jaas_principal = get_bare_principal(_kafka_principal_name)
-  else:
-    storm_thrift_transport = config['configurations']['storm-site']['_storm.thrift.nonsecure.transport']
+if security_enabled:
+  # generate KafkaClient jaas config if kafka is kerberoized
+  _kafka_principal_name = default("/configurations/kafka-env/kafka_principal_name", None)
+  kafka_bare_jaas_principal = get_bare_principal(_kafka_principal_name)
 
 set_instanceId = "false"
 if 'cluster-env' in config['configurations'] and \
@@ -208,6 +203,14 @@ metrics_report_interval = default("/configurations/ams-site/timeline.metrics.sin
 metrics_collection_period = default("/configurations/ams-site/timeline.metrics.sink.collection.period", 10)
 metric_collector_sink_jar = "/usr/lib/storm/lib/ambari-metrics-storm-sink-with-common-*.jar"
 metric_collector_legacy_sink_jar = "/usr/lib/storm/lib/ambari-metrics-storm-sink-legacy-with-common-*.jar"
+host_in_memory_aggregation = default("/configurations/ams-site/timeline.metrics.host.inmemory.aggregation", True)
+host_in_memory_aggregation_port = default("/configurations/ams-site/timeline.metrics.host.inmemory.aggregation.port", 61888)
+is_aggregation_https_enabled = False
+if default("/configurations/ams-site/timeline.metrics.host.inmemory.aggregation.http.policy", "HTTP_ONLY") == "HTTPS_ONLY":
+  host_in_memory_aggregation_protocol = 'https'
+  is_aggregation_https_enabled = True
+else:
+  host_in_memory_aggregation_protocol = 'http'
 
 
 # Cluster Zookeeper quorum
@@ -253,7 +256,7 @@ storm_worker_log4j_content = config['configurations']['storm-worker-log4j']['con
 storm_jaas_file = format("{conf_dir}/storm_jaas.conf")
 
 # for curl command in ranger plugin to get db connector
-jdk_location = config['hostLevelParams']['jdk_location']
+jdk_location = config['ambariLevelParams']['jdk_location']
 
 # ranger storm plugin start section
 
@@ -265,7 +268,7 @@ has_ranger_admin = not len(ranger_admin_hosts) == 0
 xml_configurations_supported = check_stack_feature(StackFeature.RANGER_XML_CONFIGURATION, version_for_stack_feature_checks)
 
 # ambari-server hostname
-ambari_server_hostname = config['clusterHostInfo']['ambari_server_host'][0]
+ambari_server_hostname = config['ambariLevelParams']['ambari_server_host']
 
 # ranger storm plugin enabled property
 enable_ranger_storm = default("/configurations/ranger-storm-plugin-properties/ranger-storm-plugin-enabled", "No")
@@ -389,10 +392,8 @@ if enable_ranger_storm:
 
 # ranger storm plugin end section
 
-namenode_hosts = default("/clusterHostInfo/namenode_host", [])
+namenode_hosts = default("/clusterHostInfo/namenode_hosts", [])
 has_namenode = not len(namenode_hosts) == 0
-
-availableServices = config['availableServices']
 
 hdfs_user = config['configurations']['hadoop-env']['hdfs_user'] if has_namenode else None
 hdfs_user_keytab = config['configurations']['hadoop-env']['hdfs_user_keytab'] if has_namenode else None
@@ -402,6 +403,8 @@ default_fs = config['configurations']['core-site']['fs.defaultFS'] if has_nameno
 hadoop_bin_dir = stack_select.get_hadoop_dir("bin") if has_namenode else None
 hadoop_conf_dir = conf_select.get_hadoop_conf_dir() if has_namenode else None
 kinit_path_local = get_kinit_path(default('/configurations/kerberos-env/executable_search_paths', None))
+
+dfs_type = default("/clusterLevelParams/dfs_type", "")
 
 import functools
 #create partial functions with common arguments for every HdfsResource call
@@ -418,5 +421,6 @@ HdfsResource = functools.partial(
   principal_name = hdfs_principal_name,
   hdfs_site = hdfs_site,
   default_fs = default_fs,
-  immutable_paths = get_not_managed_resources()
+  immutable_paths = get_not_managed_resources(),
+  dfs_type = dfs_type
 )

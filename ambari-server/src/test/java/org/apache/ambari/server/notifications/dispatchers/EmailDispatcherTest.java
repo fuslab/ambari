@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,21 @@
 package org.apache.ambari.server.notifications.dispatchers;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import org.apache.ambari.server.notifications.*;
+import javax.mail.AuthenticationFailedException;
+import javax.mail.MessagingException;
+import javax.mail.Transport;
+
+import org.apache.ambari.server.notifications.DispatchCallback;
+import org.apache.ambari.server.notifications.DispatchFactory;
+import org.apache.ambari.server.notifications.Notification;
+import org.apache.ambari.server.notifications.NotificationDispatcher;
+import org.apache.ambari.server.notifications.Recipient;
+import org.apache.ambari.server.notifications.TargetConfigurationResult;
 import org.apache.ambari.server.orm.InMemoryDefaultTestModule;
 import org.apache.ambari.server.state.alert.TargetType;
 import org.easymock.EasyMock;
@@ -36,10 +45,6 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Module;
 import com.google.inject.util.Modules;
-
-import javax.mail.AuthenticationFailedException;
-import javax.mail.MessagingException;
-import javax.mail.Transport;
 
 /**
  *
@@ -66,7 +71,7 @@ public class EmailDispatcherTest {
     DispatchCallback callback = EasyMock.createMock(DispatchCallback.class);
     notification.Callback = callback;
 
-    List<String> callbackIds = new ArrayList<String>();
+    List<String> callbackIds = new ArrayList<>();
     callbackIds.add(UUID.randomUUID().toString());
     notification.CallbackIds = callbackIds;
 
@@ -89,14 +94,14 @@ public class EmailDispatcherTest {
     Notification notification = new Notification();
     DispatchCallback callback = EasyMock.createMock(DispatchCallback.class);
     notification.Callback = callback;
-    notification.Recipients = new ArrayList<Recipient>();
+    notification.Recipients = new ArrayList<>();
 
     Recipient recipient = new Recipient();
     recipient.Identifier = "foo";
 
     notification.Recipients.add(recipient);
 
-    List<String> callbackIds = new ArrayList<String>();
+    List<String> callbackIds = new ArrayList<>();
     callbackIds.add(UUID.randomUUID().toString());
     notification.CallbackIds = callbackIds;
 
@@ -114,7 +119,7 @@ public class EmailDispatcherTest {
   @Test
   public void testValidateTargetConfig_invalidOnAuthenticationException() throws Exception {
 
-    Map<String, Object> properties = new HashMap<String, Object>();
+    Map<String, Object> properties = new HashMap<>();
     Transport mockedTransport = EasyMock.createNiceMock(Transport.class);
     EmailDispatcher dispatcher = EasyMock.createMockBuilder(EmailDispatcher.class).
         addMockedMethods("getMailTransport").createNiceMock();
@@ -132,7 +137,7 @@ public class EmailDispatcherTest {
   @Test
   public void testValidateTargetConfig_invalidOnMessagingException() throws Exception {
 
-    Map<String, Object> properties = new HashMap<String, Object>();
+    Map<String, Object> properties = new HashMap<>();
     Transport mockedTransport = EasyMock.createNiceMock(Transport.class);
     EmailDispatcher dispatcher = EasyMock.createMockBuilder(EmailDispatcher.class).
         addMockedMethods("getMailTransport").createNiceMock();
@@ -150,7 +155,7 @@ public class EmailDispatcherTest {
   @Test
   public void testValidateTargetConfig_validIfNoErrors() throws Exception {
 
-    Map<String, Object> properties = new HashMap<String, Object>();
+    Map<String, Object> properties = new HashMap<>();
     Transport mockedTransport = EasyMock.createNiceMock(Transport.class);
     EmailDispatcher dispatcher = EasyMock.createMockBuilder(EmailDispatcher.class).
         addMockedMethods("getMailTransport").createNiceMock();

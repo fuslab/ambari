@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -46,9 +46,7 @@ import org.apache.ambari.server.orm.GuiceJpaInitializer;
 import org.apache.ambari.server.orm.InMemoryDefaultTestModule;
 import org.apache.ambari.server.orm.dao.ExecutionCommandDAO;
 import org.apache.ambari.server.orm.dao.HostRoleCommandDAO;
-import org.apache.ambari.server.orm.dao.RequestDAO;
 import org.apache.ambari.server.orm.entities.HostRoleCommandEntity;
-import org.apache.ambari.server.orm.entities.RequestEntity;
 import org.apache.ambari.server.serveraction.MockServerAction;
 import org.apache.ambari.server.state.Clusters;
 import org.apache.ambari.server.state.StackId;
@@ -57,6 +55,7 @@ import org.apache.ambari.server.utils.CommandUtils;
 import org.apache.ambari.server.utils.StageUtils;
 import org.easymock.EasyMock;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -68,8 +67,6 @@ import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Singleton;
 import com.google.inject.util.Modules;
-
-import junit.framework.Assert;
 
 public class TestActionDBAccessorImpl {
   private static final Logger log = LoggerFactory.getLogger(TestActionDBAccessorImpl.class);
@@ -89,9 +86,6 @@ public class TestActionDBAccessorImpl {
 
   @Inject
   private Clusters clusters;
-
-  @Inject
-  private RequestDAO requestDAO;
 
   @Inject
   private ExecutionCommandDAO executionCommandDAO;
@@ -121,7 +115,7 @@ public class TestActionDBAccessorImpl {
     clusters.addHost(serverHostName);
     clusters.addHost(hostName);
 
-    StackId stackId = new StackId("HDP-0.2");
+    StackId stackId = new StackId("HDP-0.1");
     clusters.addCluster(clusterName, stackId);
     db = injector.getInstance(ActionDBAccessorImpl.class);
 
@@ -595,7 +589,6 @@ public class TestActionDBAccessorImpl {
         RoleCommand.START,
         new ServiceComponentHostStartEvent(Role.HBASE_REGIONSERVER
             .toString(), "host4", System.currentTimeMillis()), "cluster1", "HBASE", false, false);
-
     List<Stage> stages = new ArrayList<>();
     stages.add(s);
     s.getOrderedHostRoleCommands().get(0).setStatus(HostRoleStatus.PENDING);
@@ -623,10 +616,7 @@ public class TestActionDBAccessorImpl {
       }
     }
 
-    RequestEntity requestEntity = requestDAO.findByPK(requestId);
-    assertTrue(requestEntity.getEndTime() != -1L);
-
-    db.resubmitTasks(requestId, aborted);
+    db.resubmitTasks(aborted);
 
     commands = db.getRequestTasks(requestId);
 
@@ -638,8 +628,6 @@ public class TestActionDBAccessorImpl {
       }
     }
 
-    requestEntity = requestDAO.findByPK(requestId);
-    assertEquals(Long.valueOf(-1), requestEntity.getEndTime());
   }
 
   /**

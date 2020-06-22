@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,9 @@
 
 package org.apache.ambari.server.api.query.render;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import org.apache.ambari.server.api.query.QueryInfo;
 import org.apache.ambari.server.api.resources.ResourceDefinition;
 import org.apache.ambari.server.api.resources.SubResourceDefinition;
@@ -25,9 +28,6 @@ import org.apache.ambari.server.api.util.TreeNode;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.spi.Schema;
 import org.apache.ambari.server.controller.spi.SchemaFactory;
-
-import java.util.HashSet;
-import java.util.Set;
 
 
 /**
@@ -131,7 +131,7 @@ public abstract class BaseRenderer implements Renderer {
     ResourceDefinition resource = queryInfo.getResource();
     Set<SubResourceDefinition> subResources = resource.getSubResourceDefinitions();
     for (SubResourceDefinition subResource : subResources) {
-      Set<String> resourceProperties = new HashSet<String>();
+      Set<String> resourceProperties = new HashSet<>();
       populateSubResourceDefaults(subResource, resourceProperties);
       propertyTree.addChild(resourceProperties, subResource.getType().name());
     }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,25 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import static org.easymock.EasyMock.capture;
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.eq;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.newCapture;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.verify;
+import static org.junit.Assert.assertEquals;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.predicate.EqualsPredicate;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
@@ -32,25 +51,6 @@ import org.junit.Test;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import static org.easymock.EasyMock.capture;
-import static org.easymock.EasyMock.createMock;
-import static org.easymock.EasyMock.createNiceMock;
-import static org.easymock.EasyMock.eq;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.newCapture;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.verify;
-import static org.junit.Assert.assertEquals;
-
 public class RemoteClusterResourceProviderTest {
 
   @After
@@ -61,7 +61,7 @@ public class RemoteClusterResourceProviderTest {
   @Test
   public void testToResource() throws Exception {
     RemoteClusterResourceProvider provider = new RemoteClusterResourceProvider();
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
     propertyIds.add(RemoteClusterResourceProvider.CLUSTER_NAME_PROPERTY_ID);
     propertyIds.add(RemoteClusterResourceProvider.CLUSTER_URL_PROPERTY_ID);
     propertyIds.add(RemoteClusterResourceProvider.USERNAME_PROPERTY_ID);
@@ -74,7 +74,7 @@ public class RemoteClusterResourceProviderTest {
     RemoteAmbariClusterServiceEntity service2 = createNiceMock(RemoteAmbariClusterServiceEntity.class);
     expect(service2.getServiceName()).andReturn("service2").once();
 
-    List<RemoteAmbariClusterServiceEntity> serviceList = new ArrayList<RemoteAmbariClusterServiceEntity>();
+    List<RemoteAmbariClusterServiceEntity> serviceList = new ArrayList<>();
     serviceList.add(service1);
     serviceList.add(service2);
 
@@ -86,7 +86,7 @@ public class RemoteClusterResourceProviderTest {
 
     replay(service1, service2, entity);
 
-    List<String> services = new ArrayList<String>();
+    List<String> services = new ArrayList<>();
     services.add("service1");
     services.add("service2");
 
@@ -135,7 +135,7 @@ public class RemoteClusterResourceProviderTest {
     RemoteAmbariClusterServiceEntity service2 = createNiceMock(RemoteAmbariClusterServiceEntity.class);
     expect(service2.getServiceName()).andReturn("service2").once();
 
-    List<RemoteAmbariClusterServiceEntity> serviceList = new ArrayList<RemoteAmbariClusterServiceEntity>();
+    List<RemoteAmbariClusterServiceEntity> serviceList = new ArrayList<>();
     serviceList.add(service1);
     serviceList.add(service2);
 
@@ -168,7 +168,7 @@ public class RemoteClusterResourceProviderTest {
 
     setField(RemoteClusterResourceProvider.class.getDeclaredField("remoteAmbariClusterDAO"), clusterDAO);
 
-    EqualsPredicate equalsPredicate = new EqualsPredicate(RemoteClusterResourceProvider.CLUSTER_NAME_PROPERTY_ID,"test");
+    EqualsPredicate equalsPredicate = new EqualsPredicate<>(RemoteClusterResourceProvider.CLUSTER_NAME_PROPERTY_ID,"test");
 
     RemoteAmbariClusterRegistry clusterRegistry = createMock(RemoteAmbariClusterRegistry.class);
     setField(RemoteClusterResourceProvider.class.getDeclaredField("remoteAmbariClusterRegistry"), clusterRegistry);

@@ -40,7 +40,7 @@ public class AmbariUserDetailsImpl implements AmbariUserDetails {
     this.user = user;
     this.password = password;
     this.grantedAuthorities = (grantedAuthorities == null)
-        ? Collections.<GrantedAuthority>emptyList()
+        ? Collections.emptyList()
         : Collections.unmodifiableCollection(new ArrayList<>(grantedAuthorities));
   }
 

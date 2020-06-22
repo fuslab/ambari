@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,12 @@
 
 package org.apache.ambari.server.view.configuration;
 
+import java.util.Collections;
+import java.util.List;
+
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
-import java.util.Collections;
-import java.util.List;
 
 /**
  * View instance configuration.
@@ -135,7 +136,7 @@ public class InstanceConfig {
    * @return the instance properties
    */
   public List<PropertyConfig> getProperties() {
-    return properties == null ? Collections.<PropertyConfig>emptyList() : properties;
+    return properties == null ? Collections.emptyList() : properties;
   }
 
 }

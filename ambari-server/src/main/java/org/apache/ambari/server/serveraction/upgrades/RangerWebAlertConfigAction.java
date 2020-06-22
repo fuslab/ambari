@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,10 @@
 
 package org.apache.ambari.server.serveraction.upgrades;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.google.inject.Inject;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentMap;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.actionmanager.HostRoleStatus;
 import org.apache.ambari.server.agent.CommandReport;
@@ -28,25 +29,20 @@ import org.apache.ambari.server.events.AlertHashInvalidationEvent;
 import org.apache.ambari.server.events.publishers.AmbariEventPublisher;
 import org.apache.ambari.server.orm.dao.AlertDefinitionDAO;
 import org.apache.ambari.server.orm.entities.AlertDefinitionEntity;
-import org.apache.ambari.server.serveraction.AbstractServerAction;
 import org.apache.ambari.server.state.Cluster;
-import org.apache.ambari.server.state.Clusters;
 import org.apache.ambari.server.state.alert.AlertDefinitionHash;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentMap;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.inject.Inject;
 
 /**
  * This class is used to update Ranger service alert-check configs in Ambari
  */
-public class RangerWebAlertConfigAction extends AbstractServerAction {
+public class RangerWebAlertConfigAction extends AbstractUpgradeServerAction {
 
-
-  @Inject
-  Clusters m_clusters;
 
   @Inject
   AlertDefinitionDAO alertDefinitionDAO;
@@ -72,7 +68,7 @@ public class RangerWebAlertConfigAction extends AbstractServerAction {
   public CommandReport execute(ConcurrentMap<String, Object> requestSharedDataContext)
       throws AmbariException, InterruptedException {
     String clusterName = getExecutionCommand().getClusterName();
-    Cluster cluster = m_clusters.getCluster(clusterName);
+    Cluster cluster = getClusters().getCluster(clusterName);
 
     String ranger_admin_process = "ranger_admin_process";
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,12 @@
 
 package org.apache.ambari.server.api.services;
 
-import com.google.common.collect.Sets;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+import java.util.Collections;
+import java.util.Map;
+
 import org.apache.ambari.server.HostNotFoundException;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.spi.SystemException;
@@ -27,10 +32,7 @@ import org.apache.ambari.server.security.authorization.AuthorizationException;
 import org.apache.commons.collections.CollectionUtils;
 import org.junit.Test;
 
-import java.util.Collections;
-import java.util.Map;
-
-import static org.junit.Assert.*;
+import com.google.common.collect.Sets;
 
 public class DeleteResultMetaDataTest {
 
@@ -56,7 +58,7 @@ public class DeleteResultMetaDataTest {
     metadata.addException(key1, new AuthorizationException("Exception"));
     metadata.addException(key2, new SystemException("Exception"));
     metadata.addException(key3, new HostNotFoundException("Exception"));
-    metadata.addException(key4, new UnsupportedPropertyException(Resource.Type.Action, Collections.<String>emptySet()));
+    metadata.addException(key4, new UnsupportedPropertyException(Resource.Type.Action, Collections.emptySet()));
     metadata.addException(key5, new NullPointerException());
 
     assertTrue(metadata.getDeletedKeys().isEmpty());

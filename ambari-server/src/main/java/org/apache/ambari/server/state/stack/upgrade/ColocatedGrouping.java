@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -54,7 +54,7 @@ import com.google.gson.JsonPrimitive;
 @XmlType(name="colocated")
 public class ColocatedGrouping extends Grouping {
 
-  private static Logger LOG = LoggerFactory.getLogger(ColocatedGrouping.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ColocatedGrouping.class);
 
   @XmlElement(name="batch")
   public Batch batch;
@@ -74,8 +74,8 @@ public class ColocatedGrouping extends Grouping {
     private boolean m_serviceCheck = true;
 
     // !!! host -> list of tasks
-    private Map<String, List<TaskProxy>> initialBatch = new LinkedHashMap<String, List<TaskProxy>>();
-    private Map<String, List<TaskProxy>> finalBatches = new LinkedHashMap<String, List<TaskProxy>>();
+    private Map<String, List<TaskProxy>> initialBatch = new LinkedHashMap<>();
+    private Map<String, List<TaskProxy>> finalBatches = new LinkedHashMap<>();
 
 
     private MultiHomedBuilder(Grouping grouping, Batch batch, boolean serviceCheck) {
@@ -90,19 +90,18 @@ public class ColocatedGrouping extends Grouping {
         boolean clientOnly, ProcessingComponent pc, Map<String, String> params) {
 
       int count = Double.valueOf(Math.ceil(
-          (double) m_batch.percent / 100 * hostsType.hosts.size())).intValue();
+          (double) m_batch.percent / 100 * hostsType.getHosts().size())).intValue();
 
       int i = 0;
-      for (String host : hostsType.hosts) {
+      for (String host : hostsType.getHosts()) {
         // This class required inserting a single host into the collection
-        HostsType singleHostsType = new HostsType();
-        singleHostsType.hosts.add(host);
+        HostsType singleHostsType = HostsType.single(host);
 
         Map<String, List<TaskProxy>> targetMap = ((i++) < count) ? initialBatch : finalBatches;
         List<TaskProxy> targetList = targetMap.get(host);
 
         if (null == targetList) {
-          targetList = new ArrayList<TaskProxy>();
+          targetList = new ArrayList<>();
           targetMap.put(host, targetList);
         }
 
@@ -200,7 +199,7 @@ public class ColocatedGrouping extends Grouping {
 
         ManualTask task = new ManualTask();
         task.summary = m_batch.summary;
-        List<String> messages =  new ArrayList<String>();
+        List<String> messages = new ArrayList<>();
         messages.add(m_batch.message);
         task.messages = messages;
         formatFirstBatch(upgradeContext, task, befores);
@@ -208,7 +207,7 @@ public class ColocatedGrouping extends Grouping {
         StageWrapper wrapper = new StageWrapper(
             StageWrapper.Type.SERVER_SIDE_ACTION,
             "Validate Partial " + upgradeContext.getDirection().getText(true),
-            new TaskWrapper(null, null, Collections.<String>emptySet(), task));
+            new TaskWrapper(null, null, Collections.emptySet(), task));
 
         results.add(wrapper);
       }
@@ -223,13 +222,13 @@ public class ColocatedGrouping extends Grouping {
 
       List<StageWrapper> results = new ArrayList<>();
 
-      Set<String> serviceChecks = new HashSet<String>();
+      Set<String> serviceChecks = new HashSet<>();
 
       for (Entry<String, List<TaskProxy>> entry : wrappers.entrySet()) {
 
         // !!! stage per host, per type
         StageWrapper wrapper = null;
-        List<StageWrapper> execwrappers = new ArrayList<StageWrapper>();
+        List<StageWrapper> execwrappers = new ArrayList<>();
 
         for (TaskProxy t : entry.getValue()) {
           if (!t.clientOnly) {
@@ -274,10 +273,10 @@ public class ColocatedGrouping extends Grouping {
 
       if (direction.isUpgrade() && m_serviceCheck && serviceChecks.size() > 0) {
         // !!! add the service check task
-        List<TaskWrapper> tasks = new ArrayList<TaskWrapper>();
-        Set<String> displays = new HashSet<String>();
+        List<TaskWrapper> tasks = new ArrayList<>();
+        Set<String> displays = new HashSet<>();
         for (String service : serviceChecks) {
-          tasks.add(new TaskWrapper(service, "", Collections.<String>emptySet(), new ServiceCheckTask()));
+          tasks.add(new TaskWrapper(service, "", Collections.emptySet(), new ServiceCheckTask()));
           displays.add(service);
         }
 
@@ -299,8 +298,8 @@ public class ColocatedGrouping extends Grouping {
      * @param wrappers  the list of stage wrappers
      */
     private void formatFirstBatch(UpgradeContext ctx, ManualTask task, List<StageWrapper> wrappers) {
-      Set<String> names = new LinkedHashSet<String>();
-      Map<String, Set<String>> compLocations = new HashMap<String, Set<String>>();
+      Set<String> names = new LinkedHashSet<>();
+      Map<String, Set<String>> compLocations = new HashMap<>();
 
       for (StageWrapper sw : wrappers) {
         for (TaskWrapper tw : sw.getTasks()) {
@@ -309,7 +308,7 @@ public class ColocatedGrouping extends Grouping {
 
             for (String host : tw.getHosts()) {
               if (!compLocations.containsKey(host)) {
-                compLocations.put(host, new HashSet<String>());
+                compLocations.put(host, new HashSet<>());
               }
               compLocations.get(host).add(tw.getComponent());
             }
@@ -326,7 +325,7 @@ public class ColocatedGrouping extends Grouping {
         if (message.contains("{{components}}")) {
           StringBuilder sb = new StringBuilder();
 
-          List<String> compNames = new ArrayList<String>(names);
+          List<String> compNames = new ArrayList<>(names);
 
           if (compNames.size() == 1) {
             sb.append(compNames.get(0));
@@ -375,7 +374,7 @@ public class ColocatedGrouping extends Grouping {
     private String message;
     private Type type;
     private boolean clientOnly = false;
-    private List<TaskWrapper> tasks = new ArrayList<TaskWrapper>();
+    private List<TaskWrapper> tasks = new ArrayList<>();
 
     @Override
     public String toString() {

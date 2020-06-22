@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,7 +31,7 @@ public interface ProviderModule {
    *
    * @return the resource adapter
    */
-  public ResourceProvider getResourceProvider(Resource.Type type);
+  ResourceProvider getResourceProvider(Resource.Type type);
 
   /**
    * Get the list of property providers for the given resource type.
@@ -40,5 +40,5 @@ public interface ProviderModule {
    *
    * @return the list of property providers
    */
-  public List<PropertyProvider> getPropertyProviders(Resource.Type type);
+  List<PropertyProvider> getPropertyProviders(Resource.Type type);
 }

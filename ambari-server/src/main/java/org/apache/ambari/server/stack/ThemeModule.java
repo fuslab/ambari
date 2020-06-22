@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,13 +17,6 @@
  */
 package org.apache.ambari.server.stack;
 
-import org.apache.ambari.server.AmbariException;
-import org.apache.ambari.server.state.ThemeInfo;
-import org.apache.ambari.server.state.theme.Theme;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -34,6 +27,13 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.ambari.server.AmbariException;
+import org.apache.ambari.server.state.ThemeInfo;
+import org.apache.ambari.server.state.theme.Theme;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class ThemeModule extends BaseModule<ThemeModule, ThemeInfo> implements Validable {
 
   private static final Logger LOG = LoggerFactory.getLogger(ThemeModule.class);
@@ -41,13 +41,9 @@ public class ThemeModule extends BaseModule<ThemeModule, ThemeInfo> implements V
 
   public static final String THEME_KEY = "Theme";
 
-  static {
-  }
-
-
   private ThemeInfo moduleInfo;
   private boolean valid = true;
-  private Set<String> errors = new HashSet<String>();
+  private Set<String> errors = new HashSet<>();
 
   public ThemeModule(File themeFile) {
     this(themeFile, new ThemeInfo());
@@ -65,7 +61,7 @@ public class ThemeModule extends BaseModule<ThemeModule, ThemeInfo> implements V
       }
       try {
         Theme theme = mapper.readValue(reader, Theme.class);
-        Map<String, Theme> map = new HashMap<String, Theme>();
+        Map<String, Theme> map = new HashMap<>();
         map.put(THEME_KEY, theme);
         moduleInfo.setThemeMap(map);
         LOG.debug("Loaded theme: {}", moduleInfo);

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,15 +18,15 @@
 
 package org.apache.ambari.server.view;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 import org.apache.ambari.server.api.resources.BaseResourceDefinition;
 import org.apache.ambari.server.api.resources.SubResourceDefinition;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.orm.entities.ViewEntity;
 import org.apache.ambari.server.view.configuration.ResourceConfig;
-
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 
 /**
  * View sub-resource definition based on a view resource configuration.
@@ -79,7 +79,7 @@ public class ViewSubResourceDefinition extends BaseResourceDefinition {
   @Override
   public synchronized Set<SubResourceDefinition> getSubResourceDefinitions() {
     if (definitions == null) {
-      definitions = new HashSet<SubResourceDefinition>();
+      definitions = new HashSet<>();
       List<String> subResourceNames = resourceConfiguration.getSubResourceNames();
       if (subResourceNames != null) {
         for (String subType : subResourceNames) {

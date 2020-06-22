@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,8 @@
 
 package org.apache.ambari.server.api.query.render;
 
+import java.util.Set;
+
 import org.apache.ambari.server.api.query.QueryInfo;
 import org.apache.ambari.server.api.services.Request;
 import org.apache.ambari.server.api.services.Result;
@@ -25,7 +27,6 @@ import org.apache.ambari.server.api.services.ResultPostProcessor;
 import org.apache.ambari.server.api.services.ResultPostProcessorImpl;
 import org.apache.ambari.server.api.util.TreeNode;
 import org.apache.ambari.server.api.util.TreeNodeImpl;
-import java.util.Set;
 
 /**
  * Default resource renderer.
@@ -40,8 +41,8 @@ public class DefaultRenderer extends BaseRenderer implements Renderer {
       TreeNode<QueryInfo> queryTree, boolean isCollection) {
 
     QueryInfo queryInfo = queryTree.getObject();
-    TreeNode<Set<String>> resultTree = new TreeNodeImpl<Set<String>>(
-        null, queryInfo.getProperties(), queryTree.getName());
+    TreeNode<Set<String>> resultTree = new TreeNodeImpl<>(
+      null, queryInfo.getProperties(), queryTree.getName());
 
     copyPropertiesToResult(queryTree, resultTree);
 

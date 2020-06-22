@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,6 +17,13 @@
  */
 
 package org.apache.ambari.server.view;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
 
 import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.controller.internal.TemporalInfoImpl;
@@ -38,13 +45,6 @@ import org.apache.ambari.view.SystemException;
 import org.apache.ambari.view.UnsupportedPropertyException;
 import org.junit.Assert;
 import org.junit.Test;
-
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
 
 /**
  * ViewSubResourceProvider tests.
@@ -127,10 +127,10 @@ public class ViewSubResourceProviderTest {
 
     ViewSubResourceProvider viewSubResourceProvider = new ViewSubResourceProvider(type, MyResource.class, "id", viewEntity);
 
-    Set<String> requestProperties = new HashSet<String>();
+    Set<String> requestProperties = new HashSet<>();
     requestProperties.add("metrics/myMetric");
 
-    Map<String, TemporalInfo> temporalInfoMap = new HashMap<String, TemporalInfo>();
+    Map<String, TemporalInfo> temporalInfoMap = new HashMap<>();
     TemporalInfo temporalInfo = new TemporalInfoImpl(1000L, 1100L, 10L);
     temporalInfoMap.put("metrics/myMetric", temporalInfo);
 
@@ -193,7 +193,7 @@ public class ViewSubResourceProviderTest {
     public Set<MyResource> getResources(ReadRequest request)
         throws SystemException, NoSuchResourceException, UnsupportedPropertyException {
 
-      Set<MyResource> resources = new HashSet<MyResource>();
+      Set<MyResource> resources = new HashSet<>();
       resources.add(new MyResource("1", "foo", getMetricsValue(1, request, "myMetric")));
       resources.add(new MyResource("2", "bar", getMetricsValue(2, request, "myMetric")));
 
@@ -212,9 +212,9 @@ public class ViewSubResourceProviderTest {
           datapointsArray[i][0] = temporalInfo.getStartTime() + i * temporalInfo.getStep();
           datapointsArray[i][1] = value;
         }
-        return Collections.<String, Object>singletonMap(metricName, datapointsArray);
+        return Collections.singletonMap(metricName, datapointsArray);
       }
-      return Collections.<String, Object>singletonMap(metricName, value);
+      return Collections.singletonMap(metricName, value);
     }
 
     @Override

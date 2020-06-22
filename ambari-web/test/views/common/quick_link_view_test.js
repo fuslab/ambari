@@ -20,7 +20,7 @@ var App = require('app');
 require('views/common/quick_view_link_view');
 var testHelpers = require('test/helpers');
 
-describe('App.QuickLinksView', function () {
+describe('App.QuickViewLinks', function () {
 
   var quickViewLinks = App.QuickLinksView.create({
     content: Em.Object.create()
@@ -58,7 +58,6 @@ describe('App.QuickLinksView', function () {
     beforeEach(function () {
       quickViewLinks.setProperties({
         configProperties: [{}],
-        actualTags: [""],
         quickLinks: [{}]
       });
       quickViewLinks.willDestroyElement();
@@ -68,10 +67,6 @@ describe('App.QuickLinksView', function () {
       expect(quickViewLinks.get('configProperties')).to.be.empty;
     });
 
-    it("actualTags empty", function () {
-      expect(quickViewLinks.get('actualTags')).to.be.empty;
-    });
-
     it("quickLinks empty", function () {
       expect(quickViewLinks.get('quickLinks')).to.be.empty;
     });
@@ -79,84 +74,24 @@ describe('App.QuickLinksView', function () {
 
   describe("#setQuickLinks()", function () {
     beforeEach(function () {
-      this.mock = sinon.stub(App, 'get');
-      sinon.stub(quickViewLinks, 'loadTags', Em.K);
-    });
-    afterEach(function () {
-      this.mock.restore();
-      quickViewLinks.loadTags.restore();
-    });
-    it("data loaded", function () {
-      this.mock.returns(true);
-      quickViewLinks.setQuickLinks();
-      expect(quickViewLinks.loadTags.calledOnce).to.be.true;
-    });
-    it("data not loaded", function () {
-      this.mock.returns(false);
-      quickViewLinks.setQuickLinks();
-      expect(quickViewLinks.loadTags.called).to.be.false;
-    });
-  });
-
-  describe("#loadTags()", function () {
-
-    it("call $.ajax", function () {
-      quickViewLinks.loadTags();
-      var args = testHelpers.findAjaxRequest('name', 'config.tags');
-      expect(args[0]).exists;
-      expect(args[0].sender).to.be.eql(quickViewLinks);
-    });
-  });
-
-  describe("#loadTagsSuccess()", function () {
-    beforeEach(function () {
-      sinon.stub(quickViewLinks, 'setConfigProperties', function () {
-        return {
-          done: Em.clb
-        }
-      });
-      sinon.stub(quickViewLinks, 'getQuickLinksHosts');
-      var data = {
-        Clusters: {
-          desired_configs: {
-            site1: {
-              tag: 'tag1'
-            }
-          }
-        }
+      var mock = {
+        done: Em.clb
       };
-      quickViewLinks.loadTagsSuccess(data);
+      sinon.stub(quickViewLinks, 'setConfigProperties').returns(mock);
+      sinon.stub(quickViewLinks, 'getQuickLinksHosts');
+      sinon.stub(App, 'get').returns(true);
     });
     afterEach(function () {
       quickViewLinks.setConfigProperties.restore();
       quickViewLinks.getQuickLinksHosts.restore();
+      App.get.restore();
     });
-    it("actualTags is valid", function () {
-      expect(quickViewLinks.get('actualTags')[0]).to.eql(Em.Object.create({
-        siteName: 'site1',
-        tagName: 'tag1'
-      }));
-    });
-    it("setConfigProperties is called once", function () {
-      expect(quickViewLinks.setConfigProperties.calledOnce).to.be.true;
-    });
-    it("getQuickLinksHosts is called once", function () {
+    it("getQuickLinksHosts should be called", function () {
+      quickViewLinks.setQuickLinks();
       expect(quickViewLinks.getQuickLinksHosts.calledOnce).to.be.true;
     });
   });
 
-  describe("#loadTagsError()", function () {
-    beforeEach(function () {
-      sinon.stub(quickViewLinks, 'getQuickLinksHosts');
-    });
-    afterEach(function () {
-      quickViewLinks.getQuickLinksHosts.restore();
-    });
-    it("call loadQuickLinksConfigurations", function () {
-      quickViewLinks.loadTagsError();
-      expect(quickViewLinks.getQuickLinksHosts.calledOnce).to.be.true;
-    });
-  });
 
   describe("#loadQuickLinksConfigSuccessCallback()", function () {
     var mock;
@@ -195,6 +130,9 @@ describe('App.QuickLinksView', function () {
           {
             port: {
               site: "yarn-site"
+            },
+            host: {
+              site: "yarn-env"
             }
           }
         ]
@@ -205,7 +143,7 @@ describe('App.QuickLinksView', function () {
       quickViewLinks.set('content.serviceName', 'YARN');
       mock.returns(quickLinksConfigYARN);
       quickViewLinks.loadQuickLinksConfigSuccessCallback({items: []});
-      expect(quickViewLinks.get('requiredSiteNames')).to.be.eql(["core-site", "hdfs-site", "admin-properties", "hbase-site", "yarn-site"]);
+      expect(quickViewLinks.get('requiredSiteNames')).to.be.eql(["core-site", "hdfs-site", "admin-properties", "hbase-site", "yarn-site", "yarn-env"]);
     });
   });
 
@@ -213,13 +151,23 @@ describe('App.QuickLinksView', function () {
     beforeEach(function () {
       sinon.stub(App.HostComponent, 'find').returns([
         Em.Object.create({
-          isMaster: true,
+          componentName: 'HBASE_MASTER',
           hostName: 'host1'
         })
+      ]);
+      sinon.stub(App.QuickLinksConfig, 'find').returns([
+        {
+          links: [
+            {
+              component_name: 'HBASE_MASTER'
+            }
+          ]
+        }
       ]);
     });
     afterEach(function () {
       App.HostComponent.find.restore();
+      App.QuickLinksConfig.find.restore();
     });
     it("call $.ajax", function () {
       quickViewLinks.getQuickLinksHosts();
@@ -228,7 +176,7 @@ describe('App.QuickLinksView', function () {
       expect(args[0].sender).to.be.eql(quickViewLinks);
       expect(args[0].data).to.be.eql({
         clusterName: App.get('clusterName'),
-        masterHosts: 'host1',
+        hosts: 'host1',
         urlParams: ''
       });
     });
@@ -240,30 +188,43 @@ describe('App.QuickLinksView', function () {
       expect(args[0].sender).to.be.eql(quickViewLinks);
       expect(args[0].data).to.be.eql({
         clusterName: App.get('clusterName'),
-        masterHosts: 'host1',
+        hosts: 'host1',
         urlParams: ',host_components/metrics/hbase/master/IsActiveMaster'
       });
     });
   });
 
   describe("#setQuickLinksSuccessCallback()", function () {
+    var getQuickLinks;
     beforeEach(function () {
       this.mock = sinon.stub(quickViewLinks, 'getHosts');
+      getQuickLinks = sinon.stub(quickViewLinks, 'getQuickLinksConfiguration');
+      getQuickLinks.returns({});
       sinon.stub(quickViewLinks, 'setEmptyLinks');
       sinon.stub(quickViewLinks, 'setSingleHostLinks');
       sinon.stub(quickViewLinks, 'setMultipleHostLinks');
+      sinon.stub(quickViewLinks, 'setMultipleGroupLinks');
       quickViewLinks.set('content.quickLinks', []);
     });
     afterEach(function () {
       this.mock.restore();
+      getQuickLinks.restore();
       quickViewLinks.setEmptyLinks.restore();
       quickViewLinks.setSingleHostLinks.restore();
       quickViewLinks.setMultipleHostLinks.restore();
+      quickViewLinks.setMultipleGroupLinks.restore();
+      quickViewLinks.get('masterGroups').clear();
     });
     it("no hosts", function () {
       this.mock.returns([]);
       quickViewLinks.setQuickLinksSuccessCallback();
       expect(quickViewLinks.setEmptyLinks.calledOnce).to.be.true;
+    });
+    it("has overridden hosts", function () {
+      this.mock.returns([]);
+      getQuickLinks.returns({ links: [{ host: {site: "yarn-env"} }] });
+      quickViewLinks.setQuickLinksSuccessCallback();
+      expect(quickViewLinks.setEmptyLinks.calledOnce).to.be.false;
     });
     it("quickLinks is not configured", function () {
       this.mock.returns([{}]);
@@ -279,6 +240,14 @@ describe('App.QuickLinksView', function () {
       this.mock.returns([{hostName: 'host1'}, {hostName: 'host2'}]);
       quickViewLinks.setQuickLinksSuccessCallback();
       expect(quickViewLinks.setMultipleHostLinks.calledWith(
+        [{hostName: 'host1'}, {hostName: 'host2'}]
+      )).to.be.true;
+    });
+    it("multiple grouped hosts", function () {
+      this.mock.returns([{hostName: 'host1'}, {hostName: 'host2'}]);
+      quickViewLinks.set('masterGroups', [{}, {}]);
+      quickViewLinks.setQuickLinksSuccessCallback();
+      expect(quickViewLinks.setMultipleGroupLinks.calledWith(
         [{hostName: 'host1'}, {hostName: 'host2'}]
       )).to.be.true;
     });
@@ -300,20 +269,16 @@ describe('App.QuickLinksView', function () {
   });
 
   describe("#setConfigProperties()", function () {
-    var mock = {getConfigsByTags: Em.K};
     beforeEach(function () {
-      sinon.stub(App.router, 'get').returns(mock);
-      sinon.spy(mock, 'getConfigsByTags');
+      sinon.stub(App.router.get('configurationController'), 'getCurrentConfigsBySites');
     });
     afterEach(function () {
-      mock.getConfigsByTags.restore();
-      App.router.get.restore();
+      App.router.get('configurationController').getCurrentConfigsBySites.restore();
     });
-    it("getConfigsByTags called with correct data", function () {
-      quickViewLinks.set('actualTags', [{siteName: 'hdfs-site'}]);
+    it("getCurrentConfigsBySites called with correct data", function () {
       quickViewLinks.set('requiredSiteNames', ['hdfs-site']);
       quickViewLinks.setConfigProperties();
-      expect(mock.getConfigsByTags.calledWith([{siteName: 'hdfs-site'}])).to.be.true;
+      expect(App.router.get('configurationController').getCurrentConfigsBySites.calledWith(['hdfs-site'])).to.be.true;
     });
   });
 
@@ -352,24 +317,17 @@ describe('App.QuickLinksView', function () {
 
   describe("#processHdfsHosts()", function () {
     beforeEach(function () {
-      quickViewLinks.set('content.activeNameNode', null);
-      quickViewLinks.set('content.standbyNameNode', null);
-      quickViewLinks.set('content.standbyNameNode2', null);
+      quickViewLinks.set('content.activeNameNodes', []);
+      quickViewLinks.set('content.standbyNameNodes', []);
     });
     it("active namenode host", function () {
-      quickViewLinks.set('content.activeNameNode', Em.Object.create({hostName: 'host1'}));
+      quickViewLinks.get('content.activeNameNodes').pushObject(Em.Object.create({hostName: 'host1'}));
       var host = {hostName: 'host1'};
       quickViewLinks.processHdfsHosts([host]);
       expect(host.status).to.equal(Em.I18n.t('quick.links.label.active'));
     });
     it("standby namenode host", function () {
-      quickViewLinks.set('content.standbyNameNode', Em.Object.create({hostName: 'host1'}));
-      var host = {hostName: 'host1'};
-      quickViewLinks.processHdfsHosts([host]);
-      expect(host.status).to.equal(Em.I18n.t('quick.links.label.standby'));
-    });
-    it("second standby namenode host", function () {
-      quickViewLinks.set('content.standbyNameNode2', Em.Object.create({hostName: 'host1'}));
+      quickViewLinks.get('content.standbyNameNodes').pushObject(Em.Object.create({hostName: 'host1'}));
       var host = {hostName: 'host1'};
       quickViewLinks.processHdfsHosts([host]);
       expect(host.status).to.equal(Em.I18n.t('quick.links.label.standby'));
@@ -657,7 +615,7 @@ describe('App.QuickLinksView', function () {
         ],
         quickLinksConfig: {
           protocol:{
-            type:"https",
+            type:"HTTPS",
             checks:
               [
                 {
@@ -737,7 +695,7 @@ describe('App.QuickLinksView', function () {
         configProperties: [{type: 'ranger-site', properties: {'http.enabled': 'true'}}],
         quickLinksConfig: {
           protocol:{
-            type:"https",
+            type:"HTTPS",
             checks:
               [
                 {
@@ -823,6 +781,28 @@ describe('App.QuickLinksView', function () {
     });
   });
 
+  describe('#resolvePlaceholders', function() {
+    beforeEach(function() {
+      quickViewLinks.setProperties({
+      configProperties: [{
+          'type': 'config-type1',
+          'properties': {'property1': 'value1'}
+        }],
+        actualTags: [""],
+        quickLinks: [{}]
+      });
+    }),
+    it("replaces placeholders from config", function () {
+      expect(quickViewLinks.resolvePlaceholders('${config-type1/property1}')).to.equal('value1');
+    }),
+    it("leaves url as it is if config-type was not found", function () {
+      expect(quickViewLinks.resolvePlaceholders('${unknown-config-type/property1}')).to.equal('${unknown-config-type/property1}');
+    }),
+    it("leaves url as it is if property was not found", function () {
+      expect(quickViewLinks.resolvePlaceholders('${config-type1/unknown-property}')).to.equal('${config-type1/unknown-property}');
+    })
+  }),
+
   describe('#setPort', function () {
     var testData = [
       Em.Object.create({
@@ -863,6 +843,56 @@ describe('App.QuickLinksView', function () {
             }
           ],
         'result': '8090'
+      }),
+
+      Em.Object.create({
+        'protocol': 'https',
+        'port':{
+          'http_property':'oozie.base.url',
+          'http_default_port':'11000',
+          'https_property':'oozie.https.port',
+          'https_default_port':'11443',
+          'regex': '\\w*:(\\d+)',
+          'https_regex': '(\\d+)',
+          'site':'oozie-site'
+        },
+        'configProperties':
+          [
+            {
+              'type': 'oozie-site',
+              'properties':
+                {
+                  'oozie.base.url': 'c6401.ambari.apache.org:11000/oozie',
+                  'oozie.https.port' : '11444'
+                }
+            }
+          ],
+        'result': '11444'
+      }),
+
+      Em.Object.create({
+        'protocol': 'http',
+        'port':{
+          'http_property':'oozie.base.url',
+          'http_default_port':'11000',
+          'https_property':'oozie.https.port',
+          'https_default_port':'11443',
+          'regex': '\\w*:(\\d+)',
+          'https_regex': '(\\d+)',
+          'site':'oozie-site'
+        },
+        'configProperties':
+          [
+            {
+              'type': 'oozie-site',
+              'properties':
+                {
+                  'oozie.base.url': 'c6401.ambari.apache.org:11002/oozie',
+                  'oozie.https.port' : '11444'
+                }
+            }
+          ],
+        'result': '11002'
       })
     ];
 
@@ -886,7 +916,6 @@ describe('App.QuickLinksView', function () {
       sinon.stub(quickViewLinks, 'processHbaseHosts').returns(['hbaseHost']);
       sinon.stub(quickViewLinks, 'processYarnHosts').returns(['yarnHost']);
       sinon.stub(quickViewLinks, 'findHosts').returns(['host1']);
-      App.set('singleNodeInstall', false);
       sinon.stub(App.QuickLinksConfig, 'find').returns([
         Em.Object.create({
           id: 'OOZIE',
@@ -988,15 +1017,6 @@ describe('App.QuickLinksView', function () {
       quickViewLinks.findHosts.restore();
       quickViewLinks.processYarnHosts.restore();
       App.QuickLinksConfig.find.restore();
-    });
-
-    it("singleNodeInstall is true", function() {
-      App.set('singleNodeInstall', true);
-      App.set('singleNodeAlias', 'host1');
-      expect(quickViewLinks.getHosts({}, 'S1')).to.eql([{
-        hostName: 'host1',
-        publicHostName: 'host1'
-      }])
     });
 
     var tests = [

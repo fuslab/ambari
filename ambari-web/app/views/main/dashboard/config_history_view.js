@@ -59,23 +59,15 @@ App.MainConfigHistoryView = App.TableView.extend(App.TableServerViewMixin, {
     this.addObserver('startIndex', this, 'updatePagination');
     this.addObserver('displayLength', this, 'updatePagination');
     this.set('isInitialRendering', true);
-    this.refresh();
-    this.set('controller.isPolling', true);
-    this.get('controller').doPolling();
+    this.refresh(true);
+    this.get('controller').subscribeToUpdates();
   },
 
   /**
    * stop polling after leaving config history page
    */
   willDestroyElement: function () {
-    this.set('controller.isPolling', false);
-    clearTimeout(this.get('controller.timeoutRef'));
-  },
-
-  updateFilter: function (iColumn, value, type) {
-    if (!this.get('isInitialRendering')) {
-      this._super(iColumn, value, type);
-    }
+    this.get('controller').unsubscribeOfUpdates();
   },
 
   sortView: sort.serverWrapperView,
@@ -106,84 +98,6 @@ App.MainConfigHistoryView = App.TableView.extend(App.TableServerViewMixin, {
     displayName: Em.I18n.t('common.notes')
   }),
 
-  serviceFilterView: filters.createSelectView({
-    column: 1,
-    fieldType: 'filter-input-width',
-    content: function () {
-      return [
-        {
-          value: '',
-          label: Em.I18n.t('common.all')
-        }
-      ].concat(App.StackService.find().map(function (service) {
-        return {
-          value: service.get('serviceName'),
-          label: service.get('displayName')
-        }
-      }));
-    }.property('App.router.clusterController.isLoaded'),
-    onChangeValue: function () {
-      this.get('parentView').updateFilter(this.get('column'), this.get('value'), 'select');
-    }
-  }),
-
-  configGroupFilterView: filters.createSelectView({
-    column: 2,
-    fieldType: 'filter-input-width',
-    content: [],
-    observeContent: function() {
-      var groupName = App.ServiceConfigVersion.find().mapProperty('groupName').uniq();
-      if (groupName.indexOf(null) > -1) {
-        groupName.splice(groupName.indexOf(null), 1);
-      }
-      // list of group names can only grow since config versions not removable
-      if (groupName.length >= this.get('content.length')) {
-        this.set('content', [
-          {
-            value: '',
-            label: Em.I18n.t('common.all')
-          }
-        ].concat(groupName.map(function (item) {
-            return {
-              value: item,
-              label: item
-            }
-          })));
-      }
-    }.observes('parentView.isInitialRendering', 'parentView.pageContent'),
-    onChangeValue: function () {
-      this.get('parentView').updateFilter(this.get('column'), this.get('value'), 'select');
-    }
-  }),
-
-  modifiedFilterView: filters.createSelectView({
-    column: 3,
-    appliedEmptyValue: ["", ""],
-    fieldType: 'filter-input-width,modified-filter',
-    emptyValue: 'Any',
-    contentBinding: "controller.modifiedFilter.content",
-    onChangeValue: function () {
-      this.set("controller.modifiedFilter.optionValue", this.get('selected'));
-      this.get('parentView').updateFilter(this.get('column'), [this.get('controller.modifiedFilter.actualValues.startTime'), this.get('controller.modifiedFilter.actualValues.endTime')], 'range');
-    }
-  }),
-
-  authorFilterView: filters.createTextView({
-    column: 4,
-    fieldType: 'filter-input-width',
-    onChangeValue: function () {
-      this.get('parentView').updateFilter(this.get('column'), this.get('value'), 'string');
-    }
-  }),
-
-  notesFilterView: filters.createTextView({
-    column: 5,
-    fieldType: 'filter-input-width',
-    onChangeValue: function () {
-      this.get('parentView').updateFilter(this.get('column'), this.get('value'), 'string');
-    }
-  }),
-
   ConfigVersionView: Em.View.extend({
     tagName: 'tr',
     showLessNotes: true,
@@ -202,25 +116,14 @@ App.MainConfigHistoryView = App.TableView.extend(App.TableServerViewMixin, {
 
   /**
    * refresh table content
+   * @param {boolean} shouldUpdateCounter
    */
-  refresh: function () {
+  refresh: function (shouldUpdateCounter) {
     var self = this;
     this.set('filteringComplete', false);
-    this.get('controller').load().done(function () {
+    this.get('controller').load(shouldUpdateCounter).done(function () {
       self.refreshDone.apply(self);
     });
-  },
-
-  /**
-   * Clear all filter values, update filter conditions in the localStorage and update table data with API-request
-   *
-   * @method clearFilters
-   * @override
-   */
-  clearFilters: function () {
-    this._super();
-    this.saveAllFilterConditions();
-    this.refresh();
   },
 
   /**
@@ -238,14 +141,6 @@ App.MainConfigHistoryView = App.TableView.extend(App.TableServerViewMixin, {
   saveStartIndex: function() {
     App.db.setStartIndex(this.get('controller.name'), this.get('startIndex'));
   }.observes('startIndex'),
-
-  /**
-   * associations between host property and column index
-   * @type {Array}
-   */
-  colPropAssoc: function () {
-    return this.get('controller.colPropAssoc');
-  }.property('controller.colPropAssoc'),
 
   filter: Em.K
 });

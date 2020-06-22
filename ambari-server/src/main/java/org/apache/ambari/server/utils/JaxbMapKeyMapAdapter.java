@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -49,7 +49,7 @@ public class JaxbMapKeyMapAdapter extends
     if (list == null) {
       return null;
     }
-    Map<String, Map<String, String>> map = new TreeMap<String, Map<String, String>>();
+    Map<String, Map<String, String>> map = new TreeMap<>();
     for (JaxbMapKeyMap jaxbkeyMap : list) {
       map.put(jaxbkeyMap.key, mapAdapter.unmarshal(jaxbkeyMap.value));
     }

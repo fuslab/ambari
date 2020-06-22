@@ -18,12 +18,12 @@
 
 
 var App = require('app');
-var dateUtils = require('utils/date/date');
 var fileUtils = require('utils/file_utils');
 
 App.showLogTailPopup = function(content) {
   return App.ModalPopup.show({
-    classNames: ['log-tail-popup', 'full-width-modal', 'full-height-modal'],
+    classNames: ['log-tail-popup', 'wide-modal-wrapper', 'full-height-modal'],
+    modalDialogClasses: ['modal-xlg'],
     header: fileUtils.fileNameFromPath(content.get('filePath')),
     primary: false,
     secondary: Em.I18n.t('common.dismiss'),
@@ -39,10 +39,13 @@ App.showLogTailPopup = function(content) {
 
       logSearchUrl: function() {
         var quickLink = App.QuickLinks.find().findProperty('site', 'logsearch-env'),
-            logSearchServerHost = App.HostComponent.find().findProperty('componentName', 'LOGSEARCH_SERVER').get('hostName');
-
+            logSearchServerHost = App.HostComponent.find().findProperty('componentName', 'LOGSEARCH_SERVER').get('hostName'),
+            params = '';  
         if (quickLink) {
-          return quickLink.get('template').fmt('http', logSearchServerHost, quickLink.get('default_http_port')) + '?host_name=' + this.get('content.hostName') + '&file_name=' + this.get('content.filePath') + '&component_name=' + this.get('content.logComponentName');
+          params = 'hosts=' + encodeURIComponent(this.get('content.hostName'))
+            + ';components=' + encodeURIComponent(this.get('content.logComponentName'))
+            + ';query=%5B%7B"id":0,"name":"path","label":"Path","value":"' + encodeURIComponent(this.get('content.filePath')) + '","isExclude":false%7D%5D';
+          return quickLink.get('template').fmt('http', logSearchServerHost, quickLink.get('default_http_port')) + '/#/logs/serviceLogs;' + params;
         }
         return '#';
       }.property('content'),
@@ -53,7 +56,7 @@ App.showLogTailPopup = function(content) {
       openInNewTab: function() {
         var newWindow = window.open();
         var newDocument = newWindow.document;
-        newDocument.write($('.log-tail-content.pre-styled').html());
+        newDocument.write('<pre>' + this.logsToString() + '</pre>');
         newDocument.close();
       },
 
@@ -100,8 +103,7 @@ App.showLogTailPopup = function(content) {
           this._super();
           var newSize = $(window).height() - this.get('resizeDelta') - window.innerHeight*0.08;
           this.get('parentView').$().find('.copy-textarea').css({
-            height: newSize + 'px',
-            width: '100%'
+            height: newSize + 'px'
           });
         },
 

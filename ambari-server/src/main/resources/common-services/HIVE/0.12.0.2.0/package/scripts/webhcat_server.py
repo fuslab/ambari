@@ -18,13 +18,15 @@ limitations under the License.
 Ambari Agent
 
 """
-from resource_management import *
+from resource_management.libraries.script.script import Script
 from resource_management.libraries.functions import stack_select
-from resource_management.libraries.functions import StackFeature
+from resource_management.libraries.functions.constants import StackFeature
+from resource_management.libraries.functions.check_process_status import check_process_status
 from resource_management.libraries.functions.stack_features import check_stack_feature
 from resource_management.libraries.functions.security_commons import build_expectations, \
   cached_kinit_executor, get_params_from_filesystem, validate_security_config_properties, \
   FILE_TYPE_XML
+from resource_management.core.logger import Logger
 from webhcat import webhcat
 from webhcat_service import webhcat_service
 from ambari_commons import OSConst
@@ -83,6 +85,10 @@ class WebHCatServerDefault(WebHCatServer):
   def get_user(self):
     import params
     return params.webhcat_user
+
+  def get_pid_files(self):
+    import status_params
+    return [status_params.webhcat_pid_file]
 
 if __name__ == "__main__":
   WebHCatServer().execute()

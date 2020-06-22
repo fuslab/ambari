@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,19 +17,19 @@
  */
 package org.apache.ambari.server.controller.metrics;
 
-import org.apache.ambari.server.controller.spi.TemporalInfo;
-import org.apache.hadoop.metrics2.sink.timeline.Precision;
-import org.apache.hadoop.metrics2.sink.timeline.TimelineMetric;
-
 import java.util.Iterator;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
+
+import org.apache.ambari.server.controller.spi.TemporalInfo;
+import org.apache.hadoop.metrics2.sink.timeline.Precision;
+import org.apache.hadoop.metrics2.sink.timeline.TimelineMetric;
 
 public class MetricsPaddingMethod {
   private final PADDING_STRATEGY strategy;
   public static final String ZERO_PADDING_PARAM = "params/padding";
   private static final long MINIMUM_STEP_INTERVAL = 999l; // ~ 1 second
-  public static enum PADDING_STRATEGY {
+  public enum PADDING_STRATEGY {
     ZEROS,
     NULLS,
     NONE

@@ -163,11 +163,14 @@ public class RangerPasswordCheckTest {
     final Service service = EasyMock.createMock(Service.class);
     m_services.put("RANGER", service);
 
+    expect(service.getDesiredStackId()).andReturn(new StackId("HDP-2.3")).anyTimes();
+
     Cluster cluster = m_clusters.getCluster("cluster");
     EasyMock.reset(cluster);
     expect(cluster.getServices()).andReturn(m_services).anyTimes();
-    expect(cluster.getCurrentStackVersion()).andReturn(new StackId("HDP-2.3")).anyTimes();
-    replay(cluster);
+    expect(cluster.getService("RANGER")).andReturn(service).atLeastOnce();
+
+    replay(cluster, service);
 
     PrereqCheckRequest request = new PrereqCheckRequest("cluster");
     request.setTargetRepositoryVersion(m_repositoryVersion);

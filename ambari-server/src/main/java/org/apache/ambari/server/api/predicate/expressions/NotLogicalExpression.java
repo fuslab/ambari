@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,13 +18,13 @@
 
 package org.apache.ambari.server.api.predicate.expressions;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.ambari.server.api.predicate.InvalidQueryException;
 import org.apache.ambari.server.api.predicate.operators.LogicalOperator;
 import org.apache.ambari.server.controller.predicate.NotPredicate;
 import org.apache.ambari.server.controller.spi.Predicate;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * A 'NOT' logical expression representation.
@@ -43,7 +43,7 @@ public class NotLogicalExpression extends LogicalExpression {
   @Override
   public List<Expression> merge(Expression left, Expression right, int precedence) {
     if (getOperator().getPrecedence() == precedence && getRightOperand() == null) {
-      List<Expression> listExpressions = new ArrayList<Expression>();
+      List<Expression> listExpressions = new ArrayList<>();
       if (left != null) {
         listExpressions.add(left);
       }

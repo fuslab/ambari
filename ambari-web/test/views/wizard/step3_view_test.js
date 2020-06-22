@@ -39,6 +39,11 @@ function getView() {
         name: 'host3',
         bootStatus: 'PENDING',
         isChecked: true
+      }),
+      Em.Object.create({
+        name: 'host4',
+        bootStatus: 'RUNNING',
+        isChecked: true
       })
     ],
     pageContent: function () {
@@ -52,22 +57,22 @@ describe('App.WizardStep3View', function () {
   var view = getView();
 
   describe('#watchSelection', function () {
-    it('2 of 3 hosts selected', function () {
+    it('2 of 4 not running hosts selected', function () {
       view.watchSelection();
-      expect(view.get('noHostsSelected')).to.equal(false);
-      expect(view.get('selectedHostsCount')).to.equal(2);
+      expect(view.get('noNotRunningHostsSelected')).to.equal(false);
+      expect(view.get('selectedNotRunningHostsCount')).to.equal(2);
     });
-    it('all hosts selected', function () {
+    it('all not running hosts selected', function () {
       view.selectAll();
       view.watchSelection();
-      expect(view.get('noHostsSelected')).to.equal(false);
-      expect(view.get('selectedHostsCount')).to.equal(3);
+      expect(view.get('noNotRunningHostsSelected')).to.equal(false);
+      expect(view.get('selectedNotRunningHostsCount')).to.equal(3);
     });
     it('none hosts selected', function () {
       view.unSelectAll();
       view.watchSelection();
-      expect(view.get('noHostsSelected')).to.equal(true);
-      expect(view.get('selectedHostsCount')).to.equal(0);
+      expect(view.get('noNotRunningHostsSelected')).to.equal(true);
+      expect(view.get('selectedNotRunningHostsCount')).to.equal(0);
     });
   });
 
@@ -286,7 +291,7 @@ describe('App.WizardStep3View', function () {
       {
         controller: Em.Object.create({bootHosts: Em.A([])}),
         m: 'Empty hosts list',
-        e: {status: 'alert-warn', linkText: ''}
+        e: {status: 'alert-warning', linkText: ''}
       },
       {
         controller: Em.Object.create({bootHosts: Em.A([{}]), isWarningsLoaded: false}),
@@ -296,17 +301,17 @@ describe('App.WizardStep3View', function () {
       {
         controller: Em.Object.create({bootHosts: Em.A([{}]), isWarningsLoaded: true, isHostHaveWarnings: true}),
         m: 'isWarningsLoaded true, isHostHaveWarnings true',
-        e: {status: 'alert-warn', linkText: Em.I18n.t('installer.step3.warnings.linkText')}
+        e: {status: 'alert-warning', linkText: Em.I18n.t('installer.step3.warnings.linkText')}
       },
       {
         controller: Em.Object.create({bootHosts: Em.A([{}]), isWarningsLoaded: true, repoCategoryWarnings: ['']}),
         m: 'isWarningsLoaded true, repoCategoryWarnings not empty',
-        e: {status: 'alert-warn', linkText: Em.I18n.t('installer.step3.warnings.linkText')}
+        e: {status: 'alert-warning', linkText: Em.I18n.t('installer.step3.warnings.linkText')}
       },
       {
         controller: Em.Object.create({bootHosts: Em.A([{}]), isWarningsLoaded: true, diskCategoryWarnings: ['']}),
         m: 'isWarningsLoaded true, diskCategoryWarnings not empty',
-        e: {status: 'alert-warn', linkText: Em.I18n.t('installer.step3.warnings.linkText')}
+        e: {status: 'alert-warning', linkText: Em.I18n.t('installer.step3.warnings.linkText')}
       },
       {
         controller: Em.Object.create({bootHosts: Em.A([{}]), isWarningsLoaded: true, diskCategoryWarnings: [], repoCategoryWarnings: []}),
@@ -316,7 +321,7 @@ describe('App.WizardStep3View', function () {
       {
         controller: Em.Object.create({bootHosts: Em.A([{bootStatus: 'FAILED'}]), isWarningsLoaded: true, diskCategoryWarnings: [], repoCategoryWarnings: []}),
         m: 'isWarningsLoaded true, diskCategoryWarnings is empty, repoCategoryWarnings is empty, all failed',
-        e: {status: 'alert-warn', linkText: ''}
+        e: {status: 'alert-warning', linkText: ''}
       }
     ]);
 
@@ -397,19 +402,19 @@ describe('App.WizardStep3View', function () {
         });
       });
     });
-    describe('should set "noHostsSelected" and "selectedHostsCount"', function() {
+    describe('should set "noNotRunningHostsSelected" and "selectedNotRunningHostsCount"', function() {
       var tests = Em.A([
-        {pageContent: Em.A([]),content:Em.A([]),m:' - "true", "0" if content is empty',e:{selectedHostsCount: 0, noHostsSelected: true}},
-        {pageContent: Em.A([]),content:Em.A([Em.Object.create({isChecked: false})]),m:' - "true", "0" if no one isChecked',e:{selectedHostsCount: 0, noHostsSelected: true}},
-        {pageContent: Em.A([]),content:Em.A([Em.Object.create({isChecked: true}),Em.Object.create({isChecked: false})]),m:' - "false", "1" if one isChecked',e:{selectedHostsCount: 1, noHostsSelected: false}}
+        {pageContent: Em.A([]),content:Em.A([]),m:' - "true", "0" if content is empty',e:{selectedNotRunningHostsCount: 0, noNotRunningHostsSelected: true}},
+        {pageContent: Em.A([]),content:Em.A([Em.Object.create({isChecked: false})]),m:' - "true", "0" if no one isChecked',e:{selectedNotRunningHostsCount: 0, noNotRunningHostsSelected: true}},
+        {pageContent: Em.A([]),content:Em.A([Em.Object.create({isChecked: true}),Em.Object.create({isChecked: false})]),m:' - "false", "1" if one isChecked',e:{selectedNotRunningHostsCount: 1, noNotRunningHostsSelected: false}}
       ]);
       tests.forEach(function(test) {
         it(test.m, function() {
           view.set('pageContent', test.pageContent);
           view.set('content', test.content);
           view.watchSelection();
-          expect(view.get('noHostsSelected')).to.equal(test.e.noHostsSelected);
-          expect(view.get('selectedHostsCount')).to.equal(test.e.selectedHostsCount);
+          expect(view.get('noNotRunningHostsSelected')).to.equal(test.e.noNotRunningHostsSelected);
+          expect(view.get('selectedNotRunningHostsCount')).to.equal(test.e.selectedNotRunningHostsCount);
         });
       });
     });
@@ -477,9 +482,13 @@ describe('App.WizardStep3View', function () {
         })
       });
       sinon.spy(v.get('controller'), 'loadStep');
+      sinon.stub(v, '$').returns({
+        on: Em.K
+      });
     });
     afterEach(function() {
       v.get('controller').loadStep.restore();
+      v.$.restore();
     });
     it('should call loadStep', function() {
       v.didInsertElement();

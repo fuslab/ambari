@@ -18,8 +18,8 @@
 
 package org.apache.ambari.server.api.services;
 
-import org.apache.ambari.server.api.resources.ResourceInstance;
-import org.apache.ambari.server.controller.spi.Resource;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -29,8 +29,10 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
-import java.util.HashMap;
-import java.util.Map;
+
+import org.apache.ambari.annotations.ApiIgnore;
+import org.apache.ambari.server.api.resources.ResourceInstance;
+import org.apache.ambari.server.controller.spi.Resource;
 
 /**
  * RoleAuthorizationService is a read-only service responsible for role authorization resource requests.
@@ -67,7 +69,7 @@ public class RoleAuthorizationService extends BaseService {
    * @param ui      uri info
    * @return authorizations collection resource representation
    */
-  @GET
+  @GET @ApiIgnore // until documented
   @Produces("text/plain")
   public Response getAuthorizations(@Context HttpHeaders headers, @Context UriInfo ui) {
     return handleRequest(headers, null, ui, Request.Type.GET, createAuthorizationResource(null));
@@ -83,7 +85,7 @@ public class RoleAuthorizationService extends BaseService {
    * @param authorizationId authorization ID
    * @return authorization instance representation
    */
-  @GET
+  @GET @ApiIgnore // until documented
   @Path("{authorization_id}")
   @Produces("text/plain")
   public Response getAuthorization(@Context HttpHeaders headers, @Context UriInfo ui,
@@ -98,7 +100,7 @@ public class RoleAuthorizationService extends BaseService {
    * @return an authorization resource instance
    */
   protected ResourceInstance createAuthorizationResource(String authorizationId) {
-    Map<Resource.Type, String> mapIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type, String> mapIds = new HashMap<>();
     mapIds.put(Resource.Type.Permission, permissionId);
     mapIds.put(Resource.Type.RoleAuthorization, authorizationId);
     return createResource(Resource.Type.RoleAuthorization, mapIds);

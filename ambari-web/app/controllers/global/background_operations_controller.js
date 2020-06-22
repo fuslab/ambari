@@ -21,23 +21,21 @@ var App = require('app');
 App.BackgroundOperationsController = Em.Controller.extend({
   name: 'backgroundOperationsController',
 
-  /**
-   * Whether we need to refresh background operations or not
-   */
-  isWorking : false,
-
-  allOperationsCount : 0,
+  runningOperationsCount : function() {
+    return this.get('services').filterProperty('isRunning').length;
+  }.property('services.@each.isRunning'),
 
   /**
-   * For host component popup
+   * List of requests
    */
-  services:[],
+  services: Em.A([]),
   serviceTimestamp: null,
 
   /**
    * Number of operation to load
    */
   operationsCount: 10,
+
   /**
    * Possible levels:
    * REQUESTS_LIST
@@ -51,15 +49,125 @@ App.BackgroundOperationsController = Em.Controller.extend({
     taskId: null
   }),
 
-  /**
-   * Start polling, when <code>isWorking</code> become true
-   */
-  startPolling: function(){
-    if(this.get('isWorking')){
-      this.requestMostRecent();
-      App.updater.run(this, 'requestMostRecent', 'isWorking', App.bgOperationsUpdateInterval);
+  subscribeToUpdates: function () {
+    this.requestMostRecent(() => {
+      App.StompClient.subscribe('/events/requests', this.updateRequests.bind(this));
+    });
+  },
+
+  updateRequests: function(event) {
+    if (this.isUpgradeRequest({Requests: {request_context: event.requestContext}})) {
+      return;
     }
-  }.observes('isWorking'),
+    const request = this.get('services').findProperty('id', event.requestId);
+    const context = this.parseRequestContext(event.requestContext);
+    const visibleOperationsCount = this.get('operationsCount');
+    const map = this.generateTasksMapOfRequest(event, request);
+    const updatedState = {
+      progress: Math.floor(event.progressPercent),
+      status: event.requestStatus,
+      userName: event.userName,
+      isRunning: this.isRunning(event.requestStatus),
+      startTime: App.dateTimeWithTimeZone(event.startTime),
+      endTime: event.endTime > 0 ? App.dateTimeWithTimeZone(event.endTime) : event.endTime,
+      previousTaskStatusMap: map.currentTaskStatusMap,
+      hostsMap: map.hostsMap
+    };
+
+    if (request) {
+      request.setProperties(updatedState);
+    } else {
+      this.get('services').unshift(Em.Object.create(updatedState, {
+        id: event.requestId,
+        name: context.requestContext,
+        displayName: context.requestContext,
+        tasks: event.Tasks
+      }));
+      if (this.get('services').length >= visibleOperationsCount) {
+        this.set('isShowMoreAvailable', true);
+        this.get('services').pop();
+      }
+    }
+    this.set('serviceTimestamp', App.dateTime());
+    this.propertyDidChange('services');
+  },
+
+  /**
+   *
+   * @param {object} event
+   * @param {Em.Object} request
+   * @returns {{}}
+   */
+  generateTasksMapOfRequest: function(event, request) {
+    const hostsMap = request ? request.get('hostsMap') : {};
+    const previousTaskStatusMap = request ? request.get('previousTaskStatusMap') : {};
+    const currentTaskStatusMap = {};
+    event.Tasks.forEach((task) => {
+      const host = hostsMap[task.hostName];
+      if (host) {
+        const existedTask = host.logTasks.findProperty('Tasks.id', task.id);
+        if (existedTask) {
+          existedTask.Tasks.status = task.status;
+        } else {
+          host.logTasks.push(this.convertTaskFromEventToApi(task));
+        }
+        host.isModified = (host.isModified) ? true : previousTaskStatusMap[task.id] !== task.status;
+      } else {
+        hostsMap[task.hostName] = {
+          name: task.hostName,
+          publicName: task.hostName,
+          logTasks: [this.convertTaskFromEventToApi(task)],
+          isModified: previousTaskStatusMap[task.id] !== task.status
+        };
+      }
+      currentTaskStatusMap[task.id] = task.status;
+    }, this);
+    return {
+      currentTaskStatusMap,
+      hostsMap
+    }
+  },
+
+  convertTaskFromEventToApi: function(task) {
+    return {
+      Tasks: {
+        status: task.status,
+        host_name: task.hostName,
+        id: task.id,
+        request_id: task.requestId
+      }
+    }
+  },
+
+  handleTaskUpdates: function() {
+    const levelInfo = this.get('levelInfo');
+    if (!levelInfo.get('requestId') || !levelInfo.get('taskId')) {
+      return;
+    }
+    const request = this.get('services').findProperty('id', levelInfo.get('requestId'));
+    const taskStatus = request.get('previousTaskStatusMap')[levelInfo.get('taskId')];
+    if (levelInfo.get('name') === 'TASK_DETAILS' && !this.isFinished(taskStatus)) {
+      App.StompClient.subscribe(`/events/tasks/${levelInfo.get('taskId')}`, (updatedTask) => {
+        this.updateTask(updatedTask);
+        if (this.isFinished(updatedTask.status)) {
+          App.StompClient.unsubscribe(`/events/tasks/${updatedTask.id}`);
+        }
+      });
+    }
+  }.observes('levelInfo.name'),
+
+  updateTask: function(updatedTask) {
+    const request = this.get('services').findProperty('id', updatedTask.requestId);
+    const host = request.get('hostsMap')[updatedTask.hostName];
+    const task = host.logTasks.findProperty('Tasks.id', updatedTask.id);
+    task.Tasks.status = updatedTask.status;
+    task.Tasks.stdout = updatedTask.stdout;
+    task.Tasks.stderr = updatedTask.stderr;
+    task.Tasks.structured_out = updatedTask.structured_out;
+    task.Tasks.output_log = updatedTask.outLog;
+    task.Tasks.error_log = updatedTask.errorLog;
+    this.set('serviceTimestamp', App.dateTime());
+  },
 
   /**
    * Get requests data from server
@@ -86,7 +194,7 @@ App.BackgroundOperationsController = Em.Controller.extend({
     var request = this.get('services').findProperty('id', levelInfo.get('requestId'));
 
     if (levelInfo.get('name') === 'HOSTS_LIST') {
-      return !!(request && App.isEmptyObject(request.get('hostsMap')));
+      return Boolean(request && !request.get('hostsLevelLoaded'));
     }
     return false;
   },
@@ -103,7 +211,7 @@ App.BackgroundOperationsController = Em.Controller.extend({
         'operationsCount': count
       }
     };
-    if (levelInfo.get('name') === 'TASK_DETAILS' && !App.get('testMode')) {
+    if (levelInfo.get('name') === 'TASK_DETAILS') {
       result.name = 'background_operations.get_by_task';
       result.successCallback = 'callBackFilteredByTask';
       result.data = {
@@ -123,10 +231,8 @@ App.BackgroundOperationsController = Em.Controller.extend({
   /**
    * Push hosts and their tasks to request
    * @param data
-   * @param ajaxQuery
-   * @param params
    */
-  callBackFilteredByRequest: function (data, ajaxQuery, params) {
+  callBackFilteredByRequest: function (data) {
     var requestId = data.Requests.id;
     var requestInputs = data.Requests.inputs;
     var request = this.get('services').findProperty('id', requestId);
@@ -139,29 +245,20 @@ App.BackgroundOperationsController = Em.Controller.extend({
       task.Tasks.request_inputs = requestInputs;
       if (host) {
         host.logTasks.push(task);
-        host.isModified = (host.isModified) ? true : previousTaskStatusMap[task.Tasks.id] !== task.Tasks.status;
+        host.isModified = true;
       } else {
         hostsMap[task.Tasks.host_name] = {
           name: task.Tasks.host_name,
           publicName: task.Tasks.host_name,
           logTasks: [task],
-          isModified: previousTaskStatusMap[task.Tasks.id] !== task.Tasks.status
+          isModified: true
         };
       }
       currentTaskStatusMap[task.Tasks.id] = task.Tasks.status;
     }, this);
-    /**
-     * sync up request progress with up to date progress of hosts on Host's list,
-     * to avoid discrepancies while waiting for response with latest progress of request
-     * after switching to operation's list
-     */
-    if (request.get('isRunning')) {
-      request.set('progress', App.HostPopup.getProgress(data.tasks));
-      request.set('status', App.HostPopup.getStatus(data.tasks)[0]);
-      request.set('isRunning', request.get('progress') !== 100);
-    }
     request.set('previousTaskStatusMap', currentTaskStatusMap);
     request.set('hostsMap', hostsMap);
+    request.set('hostsLevelLoaded', true);
     this.set('serviceTimestamp', App.dateTime());
   },
   /**
@@ -203,45 +300,37 @@ App.BackgroundOperationsController = Em.Controller.extend({
    * @param data
    */
   callBackForMostRecent: function (data) {
-    var runningServices = 0;
     var currentRequestIds = [];
     var countIssued = this.get('operationsCount');
     var countGot = data.itemTotal;
-    var restoreUpgradeState = false;
 
     data.items.forEach(function (request) {
       if (this.isUpgradeRequest(request)) {
-        if (!App.get('upgradeIsRunning') && !App.get('testMode')) {
-          restoreUpgradeState = true;
-        }
         return;
       }
       var rq = this.get("services").findProperty('id', request.Requests.id);
-      var isRunning = this.isRequestRunning(request);
+      var isRunning = this.isRunning(request.Requests.request_status);
       var requestParams = this.parseRequestContext(request.Requests.request_context);
+      const requestState = {
+        progress: Math.floor(request.Requests.progress_percent),
+        status: request.Requests.request_status,
+        userName: request.Requests.user_name || Em.I18n.t('hostPopup.default.userName'),
+        isRunning: isRunning,
+        startTime: App.dateTimeWithTimeZone(request.Requests.start_time),
+        endTime: request.Requests.end_time > 0 ? App.dateTimeWithTimeZone(request.Requests.end_time) : request.Requests.end_time
+      };
       this.assignScheduleId(request, requestParams);
       currentRequestIds.push(request.Requests.id);
 
       if (rq) {
-        rq.setProperties({
-          progress: Math.floor(request.Requests.progress_percent),
-          status: request.Requests.request_status,
-          isRunning: isRunning,
-          startTime: App.dateTimeWithTimeZone(request.Requests.start_time),
-          endTime: request.Requests.end_time > 0 ? App.dateTimeWithTimeZone(request.Requests.end_time) : request.Requests.end_time
-        });
+        rq.setProperties(requestState);
       } else {
-        rq = Em.Object.create({
+        rq = Em.Object.create(requestState, {
           id: request.Requests.id,
           name: requestParams.requestContext,
           displayName: requestParams.requestContext,
-          progress: Math.floor(request.Requests.progress_percent),
-          status: request.Requests.request_status,
-          isRunning: isRunning,
           hostsMap: {},
           tasks: [],
-          startTime: App.dateTimeWithTimeZone(request.Requests.start_time),
-          endTime: request.Requests.end_time > 0 ? App.dateTimeWithTimeZone(request.Requests.end_time) : request.Requests.end_time,
           dependentService: requestParams.dependentService,
           sourceRequestScheduleId: request.Requests.request_schedule && request.Requests.request_schedule.schedule_id,
           previousTaskStatusMap: {},
@@ -251,13 +340,8 @@ App.BackgroundOperationsController = Em.Controller.extend({
         //To sort DESC by request id
         this.set("services", this.get("services").sortProperty('id').reverse());
       }
-      runningServices += ~~isRunning;
     }, this);
-    if (restoreUpgradeState) {
-      App.router.get('clusterController').restoreUpgradeState();
-    }
     this.removeOldRequests(currentRequestIds);
-    this.set("allOperationsCount", runningServices);
     this.set('isShowMoreAvailable', countGot >= countIssued);
     this.set('serviceTimestamp', App.dateTimeWithTimeZone());
   },
@@ -282,15 +366,23 @@ App.BackgroundOperationsController = Em.Controller.extend({
   },
 
   /**
-   * identify whether request is running by task counters
-   * @param request
+   * identify whether request or task is running by status
+   * @param status
    * @return {Boolean}
    */
-  isRequestRunning: function (request) {
-    return (request.Requests.task_count -
-      (request.Requests.aborted_task_count + request.Requests.completed_task_count + request.Requests.failed_task_count
-        + request.Requests.timed_out_task_count - request.Requests.queued_task_count)) > 0;
+  isRunning: function (status) {
+    return ['IN_PROGRESS', 'QUEUED', 'PENDING'].contains(status);
   },
+
+  /**
+   * identify whether request or task is finished by status
+   * @param status
+   * @return {Boolean}
+   */
+  isFinished: function (status) {
+    return ['FAILED', 'ABORTED', 'COMPLETED'].contains(status);
+  },
+
   /**
    * identify whether there is only one host in request
    * @param inputs
@@ -320,36 +412,46 @@ App.BackgroundOperationsController = Em.Controller.extend({
 
   /**
    * parse request context and if keyword "_PARSE_" is present then format it
-   * @param requestContext
+   * @param {string} requestContext
    * @return {Object}
    */
   parseRequestContext: function (requestContext) {
-    var parsedRequestContext;
-    var service;
-    var contextCommand;
+    var context = {};
     if (requestContext) {
       if (requestContext.indexOf(App.BackgroundOperationsController.CommandContexts.PREFIX) !== -1) {
-        var contextSplits = requestContext.split('.');
-        contextCommand = contextSplits[1];
-        service = contextSplits[2];
-        switch(contextCommand){
-        case "STOP":
-        case "START":
-          if (service === 'ALL_SERVICES') {
-            parsedRequestContext = Em.I18n.t("requestInfo." + contextCommand.toLowerCase()).format(Em.I18n.t('common.allServices'));
-          } else {
-            parsedRequestContext = Em.I18n.t("requestInfo." + contextCommand.toLowerCase()).format(App.format.role(service, true));
-          }
-          break;
-        case "ROLLING-RESTART":
-          parsedRequestContext = Em.I18n.t("rollingrestart.rest.context").format(App.format.role(service, true), contextSplits[3], contextSplits[4]);
-          break;
-        }
+        context = this.getRequestContextWithPrefix(requestContext);
       } else {
-        parsedRequestContext = requestContext;
+        context.requestContext = requestContext;
       }
     } else {
-      parsedRequestContext = Em.I18n.t('requestInfo.unspecified');
+      context.requestContext = Em.I18n.t('requestInfo.unspecified');
+    }
+    return context;
+  },
+
+  /**
+   *
+   * @param {string} requestContext
+   * @returns {{requestContext: *, dependentService: *, contextCommand: *}}
+   */
+  getRequestContextWithPrefix: function (requestContext) {
+    var contextSplits = requestContext.split('.'),
+        parsedRequestContext,
+        contextCommand = contextSplits[1],
+        service = contextSplits[2];
+
+    switch (contextCommand) {
+      case "STOP":
+      case "START":
+        if (service === 'ALL_SERVICES') {
+          parsedRequestContext = Em.I18n.t("requestInfo." + contextCommand.toLowerCase()).format(Em.I18n.t('common.allServices'));
+        } else {
+          parsedRequestContext = Em.I18n.t("requestInfo." + contextCommand.toLowerCase()).format(App.format.role(service, true));
+        }
+        break;
+      case "ROLLING-RESTART":
+        parsedRequestContext = Em.I18n.t("rollingrestart.rest.context").format(App.format.role(service, true), contextSplits[3], contextSplits[4]);
+        break;
     }
     return {
       requestContext: parsedRequestContext,
@@ -363,15 +465,20 @@ App.BackgroundOperationsController = Em.Controller.extend({
   /**
    * Onclick handler for background operations number located right to logo
    */
-  showPopup: function(){
+  showPopup: function () {
     // load the checkbox on footer first, then show popup.
     var self = this;
     App.router.get('userSettingsController').dataLoading('show_bg').done(function (initValue) {
       App.updater.immediateRun('requestMostRecent');
-      if(self.get('popupView') && App.HostPopup.get('isBackgroundOperations')){
-        self.set ('popupView.isNotShowBgChecked', !initValue);
+
+      App.HostPopup.set("breadcrumbs", [ App.HostPopup.get("rootBreadcrumb") ]);
+
+      if (self.get('popupView') && App.HostPopup.get('isBackgroundOperations')) {
+        self.set('popupView.isNotShowBgChecked', !initValue);
         self.set('popupView.isOpen', true);
-        $(self.get('popupView.element')).appendTo('#wrapper');
+        var el = $(self.get('popupView.element'));
+        el.appendTo('#wrapper');
+        el.find('.modal').show();
       } else {
         self.set('popupView', App.HostPopup.initPopup("", self, true));
         self.set('popupView.isNotShowBgChecked', !initValue);

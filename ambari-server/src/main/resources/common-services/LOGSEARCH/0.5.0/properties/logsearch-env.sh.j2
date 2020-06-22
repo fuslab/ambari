@@ -16,16 +16,15 @@
 
 set -e
 
-export LOGSEARCH_PORT={{logsearch_ui_port}}
-
 # path containing LogSearch.jar file
 export LOGSEARCH_PATH={{logsearch_dir}}
 
 export LOGSEARCH_CONF_DIR={{logsearch_server_conf}}
 
-export LOGFILE={{logsearch_log_dir}}/logsearch.log
+export LOG_PATH={{logsearch_log_dir}}
+export LOG_FILE={{logsearch_log}}
 
-export PID_FILE={{logsearch_pid_file}}
+export LOGSEARCH_PID_FILE={{logsearch_pid_file}}
 
 export JAVA_HOME={{java64_home}}
 
@@ -44,4 +43,9 @@ export LOGSEARCH_KEYSTORE_LOCATION={{logsearch_keystore_location}}
 export LOGSEARCH_KEYSTORE_TYPE={{logsearch_keystore_type}}
 export LOGSEARCH_TRUSTSTORE_LOCATION={{logsearch_truststore_location}}
 export LOGSEARCH_TRUSTSTORE_TYPE={{logsearch_truststore_type}}
+{% endif %}
+
+{% if security_enabled -%}
+LOGSEARCH_KERBEROS_OPTS="-Djava.security.auth.login.config=/usr/lib/ambari-logsearch-portal/conf/logsearch_jaas.conf -Dsolr.httpclient.builder.factory=org.apache.solr.client.solrj.impl.Krb5HttpClientBuilder"
+export LOGSEARCH_JAVA_OPTS="{{zk_security_opts}} $LOGSEARCH_KERBEROS_OPTS"
 {% endif %}

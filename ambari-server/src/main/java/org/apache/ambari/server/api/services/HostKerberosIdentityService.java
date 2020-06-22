@@ -18,8 +18,8 @@
 
 package org.apache.ambari.server.api.services;
 
-import org.apache.ambari.server.api.resources.ResourceInstance;
-import org.apache.ambari.server.controller.spi.Resource;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -31,8 +31,10 @@ import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
-import java.util.HashMap;
-import java.util.Map;
+
+import org.apache.ambari.annotations.ApiIgnore;
+import org.apache.ambari.server.api.resources.ResourceInstance;
+import org.apache.ambari.server.controller.spi.Resource;
 
 /**
  * Service responsible for kerberos identity resource requests.
@@ -70,7 +72,7 @@ public class HostKerberosIdentityService extends BaseService {
    * @param format     output format
    * @return a component resource representation
    */
-  @GET
+  @GET @ApiIgnore // until documented
   @Path("{kerberosIdentityID}")
   @Produces("text/plain")
   public Response getKerberosIdentity(String body, @Context HttpHeaders headers, @Context UriInfo ui,
@@ -95,7 +97,7 @@ public class HostKerberosIdentityService extends BaseService {
    * @param ui      uri info
    * @return component collection resource representation
    */
-  @GET
+  @GET @ApiIgnore // until documented
   @Produces("text/plain")
   public Response getKerberosIdentities(String body, @Context HttpHeaders headers, @Context UriInfo ui, @QueryParam("format") String format) {
     return getKerberosIdentity(body, headers, ui, null, format);
@@ -110,7 +112,7 @@ public class HostKerberosIdentityService extends BaseService {
    * @return a component resource instance
    */
   ResourceInstance createResource(String clusterName, String hostName, String identityId) {
-    Map<Resource.Type, String> mapIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type, String> mapIds = new HashMap<>();
     mapIds.put(Resource.Type.Cluster, clusterName);
     mapIds.put(Resource.Type.Host, hostName);
     mapIds.put(Resource.Type.HostKerberosIdentity, identityId);

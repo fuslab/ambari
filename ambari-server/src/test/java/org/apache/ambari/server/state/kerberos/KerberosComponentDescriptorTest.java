@@ -35,9 +35,9 @@ import com.google.gson.reflect.TypeToken;
 
 import junit.framework.Assert;
 
-@Category({ category.KerberosTest.class})
+@Category({category.KerberosTest.class})
 public class KerberosComponentDescriptorTest {
-  public static final String JSON_VALUE =
+  static final String JSON_VALUE =
       " {" +
           "  \"name\": \"COMPONENT_NAME\"," +
           "  \"identities\": [" +
@@ -59,22 +59,22 @@ public class KerberosComponentDescriptorTest {
   static final Map<String, Object> MAP_VALUE;
 
   static {
-    Map<String, Object> identitiesMap = new TreeMap<String, Object>();
+    Map<String, Object> identitiesMap = new TreeMap<>();
     identitiesMap.put((String) KerberosIdentityDescriptorTest.MAP_VALUE.get(KerberosIdentityDescriptor.KEY_NAME), KerberosIdentityDescriptorTest.MAP_VALUE);
     identitiesMap.put((String) KerberosIdentityDescriptorTest.MAP_VALUE_ALT.get(KerberosIdentityDescriptor.KEY_NAME), KerberosIdentityDescriptorTest.MAP_VALUE_ALT);
     identitiesMap.put((String) KerberosIdentityDescriptorTest.MAP_VALUE_REFERENCE.get(KerberosIdentityDescriptor.KEY_NAME), KerberosIdentityDescriptorTest.MAP_VALUE_REFERENCE);
 
-    Map<String, Object> serviceSiteProperties = new TreeMap<String, Object>();
+    Map<String, Object> serviceSiteProperties = new TreeMap<>();
     serviceSiteProperties.put("service.component.property1", "red");
     serviceSiteProperties.put("service.component.property", "green");
 
-    Map<String, Map<String, Object>> serviceSiteMap = new TreeMap<String, Map<String, Object>>();
+    Map<String, Map<String, Object>> serviceSiteMap = new TreeMap<>();
     serviceSiteMap.put("service-site", serviceSiteProperties);
 
-    TreeMap<String, Map<String, Map<String, Object>>> configurationsMap = new TreeMap<String, Map<String, Map<String, Object>>>();
+    TreeMap<String, Map<String, Map<String, Object>>> configurationsMap = new TreeMap<>();
     configurationsMap.put("service-site", serviceSiteMap);
 
-    Collection<String> authToLocalRules = new ArrayList<String>();
+    Collection<String> authToLocalRules = new ArrayList<>();
     authToLocalRules.add("component.name.rules2");
 
     MAP_VALUE = new TreeMap<>();
@@ -184,7 +184,7 @@ public class KerberosComponentDescriptorTest {
     Assert.assertNotNull(authToLocalProperties);
     Assert.assertEquals(2, authToLocalProperties.size());
     // guarantee ordering...
-    Iterator<String> iterator = new TreeSet<String>(authToLocalProperties).iterator();
+    Iterator<String> iterator = new TreeSet<>(authToLocalProperties).iterator();
     Assert.assertEquals("component.name.rules1", iterator.next());
     Assert.assertEquals("component.name.rules2", iterator.next());
 

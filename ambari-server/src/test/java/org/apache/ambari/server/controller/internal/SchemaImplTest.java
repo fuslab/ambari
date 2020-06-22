@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,6 @@
 
 package org.apache.ambari.server.controller.internal;
 
-import junit.framework.Assert;
-import org.apache.ambari.server.controller.spi.*;
-import org.apache.ambari.server.controller.utilities.PropertyHelper;
-import org.junit.Test;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -31,12 +26,29 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
+import org.apache.ambari.server.controller.spi.NoSuchResourceException;
+import org.apache.ambari.server.controller.spi.Predicate;
+import org.apache.ambari.server.controller.spi.PropertyProvider;
+import org.apache.ambari.server.controller.spi.Request;
+import org.apache.ambari.server.controller.spi.RequestStatus;
+import org.apache.ambari.server.controller.spi.Resource;
+import org.apache.ambari.server.controller.spi.ResourceAlreadyExistsException;
+import org.apache.ambari.server.controller.spi.ResourceProvider;
+import org.apache.ambari.server.controller.spi.Schema;
+import org.apache.ambari.server.controller.spi.SystemException;
+import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
+import org.apache.ambari.server.controller.utilities.PropertyHelper;
+import org.junit.Test;
+
+import junit.framework.Assert;
+
 /**
  *
  */
 public class SchemaImplTest {
 
-  private static final Set<String> resourceProviderProperties = new HashSet<String>();
+  private static final Set<String> resourceProviderProperties = new HashSet<>();
 
   static {
     resourceProviderProperties.add(PropertyHelper.getPropertyId("c1", "p1"));
@@ -75,7 +87,7 @@ public class SchemaImplTest {
     @Override
     public Set<String> checkPropertyIds(Set<String> propertyIds) {
       if (!resourceProviderProperties.containsAll(propertyIds)) {
-        Set<String> unsupportedPropertyIds = new HashSet<String>(propertyIds);
+        Set<String> unsupportedPropertyIds = new HashSet<>(propertyIds);
         unsupportedPropertyIds.removeAll(resourceProviderProperties);
         return unsupportedPropertyIds;
       }
@@ -83,7 +95,7 @@ public class SchemaImplTest {
     }
   };
 
-  private static final Set<String> propertyProviderProperties = new HashSet<String>();
+  private static final Set<String> propertyProviderProperties = new HashSet<>();
 
   static {
     propertyProviderProperties.add(PropertyHelper.getPropertyId("c3", "p5"));
@@ -101,7 +113,7 @@ public class SchemaImplTest {
     @Override
     public Set<String> checkPropertyIds(Set<String> propertyIds) {
       if (!propertyProviderProperties.containsAll(propertyIds)) {
-        Set<String> unsupportedPropertyIds = new HashSet<String>(propertyIds);
+        Set<String> unsupportedPropertyIds = new HashSet<>(propertyIds);
         unsupportedPropertyIds.removeAll(propertyProviderProperties);
         return unsupportedPropertyIds;
       }
@@ -109,13 +121,13 @@ public class SchemaImplTest {
     }
   };
 
-  private static final List<PropertyProvider> propertyProviders = new LinkedList<PropertyProvider>();
+  private static final List<PropertyProvider> propertyProviders = new LinkedList<>();
 
   static {
     propertyProviders.add(propertyProvider);
   }
 
-  private static final Map<Resource.Type, String> keyPropertyIds = new HashMap<Resource.Type, String>();
+  private static final Map<Resource.Type, String> keyPropertyIds = new HashMap<>();
 
   static {
     keyPropertyIds.put(Resource.Type.Cluster, PropertyHelper.getPropertyId("c1", "p1"));

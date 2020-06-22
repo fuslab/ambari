@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,13 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.ivory.Feed;
 import org.apache.ambari.server.controller.ivory.IvoryService;
 import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
@@ -31,13 +38,8 @@ import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 
 /**
  * DR feed resource provider.
@@ -62,20 +64,39 @@ public class FeedResourceProvider extends AbstractDRResourceProvider {
   protected static final String FEED_TARGET_CLUSTER_ACTION_PROPERTY_ID = PropertyHelper.getPropertyId("Feed/targetCluster/retention", "action");
   protected static final String FEED_PROPERTIES_PROPERTY_ID = PropertyHelper.getPropertyId("Feed", "properties");
 
-  private static Set<String> pkPropertyIds =
-      new HashSet<String>(Arrays.asList(new String[]{
-          FEED_NAME_PROPERTY_ID}));
+  /**
+   * The key property ids for a Feed resource.
+   */
+  private static Map<Resource.Type, String> keyPropertyIds = ImmutableMap.<Resource.Type, String>builder()
+      .put(Resource.Type.DRFeed, FEED_NAME_PROPERTY_ID)
+      .build();
+
+  /**
+   * The property ids for a Feed resource.
+   */
+  private static Set<String> propertyIds = Sets.newHashSet(
+      FEED_NAME_PROPERTY_ID,
+      FEED_DESCRIPTION_PROPERTY_ID,
+      FEED_STATUS_PROPERTY_ID,
+      FEED_SCHEDULE_PROPERTY_ID,
+      FEED_SOURCE_CLUSTER_NAME_PROPERTY_ID,
+      FEED_SOURCE_CLUSTER_START_PROPERTY_ID,
+      FEED_SOURCE_CLUSTER_END_PROPERTY_ID,
+      FEED_SOURCE_CLUSTER_LIMIT_PROPERTY_ID,
+      FEED_SOURCE_CLUSTER_ACTION_PROPERTY_ID,
+      FEED_TARGET_CLUSTER_NAME_PROPERTY_ID,
+      FEED_TARGET_CLUSTER_START_PROPERTY_ID,
+      FEED_TARGET_CLUSTER_END_PROPERTY_ID,
+      FEED_TARGET_CLUSTER_LIMIT_PROPERTY_ID,
+      FEED_TARGET_CLUSTER_ACTION_PROPERTY_ID,
+      FEED_PROPERTIES_PROPERTY_ID);
 
   /**
    * Construct a provider.
    *
    * @param ivoryService    the ivory service
-   * @param propertyIds     the properties associated with this provider
-   * @param keyPropertyIds  the key property ids
    */
-  public FeedResourceProvider(IvoryService ivoryService,
-                              Set<String> propertyIds,
-                              Map<Resource.Type, String> keyPropertyIds) {
+  public FeedResourceProvider(IvoryService ivoryService) {
     super(propertyIds, keyPropertyIds, ivoryService);
   }
 
@@ -101,7 +122,7 @@ public class FeedResourceProvider extends AbstractDRResourceProvider {
     IvoryService  service      = getService();
     List<String>  feedNames    = service.getFeedNames();
     Set<String>   requestedIds = getRequestPropertyIds(request, predicate);
-    Set<Resource> resources    = new HashSet<Resource>();
+    Set<Resource> resources    = new HashSet<>();
 
     for (String feedName : feedNames ) {
 
@@ -201,7 +222,7 @@ public class FeedResourceProvider extends AbstractDRResourceProvider {
 
   @Override
   protected Set<String> getPKPropertyIds() {
-    return pkPropertyIds;
+    return new HashSet<>(keyPropertyIds.values());
   }
 
 
@@ -216,7 +237,7 @@ public class FeedResourceProvider extends AbstractDRResourceProvider {
    * @return a new feed
    */
   protected static Feed getFeed(String feedName, Map<String, Object> propertyMap) {
-    Map<String, String> properties = new HashMap<String, String>();
+    Map<String, String> properties = new HashMap<>();
     for ( Map.Entry<String, Object> entry : propertyMap.entrySet()) {
       String property = entry.getKey();
       String category = PropertyHelper.getPropertyCategory(property);
@@ -253,7 +274,7 @@ public class FeedResourceProvider extends AbstractDRResourceProvider {
    * @return the map of properies to use for the update
    */
   protected static Map<String, Object> getUpdateMap(Resource resource, Map<String, Object> propertyMap) {
-    Map<String, Object> updateMap = new HashMap<String, Object>();
+    Map<String, Object> updateMap = new HashMap<>();
 
     updateMap.put(FEED_NAME_PROPERTY_ID, resource.getPropertyValue(FEED_NAME_PROPERTY_ID));
     updateMap.put(FEED_DESCRIPTION_PROPERTY_ID, resource.getPropertyValue(FEED_DESCRIPTION_PROPERTY_ID));

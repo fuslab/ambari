@@ -19,6 +19,21 @@
 var App = require('app');
 var blueprintUtils = require('utils/blueprint');
 
+/**
+ * @typedef {object} ConfigsValidationRequestData
+ * @property {string} stackVersionUrl stack version url
+ * @property {string[]} hosts host names
+ * @property {string[]} services service names
+ * @property {string} validate validation type e.g. 'configurations'
+ * @property {object} recommendations blueprint object
+ */
+
+/**
+ * @typedef {object} ConfigsValidationOptions
+ * @property {string[]} hosts host names
+ * @property {string[]} services service names
+ * @property {object} blueprint service configurations blueprint
+ */
 App.ServerValidatorMixin = Em.Mixin.create({
 
   /**
@@ -46,6 +61,17 @@ App.ServerValidatorMixin = Em.Mixin.create({
     issues: [],
     criticalIssues: []
   }),
+
+  /**
+   * Ajax request object to validation API
+   * @type {$.ajax}
+   */
+  validationRequest: null,
+
+  /**
+   * Timer id returned by setTimeout for calling function to send validation request
+   */
+  requestTime: 0,
 
   /**
    * Map with allowed error types
@@ -109,7 +135,7 @@ App.ServerValidatorMixin = Em.Mixin.create({
 
     this.runServerSideValidation().done(function() {
       if (self.get('configErrorList.issues.length') || self.get('configErrorList.criticalIssues.length')) {
-        App.showConfigValidationPopup(self.get('configErrorList'), primary, secondary);
+        App.showConfigValidationPopup(self.get('configErrorList'), primary, secondary, self);
       } else {
         deferred.resolve();
       }
@@ -131,44 +157,79 @@ App.ServerValidatorMixin = Em.Mixin.create({
     var stepConfigs = this.get('stepConfigs');
     var dfd = $.Deferred();
 
-    this.getBlueprintConfigurations().done(function(blueprintConfigurations) {
-      recommendations.blueprint.configurations = blueprintConfigurations;
-      App.ajax.send({
-        name: 'config.validations',
-        sender: self,
-        data: {
-          stackVersionUrl: App.get('stackVersionURL'),
+    this.getBlueprintConfigurations(this.get('stepConfigs'))
+      .done(function(blueprintConfigurations) {
+        recommendations.blueprint.configurations = blueprintConfigurations;
+        var request = self.validateSelectedConfigs({
           hosts: self.get('hostNames'),
           services: self.get('serviceNames'),
-          validate: 'configurations',
-          recommendations: recommendations
-        },
-        success: 'validationSuccess',
-        error: 'validationError'
-      }).done(dfd.resolve).fail(dfd.reject);
-    });
+          blueprint: recommendations
+        });
+        self.set('validationRequest', request);
+        request.done(dfd.resolve).fail(dfd.reject);
+      });
     return dfd.promise();
   },
 
   /**
+   * Perform service config validation
+   * @param validateSelectedConfigs
+   * @param {ConfigsValidationOptions} options
+   * @returns {$.Deferred}
+   */
+  validateSelectedConfigs: function(options) {
+    var opts = $.extend({
+      services: [],
+      hosts: [],
+      blueprint: null
+    }, options || {});
+
+    return this.getServiceConfigsValidationRequest(this.getServiceConfigsValidationParams(opts));
+  },
+
+  /**
+   * @method getServiceConfigsValidationRequest
+   * @param {ConfigsValidationRequestData} validationData
+   * @returns {$.Deferred}
+   */
+  getServiceConfigsValidationRequest: function(validationData) {
+    return App.ajax.send({
+      name: 'config.validations',
+      sender: this,
+      data: validationData,
+      success: 'validationSuccess'
+    });
+  },
+
+  /**
+   * @method getServiceConfigsValidationParams
+   * @param {ConfigsValidationOptions} options
+   * @returns {ConfigsValidationRequestData}
+   */
+  getServiceConfigsValidationParams: function(options) {
+    return {
+      stackVersionUrl: App.get('stackVersionURL'),
+      hosts: options.hosts,
+      services: options.services,
+      validate: 'configurations',
+      recommendations: options.blueprint
+    };
+  },
+
+  /**
    * Return JSON for blueprint configurations
+   * @param {App.ServiceConfigs[]} serviceConfigs
    * @returns {*}
    */
-  getBlueprintConfigurations: function () {
+  getBlueprintConfigurations: function (serviceConfigs) {
     var dfd = $.Deferred();
-    var stepConfigs = this.get('stepConfigs');
-
     // check if we have configs from 'cluster-env', if not, then load them, as they are mandatory for validation request
-    if (!stepConfigs.findProperty('serviceName', 'MISC')) {
-      App.config.getClusterEnvConfigs().done(function(clusterEnvConfigs){
-        stepConfigs = stepConfigs.concat(Em.Object.create({
-          serviceName: 'MISC',
-          configs: clusterEnvConfigs
-        }));
-        dfd.resolve(blueprintUtils.buildConfigsJSON(stepConfigs));
+    if (!serviceConfigs.findProperty('serviceName', 'MISC')) {
+      App.config.getConfigsByTypes([{site: 'cluster-env', serviceName: 'MISC'}]).done(function(configs) {
+        dfd.resolve(blueprintUtils.buildConfigsJSON(serviceConfigs.concat(configs)));
       });
     } else {
-      dfd.resolve(blueprintUtils.buildConfigsJSON(stepConfigs));
+      dfd.resolve(blueprintUtils.buildConfigsJSON(serviceConfigs));
     }
     return dfd.promise();
   },
@@ -182,23 +243,25 @@ App.ServerValidatorMixin = Em.Mixin.create({
    * @returns {{type: String, isError: boolean, isWarn: boolean, isGeneral: boolean, messages: Array}}
    */
   createErrorMessage: function (type, property, messages) {
-    var errorTypes = this.get('errorTypes');
-    var error = {
+    const errorTypes = this.get('errorTypes');
+    let error = {
       type: type,
       isCriticalError: type === errorTypes.CRITICAL_ERROR,
       isError: type === errorTypes.ERROR,
       isWarn: type === errorTypes.WARN,
       isGeneral: type === errorTypes.GENERAL,
+      cssClass: this.get('isInstallWizard') ? '' : (type === errorTypes.ERROR ? 'error' : 'warning'),
       messages: Em.makeArray(messages)
     };
 
     Em.assert('Unknown config error type ' + type, error.isError || error.isWarn || error.isGeneral || error.isCriticalError);
     if (property) {
+      const value = Em.get(property, 'value');
       error.id = Em.get(property, 'id');
       error.serviceName = Em.get(property, 'serviceDisplayName') || App.StackService.find(Em.get(property, 'serviceName')).get('displayName');
       error.propertyName = Em.get(property, 'name');
       error.filename = Em.get(property, 'filename');
-      error.value = Em.get(property, 'value');
+      error.value = value && Em.get(property, 'displayType') === 'password' ? new Array(value.length + 1).join('*') : value;
       error.description = Em.get(property, 'description');
     }
     return error;
@@ -310,6 +373,25 @@ App.ServerValidatorMixin = Em.Mixin.create({
     var parsed = this.parseValidation(data);
     this.set('configErrorList', this.collectAllIssues(parsed.configErrorsMap, parsed.generalErrors));
   },
+  
+  valueObserver: function () {
+    var self = this;
+    if (this.get('isInstallWizard') && this.get('currentTabName') === 'all-configurations') {
+      if (this.get('requestTimer')) clearTimeout(this.get('requestTimer'));
+      self.set('requestTimer', setTimeout(function () {
+        if (self.get('validationRequest')) {
+          self.get('validationRequest').abort();
+        }
+        if (self.get('recommendationsInProgress')) {
+          self.valueObserver();
+        } else {
+          self.runServerSideValidation().done(function () {
+            self.set('validationRequest', null);
+            self.set('requestTimer', 0);
+          });
+        }
+      }, 500));
+    }
+  }.observes('selectedService.configs.@each.value')
 
-  validationError: Em.K
 });

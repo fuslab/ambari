@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,11 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.actionmanager.ActionManager;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
@@ -37,14 +42,15 @@ import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.apache.ambari.server.customactions.ActionDefinition;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 
 public class ActionResourceProvider extends AbstractControllerResourceProvider {
+
+  private static final Logger LOG = LoggerFactory.getLogger(ActionResourceProvider.class);
 
   public static final String ACTION_NAME_PROPERTY_ID = PropertyHelper
       .getPropertyId("Actions", "action_name");
@@ -62,13 +68,29 @@ public class ActionResourceProvider extends AbstractControllerResourceProvider {
       .getPropertyId("Actions", "target_type");
   public static final String DEFAULT_TIMEOUT_PROPERTY_ID = PropertyHelper
       .getPropertyId("Actions", "default_timeout");
-  private static Set<String> pkPropertyIds = new HashSet<String>(
-      Arrays.asList(new String[]{ACTION_NAME_PROPERTY_ID}));
 
-  public ActionResourceProvider(Set<String> propertyIds,
-                                Map<Type, String> keyPropertyIds,
-                                AmbariManagementController managementController) {
-    super(propertyIds, keyPropertyIds, managementController);
+  /**
+   * The key property ids for a Action resource.
+   */
+  private static Map<Resource.Type, String> keyPropertyIds = ImmutableMap.<Resource.Type, String>builder()
+      .put(Type.Action, ACTION_NAME_PROPERTY_ID)
+      .build();
+
+  /**
+   * The property ids for a Action resource.
+   */
+  private static Set<String> propertyIds = Sets.newHashSet(
+      ACTION_NAME_PROPERTY_ID,
+      ACTION_TYPE_PROPERTY_ID,
+      INPUTS_PROPERTY_ID,
+      TARGET_SERVICE_PROPERTY_ID,
+      TARGET_COMPONENT_PROPERTY_ID,
+      DESCRIPTION_PROPERTY_ID,
+      TARGET_HOST_PROPERTY_ID,
+      DEFAULT_TIMEOUT_PROPERTY_ID);
+
+  public ActionResourceProvider(AmbariManagementController managementController) {
+    super(Type.Action, propertyIds, keyPropertyIds, managementController);
   }
 
   @Override
@@ -96,12 +118,11 @@ public class ActionResourceProvider extends AbstractControllerResourceProvider {
       throws SystemException, UnsupportedPropertyException,
       NoSuchResourceException, NoSuchParentResourceException {
 
-    final Set<ActionRequest> requests = new HashSet<ActionRequest>();
+    final Set<ActionRequest> requests = new HashSet<>();
     if (predicate != null) {
       for (Map<String, Object> propertyMap : getPropertyMaps(predicate)) {
         ActionRequest actionReq = getRequest(propertyMap);
-        LOG.debug("Received a get request for Action with"
-            + ", actionName = " + actionReq.getActionName());
+        LOG.debug("Received a get request for Action with, actionName = {}", actionReq.getActionName());
         requests.add(actionReq);
       }
     } else {
@@ -117,7 +138,7 @@ public class ActionResourceProvider extends AbstractControllerResourceProvider {
     });
 
     Set<String> requestedIds = getRequestPropertyIds(request, predicate);
-    Set<Resource> resources = new HashSet<Resource>();
+    Set<Resource> resources = new HashSet<>();
 
     for (ActionResponse response : responses) {
       Resource resource = new ResourceImpl(Type.Action);
@@ -165,7 +186,7 @@ public class ActionResourceProvider extends AbstractControllerResourceProvider {
 
   @Override
   public Set<String> getPKPropertyIds() {
-    return pkPropertyIds;
+    return new HashSet<>(keyPropertyIds.values());
   }
 
   private ActionManager getActionManager() {
@@ -178,7 +199,7 @@ public class ActionResourceProvider extends AbstractControllerResourceProvider {
 
   protected synchronized Set<ActionResponse> getActionDefinitions(Set<ActionRequest> requests)
       throws AmbariException {
-    Set<ActionResponse> responses = new HashSet<ActionResponse>();
+    Set<ActionResponse> responses = new HashSet<>();
     for (ActionRequest request : requests) {
       if (request.getActionName() == null) {
         List<ActionDefinition> ads = getAmbariMetaInfo().getAllActionDefinition();

@@ -18,7 +18,8 @@ limitations under the License.
 
 """
 
-from resource_management import *
+from resource_management.core.resources.system import Execute, File
+from resource_management.libraries.functions.format import format
 
 def hbase_service(
   name,
@@ -32,6 +33,7 @@ def hbase_service(
     no_op_test = format("ls {pid_file} >/dev/null 2>&1 && ps `cat {pid_file}` >/dev/null 2>&1")
     
     if action == 'start':
+
       daemon_cmd = format("{cmd} start {role}")
       
       Execute ( daemon_cmd,

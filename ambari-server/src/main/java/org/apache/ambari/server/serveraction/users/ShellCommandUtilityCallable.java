@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,6 @@ package org.apache.ambari.server.serveraction.users;
 
 import java.util.concurrent.Callable;
 
-import javax.inject.Inject;
 import javax.inject.Singleton;
 
 import org.apache.ambari.server.utils.ShellCommandUtil;

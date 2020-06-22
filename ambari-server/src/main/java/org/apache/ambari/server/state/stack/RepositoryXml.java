@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -149,7 +149,6 @@ public class RepositoryXml implements Validable{
     private String reponame = null;
     private String distribution = null;
     private String components = null;
-    private String latest = null;
     private boolean unique = false;
 
     @XmlElementWrapper(name="tags")
@@ -194,11 +193,6 @@ public class RepositoryXml implements Validable{
     public String getComponents() {
       return components;
     }
-
-    public String getLatestUri() {
-      return latest;
-    }
-
     /**
      * @return true if version of HDP that change with each release
      */
@@ -241,7 +235,6 @@ public class RepositoryXml implements Validable{
           ri.setRepoName(r.getRepoName());
           ri.setDistribution(r.getDistribution());
           ri.setComponents(r.getComponents());
-          ri.setLatestBaseUrl(r.getBaseUrl());
           ri.setUnique(r.isUnique());
           ri.setTags(r.tags);
 

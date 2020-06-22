@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,17 +18,18 @@
 
 package org.apache.ambari.server.controller.internal;
 
-import junit.framework.Assert;
-import org.apache.ambari.server.controller.ivory.IvoryService;
-import org.apache.ambari.server.controller.spi.Resource;
-import org.junit.Test;
+import static org.easymock.EasyMock.createMock;
 
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import static org.easymock.EasyMock.createMock;
+import org.apache.ambari.server.controller.ivory.IvoryService;
+import org.apache.ambari.server.controller.spi.Resource;
+import org.junit.Test;
+
+import junit.framework.Assert;
 
 /**
  * Tests for AbstractDRResourceProvider.
@@ -36,7 +37,7 @@ import static org.easymock.EasyMock.createMock;
 public class AbstractDRResourceProviderTest {
   @Test
   public void testGetResourceProvider() throws Exception {
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
     propertyIds.add("foo");
     propertyIds.add("cat1/foo");
     propertyIds.add("cat2/bar");
@@ -45,15 +46,13 @@ public class AbstractDRResourceProviderTest {
     propertyIds.add("cat4/sub2/sub3/bat");
     propertyIds.add("cat5/subcat5/map");
 
-    Map<Resource.Type, String> keyPropertyIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type, String> keyPropertyIds = new HashMap<>();
 
     IvoryService ivoryService = createMock(IvoryService.class);
 
     AbstractResourceProvider provider =
         (AbstractResourceProvider) AbstractDRResourceProvider.getResourceProvider(
             Resource.Type.DRFeed,
-            propertyIds,
-            keyPropertyIds,
             ivoryService);
 
     Assert.assertTrue(provider instanceof FeedResourceProvider);

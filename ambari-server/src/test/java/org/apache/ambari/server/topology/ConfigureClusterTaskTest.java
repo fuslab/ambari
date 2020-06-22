@@ -35,8 +35,6 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-import com.google.common.base.Functions;
-
 /**
  * Unit test for the ConfigureClusterTask class.
  * As business methods of this class don't return values, the assertions are made by verifying method calls on mocks.
@@ -70,8 +68,8 @@ public class ConfigureClusterTaskTest extends EasyMockSupport {
   @Test
   public void taskShouldBeExecutedIfRequiredHostgroupsAreResolved() throws Exception {
     // GIVEN
-    expect(clusterConfigurationRequest.getRequiredHostGroups()).andReturn(Collections.<String>emptyList());
-    expect(clusterTopology.getHostGroupInfo()).andReturn(Collections.<String, HostGroupInfo>emptyMap());
+    expect(clusterConfigurationRequest.getRequiredHostGroups()).andReturn(Collections.emptyList());
+    expect(clusterTopology.getHostGroupInfo()).andReturn(Collections.emptyMap());
     expect(clusterTopology.getClusterId()).andReturn(1L).anyTimes();
     expect(clusterTopology.getAmbariContext()).andReturn(ambariContext);
     expect(ambariContext.getClusterName(1L)).andReturn("testCluster");
@@ -90,12 +88,12 @@ public class ConfigureClusterTaskTest extends EasyMockSupport {
   @Test
   public void testsShouldConfigureClusterTaskExecuteWhenCalledFromAsyncCallableService() throws Exception {
     // GIVEN
-    expect(clusterConfigurationRequest.getRequiredHostGroups()).andReturn(Collections.<String>emptyList());
-    expect(clusterTopology.getHostGroupInfo()).andReturn(Collections.<String, HostGroupInfo>emptyMap());
+    expect(clusterConfigurationRequest.getRequiredHostGroups()).andReturn(Collections.emptyList());
+    expect(clusterTopology.getHostGroupInfo()).andReturn(Collections.emptyMap());
     clusterConfigurationRequest.process();
     replayAll();
 
-    AsyncCallableService<Boolean> asyncService = new AsyncCallableService<>(testSubject, 5000, 500, "test", Functions.<Throwable>identity());
+    AsyncCallableService<Boolean> asyncService = new AsyncCallableService<>(testSubject, 5000, 500, "test", t -> {});
 
     // WHEN
     asyncService.call();

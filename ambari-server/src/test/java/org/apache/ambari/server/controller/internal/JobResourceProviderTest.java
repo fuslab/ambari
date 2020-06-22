@@ -25,7 +25,6 @@ import static org.easymock.EasyMock.verify;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 import org.apache.ambari.server.controller.internal.JobResourceProvider.JobFetcher;
@@ -35,7 +34,6 @@ import org.apache.ambari.server.controller.spi.NoSuchResourceException;
 import org.apache.ambari.server.controller.spi.Predicate;
 import org.apache.ambari.server.controller.spi.Request;
 import org.apache.ambari.server.controller.spi.Resource;
-import org.apache.ambari.server.controller.spi.Resource.Type;
 import org.apache.ambari.server.controller.spi.ResourceProvider;
 import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
@@ -52,23 +50,20 @@ public class JobResourceProviderTest {
   public void testGetResources() throws SystemException,
       UnsupportedPropertyException, NoSuchResourceException,
       NoSuchParentResourceException {
-    Set<Resource> expected = new HashSet<Resource>();
+    Set<Resource> expected = new HashSet<>();
     expected.add(createJobResponse("Cluster100", "workflow1", "job1"));
     expected.add(createJobResponse("Cluster100", "workflow2", "job2"));
     expected.add(createJobResponse("Cluster100", "workflow2", "job3"));
 
-    Resource.Type type = Resource.Type.Job;
-    Set<String> propertyIds = PropertyHelper.getPropertyIds(type);
+
+    Set<String> propertyIds = JobResourceProvider.propertyIds;
 
     JobFetcher jobFetcher = createMock(JobFetcher.class);
     expect(jobFetcher.fetchJobDetails(propertyIds, null, "workflow2", null))
         .andReturn(expected).once();
     replay(jobFetcher);
 
-    Map<Resource.Type,String> keyPropertyIds = PropertyHelper
-        .getKeyPropertyIds(type);
-    ResourceProvider provider = new JobResourceProvider(propertyIds,
-        keyPropertyIds, jobFetcher);
+    ResourceProvider provider = new JobResourceProvider(jobFetcher);
 
     Request request = PropertyHelper.getReadRequest(propertyIds);
     Predicate predicate = new PredicateBuilder()
@@ -77,7 +72,7 @@ public class JobResourceProviderTest {
     Set<Resource> resources = provider.getResources(request, predicate);
 
     Assert.assertEquals(3, resources.size());
-    Set<String> names = new HashSet<String>();
+    Set<String> names = new HashSet<>();
     for (Resource resource : resources) {
       String clusterName = (String) resource
           .getPropertyValue(JobResourceProvider.JOB_CLUSTER_NAME_PROPERTY_ID);
@@ -98,13 +93,10 @@ public class JobResourceProviderTest {
   public void testJobFetcher1() throws SystemException,
       UnsupportedPropertyException, NoSuchResourceException,
       NoSuchParentResourceException {
-    Set<String> requestedIds = new HashSet<String>();
+    Set<String> requestedIds = new HashSet<>();
     requestedIds.add(JobResourceProvider.JOB_ID_PROPERTY_ID);
 
-    Map<Resource.Type,String> keyPropertyIds = PropertyHelper
-        .getKeyPropertyIds(Resource.Type.Job);
-    ResourceProvider provider = new TestJobResourceProvider(requestedIds,
-        keyPropertyIds, 1);
+    ResourceProvider provider = new TestJobResourceProvider(1);
 
     Request request = PropertyHelper.getReadRequest(requestedIds);
     Predicate predicate = new PredicateBuilder()
@@ -124,14 +116,11 @@ public class JobResourceProviderTest {
   public void testJobFetcher2() throws SystemException,
       UnsupportedPropertyException, NoSuchResourceException,
       NoSuchParentResourceException {
-    Set<String> requestedIds = new HashSet<String>();
+    Set<String> requestedIds = new HashSet<>();
     requestedIds.add(JobResourceProvider.JOB_ID_PROPERTY_ID);
     requestedIds.add(JobResourceProvider.JOB_SUBMIT_TIME_PROPERTY_ID);
 
-    Map<Resource.Type,String> keyPropertyIds = PropertyHelper
-        .getKeyPropertyIds(Resource.Type.Job);
-    ResourceProvider provider = new TestJobResourceProvider(requestedIds,
-        keyPropertyIds, 2);
+    ResourceProvider provider = new TestJobResourceProvider(2);
 
     Request request = PropertyHelper.getReadRequest(requestedIds);
     Predicate predicate = new PredicateBuilder()
@@ -153,14 +142,11 @@ public class JobResourceProviderTest {
   public void testJobFetcher3() throws SystemException,
       UnsupportedPropertyException, NoSuchResourceException,
       NoSuchParentResourceException {
-    Set<String> requestedIds = new HashSet<String>();
+    Set<String> requestedIds = new HashSet<>();
     requestedIds.add(JobResourceProvider.JOB_ID_PROPERTY_ID);
     requestedIds.add(JobResourceProvider.JOB_ELAPSED_TIME_PROPERTY_ID);
 
-    Map<Resource.Type,String> keyPropertyIds = PropertyHelper
-        .getKeyPropertyIds(Resource.Type.Job);
-    ResourceProvider provider = new TestJobResourceProvider(requestedIds,
-        keyPropertyIds, 3);
+    ResourceProvider provider = new TestJobResourceProvider(3);
 
     Request request = PropertyHelper.getReadRequest(requestedIds);
     Predicate predicate = new PredicateBuilder()
@@ -182,15 +168,13 @@ public class JobResourceProviderTest {
   public void testJobFetcher4() throws SystemException,
       UnsupportedPropertyException, NoSuchResourceException,
       NoSuchParentResourceException {
-    Set<String> requestedIds = new HashSet<String>();
+    Set<String> requestedIds = new HashSet<>();
     requestedIds.add(JobResourceProvider.JOB_ID_PROPERTY_ID);
     requestedIds.add(JobResourceProvider.JOB_SUBMIT_TIME_PROPERTY_ID);
     requestedIds.add(JobResourceProvider.JOB_ELAPSED_TIME_PROPERTY_ID);
 
-    Map<Resource.Type,String> keyPropertyIds = PropertyHelper
-        .getKeyPropertyIds(Resource.Type.Job);
-    ResourceProvider provider = new TestJobResourceProvider(requestedIds,
-        keyPropertyIds, 4);
+
+    ResourceProvider provider = new TestJobResourceProvider(4);
 
     Request request = PropertyHelper.getReadRequest(requestedIds);
     Predicate predicate = new PredicateBuilder()
@@ -220,9 +204,8 @@ public class JobResourceProviderTest {
   }
 
   private static class TestJobResourceProvider extends JobResourceProvider {
-    protected TestJobResourceProvider(Set<String> propertyIds,
-        Map<Type,String> keyPropertyIds, int type) {
-      super(propertyIds, keyPropertyIds);
+    protected TestJobResourceProvider(int type) {
+      super();
       this.jobFetcher = new TestJobFetcher(type);
     }
 

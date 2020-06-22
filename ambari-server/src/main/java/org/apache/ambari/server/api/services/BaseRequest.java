@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -134,7 +134,7 @@ public abstract class BaseRequest implements Request {
   @Override
   public Result process() {
     if (LOG.isDebugEnabled()) {
-      LOG.debug("Handling API Request: '" + getURI() + "'");
+      LOG.debug("Handling API Request: '{}'", getURI());
     }
 
     Result result;
@@ -186,7 +186,7 @@ public abstract class BaseRequest implements Request {
     if (partialResponseFields == null) {
       mapProperties = Collections.emptyMap();
     } else {
-      Set<String> setMatches = new HashSet<String>();
+      Set<String> setMatches = new HashSet<>();
       // Pattern basically splits a string using ',' as the deliminator unless ',' is between '[' and ']'.
       // Actually, captures char sequences between ',' and all chars between '[' and ']' including ','.
       Pattern re = Pattern.compile("[^,\\[]*?\\[[^\\]]*?\\]|[^,]+");
@@ -197,7 +197,7 @@ public abstract class BaseRequest implements Request {
         }
       }
 
-      mapProperties = new HashMap<String, TemporalInfo>(setMatches.size());
+      mapProperties = new HashMap<>(setMatches.size());
       for (String field : setMatches) {
         TemporalInfo temporalInfo = null;
         if (field.contains("[")) {
@@ -366,7 +366,7 @@ public abstract class BaseRequest implements Request {
     String sortByParams = m_uriInfo.getQueryParameters().getFirst(QueryLexer.QUERY_SORT);
     if (sortByParams != null && !sortByParams.isEmpty()) {
       String[] params = sortByParams.split(",");
-      List<SortRequestProperty> properties = new ArrayList<SortRequestProperty>();
+      List<SortRequestProperty> properties = new ArrayList<>();
       if (params.length > 0) {
         for (String property : params) {
           SortRequest.Order order = SortRequest.Order.ASC;

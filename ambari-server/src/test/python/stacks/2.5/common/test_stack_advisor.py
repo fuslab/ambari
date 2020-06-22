@@ -28,15 +28,21 @@ class TestHDP25StackAdvisor(TestCase):
     import imp
     self.maxDiff = None
     self.testDirectory = os.path.dirname(os.path.abspath(__file__))
-    stackAdvisorPath = os.path.join(self.testDirectory, '../../../../../main/resources/stacks/stack_advisor.py')
-    hdp206StackAdvisorPath = os.path.join(self.testDirectory, '../../../../../main/resources/stacks/HDP/2.0.6/services/stack_advisor.py')
-    hdp21StackAdvisorPath = os.path.join(self.testDirectory, '../../../../../main/resources/stacks/HDP/2.1/services/stack_advisor.py')
-    hdp22StackAdvisorPath = os.path.join(self.testDirectory, '../../../../../main/resources/stacks/HDP/2.2/services/stack_advisor.py')
-    hdp23StackAdvisorPath = os.path.join(self.testDirectory, '../../../../../main/resources/stacks/HDP/2.3/services/stack_advisor.py')
-    hdp24StackAdvisorPath = os.path.join(self.testDirectory, '../../../../../main/resources/stacks/HDP/2.4/services/stack_advisor.py')
-    hdp25StackAdvisorPath = os.path.join(self.testDirectory, '../../../../../main/resources/stacks/HDP/2.5/services/stack_advisor.py')
+
+    stacksPath = os.path.join(self.testDirectory, '../../../../../main/resources/stacks')
+    stackAdvisorPath = os.path.join(stacksPath, 'stack_advisor.py')
+    ambariConfigurationPath = os.path.abspath(os.path.join(stacksPath, 'ambari_configuration.py'))
+    hdp206StackAdvisorPath = os.path.join(stacksPath, 'HDP/2.0.6/services/stack_advisor.py')
+    hdp21StackAdvisorPath = os.path.join(stacksPath, 'HDP/2.1/services/stack_advisor.py')
+    hdp22StackAdvisorPath = os.path.join(stacksPath, 'HDP/2.2/services/stack_advisor.py')
+    hdp23StackAdvisorPath = os.path.join(stacksPath, 'HDP/2.3/services/stack_advisor.py')
+    hdp24StackAdvisorPath = os.path.join(stacksPath, 'HDP/2.4/services/stack_advisor.py')
+    hdp25StackAdvisorPath = os.path.join(stacksPath, 'HDP/2.5/services/stack_advisor.py')
+
     hdp25StackAdvisorClassName = 'HDP25StackAdvisor'
 
+    with open(ambariConfigurationPath, 'rb') as fp:
+      imp.load_module('ambari_configuration', fp, ambariConfigurationPath, ('.py', 'rb', imp.PY_SOURCE))
     with open(stackAdvisorPath, 'rb') as fp:
       imp.load_module('stack_advisor', fp, stackAdvisorPath, ('.py', 'rb', imp.PY_SOURCE))
     with open(hdp206StackAdvisorPath, 'rb') as fp:
@@ -784,12 +790,12 @@ class TestHDP25StackAdvisor(TestCase):
   def test_getCardinalitiesDict(self):
     hosts = self.prepareNHosts(5)
     actual = self.stackAdvisor.getCardinalitiesDict(hosts)
-    expected = {'ZOOKEEPER_SERVER': {'min': 3}, 'HBASE_MASTER': {'min': 1}, 'METRICS_COLLECTOR': {'min': 1}}
+    expected = {'METRICS_COLLECTOR': {'min': 1}}
     self.assertEquals(actual, expected)
 
     hosts = self.prepareNHosts(1001)
     actual = self.stackAdvisor.getCardinalitiesDict(hosts)
-    expected = {'ZOOKEEPER_SERVER': {'min': 3}, 'HBASE_MASTER': {'min': 1}, 'METRICS_COLLECTOR': {'min': 2}}
+    expected = {'METRICS_COLLECTOR': {'min': 2}}
     self.assertEquals(actual, expected)
 
   def test_getComponentLayoutValidations_one_hsi_host(self):
@@ -1677,7 +1683,7 @@ class TestHDP25StackAdvisor(TestCase):
                                   'yarn.scheduler.capacity.root.default.state=RUNNING\n'
                                   'yarn.scheduler.capacity.maximum-am-resource-percent=1\n'
                                   'yarn.scheduler.capacity.root.default.acl_submit_applications=*\n'
-                                  'yarn.scheduler.capacity.root.default.capacity=100\n'
+                                  'yarn.scheduler.capacity.root.accessible-node-labels.default.capacity=100\n'
                                   'yarn.scheduler.capacity.root.acl_administer_queue=*\n'
                                   'yarn.scheduler.capacity.node-locality-delay=40\n'
                                   'yarn.scheduler.capacity.queue-mappings-override.enable=false\n'
@@ -4867,9 +4873,9 @@ class TestHDP25StackAdvisor(TestCase):
       },
       "services": [
         {
-          "href": "/api/v1/stacks/HDP/versions/2.2/services/AMBARI_INFRA",
+          "href": "/api/v1/stacks/HDP/versions/2.2/services/AMBARI_INFRA_SOLR",
           "StackServices": {
-            "service_name": "AMBARI_INFRA",
+            "service_name": "AMBARI_INFRA_SOLR",
             "service_version": "2.6.0.2.2",
             "stack_name": "HDP",
             "stack_version": "2.3"
@@ -5554,7 +5560,7 @@ class TestHDP25StackAdvisor(TestCase):
     hosts = self.prepareHosts([])
     result = self.stackAdvisor.validateConfigurations(services, hosts)
     expectedItems = [
-      {'message': 'Queue is not exist or not corresponds to existing YARN leaf queue', 'level': 'ERROR'}
+      {'message': 'Queue does not exist or correspond to an existing YARN leaf queue', 'level': 'ERROR'}
     ]
     self.assertValidationResult(expectedItems, result)
     services["configurations"]["yarn-env"]["properties"]["service_check.queue.name"] = "ndfqueue2"
@@ -6006,7 +6012,7 @@ class TestHDP25StackAdvisor(TestCase):
       "configurations": {
         "cluster-env": {
           "properties": {
-            "security_enabled" : "true"
+            "security_enabled": "true"
           }
         },
         "storm-site": {

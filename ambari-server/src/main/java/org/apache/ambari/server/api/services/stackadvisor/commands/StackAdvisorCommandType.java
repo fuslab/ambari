@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,13 +29,17 @@ public enum StackAdvisorCommandType {
 
   RECOMMEND_CONFIGURATIONS("recommend-configurations"),
 
+  RECOMMEND_CONFIGURATIONS_FOR_SSO("recommend-configurations-for-sso"),
+
+  RECOMMEND_CONFIGURATIONS_FOR_KERBEROS("recommend-configurations-for-kerberos"),
+
   RECOMMEND_CONFIGURATION_DEPENDENCIES("recommend-configuration-dependencies"),
 
   VALIDATE_CONFIGURATIONS("validate-configurations");
 
   private final String name;
 
-  private StackAdvisorCommandType(String name) {
+  StackAdvisorCommandType(String name) {
     this.name = name;
   }
 

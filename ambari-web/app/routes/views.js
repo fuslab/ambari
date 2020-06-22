@@ -19,6 +19,9 @@
 var App = require('app');
 
 module.exports = Em.Route.extend({
+
+  breadcrumbs: null,
+
   route: '/views',
   enter: function (router) {
     router.get('mainViewsController').loadAmbariViews();
@@ -36,16 +39,20 @@ module.exports = Em.Route.extend({
   viewDetails: Em.Route.extend({
 
     route: '/:viewName/:version/:instanceName',
-    
+
     enter: function (router) {
       Em.$('body').addClass('contribview');
+    },
+
+    breadcrumbs: {
+      labelBindingPath: 'App.router.mainViewsDetailsController.content.label'
     },
 
     exit:function (router) {
       this._super();
       Em.$('body').removeClass('contribview');
     },
-    
+
     connectOutlets: function (router, params) {
       // find and set content for `mainViewsDetails` and associated controller
       var href = ['/views', params.viewName, params.version, params.instanceName + "/"].join('/');

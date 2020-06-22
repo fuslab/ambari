@@ -151,12 +151,18 @@ with Environment() as env:
     oozie_user = "oozie"
     execute_path = "/usr/hdp/" + stack_version + "/hadoop/bin"
     ambari_libs_dir = "/var/lib/ambari-agent/lib"
-    hdfs_site = ConfigDictionary({'dfs.webhdfs.enabled':False,
-    })
+    hdfs_site = ConfigDictionary({'dfs.webhdfs.enabled':False,})
     fs_default = get_fs_root()
-    slider_home_dir = '/usr/hdp/' + stack_version + '/slider'
-    slider_lib_dir = slider_home_dir + '/lib'
-    slider_tarball = slider_lib_dir + "/slider.tar.gz"
+    dfs_type = options.fs_type.upper()
+    yarn_home_dir = '/usr/hdp/' + stack_version + '/hadoop-yarn'
+    yarn_lib_dir = yarn_home_dir + '/lib'
+    yarn_service_tarball = yarn_lib_dir + '/service-dep.tar.gz'
+    hdfs_home_dir = '/usr/hdp/' + stack_version + '/hadoop-hdfs'
+    hdfs_lib_dir = hdfs_home_dir + '/lib'
+    hadoop_home_dir = '/usr/hdp/' + stack_version + '/hadoop'
+    hadoop_lib_dir = hadoop_home_dir + '/lib'
+    hadoop_mapreduce_dir = '/usr/hdp/' + stack_version + '/hadoop-mapreduce'
+
     oozie_secure = ''
     oozie_home="/usr/hdp/" + stack_version + "/oozie"
     oozie_setup_sh=format("/usr/hdp/" + stack_version + "/oozie/bin/oozie-setup.sh")
@@ -188,6 +194,7 @@ with Environment() as env:
       hdfs_site = hdfs_site,
       default_fs = fs_default,
       hdfs_resource_ignore_file = "/var/lib/ambari-agent/data/.hdfs_resource_ignore",
+      dfs_type = dfs_type
     )
 
   def _copy_files(source_and_dest_pairs, file_owner, group_owner, kinit_if_needed):
@@ -209,14 +216,14 @@ with Environment() as env:
                     mode=0444,
                     owner=file_owner,
                     group=group_owner,
-                    source=source,
+                    source=source
       )
 
 
-  def copy_tarballs_to_hdfs(source, dest, stack_select_component_name, component_user, file_owner, group_owner):
+  def copy_tarballs_to_hdfs(source, dest, component_user, file_owner, group_owner):
     """
-    :param tarball_prefix: Prefix of the tarball must be one of tez, hive, mr, pig
-    :param stack_select_component_name: Component name to get the status to determine the version
+    :param source: source on host FS
+    :param dest: destination on HDFS (or compatible)
     :param component_user: User that will execute the Hadoop commands
     :param file_owner: Owner of the files copied to HDFS (typically hdfs account)
     :param group_owner: Group owner of the files copied to HDFS (typically hadoop group)
@@ -233,12 +240,9 @@ with Environment() as env:
       Logger.warning("Could not find file: %s" % str(component_tar_source_file))
       return 1
 
-
-
     file_name = os.path.basename(component_tar_source_file)
     destination_file = os.path.join(component_tar_destination_folder, file_name)
     destination_file = destination_file.replace("{{ stack_version_formatted }}", stack_version)
-
 
     kinit_if_needed = ""
     if params.security_enabled:
@@ -258,7 +262,9 @@ with Environment() as env:
     params.HdfsResource(format('{hdfs_path_prefix}/atshistory'), user='hdfs', change_permissions_for_parents=True, owner='yarn', group='hadoop', type='directory', action= ['create_on_execute'], mode=0755)
     params.HdfsResource(format('{hdfs_path_prefix}/user/hcat'), owner='hcat', type='directory', action=['create_on_execute'], mode=0755)
     params.HdfsResource(format('{hdfs_path_prefix}/hive/warehouse'), owner='hive', type='directory', action=['create_on_execute'], mode=0777)
+    params.HdfsResource(format('{hdfs_path_prefix}/warehouse/tablespace/external/hive'), owner='hive', type='directory', action=['create_on_execute'], mode=01777)
     params.HdfsResource(format('{hdfs_path_prefix}/user/hive'), owner='hive', type='directory', action=['create_on_execute'], mode=0755)
+    params.HdfsResource(format('{hdfs_path_prefix}/user/hive/.yarn/package/LLAP'), owner='hive', type='directory', action=['create_on_execute'], mode=0755)
     params.HdfsResource(format('{hdfs_path_prefix}/tmp'), mode=0777, action=['create_on_execute'], type='directory', owner='hdfs')
     params.HdfsResource(format('{hdfs_path_prefix}/user/ambari-qa'), type='directory', action=['create_on_execute'], mode=0770)
     params.HdfsResource(format('{hdfs_path_prefix}/user/oozie'), owner='oozie', type='directory', action=['create_on_execute'], mode=0775)
@@ -267,6 +273,7 @@ with Environment() as env:
     params.HdfsResource(format('{hdfs_path_prefix}/mapred'), owner='mapred', type='directory', action=['create_on_execute'])
     params.HdfsResource(format('{hdfs_path_prefix}/mapred/system'), owner='hdfs', type='directory', action=['create_on_execute'])
     params.HdfsResource(format('{hdfs_path_prefix}/mr-history/done'), change_permissions_for_parents=True, owner='mapred', group='hadoop', type='directory', action=['create_on_execute'], mode=0777)
+    params.HdfsResource(format('{hdfs_path_prefix}/user/yarn-ats'), owner='yarn-ats', type='directory', action=['create_on_execute'], mode=0755)
     params.HdfsResource(format('{hdfs_path_prefix}/atshistory/done'), owner='yarn', group='hadoop', type='directory', action=['create_on_execute'], mode=0700)
     params.HdfsResource(format('{hdfs_path_prefix}/atshistory/active'), owner='yarn', group='hadoop', type='directory', action=['create_on_execute'], mode=01777)
     params.HdfsResource(format('{hdfs_path_prefix}/ams/hbase'), owner='ams', type='directory', action=['create_on_execute'], mode=0775)
@@ -287,7 +294,7 @@ with Environment() as env:
   def copy_zeppelin_dependencies_to_hdfs(file_pattern):
     spark_deps_full_path = glob.glob(file_pattern)
     if spark_deps_full_path and os.path.exists(spark_deps_full_path[0]):
-      copy_tarballs_to_hdfs(spark_deps_full_path[0], hdfs_path_prefix+'/apps/zeppelin/', 'hadoop-mapreduce-historyserver', params.hdfs_user, 'zeppelin', 'zeppelin')
+      copy_tarballs_to_hdfs(spark_deps_full_path[0], hdfs_path_prefix+'/apps/zeppelin/', params.hdfs_user, 'zeppelin', 'zeppelin')
     else:
       Logger.info('zeppelin-spark-dependencies not found at %s.' % file_pattern)
 
@@ -310,14 +317,24 @@ with Environment() as env:
     params.HdfsResource(hdfs_path_prefix + '/user/oozie/share/lib/sqoop/{0}'.format(sql_driver_filename),
                         owner='hdfs', type='file', action=['create_on_execute'], mode=0644, source=options.sql_driver_path)
 
-  def recreate_slider_tarball():
+  def create_yarn_service_tarball():
     """
-    Re-create tarball to include extra jars, which were put into slider lib dir.
+    Create tarball to include YARN Service dependency jars
     """
-    Logger.info(format("Re-creating {slider_tarball}"))
-    with closing(tarfile.open(params.slider_tarball, "w:gz")) as tar:
-      for filepath in glob.glob(format("{slider_lib_dir}/*.jar")):
-        tar.add(os.path.realpath(filepath), arcname=os.path.basename(filepath))
+    Logger.info(format("Creating {yarn_service_tarball}"))
+    folders = [params.yarn_home_dir, params.yarn_lib_dir, params.hdfs_home_dir, params.hdfs_lib_dir,
+               params.hadoop_home_dir,
+               params.hadoop_lib_dir,
+               params.hadoop_mapreduce_dir]
+    with closing(tarfile.open(params.yarn_service_tarball, "w:gz")) as tar:
+      for folder in folders:
+        for filepath in glob.glob(format("{folder}/*.jar")):
+          if os.path.exists(filepath):
+            Logger.debug(format("Adding {filepath}"))
+            tar.add(os.path.realpath(filepath), arcname=os.path.basename(filepath))
+          else:
+            Logger.warning(format("Skipping broken link {filepath}"))
+    Execute(("chmod", "0644", params.yarn_service_tarball))
 
   env.set_params(params)
   hadoop_conf_dir = params.hadoop_conf_dir
@@ -338,6 +355,10 @@ with Environment() as env:
             create_parents = True,
             owner='root',
             group='root',
+            cd_access='a',
+  )
+  Directory('/var/run/hadoop/hdfs',
+            owner=params.hdfs_user,
             cd_access='a',
   )
   Directory('/tmp/hadoop-hdfs',
@@ -385,7 +406,7 @@ with Environment() as env:
   oozie_hdfs_user_dir = format("{hdfs_path_prefix}/user/{oozie_user}")
   kinit_if_needed = ''
 
-  recreate_slider_tarball()
+  create_yarn_service_tarball()
 
   if options.upgrade:
     Logger.info("Skipping uploading oozie shared lib during upgrade")
@@ -449,22 +470,22 @@ with Environment() as env:
       mode=0755,
       recursive_chmod = True,
       owner=oozie_user,
-      source = oozie_shared_lib,
+      source = oozie_shared_lib
     )
 
   Logger.info("Copying tarballs...")
   # TODO, these shouldn't hardcode the stack root or destination stack name.
-  copy_tarballs_to_hdfs(format("/usr/hdp/{stack_version}/hadoop/mapreduce.tar.gz"), hdfs_path_prefix+"/hdp/apps/{{ stack_version_formatted }}/mapreduce/", 'hadoop-mapreduce-historyserver', params.mapred_user, params.hdfs_user, params.user_group)
-  copy_tarballs_to_hdfs(format("/usr/hdp/{stack_version}/tez/lib/tez.tar.gz"), hdfs_path_prefix+"/hdp/apps/{{ stack_version_formatted }}/tez/", 'hadoop-mapreduce-historyserver', params.mapred_user, params.hdfs_user, params.user_group)
-  copy_tarballs_to_hdfs(format("/usr/hdp/{stack_version}/hive/hive.tar.gz"), hdfs_path_prefix+"/hdp/apps/{{ stack_version_formatted }}/hive/", 'hadoop-mapreduce-historyserver', params.mapred_user, params.hdfs_user, params.user_group)
+  copy_tarballs_to_hdfs(format("/usr/hdp/{stack_version}/hadoop/mapreduce.tar.gz"), hdfs_path_prefix+"/hdp/apps/{{ stack_version_formatted }}/mapreduce/", params.mapred_user, params.hdfs_user, params.user_group)
+  copy_tarballs_to_hdfs(format("/usr/hdp/{stack_version}/tez/lib/tez.tar.gz"), hdfs_path_prefix+"/hdp/apps/{{ stack_version_formatted }}/tez/", params.mapred_user, params.hdfs_user, params.user_group)
+  copy_tarballs_to_hdfs(format("/usr/hdp/{stack_version}/hive/hive.tar.gz"), hdfs_path_prefix+"/hdp/apps/{{ stack_version_formatted }}/hive/", params.mapred_user, params.hdfs_user, params.user_group)
 
   # Needed by Hive Interactive
-  copy_tarballs_to_hdfs(format("/usr/hdp/{stack_version}/tez_hive2/lib/tez.tar.gz"), hdfs_path_prefix+"/hdp/apps/{{ stack_version_formatted }}/tez_hive2/", 'hadoop-mapreduce-historyserver', params.mapred_user, params.hdfs_user, params.user_group)
+  copy_tarballs_to_hdfs(format("/usr/hdp/{stack_version}/tez_hive2/lib/tez.tar.gz"), hdfs_path_prefix+"/hdp/apps/{{ stack_version_formatted }}/tez_hive2/", params.mapred_user, params.hdfs_user, params.user_group)
 
-  copy_tarballs_to_hdfs(format("/usr/hdp/{stack_version}/pig/pig.tar.gz"), hdfs_path_prefix+"/hdp/apps/{{ stack_version_formatted }}/pig/", 'hadoop-mapreduce-historyserver', params.mapred_user, params.hdfs_user, params.user_group)
-  copy_tarballs_to_hdfs(format("/usr/hdp/{stack_version}/hadoop-mapreduce/hadoop-streaming.jar"), hdfs_path_prefix+"/hdp/apps/{{ stack_version_formatted }}/mapreduce/", 'hadoop-mapreduce-historyserver', params.mapred_user, params.hdfs_user, params.user_group)
-  copy_tarballs_to_hdfs(format("/usr/hdp/{stack_version}/sqoop/sqoop.tar.gz"), hdfs_path_prefix+"/hdp/apps/{{ stack_version_formatted }}/sqoop/", 'hadoop-mapreduce-historyserver', params.mapred_user, params.hdfs_user, params.user_group)
-  copy_tarballs_to_hdfs(format("/usr/hdp/{stack_version}/slider/lib/slider.tar.gz"), hdfs_path_prefix+"/hdp/apps/{{ stack_version_formatted }}/slider/", 'hadoop-mapreduce-historyserver', params.hdfs_user, params.hdfs_user, params.user_group)
+  copy_tarballs_to_hdfs(format("/usr/hdp/{stack_version}/pig/pig.tar.gz"), hdfs_path_prefix+"/hdp/apps/{{ stack_version_formatted }}/pig/", params.mapred_user, params.hdfs_user, params.user_group)
+  copy_tarballs_to_hdfs(format("/usr/hdp/{stack_version}/hadoop-mapreduce/hadoop-streaming.jar"), hdfs_path_prefix+"/hdp/apps/{{ stack_version_formatted }}/mapreduce/", params.mapred_user, params.hdfs_user, params.user_group)
+  copy_tarballs_to_hdfs(format("/usr/hdp/{stack_version}/sqoop/sqoop.tar.gz"), hdfs_path_prefix+"/hdp/apps/{{ stack_version_formatted }}/sqoop/", params.mapred_user, params.hdfs_user, params.user_group)
+  copy_tarballs_to_hdfs(params.yarn_service_tarball, hdfs_path_prefix+"/hdp/apps/{{ stack_version_formatted }}/yarn/", params.hdfs_user, params.hdfs_user, params.user_group)
 
   createHdfsResources()
   copy_zeppelin_dependencies_to_hdfs(format("/usr/hdp/{stack_version}/zeppelin/interpreter/spark/dep/zeppelin-spark-dependencies*.jar"))
@@ -474,7 +495,7 @@ with Environment() as env:
   # jar shouldn't be used before (read comment below)
   File(format("{ambari_libs_dir}/fast-hdfs-resource.jar"),
        mode=0644,
-       content=StaticFile("/var/lib/ambari-agent/cache/stacks/HDP/2.0.6/hooks/before-START/files/fast-hdfs-resource.jar")
+       content=StaticFile("/var/lib/ambari-agent/cache/stack-hooks/before-START/files/fast-hdfs-resource.jar")
   )
   # Create everything in one jar call (this is fast).
   # (! Before everything should be executed with action="create_on_execute/delete_on_execute" for this time-optimization to work)

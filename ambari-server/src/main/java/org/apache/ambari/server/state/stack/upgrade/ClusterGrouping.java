@@ -46,7 +46,7 @@ import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 
 /**
  * Used to represent cluster-based operations.
@@ -124,7 +124,7 @@ public class ClusterGrouping extends Grouping {
      */
     @Override
     public String toString() {
-      return Objects.toStringHelper(this).add("id", id).add("title",
+      return MoreObjects.toStringHelper(this).add("id", id).add("title",
           title).omitNullValues().toString();
     }
 
@@ -214,11 +214,16 @@ public class ClusterGrouping extends Grouping {
             case MANUAL:
             case SERVER_ACTION:
             case CONFIGURE:
+            case ADD_COMPONENT:
               wrapper = getServerActionStageWrapper(upgradeContext, execution);
               break;
 
             case EXECUTE:
               wrapper = getExecuteStageWrapper(upgradeContext, execution);
+              break;
+
+            case REGENERATE_KEYTABS:
+              wrapper = getRegenerateKeytabsWrapper(upgradeContext, execution);
               break;
 
             default:
@@ -252,10 +257,10 @@ public class ClusterGrouping extends Grouping {
     if (StringUtils.isNotEmpty(service) && StringUtils.isNotEmpty(component)) {
       HostsType hosts = ctx.getResolver().getMasterAndHosts(service, component);
 
-      if (null == hosts || hosts.hosts.isEmpty()) {
+      if (null == hosts || hosts.getHosts().isEmpty()) {
         return null;
       } else {
-        realHosts = new LinkedHashSet<>(hosts.hosts);
+        realHosts = new LinkedHashSet<>(hosts.getHosts());
       }
     }
 
@@ -268,15 +273,37 @@ public class ClusterGrouping extends Grouping {
       return new StageWrapper(
           StageWrapper.Type.SERVER_SIDE_ACTION,
           execution.title,
-          new TaskWrapper(null, null, Collections.<String>emptySet(), task));
+          new TaskWrapper(null, null, Collections.emptySet(), task));
     }
   }
 
   /**
-   * Return a Stage Wrapper for a task meant to execute code, typically on Ambari Server.
-   * @param ctx Upgrade Context
-   * @param execution Execution Stage
-   * @return Returns a Stage Wrapper, or null if a valid one could not be created.
+   * Return a {@link StageWrapper} for regeneration of keytabs.
+   *
+   * @param ctx
+   *          Upgrade Context
+   * @param execution
+   *          Execution Stage
+   * @return a {@link StageWrapper} which will regenerate keytabs on all hosts.
+   */
+  private StageWrapper getRegenerateKeytabsWrapper(UpgradeContext ctx, ExecuteStage execution) {
+    Task task = execution.task;
+    HostsType hosts = HostsType.healthy(ctx.getCluster());
+
+    return new StageWrapper(StageWrapper.Type.REGENERATE_KEYTABS, execution.title,
+        new TaskWrapper(null, null, hosts.getHosts(), task));
+  }
+
+  /**
+   * Return a Stage Wrapper for a task meant to execute code, typically on
+   * Ambari Server.
+   *
+   * @param ctx
+   *          Upgrade Context
+   * @param execution
+   *          Execution Stage
+   * @return Returns a Stage Wrapper, or null if a valid one could not be
+   *         created.
    */
   private StageWrapper getExecuteStageWrapper(UpgradeContext ctx, ExecuteStage execution) {
     String service   = execution.service;
@@ -301,19 +328,19 @@ public class ClusterGrouping extends Grouping {
 
       if (hosts != null) {
 
-        Set<String> realHosts = new LinkedHashSet<>(hosts.hosts);
-        if (ExecuteHostType.MASTER == et.hosts && null != hosts.master) {
-          realHosts = Collections.singleton(hosts.master);
+        Set<String> realHosts = new LinkedHashSet<>(hosts.getHosts());
+        if (ExecuteHostType.MASTER == et.hosts && hosts.hasMasters()) {
+          realHosts = hosts.getMasters();
         }
 
         // Pick a random host.
-        if (ExecuteHostType.ANY == et.hosts && !hosts.hosts.isEmpty()) {
-          realHosts = Collections.singleton(hosts.hosts.iterator().next());
+        if (ExecuteHostType.ANY == et.hosts && !hosts.getHosts().isEmpty()) {
+          realHosts = Collections.singleton(hosts.getHosts().iterator().next());
         }
 
         // Pick the first host sorted alphabetically (case insensitive)
-        if (ExecuteHostType.FIRST == et.hosts && !hosts.hosts.isEmpty()) {
-          List<String> sortedHosts = new ArrayList<>(hosts.hosts);
+        if (ExecuteHostType.FIRST == et.hosts && !hosts.getHighAvailabilityHosts().isEmpty()) {
+          List<String> sortedHosts = new ArrayList<>(hosts.getHosts());
           Collections.sort(sortedHosts, String.CASE_INSENSITIVE_ORDER);
           realHosts = Collections.singleton(sortedHosts.get(0));
         }

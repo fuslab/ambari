@@ -17,8 +17,15 @@
  */
 package org.apache.ambari.server.controller.internal;
 
-import org.apache.ambari.server.controller.spi.Predicate;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.AmbariException;
+import org.apache.ambari.server.controller.spi.Predicate;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.apache.ambari.server.orm.dao.ClusterDAO;
@@ -30,13 +37,8 @@ import org.apache.ambari.server.orm.entities.ResourceEntity;
 import org.apache.ambari.server.orm.entities.UserEntity;
 import org.apache.ambari.server.security.authorization.RoleAuthorization;
 
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 
 /**
  * Resource provider for cluster privileges.
@@ -48,33 +50,29 @@ public class ClusterPrivilegeResourceProvider extends PrivilegeResourceProvider<
    */
   protected static ClusterDAO clusterDAO;
 
-  /**
-   * Cluster privilege property id constants.
-   */
-  protected static final String PRIVILEGE_CLUSTER_NAME_PROPERTY_ID = PropertyHelper.getPropertyId("PrivilegeInfo", "cluster_name");
+  protected static final String CLUSTER_NAME_PROPERTY_ID = "cluster_name";
+
+  protected static final String CLUSTER_NAME = PrivilegeResourceProvider.PRIVILEGE_INFO + PropertyHelper.EXTERNAL_PATH_SEP + CLUSTER_NAME_PROPERTY_ID;
 
   /**
    * The property ids for a privilege resource.
    */
-  private static Set<String> propertyIds = new HashSet<String>();
-  static {
-    propertyIds.add(PRIVILEGE_CLUSTER_NAME_PROPERTY_ID);
-    propertyIds.add(PRIVILEGE_ID_PROPERTY_ID);
-    propertyIds.add(PERMISSION_NAME_PROPERTY_ID);
-    propertyIds.add(PERMISSION_NAME_PROPERTY_ID);
-    propertyIds.add(PERMISSION_LABEL_PROPERTY_ID);
-    propertyIds.add(PRINCIPAL_NAME_PROPERTY_ID);
-    propertyIds.add(PRINCIPAL_TYPE_PROPERTY_ID);
-  }
+  private static Set<String> propertyIds = Sets.newHashSet(
+      CLUSTER_NAME,
+      PRIVILEGE_ID,
+      PERMISSION_NAME,
+      PERMISSION_NAME,
+      PERMISSION_LABEL,
+      PRINCIPAL_NAME,
+      PRINCIPAL_TYPE);
 
   /**
    * The key property ids for a privilege resource.
    */
-  private static Map<Resource.Type, String> keyPropertyIds = new HashMap<Resource.Type, String>();
-  static {
-    keyPropertyIds.put(Resource.Type.Cluster, PRIVILEGE_CLUSTER_NAME_PROPERTY_ID);
-    keyPropertyIds.put(Resource.Type.ClusterPrivilege, PRIVILEGE_ID_PROPERTY_ID);
-  }
+  private static Map<Resource.Type, String> keyPropertyIds = ImmutableMap.<Resource.Type, String>builder()
+      .put(Resource.Type.Cluster, CLUSTER_NAME)
+      .put(Resource.Type.ClusterPrivilege, PRIVILEGE_ID)
+      .build();
 
   // ----- Constructors ------------------------------------------------------
 
@@ -117,10 +115,10 @@ public class ClusterPrivilegeResourceProvider extends PrivilegeResourceProvider<
   @Override
   public Map<Long, ClusterEntity> getResourceEntities(Map<String, Object> properties) {
 
-    String clusterName = (String) properties.get(PRIVILEGE_CLUSTER_NAME_PROPERTY_ID);
+    String clusterName = (String) properties.get(CLUSTER_NAME);
 
     if (clusterName == null) {
-      Map<Long, ClusterEntity> resourceEntities = new HashMap<Long, ClusterEntity>();
+      Map<Long, ClusterEntity> resourceEntities = new HashMap<>();
 
       List<ClusterEntity> clusterEntities = clusterDAO.findAll();
 
@@ -135,7 +133,7 @@ public class ClusterPrivilegeResourceProvider extends PrivilegeResourceProvider<
 
   @Override
   public Long getResourceEntityId(Predicate predicate) {
-    final String clusterName = getQueryParameterValue(PRIVILEGE_CLUSTER_NAME_PROPERTY_ID, predicate).toString();
+    final String clusterName = getQueryParameterValue(CLUSTER_NAME, predicate).toString();
     final ClusterEntity clusterEntity = clusterDAO.findByName(clusterName);
     return clusterEntity.getResource().getId();
   }
@@ -154,7 +152,7 @@ public class ClusterPrivilegeResourceProvider extends PrivilegeResourceProvider<
     Resource resource = super.toResource(privilegeEntity, userEntities, groupEntities, roleEntities, resourceEntities, requestedIds);
     if (resource != null) {
       ClusterEntity clusterEntity = resourceEntities.get(privilegeEntity.getResource().getId());
-      setResourceProperty(resource, PRIVILEGE_CLUSTER_NAME_PROPERTY_ID, clusterEntity.getClusterName(), requestedIds);
+      setResourceProperty(resource, CLUSTER_NAME, clusterEntity.getClusterName(), requestedIds);
     }
     return resource;
   }

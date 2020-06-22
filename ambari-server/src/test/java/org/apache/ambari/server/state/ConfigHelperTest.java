@@ -22,7 +22,12 @@ import static org.easymock.EasyMock.createStrictMock;
 import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.replay;
 import static org.easymock.EasyMock.verify;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,14 +43,13 @@ import javax.persistence.EntityManager;
 
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.H2DatabaseCleaner;
-import org.apache.ambari.server.actionmanager.HostRoleCommandFactory;
-import org.apache.ambari.server.actionmanager.RequestFactory;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
 import org.apache.ambari.server.controller.AmbariCustomCommandExecutionHelper;
 import org.apache.ambari.server.controller.AmbariManagementController;
 import org.apache.ambari.server.controller.ClusterRequest;
 import org.apache.ambari.server.controller.ConfigurationRequest;
 import org.apache.ambari.server.controller.spi.ClusterController;
+import org.apache.ambari.server.events.publishers.STOMPUpdatePublisher;
 import org.apache.ambari.server.orm.DBAccessor;
 import org.apache.ambari.server.orm.GuiceJpaInitializer;
 import org.apache.ambari.server.orm.InMemoryDefaultTestModule;
@@ -54,12 +58,12 @@ import org.apache.ambari.server.orm.dao.HostRoleCommandDAO;
 import org.apache.ambari.server.orm.entities.RepositoryVersionEntity;
 import org.apache.ambari.server.security.SecurityHelper;
 import org.apache.ambari.server.security.TestAuthenticationFactory;
+import org.apache.ambari.server.security.authorization.AuthorizationException;
 import org.apache.ambari.server.stack.StackManagerFactory;
-import org.apache.ambari.server.state.cluster.ClusterFactory;
 import org.apache.ambari.server.state.configgroup.ConfigGroup;
 import org.apache.ambari.server.state.configgroup.ConfigGroupFactory;
-import org.apache.ambari.server.state.host.HostFactory;
 import org.apache.ambari.server.state.stack.OsFamily;
+import org.apache.ambari.server.testutils.PartialNiceMockBinder;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -119,6 +123,8 @@ public class ConfigHelperTest {
       clusters.addHost("h1");
       clusters.addHost("h2");
       clusters.addHost("h3");
+      clusters.getHosts().forEach(h -> clusters.updateHostMappings(h));
+
       Assert.assertNotNull(clusters.getHost("h1"));
       Assert.assertNotNull(clusters.getHost("h2"));
       Assert.assertNotNull(clusters.getHost("h3"));
@@ -157,6 +163,7 @@ public class ConfigHelperTest {
 
       cluster.addService("FLUME", repositoryVersion);
       cluster.addService("OOZIE", repositoryVersion);
+      cluster.addService("HDFS", repositoryVersion);
 
       final ClusterRequest clusterRequest2 =
           new ClusterRequest(cluster.getClusterId(), clusterName,
@@ -229,6 +236,45 @@ public class ConfigHelperTest {
       managementController.updateClusters(new HashSet<ClusterRequest>() {{
         add(clusterRequest5);
       }}, null);
+
+      // hdfs-site/hadoop.caller.context.enabled
+      ConfigurationRequest cr6 = new ConfigurationRequest();
+      cr6.setClusterName(clusterName);
+      cr6.setType("hdfs-site");
+      cr6.setVersionTag("version1");
+      cr6.setProperties(new HashMap<String, String>() {{
+        put("hadoop.caller.context.enabled", "true");
+      }});
+      cr6.setPropertiesAttributes(null);
+
+      final ClusterRequest clusterRequest6 =
+              new ClusterRequest(cluster.getClusterId(), clusterName,
+                      cluster.getDesiredStackVersion().getStackVersion(), null);
+
+      clusterRequest6.setDesiredConfig(Collections.singletonList(cr6));
+      managementController.updateClusters(new HashSet<ClusterRequest>() {{
+        add(clusterRequest6);
+      }}, null);
+
+      // hdfs-site/hadoop.caller.context.enabled
+      ConfigurationRequest cr7 = new ConfigurationRequest();
+      cr7.setClusterName(clusterName);
+      cr7.setType("hdfs-site");
+      cr7.setVersionTag("version2");
+      cr7.setProperties(new HashMap<String, String>() {{
+        put("hadoop.caller.context.enabled", "false");
+      }});
+      cr7.setPropertiesAttributes(null);
+
+      final ClusterRequest clusterRequest7 =
+              new ClusterRequest(cluster.getClusterId(), clusterName,
+                      cluster.getDesiredStackVersion().getStackVersion(), null);
+
+      clusterRequest7.setDesiredConfig(Collections.singletonList(cr7));
+      managementController.updateClusters(new HashSet<ClusterRequest>() {{
+        add(clusterRequest7);
+      }}, null);
+
     }
 
     @After
@@ -257,8 +303,8 @@ public class ConfigHelperTest {
         configMap.put(config.getType(), config);
       }
 
-      ConfigGroup configGroup = configGroupFactory.createNew(cluster, name,
-          tag, tag, "", configMap, hostMap);
+      ConfigGroup configGroup = configGroupFactory.createNew(cluster, null, name,
+          tag, "", configMap, hostMap);
       LOG.info("Config group created with tag " + tag);
       configGroup.setTag(tag);
 
@@ -520,7 +566,7 @@ public class ConfigHelperTest {
       config1Attributes.put("attribute1", attributes);
 
       final Config config1 = configFactory.createNew(cluster, "core-site3", "version122",
-          new HashMap<String, String>(), config1Attributes);
+        new HashMap<>(), config1Attributes);
 
       attributes = new HashMap<>();
       attributes.put("namenode_heapsize", "z");
@@ -529,7 +575,7 @@ public class ConfigHelperTest {
       config2Attributes.put("attribute2", attributes);
 
       final Config config2 = configFactory.createNew(cluster, "global3", "version122",
-          new HashMap<String, String>(), config2Attributes);
+        new HashMap<>(), config2Attributes);
 
       Long groupId = addConfigGroup("g3", "t1", new ArrayList<String>() {{
         add("h3");
@@ -545,7 +591,7 @@ public class ConfigHelperTest {
               configHelper.getEffectiveDesiredTags(cluster, "h3"));
 
       Assert.assertNotNull(effectiveAttributes);
-      Assert.assertEquals(7, effectiveAttributes.size());
+      Assert.assertEquals(8, effectiveAttributes.size());
 
       Assert.assertTrue(effectiveAttributes.containsKey("global3"));
       Map<String, Map<String, String>> globalAttrs = effectiveAttributes.get("global3");
@@ -799,7 +845,7 @@ public class ConfigHelperTest {
       confGroupAttributes.put("final", confGroupFinalAttrs);
 
       Config overrideConfig = configFactory.createNew(cluster, "type", "version122",
-          new HashMap<String,String>(), confGroupAttributes);
+        new HashMap<>(), confGroupAttributes);
 
       Map<String, Map<String, String>> result
           = configHelper.overrideAttributes(overrideConfig, persistedAttributes);
@@ -958,7 +1004,7 @@ public class ConfigHelperTest {
       List<Config> configs = new ArrayList<>();
 
       Config configImpl = configFactory.createNew(cluster, "flume-conf", "FLUME1",
-          new HashMap<String,String>(), null);
+        new HashMap<>(), null);
 
       configs.add(configImpl);
       addConfigGroup("configGroup1", "FLUME", hosts, configs);
@@ -991,7 +1037,108 @@ public class ConfigHelperTest {
       Assert.assertTrue(configHelper.isStaleConfigs(sch, null));
 
       verify(sch);
+  }
+
+  @Test
+  public void testCalculateRefreshCommands() throws Exception {
+
+    Map<String, HostConfig> schReturn = new HashMap<>();
+    HostConfig hc = new HostConfig();
+    // Put a different version to check for change
+    hc.setDefaultVersionTag("version1");
+    schReturn.put("hdfs-site", hc);
+
+    ServiceComponent sc = createNiceMock(ServiceComponent.class);
+
+    // set up mocks
+    ServiceComponentHost sch = createNiceMock(ServiceComponentHost.class);
+    expect(sc.getDesiredStackId()).andReturn(cluster.getDesiredStackVersion()).anyTimes();
+
+    // set up expectations
+    expect(sch.getActualConfigs()).andReturn(schReturn).anyTimes();
+    expect(sch.getHostName()).andReturn("h1").anyTimes();
+    expect(sch.getClusterId()).andReturn(cluster.getClusterId()).anyTimes();
+    expect(sch.getServiceName()).andReturn("HDFS").anyTimes();
+    expect(sch.getServiceComponentName()).andReturn("NAMENODE").anyTimes();
+    expect(sch.getServiceComponent()).andReturn(sc).anyTimes();
+
+    replay(sc, sch);
+
+    Assert.assertTrue(configHelper.isStaleConfigs(sch, null));
+    String refreshConfigsCommand = configHelper.getRefreshConfigsCommand(cluster, sch);
+    Assert.assertEquals("reload_configs", refreshConfigsCommand);
+    verify(sch);
+  }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testFindChangedKeys() throws AmbariException, AuthorizationException, NoSuchMethodException,
+        InvocationTargetException, IllegalAccessException {
+      final String configType = "hdfs-site";
+      final String newPropertyName = "new.property";
+
+      ConfigurationRequest newProperty = new ConfigurationRequest();
+      newProperty.setClusterName(clusterName);
+      newProperty.setType(configType);
+      newProperty.setVersionTag("version3");
+      newProperty.setProperties(new HashMap<String, String>() {{
+        put("hadoop.caller.context.enabled", "false");
+        put(newPropertyName, "true");
+      }});
+      newProperty.setPropertiesAttributes(null);
+
+      final ClusterRequest clusterRequestNewProperty =
+          new ClusterRequest(cluster.getClusterId(), clusterName,
+              cluster.getDesiredStackVersion().getStackVersion(), null);
+
+      clusterRequestNewProperty.setDesiredConfig(Collections.singletonList(newProperty));
+      managementController.updateClusters(new HashSet<ClusterRequest>() {{
+        add(clusterRequestNewProperty);
+      }}, null);
+
+
+      ConfigurationRequest removedNewProperty = new ConfigurationRequest();
+      removedNewProperty.setClusterName(clusterName);
+      removedNewProperty.setType(configType);
+      removedNewProperty.setVersionTag("version4");
+      removedNewProperty.setProperties(new HashMap<String, String>() {{
+        put("hadoop.caller.context.enabled", "false");
+      }});
+      removedNewProperty.setPropertiesAttributes(null);
+
+      final ClusterRequest clusterRequestRemovedNewProperty =
+          new ClusterRequest(cluster.getClusterId(), clusterName,
+              cluster.getDesiredStackVersion().getStackVersion(), null);
+
+      clusterRequestRemovedNewProperty.setDesiredConfig(Collections.singletonList(removedNewProperty));
+      managementController.updateClusters(new HashSet<ClusterRequest>() {{
+        add(clusterRequestRemovedNewProperty);
+      }}, null);
+
+      ConfigHelper configHelper = injector.getInstance(ConfigHelper.class);
+      Method method = ConfigHelper.class.getDeclaredMethod("findChangedKeys",
+          Cluster.class, String.class, Collection.class, Collection.class);
+      method.setAccessible(true);
+
+      // property value was changed
+      Collection<String> value = (Collection<String>) method.invoke(configHelper, cluster, configType,
+          Collections.singletonList("version1"), Collections.singletonList("version2"));
+      assertTrue(value.size() == 1);
+      assertEquals(configType + "/hadoop.caller.context.enabled", value.iterator().next());
+
+      // property was added
+      value = (Collection<String>) method.invoke(configHelper, cluster, configType,
+          Collections.singletonList("version2"), Collections.singletonList("version3"));
+      assertTrue(value.size() == 1);
+      assertEquals(configType + "/" + newPropertyName, value.iterator().next());
+
+      // property was removed
+      value = (Collection<String>) method.invoke(configHelper, cluster, configType,
+          Collections.singletonList("version3"), Collections.singletonList("version4"));
+      assertTrue(value.size() == 1);
+      assertEquals(configType + "/" + newPropertyName, value.iterator().next());
     }
+
   }
 
   public static class RunWithCustomModule {
@@ -1006,23 +1153,19 @@ public class ConfigHelperTest {
           final AmbariMetaInfo mockMetaInfo = createNiceMock(AmbariMetaInfo.class);
           final ClusterController clusterController = createStrictMock(ClusterController.class);
 
-          bind(UpgradeContextFactory.class).toInstance(createNiceMock(UpgradeContextFactory.class));
+          PartialNiceMockBinder.newBuilder().addAmbariMetaInfoBinding().addLdapBindings().addFactoriesInstallBinding().build().configure(binder());
 
           bind(EntityManager.class).toInstance(createNiceMock(EntityManager.class));
           bind(DBAccessor.class).toInstance(createNiceMock(DBAccessor.class));
-          bind(ClusterFactory.class).toInstance(createNiceMock(ClusterFactory.class));
-          bind(HostFactory.class).toInstance(createNiceMock(HostFactory.class));
           bind(SecurityHelper.class).toInstance(createNiceMock(SecurityHelper.class));
           bind(OsFamily.class).toInstance(createNiceMock(OsFamily.class));
           bind(AmbariCustomCommandExecutionHelper.class).toInstance(createNiceMock(AmbariCustomCommandExecutionHelper.class));
-          bind(AmbariManagementController.class).toInstance(createNiceMock(AmbariManagementController.class));
           bind(AmbariMetaInfo.class).toInstance(mockMetaInfo);
-          bind(RequestFactory.class).toInstance(createNiceMock(RequestFactory.class));
           bind(Clusters.class).toInstance(createNiceMock(Clusters.class));
           bind(ClusterController.class).toInstance(clusterController);
           bind(StackManagerFactory.class).toInstance(createNiceMock(StackManagerFactory.class));
-          bind(HostRoleCommandFactory.class).toInstance(createNiceMock(HostRoleCommandFactory.class));
           bind(HostRoleCommandDAO.class).toInstance(createNiceMock(HostRoleCommandDAO.class));
+          bind(STOMPUpdatePublisher.class).toInstance(createNiceMock(STOMPUpdatePublisher.class));
         }
       });
 
@@ -1138,6 +1281,51 @@ public class ConfigHelperTest {
       Assert.assertEquals("included-type.xml", result.iterator().next().getFilename());
 
       verify(mockAmbariMetaInfo, mockStackVersion, mockServiceInfo, mockPropertyInfo1, mockPropertyInfo2);
+    }
+  }
+
+  public static class RunWithoutModules {
+    @Test
+    public void nullsAreEqual() {
+      assertTrue(ConfigHelper.valuesAreEqual(null, null));
+    }
+
+    @Test
+    public void equalStringsAreEqual() {
+      assertTrue(ConfigHelper.valuesAreEqual("asdf", "asdf"));
+      assertTrue(ConfigHelper.valuesAreEqual("qwerty", "qwerty"));
+    }
+
+    @Test
+    public void nullIsNotEqualWithNonNull() {
+      assertFalse(ConfigHelper.valuesAreEqual(null, "asdf"));
+      assertFalse(ConfigHelper.valuesAreEqual("asdf", null));
+    }
+
+    @Test
+    public void equalNumbersInDifferentFormsAreEqual() {
+      assertTrue(ConfigHelper.valuesAreEqual("1.234", "1.2340"));
+      assertTrue(ConfigHelper.valuesAreEqual("12.34", "1.234e1"));
+      assertTrue(ConfigHelper.valuesAreEqual("123L", "123l"));
+      assertTrue(ConfigHelper.valuesAreEqual("-1.234", "-1.2340"));
+      assertTrue(ConfigHelper.valuesAreEqual("-12.34", "-1.234e1"));
+      assertTrue(ConfigHelper.valuesAreEqual("-123L", "-123l"));
+      assertTrue(ConfigHelper.valuesAreEqual("1f", "1.0f"));
+      assertTrue(ConfigHelper.valuesAreEqual("0", "000"));
+
+      // these are treated as different by NumberUtils (due to different types not being equal)
+      assertTrue(ConfigHelper.valuesAreEqual("123", "123L"));
+      assertTrue(ConfigHelper.valuesAreEqual("0", "0.0"));
+    }
+
+    @Test
+    public void differentNumbersAreNotEqual() {
+      assertFalse(ConfigHelper.valuesAreEqual("1.234", "1.2341"));
+      assertFalse(ConfigHelper.valuesAreEqual("123L", "124L"));
+      assertFalse(ConfigHelper.valuesAreEqual("-1.234", "1.234"));
+      assertFalse(ConfigHelper.valuesAreEqual("-123L", "123L"));
+      assertFalse(ConfigHelper.valuesAreEqual("-1.234", "-1.2341"));
+      assertFalse(ConfigHelper.valuesAreEqual("-123L", "-124L"));
     }
   }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,9 +21,10 @@ package org.apache.ambari.server.api.handlers;
 import org.apache.ambari.server.api.resources.ResourceInstance;
 import org.apache.ambari.server.api.services.RequestBody;
 import org.apache.ambari.server.api.services.Result;
-import org.apache.ambari.server.api.services.ResultMetadata;
 import org.apache.ambari.server.api.services.ResultImpl;
+import org.apache.ambari.server.api.services.ResultMetadata;
 import org.apache.ambari.server.api.services.ResultStatus;
+import org.apache.ambari.server.controller.internal.OperationStatusMetaData;
 import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
 import org.apache.ambari.server.controller.spi.NoSuchResourceException;
 import org.apache.ambari.server.controller.spi.RequestStatus;
@@ -53,9 +54,7 @@ public class UpdateHandler extends BaseManagementHandler {
 
     } catch (AuthorizationException e) {
       result = new ResultImpl(new ResultStatus(ResultStatus.STATUS.FORBIDDEN, e.getMessage()));
-    } catch (UnsupportedPropertyException e) {
-      result = new ResultImpl(new ResultStatus(ResultStatus.STATUS.BAD_REQUEST, e));
-    } catch (IllegalArgumentException e) {
+    } catch (UnsupportedPropertyException | IllegalArgumentException e) {
       result = new ResultImpl(new ResultStatus(ResultStatus.STATUS.BAD_REQUEST, e));
     } catch (NoSuchParentResourceException e) {
       result = new ResultImpl(new ResultStatus(ResultStatus.STATUS.NOT_FOUND, e));
@@ -81,6 +80,11 @@ public class UpdateHandler extends BaseManagementHandler {
       return null;
     }
 
-    throw new UnsupportedOperationException();
+    if (requestStatusMetaData.getClass() == OperationStatusMetaData.class) {
+      return (OperationStatusMetaData) requestStatusMetaData;
+    } else {
+      throw new IllegalArgumentException(String.format("RequestStatusDetails is of an expected type: %s",
+          requestStatusMetaData.getClass().getName()));
+    }
   }
 }

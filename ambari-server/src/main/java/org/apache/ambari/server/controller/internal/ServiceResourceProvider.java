@@ -28,6 +28,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.ClusterNotFoundException;
@@ -75,9 +76,12 @@ import org.apache.ambari.server.state.ServiceComponentHost;
 import org.apache.ambari.server.state.ServiceInfo;
 import org.apache.ambari.server.state.StackId;
 import org.apache.ambari.server.state.State;
+import org.apache.ambari.server.topology.STOMPComponentsDeleteHandler;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.Validate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.inject.Inject;
 import com.google.inject.assistedinject.Assisted;
@@ -87,6 +91,9 @@ import com.google.inject.assistedinject.AssistedInject;
  * Resource provider for service resources.
  */
 public class ServiceResourceProvider extends AbstractControllerResourceProvider {
+
+  private static final Logger LOG = LoggerFactory.getLogger(ServiceResourceProvider.class);
+
   public static final String SERVICE_CLUSTER_NAME_PROPERTY_ID = PropertyHelper.getPropertyId(
       "ServiceInfo", "cluster_name");
 
@@ -113,6 +120,21 @@ public class ServiceResourceProvider extends AbstractControllerResourceProvider 
 
   public static final String SERVICE_DESIRED_REPO_VERSION_ID_PROPERTY_ID = PropertyHelper.getPropertyId(
       "ServiceInfo", "desired_repository_version_id");
+
+  private static final String SSO_INTEGRATION_SUPPORTED_PROPERTY_ID = PropertyHelper.getPropertyId(
+    "ServiceInfo", "sso_integration_supported");
+
+  private static final String SSO_INTEGRATION_ENABLED_PROPERTY_ID = PropertyHelper.getPropertyId(
+    "ServiceInfo", "sso_integration_enabled");
+
+  private static final String SSO_INTEGRATION_DESIRED_PROPERTY_ID = PropertyHelper.getPropertyId(
+    "ServiceInfo", "sso_integration_desired");
+
+  private static final String SSO_INTEGRATION_REQUIRES_KERBEROS_PROPERTY_ID = PropertyHelper.getPropertyId(
+      "ServiceInfo", "sso_integration_requires_kerberos");
+
+  private static final String KERBEROS_ENABLED_PROPERTY_ID = PropertyHelper.getPropertyId(
+      "ServiceInfo", "kerberos_enabled");
 
   protected static final String SERVICE_REPOSITORY_STATE = "ServiceInfo/repository_state";
 
@@ -153,6 +175,12 @@ public class ServiceResourceProvider extends AbstractControllerResourceProvider 
     PROPERTY_IDS.add(QUERY_PARAMETERS_RECONFIGURE_CLIENT);
     PROPERTY_IDS.add(QUERY_PARAMETERS_START_DEPENDENCIES);
 
+    PROPERTY_IDS.add(SSO_INTEGRATION_SUPPORTED_PROPERTY_ID);
+    PROPERTY_IDS.add(SSO_INTEGRATION_ENABLED_PROPERTY_ID);
+    PROPERTY_IDS.add(SSO_INTEGRATION_DESIRED_PROPERTY_ID);
+    PROPERTY_IDS.add(SSO_INTEGRATION_REQUIRES_KERBEROS_PROPERTY_ID);
+    PROPERTY_IDS.add(KERBEROS_ENABLED_PROPERTY_ID);
+
     // keys
     KEY_PROPERTY_IDS.put(Resource.Type.Service, SERVICE_SERVICE_NAME_PROPERTY_ID);
     KEY_PROPERTY_IDS.put(Resource.Type.Cluster, SERVICE_CLUSTER_NAME_PROPERTY_ID);
@@ -165,6 +193,9 @@ public class ServiceResourceProvider extends AbstractControllerResourceProvider 
    */
   @Inject
   private KerberosHelper kerberosHelper;
+
+  @Inject
+  private STOMPComponentsDeleteHandler STOMPComponentsDeleteHandler;
 
   /**
    * Used to lookup the repository when creating services.
@@ -253,13 +284,11 @@ public class ServiceResourceProvider extends AbstractControllerResourceProvider 
       setResourceProperty(resource, SERVICE_CREDENTIAL_STORE_ENABLED_PROPERTY_ID,
           String.valueOf(response.isCredentialStoreEnabled()), requestedIds);
 
-      RepositoryVersionEntity repoVersion = repositoryVersionDAO.findByPK(
-          response.getDesiredRepositoryVersionId());
+      RepositoryVersionEntity repoVersion = repositoryVersionDAO.findByPK(response.getDesiredRepositoryVersionId());
 
       // !!! TODO is the UI using this?
       if (null != repoVersion) {
-        setResourceProperty(resource, SERVICE_DESIRED_STACK_PROPERTY_ID, repoVersion.getStackId(),
-            requestedIds);
+        setResourceProperty(resource, SERVICE_DESIRED_STACK_PROPERTY_ID, repoVersion.getStackId(), requestedIds);
       }
 
       setResourceProperty(resource, SERVICE_DESIRED_REPO_VERSION_ID_PROPERTY_ID,
@@ -267,6 +296,17 @@ public class ServiceResourceProvider extends AbstractControllerResourceProvider 
 
       setResourceProperty(resource, SERVICE_REPOSITORY_STATE,
           response.getRepositoryVersionState(), requestedIds);
+
+      setResourceProperty(resource, SSO_INTEGRATION_SUPPORTED_PROPERTY_ID,
+        response.isSsoIntegrationSupported(), requestedIds);
+      setResourceProperty(resource, SSO_INTEGRATION_ENABLED_PROPERTY_ID,
+        response.isSsoIntegrationEnabled(), requestedIds);
+      setResourceProperty(resource, SSO_INTEGRATION_DESIRED_PROPERTY_ID,
+        response.isSsoIntegrationDesired(), requestedIds);
+      setResourceProperty(resource, SSO_INTEGRATION_REQUIRES_KERBEROS_PROPERTY_ID,
+        response.isSsoIntegrationRequiresKerberos(), requestedIds);
+      setResourceProperty(resource, KERBEROS_ENABLED_PROPERTY_ID,
+          response.isKerberosEnabled(), requestedIds);
 
       Map<String, Object> serviceSpecificProperties = getServiceSpecificProperties(
           response.getClusterName(), response.getServiceName(), requestedIds);
@@ -406,7 +446,7 @@ public class ServiceResourceProvider extends AbstractControllerResourceProvider 
 
     o = properties.get(SERVICE_CREDENTIAL_STORE_SUPPORTED_PROPERTY_ID);
     if (null != o) {
-      svcRequest.setMaintenanceState(o.toString());
+      svcRequest.setCredentialStoreSupported(o.toString());
     }
 
     return svcRequest;
@@ -425,8 +465,6 @@ public class ServiceResourceProvider extends AbstractControllerResourceProvider 
     // do all validation checks
     validateCreateRequests(requests, clusters);
 
-    Set<Cluster> clustersSetFromRequests = new HashSet<>();
-
     for (ServiceRequest request : requests) {
       Cluster cluster = clusters.getCluster(request.getClusterName());
 
@@ -439,7 +477,7 @@ public class ServiceResourceProvider extends AbstractControllerResourceProvider 
       if (repositoryVersion.getType() != RepositoryType.STANDARD
           && cluster.getProvisioningState() == State.INIT) {
         throw new AmbariException(String.format(
-            "Unable to add %s to %s because the cluster is still being provisioned and the repository for the service is not %s: $s",
+            "Unable to add %s to %s because the cluster is still being provisioned and the repository for the service is not %s: %s",
             request.getServiceName(), cluster.getClusterName(), RepositoryType.STANDARD,
             repositoryVersion));
       }
@@ -482,12 +520,6 @@ public class ServiceResourceProvider extends AbstractControllerResourceProvider 
 
       // Initialize service widgets
       getManagementController().initializeWidgetsAndLayouts(cluster, s);
-      clustersSetFromRequests.add(cluster);
-    }
-
-    // Create cluster widgets and layouts
-    for (Cluster cluster : clustersSetFromRequests) {
-      getManagementController().initializeWidgetsAndLayouts(cluster, null);
     }
   }
 
@@ -624,7 +656,7 @@ public class ServiceResourceProvider extends AbstractControllerResourceProvider 
       }
 
       if (!serviceNames.containsKey(request.getClusterName())) {
-        serviceNames.put(request.getClusterName(), new HashSet<String>());
+        serviceNames.put(request.getClusterName(), new HashSet<>());
       }
 
       if (serviceNames.get(request.getClusterName())
@@ -727,7 +759,7 @@ public class ServiceResourceProvider extends AbstractControllerResourceProvider 
 
         }
         if (!changedServices.containsKey(newState)) {
-          changedServices.put(newState, new ArrayList<Service>());
+          changedServices.put(newState, new ArrayList<>());
         }
         changedServices.get(newState).add(s);
       }
@@ -777,7 +809,7 @@ public class ServiceResourceProvider extends AbstractControllerResourceProvider 
 
     return controller.addStages(requestStages, cluster, requestProperties,
       null, changedServices, changedComps, changedScHosts,
-        ignoredScHosts, runSmokeTest, reconfigureClients);
+        ignoredScHosts, runSmokeTest, reconfigureClients, false);
   }
 
   private void updateServiceComponents(RequestStageContainer requestStages,
@@ -810,7 +842,7 @@ public class ServiceResourceProvider extends AbstractControllerResourceProvider 
               + ", newDesiredState=" + newState);
         }
         if (!changedComps.containsKey(newState)) {
-          changedComps.put(newState, new ArrayList<ServiceComponent>());
+          changedComps.put(newState, new ArrayList<>());
         }
         changedComps.get(newState).add(sc);
       }
@@ -878,12 +910,10 @@ public class ServiceResourceProvider extends AbstractControllerResourceProvider 
           }
         }
         if (!changedScHosts.containsKey(sc.getName())) {
-          changedScHosts.put(sc.getName(),
-              new EnumMap<State, List<ServiceComponentHost>>(State.class));
+          changedScHosts.put(sc.getName(), new EnumMap<>(State.class));
         }
         if (!changedScHosts.get(sc.getName()).containsKey(newState)) {
-          changedScHosts.get(sc.getName()).put(newState,
-              new ArrayList<ServiceComponentHost>());
+          changedScHosts.get(sc.getName()).put(newState, new ArrayList<>());
         }
         if (LOG.isDebugEnabled()) {
           LOG.debug("Handling update to ServiceComponentHost, clusterName={}, serviceName={}, componentName={}, hostname={}, currentState={}, newDesiredState={}",
@@ -920,24 +950,20 @@ public class ServiceResourceProvider extends AbstractControllerResourceProvider 
         // Run through the list of service component hosts. If all host components are in removable state,
         // the service can be deleted, irrespective of it's state.
         //
-        boolean isServiceRemovable = true;
+        List<ServiceComponentHost> nonRemovableComponents =  service.getServiceComponents().values().stream()
+          .flatMap(sch -> sch.getServiceComponentHosts().values().stream())
+          .filter(sch -> !sch.canBeRemoved())
+          .collect(Collectors.toList());
 
-        for (ServiceComponent sc : service.getServiceComponents().values()) {
-          Map<String, ServiceComponentHost> schHostMap = sc.getServiceComponentHosts();
+        if (!nonRemovableComponents.isEmpty()) {
+          for (ServiceComponentHost sch: nonRemovableComponents){
+            String msg = String.format("Cannot remove %s/%s. %s on %s is in %s state.",
+              serviceRequest.getClusterName(), serviceRequest.getServiceName(), sch.getServiceComponentName(),
+              sch.getHost(), String.valueOf(sch.getState()));
 
-          for (Map.Entry<String, ServiceComponentHost> entry : schHostMap.entrySet()) {
-            ServiceComponentHost sch = entry.getValue();
-            if (!sch.canBeRemoved()) {
-              String msg = "Cannot remove " + serviceRequest.getClusterName() + "/" + serviceRequest.getServiceName() +
-                      ". " + sch.getServiceComponentName() + "on " + sch.getHost() + " is in " +
-                      String.valueOf(sch.getDesiredState()) + " state.";
-              LOG.error(msg);
-              isServiceRemovable = false;
-            }
+            LOG.error(msg);
           }
-        }
 
-        if (!isServiceRemovable) {
           throw new AmbariException ("Cannot remove " +
                   serviceRequest.getClusterName() + "/" + serviceRequest.getServiceName() +
                     ". " + "One or more host components are in a non-removable state.");
@@ -947,9 +973,12 @@ public class ServiceResourceProvider extends AbstractControllerResourceProvider 
       }
     }
 
+    DeleteHostComponentStatusMetaData deleteMetaData = new DeleteHostComponentStatusMetaData();
     for (Service service : removable) {
-      service.getCluster().deleteService(service.getName());
+      service.getCluster().deleteService(service.getName(), deleteMetaData);
+      STOMPComponentsDeleteHandler.processDeleteByMetaDataException(deleteMetaData);
     }
+    STOMPComponentsDeleteHandler.processDeleteByMetaData(deleteMetaData);
 
     return null;
   }
@@ -1029,7 +1058,7 @@ public class ServiceResourceProvider extends AbstractControllerResourceProvider 
   }
 
   private void validateCreateRequests(Set<ServiceRequest> requests, Clusters clusters)
-      throws AuthorizationException, AmbariException {
+          throws AuthorizationException, AmbariException {
 
     AmbariMetaInfo ambariMetaInfo = getManagementController().getAmbariMetaInfo();
     Map<String, Set<String>> serviceNames = new HashMap<>();
@@ -1042,17 +1071,15 @@ public class ServiceResourceProvider extends AbstractControllerResourceProvider 
       Validate.notEmpty(serviceName, "Service name should be provided when creating a service");
 
       if (LOG.isDebugEnabled()) {
-        LOG.debug("Received a createService request, clusterName={}, serviceName={}, request={}",
-            clusterName, serviceName, request);
+        LOG.debug("Received a createService request, clusterName={}, serviceName={}, request={}", clusterName, serviceName, request);
       }
 
-      if (!AuthorizationHelper.isAuthorized(ResourceType.CLUSTER, getClusterResourceId(clusterName),
-          RoleAuthorization.SERVICE_ADD_DELETE_SERVICES)) {
+      if(!AuthorizationHelper.isAuthorized(ResourceType.CLUSTER, getClusterResourceId(clusterName), RoleAuthorization.SERVICE_ADD_DELETE_SERVICES)) {
         throw new AuthorizationException("The user is not authorized to create services");
       }
 
       if (!serviceNames.containsKey(clusterName)) {
-        serviceNames.put(clusterName, new HashSet<String>());
+        serviceNames.put(clusterName, new HashSet<>());
       }
 
       if (serviceNames.get(clusterName).contains(serviceName)) {
@@ -1065,8 +1092,8 @@ public class ServiceResourceProvider extends AbstractControllerResourceProvider 
       if (StringUtils.isNotEmpty(request.getDesiredState())) {
         State state = State.valueOf(request.getDesiredState());
         if (!state.isValidDesiredState() || state != State.INIT) {
-          throw new IllegalArgumentException(
-              "Invalid desired state" + " only INIT state allowed during creation"
+          throw new IllegalArgumentException("Invalid desired state"
+                  + " only INIT state allowed during creation"
                   + ", providedDesiredState=" + request.getDesiredState());
         }
       }
@@ -1075,8 +1102,7 @@ public class ServiceResourceProvider extends AbstractControllerResourceProvider 
       try {
         cluster = clusters.getCluster(clusterName);
       } catch (ClusterNotFoundException e) {
-        throw new ParentObjectNotFoundException(
-            "Attempted to add a service to a cluster which doesn't exist", e);
+        throw new ParentObjectNotFoundException("Attempted to add a service to a cluster which doesn't exist", e);
       }
       try {
         Service s = cluster.getService(serviceName);
@@ -1117,26 +1143,23 @@ public class ServiceResourceProvider extends AbstractControllerResourceProvider 
       }
 
       if (null == desiredRepositoryVersion) {
-        throw new IllegalArgumentException(String.format("%s is required when adding a service.",
-            SERVICE_DESIRED_REPO_VERSION_ID_PROPERTY_ID));
+        throw new IllegalArgumentException(String.format("%s is required when adding a service.", SERVICE_DESIRED_REPO_VERSION_ID_PROPERTY_ID));
       }
 
-      RepositoryVersionEntity repositoryVersion = repositoryVersionDAO.findByPK(
-          desiredRepositoryVersion);
+      RepositoryVersionEntity repositoryVersion = repositoryVersionDAO.findByPK(desiredRepositoryVersion);
 
       if (null == repositoryVersion) {
-        throw new IllegalArgumentException(String.format(
-            "Could not find any repositories defined by %d", desiredRepositoryVersion));
+        throw new IllegalArgumentException(String.format("Could not find any repositories defined by %d", desiredRepositoryVersion));
       }
 
       StackId stackId = repositoryVersion.getStackId();
 
       request.setResolvedRepository(repositoryVersion);
 
-      if (!ambariMetaInfo.isValidService(stackId.getStackName(), stackId.getStackVersion(),
-          request.getServiceName())) {
-        throw new IllegalArgumentException("Unsupported or invalid service in stack, clusterName="
-            + clusterName + ", serviceName=" + serviceName + ", stackInfo=" + stackId.getStackId());
+      if (!ambariMetaInfo.isValidService(stackId.getStackName(),
+              stackId.getStackVersion(), request.getServiceName())) {
+        throw new IllegalArgumentException("Unsupported or invalid service in stack, clusterName=" + clusterName
+                + ", serviceName=" + serviceName + ", stackInfo=" + stackId.getStackId());
       }
 
       // validate the credential store input provided
@@ -1146,25 +1169,25 @@ public class ServiceResourceProvider extends AbstractControllerResourceProvider 
       if (StringUtils.isNotEmpty(request.getCredentialStoreEnabled())) {
         boolean credentialStoreEnabled = Boolean.parseBoolean(request.getCredentialStoreEnabled());
         if (!serviceInfo.isCredentialStoreSupported() && credentialStoreEnabled) {
-          throw new IllegalArgumentException("Invalid arguments, cannot enable credential store "
-              + "as it is not supported by the service. Service=" + request.getServiceName());
-    }
+          throw new IllegalArgumentException("Invalid arguments, cannot enable credential store " +
+              "as it is not supported by the service. Service=" + request.getServiceName());
+        }
       }
     }
     // ensure only a single cluster update
     if (serviceNames.size() != 1) {
-      throw new IllegalArgumentException(
-          "Invalid arguments, updates allowed" + "on only one cluster at a time");
+      throw new IllegalArgumentException("Invalid arguments, updates allowed"
+              + "on only one cluster at a time");
     }
 
     // Validate dups
     if (!duplicates.isEmpty()) {
       String clusterName = requests.iterator().next().getClusterName();
-      String msg = "Attempted to create a service which already exists: " + ", clusterName="
-          + clusterName + " serviceName=" + StringUtils.join(duplicates, ",");
+      String msg = "Attempted to create a service which already exists: "
+              + ", clusterName=" + clusterName  + " serviceName=" + StringUtils.join(duplicates, ",");
 
       throw new DuplicateResourceException(msg);
     }
 
-}
+  }
 }

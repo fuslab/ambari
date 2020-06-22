@@ -87,6 +87,7 @@ public class PreUpgradeCheckResourceProvider extends ReadOnlyResourceProvider {
    * Optional parameter to specify the preferred Upgrade Pack to use.
    */
   public static final String UPGRADE_CHECK_UPGRADE_PACK_PROPERTY_ID       = PropertyHelper.getPropertyId("UpgradeChecks", "upgrade_pack");
+  public static final String UPGRADE_CHECK_REPOSITORY_VERSION_PROPERTY_ID = PropertyHelper.getPropertyId("UpgradeChecks", "repository_version");
   public static final String UPGRADE_CHECK_FOR_REVERT_PROPERTY_ID = PropertyHelper.getPropertyId("UpgradeChecks", "for_revert");
 
   @Inject
@@ -119,9 +120,9 @@ public class PreUpgradeCheckResourceProvider extends ReadOnlyResourceProvider {
       UPGRADE_CHECK_CHECK_TYPE_PROPERTY_ID,
       UPGRADE_CHECK_CLUSTER_NAME_PROPERTY_ID,
       UPGRADE_CHECK_UPGRADE_TYPE_PROPERTY_ID,
+      UPGRADE_CHECK_FOR_REVERT_PROPERTY_ID,
       UPGRADE_CHECK_TARGET_REPOSITORY_VERSION_ID_ID,
-      UPGRADE_CHECK_UPGRADE_PACK_PROPERTY_ID,
-      UPGRADE_CHECK_FOR_REVERT_PROPERTY_ID);
+      UPGRADE_CHECK_UPGRADE_PACK_PROPERTY_ID);
 
 
   @SuppressWarnings("serial")
@@ -174,7 +175,7 @@ public class PreUpgradeCheckResourceProvider extends ReadOnlyResourceProvider {
 
       if (StringUtils.isBlank(repositoryVersionId)) {
         throw new SystemException(
-            String.format("%s is a required property when executing upgrade pre-requisite checks",
+            String.format("%s is a required property when executing upgrade checks",
                 UPGRADE_CHECK_TARGET_REPOSITORY_VERSION_ID_ID));
       }
 

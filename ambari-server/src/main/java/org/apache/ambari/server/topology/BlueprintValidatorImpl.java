@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,14 +18,19 @@
 
 package org.apache.ambari.server.topology;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.ambari.server.StaticallyInject;
 import org.apache.ambari.server.controller.internal.Stack;
 import org.apache.ambari.server.state.AutoDeployInfo;
+import org.apache.ambari.server.state.ComponentInfo;
+import org.apache.ambari.server.state.DependencyConditionInfo;
 import org.apache.ambari.server.state.DependencyInfo;
 import org.apache.ambari.server.utils.SecretReference;
 import org.apache.ambari.server.utils.VersionUtils;
@@ -60,7 +65,7 @@ public class BlueprintValidatorImpl implements BlueprintValidator {
   public void validateTopology() throws InvalidTopologyException {
     LOGGER.info("Validating topology for blueprint: [{}]", blueprint.getName());
     Collection<HostGroup> hostGroups = blueprint.getHostGroups().values();
-    Map<String, Map<String, Collection<DependencyInfo>>> missingDependencies = new HashMap<String, Map<String, Collection<DependencyInfo>>>();
+    Map<String, Map<String, Collection<DependencyInfo>>> missingDependencies = new HashMap<>();
 
     for (HostGroup group : hostGroups) {
       Map<String, Collection<DependencyInfo>> missingGroupDependencies = validateHostGroup(group);
@@ -69,7 +74,7 @@ public class BlueprintValidatorImpl implements BlueprintValidator {
       }
     }
 
-    Collection<String> cardinalityFailures = new HashSet<String>();
+    Collection<String> cardinalityFailures = new HashSet<>();
     Collection<String> services = blueprint.getServices();
 
     for (String service : services) {
@@ -127,15 +132,15 @@ public class BlueprintValidatorImpl implements BlueprintValidator {
       }
       if (containsSecretReferences) {
         throw new InvalidTopologyException("Secret references are not allowed in blueprints, " +
-          "replace following properties with real passwords:\n" + errorMessage.toString());
+          "replace following properties with real passwords:\n" + errorMessage);
       }
     }
 
 
     for (HostGroup hostGroup : blueprint.getHostGroups().values()) {
-      Collection<String> processedServices = new HashSet<String>();
-      Map<String, Collection<String>> allRequiredProperties = new HashMap<String, Collection<String>>();
-      Map<String, Map<String, String>> operationalConfiguration = new HashMap<String, Map<String, String>>(clusterConfigurations);
+      Collection<String> processedServices = new HashSet<>();
+      Map<String, Collection<String>> allRequiredProperties = new HashMap<>();
+      Map<String, Map<String, String>> operationalConfiguration = new HashMap<>(clusterConfigurations);
 
       operationalConfiguration.putAll(hostGroup.getConfiguration().getProperties());
       for (String component : hostGroup.getComponentNames()) {
@@ -148,6 +153,31 @@ public class BlueprintValidatorImpl implements BlueprintValidator {
               " using existing db!");
           }
         }
+        if (ClusterTopologyImpl.isNameNodeHAEnabled(clusterConfigurations) && component.equals("NAMENODE")) {
+            Map<String, String> hadoopEnvConfig = clusterConfigurations.get("hadoop-env");
+            if(hadoopEnvConfig != null && !hadoopEnvConfig.isEmpty() && hadoopEnvConfig.containsKey("dfs_ha_initial_namenode_active") && hadoopEnvConfig.containsKey("dfs_ha_initial_namenode_standby")) {
+              ArrayList<HostGroup> hostGroupsForComponent = new ArrayList<>(blueprint.getHostGroupsForComponent(component));
+              Set<String> givenHostGroups = new HashSet<>();
+              givenHostGroups.add(hadoopEnvConfig.get("dfs_ha_initial_namenode_active"));
+              givenHostGroups.add(hadoopEnvConfig.get("dfs_ha_initial_namenode_standby"));
+              if(givenHostGroups.size() != hostGroupsForComponent.size()) {
+                 throw new IllegalArgumentException("NAMENODE HA host groups mapped incorrectly for properties 'dfs_ha_initial_namenode_active' and 'dfs_ha_initial_namenode_standby'. Expected Host groups are :" + hostGroupsForComponent);
+              }
+              if(HostGroup.HOSTGROUP_REGEX.matcher(hadoopEnvConfig.get("dfs_ha_initial_namenode_active")).matches() && HostGroup.HOSTGROUP_REGEX.matcher(hadoopEnvConfig.get("dfs_ha_initial_namenode_standby")).matches()){
+                for (HostGroup hostGroupForComponent : hostGroupsForComponent) {
+                   Iterator<String> itr = givenHostGroups.iterator();
+                   while(itr.hasNext()){
+                      if(itr.next().contains(hostGroupForComponent.getName())){
+                         itr.remove();
+                      }
+                   }
+                 }
+                 if(!givenHostGroups.isEmpty()){
+                    throw new IllegalArgumentException("NAMENODE HA host groups mapped incorrectly for properties 'dfs_ha_initial_namenode_active' and 'dfs_ha_initial_namenode_standby'. Expected Host groups are :" + hostGroupsForComponent);
+                 }
+                }
+              }
+          }
 
         if (component.equals("HIVE_METASTORE")) {
           Map<String, String> hiveEnvConfig = clusterConfigurations.get("hive-env");
@@ -185,7 +215,7 @@ public class BlueprintValidatorImpl implements BlueprintValidator {
    */
   private Collection<String> verifyComponentInAllHostGroups(String component, AutoDeployInfo autoDeploy) {
 
-    Collection<String> cardinalityFailures = new HashSet<String>();
+    Collection<String> cardinalityFailures = new HashSet<>();
     int actualCount = blueprint.getHostGroupsForComponent(component).size();
     Map<String, HostGroup> hostGroups = blueprint.getHostGroups();
     if (actualCount != hostGroups.size()) {
@@ -202,9 +232,9 @@ public class BlueprintValidatorImpl implements BlueprintValidator {
 
   private Map<String, Collection<DependencyInfo>> validateHostGroup(HostGroup group) {
     LOGGER.info("Validating hostgroup: {}", group.getName());
-    Map<String, Collection<DependencyInfo>> missingDependencies = new HashMap<String, Collection<DependencyInfo>>();
+    Map<String, Collection<DependencyInfo>> missingDependencies = new HashMap<>();
 
-    for (String component : new HashSet<String>(group.getComponentNames())) {
+    for (String component : new HashSet<>(group.getComponentNames())) {
       LOGGER.debug("Processing component: {}", component);
 
       for (DependencyInfo dependency : stack.getDependenciesForComponent(component)) {
@@ -218,7 +248,13 @@ public class BlueprintValidatorImpl implements BlueprintValidator {
         }
 
         // dependent components from the stack definitions are only added if related services are explicitly added to the blueprint!
-        boolean isClientDependency = stack.getComponentInfo(dependency.getComponentName()).isClient();
+        ComponentInfo dependencyComponent = stack.getComponentInfo(dependency.getComponentName());
+        if (dependencyComponent == null) {
+          LOGGER.debug("The component [{}] is not associated with any known services, skipping dependency", dependency.getComponentName());
+          continue;
+        }
+
+        boolean isClientDependency = dependencyComponent.isClient();
         if (isClientDependency && !blueprint.getServices().contains(dependency.getServiceName())) {
           LOGGER.debug("The service [{}] for component [{}] is missing from the blueprint [{}], skipping dependency",
               dependency.getServiceName(), dependency.getComponentName(), blueprint.getName());
@@ -230,13 +266,26 @@ public class BlueprintValidatorImpl implements BlueprintValidator {
         AutoDeployInfo autoDeployInfo  = dependency.getAutoDeploy();
         boolean        resolved        = false;
 
+        //check if conditions are met, if any
+        if(dependency.hasDependencyConditions()) {
+          boolean conditionsSatisfied = true;
+          for (DependencyConditionInfo dependencyCondition : dependency.getDependencyConditions()) {
+            if (!dependencyCondition.isResolved(blueprint.getConfiguration().getFullProperties())) {
+              conditionsSatisfied = false;
+              break;
+            }
+          }
+          if(!conditionsSatisfied){
+            continue;
+          }
+        }
         if (dependencyScope.equals("cluster")) {
           Collection<String> missingDependencyInfo = verifyComponentCardinalityCount(
               componentName, new Cardinality("1+"), autoDeployInfo);
 
           resolved = missingDependencyInfo.isEmpty();
         } else if (dependencyScope.equals("host")) {
-          if (group.getComponentNames().contains(component) || (autoDeployInfo != null && autoDeployInfo.isEnabled())) {
+          if (group.getComponentNames().contains(componentName) || (autoDeployInfo != null && autoDeployInfo.isEnabled())) {
             resolved = true;
             group.addComponent(componentName);
           }
@@ -245,7 +294,7 @@ public class BlueprintValidatorImpl implements BlueprintValidator {
         if (! resolved) {
           Collection<DependencyInfo> missingCompDependencies = missingDependencies.get(component);
           if (missingCompDependencies == null) {
-            missingCompDependencies = new HashSet<DependencyInfo>();
+            missingCompDependencies = new HashSet<>();
             missingDependencies.put(component, missingCompDependencies);
           }
           missingCompDependencies.add(dependency);
@@ -270,7 +319,7 @@ public class BlueprintValidatorImpl implements BlueprintValidator {
                                                             AutoDeployInfo autoDeploy) {
 
     Map<String, Map<String, String>> configProperties = blueprint.getConfiguration().getProperties();
-    Collection<String> cardinalityFailures = new HashSet<String>();
+    Collection<String> cardinalityFailures = new HashSet<>();
     //todo: don't hard code this HA logic here
     if (ClusterTopologyImpl.isNameNodeHAEnabled(configProperties) &&
         (component.equals("SECONDARY_NAMENODE"))) {

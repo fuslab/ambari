@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,21 @@
 
 package org.apache.ambari.server.orm.dao;
 
-import com.google.inject.Guice;
-import com.google.inject.Injector;
-import com.google.inject.persist.UnitOfWork;
-import junit.framework.Assert;
-import org.apache.ambari.server.controller.RootServiceResponseFactory;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.List;
+import java.util.TimeZone;
+import java.util.UUID;
+
+import org.apache.ambari.server.H2DatabaseCleaner;
+import org.apache.ambari.server.controller.RootComponent;
+import org.apache.ambari.server.controller.RootService;
 import org.apache.ambari.server.orm.GuiceJpaInitializer;
 import org.apache.ambari.server.orm.InMemoryDefaultTestModule;
 import org.apache.ambari.server.orm.OrmTestHelper;
@@ -41,23 +51,13 @@ import org.apache.ambari.server.state.alert.Scope;
 import org.apache.ambari.server.state.alert.SourceType;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.List;
-import java.util.TimeZone;
-import java.util.UUID;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import com.google.inject.persist.UnitOfWork;
 
-import org.apache.ambari.server.H2DatabaseCleaner;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import junit.framework.Assert;
 
 /**
  * Tests {@link AlertDefinitionDAO} for interacting with
@@ -149,8 +149,8 @@ public class AlertDefinitionDAOTest {
     for (; i < 15; i++) {
       AlertDefinitionEntity definition = new AlertDefinitionEntity();
       definition.setDefinitionName("Alert Definition " + i);
-      definition.setServiceName(RootServiceResponseFactory.Services.AMBARI.name());
-      definition.setComponentName(RootServiceResponseFactory.Components.AMBARI_AGENT.name());
+      definition.setServiceName(RootService.AMBARI.name());
+      definition.setComponentName(RootComponent.AMBARI_AGENT.name());
       definition.setClusterId(clusterId);
       definition.setHash(UUID.randomUUID().toString());
       definition.setScheduleInterval(60);
@@ -232,7 +232,7 @@ public class AlertDefinitionDAOTest {
   @Test
   public void testFindByIds() {
     List<AlertDefinitionEntity> definitions = dao.findAll();
-    List<Long> ids = new ArrayList<Long>();
+    List<Long> ids = new ArrayList<>();
     ids.add(definitions.get(0).getDefinitionId());
     ids.add(definitions.get(1).getDefinitionId());
     ids.add(99999L);
@@ -277,12 +277,6 @@ public class AlertDefinitionDAOTest {
     List<AlertDefinitionEntity> definitions = dao.findAgentScoped(clusterId);
     assertNotNull(definitions);
     assertEquals(3, definitions.size());
-  }
-
-  @Test
-  public void testFindBySourceType() throws Exception {
-    assertEquals(15, dao.findBySourceType(clusterId, SourceType.SCRIPT).size());
-    assertEquals(0, dao.findBySourceType(clusterId, SourceType.METRIC).size());
   }
 
   @Test

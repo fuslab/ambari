@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,10 +31,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.ambari.server.api.services.AmbariMetaInfo;
 import org.apache.ambari.server.metadata.ActionMetadata;
 import org.apache.ambari.server.orm.dao.MetainfoDAO;
-import org.apache.ambari.server.orm.entities.MetainfoEntity;
 import org.apache.ambari.server.state.stack.OsFamily;
 import org.apache.ambari.server.state.stack.RepoUrlInfoCallable;
 import org.apache.ambari.server.state.stack.RepoUrlInfoCallable.RepoUrlInfoResult;
@@ -42,7 +40,6 @@ import org.apache.ambari.server.state.stack.RepoVdfCallable;
 import org.apache.commons.collections.MapUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 
 /**
  * Provides external functionality to the Stack framework.
@@ -62,11 +59,6 @@ public class StackContext {
    * Executor used to get latest repo url's
    */
   private LatestRepoQueryExecutor repoUpdateExecutor;
-
-  /**
-   * Repository XML base url property name
-   */
-  private static final String REPOSITORY_XML_PROPERTY_BASEURL = "baseurl";
 
   private final static Logger LOG = LoggerFactory.getLogger(StackContext.class);
   private static final int THREAD_COUNT = 10;
@@ -95,24 +87,6 @@ public class StackContext {
   }
 
   /**
-   * Obtain an updated url for the repo.
-   * This will check the database for a user update of the repo url.
-   *
-   * @param stackName     stack name
-   * @param stackVersion  stack version
-   * @param osType        OS type
-   * @param repoId        repo id
-   *
-   * @return  an update url or null if the url has not been updated
-   */
-  public String getUpdatedRepoUrl(String stackName, String stackVersion, String osType, String repoId) {
-    String key = AmbariMetaInfo.generateRepoMetaKey(stackName, stackVersion,
-            osType, repoId, REPOSITORY_XML_PROPERTY_BASEURL);
-    MetainfoEntity entity = metaInfoDAO.findByKey(key);
-    return entity != null ? entity.getMetainfoValue() : null;
-  }
-
-  /**
    * Register a task to obtain the latest repo url from an external location.
    *
    * @param url    external repo information URL
@@ -121,7 +95,6 @@ public class StackContext {
   public void registerRepoUpdateTask(URI uri, StackModule stack) {
     repoUpdateExecutor.addTask(uri, stack);
   }
-
 
   /**
    * Execute the registered repo update tasks.
@@ -189,7 +162,6 @@ public class StackContext {
       callable.addStack(stackModule);
     }
 
-
     /**
      * Execute all tasks.
      */
@@ -250,8 +222,6 @@ public class StackContext {
         LOG.info("Loaded all VDF in " + TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - currentTime) + "ms");
       }
     }
-
-
 
     /**
      * Determine whether all tasks have completed.

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,18 +34,13 @@ import org.apache.ambari.server.actionmanager.HostRoleCommand;
 import org.apache.ambari.server.actionmanager.HostRoleStatus;
 import org.apache.ambari.server.actionmanager.ServiceComponentHostEventWrapper;
 import org.apache.ambari.server.agent.CommandReport;
-import org.apache.ambari.server.api.services.AmbariMetaInfo;
 import org.apache.ambari.server.metadata.ActionMetadata;
 import org.apache.ambari.server.orm.dao.HostRoleCommandDAO;
-import org.apache.ambari.server.orm.dao.UpgradeDAO;
 import org.apache.ambari.server.orm.entities.HostRoleCommandEntity;
 import org.apache.ambari.server.orm.entities.UpgradeGroupEntity;
 import org.apache.ambari.server.orm.entities.UpgradeItemEntity;
-import org.apache.ambari.server.serveraction.AbstractServerAction;
 import org.apache.ambari.server.state.Cluster;
-import org.apache.ambari.server.state.Clusters;
 import org.apache.ambari.server.state.ServiceComponentHostEvent;
-import org.apache.ambari.server.state.StackId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +54,7 @@ import com.google.inject.Inject;
  * {@link HostRoleStatus#COMPLETED} if there are no skipped failures. Otherwise
  * it will be placed into {@link HostRoleStatus#HOLDING}.
  */
-public class AutoSkipFailedSummaryAction extends AbstractServerAction {
+public class AutoSkipFailedSummaryAction extends AbstractUpgradeServerAction {
 
   /**
    * Logger.
@@ -75,12 +70,6 @@ public class AutoSkipFailedSummaryAction extends AbstractServerAction {
   private static final String SKIPPED_HOST_COMPONENT = "host_component";
   private static final String SKIPPED = "skipped";
   private static final String FAILURES = "failures";
-
-  /**
-   * Used to lookup the {@link UpgradeGroupEntity}.
-   */
-  @Inject
-  private UpgradeDAO m_upgradeDAO;
 
   /**
    * Used to lookup the tasks that need to be checked for
@@ -101,11 +90,6 @@ public class AutoSkipFailedSummaryAction extends AbstractServerAction {
   @Inject
   private ActionMetadata actionMetadata;
 
-  @Inject
-  private AmbariMetaInfo ambariMetaInfo;
-
-  @Inject
-  private Clusters clusters;
 
   /**
    * A mapping of host -> Map<key,info> for each failure.
@@ -124,8 +108,7 @@ public class AutoSkipFailedSummaryAction extends AbstractServerAction {
     long stageId = hostRoleCommand.getStageId();
 
     String clusterName = hostRoleCommand.getExecutionCommandWrapper().getExecutionCommand().getClusterName();
-    Cluster cluster = clusters.getCluster(clusterName);
-    StackId stackId = cluster.getDesiredStackVersion();
+    Cluster cluster = getClusters().getCluster(clusterName);
 
     // use the host role command to get to the parent upgrade group
     UpgradeItemEntity upgradeItem = m_upgradeDAO.findUpgradeItemByRequestAndStage(requestId,stageId);
@@ -190,15 +173,15 @@ public class AutoSkipFailedSummaryAction extends AbstractServerAction {
               failures = new ArrayList<>();
               hostComponents.put(hostName, failures);
 
-              publishedHostComponents.put(hostName, new HashSet<Role>());
+              publishedHostComponents.put(hostName, new HashSet<>());
             }
 
             Set<Role> publishedHostComponentsOnHost = publishedHostComponents.get(hostName);
             Role role = skippedTask.getRole();
             if (! publishedHostComponentsOnHost.contains(role)) {
               HashMap<String, String> details = new HashMap<>();
-              String service = ambariMetaInfo.getComponentToService(
-                stackId.getStackName(), stackId.getStackVersion(), role.toString());
+
+              String service = cluster.getServiceByComponentName(role.toString()).getName();
 
               details.put("service", service);
               details.put("component", role.toString());

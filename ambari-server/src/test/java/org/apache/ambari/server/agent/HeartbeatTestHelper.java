@@ -18,6 +18,7 @@
 package org.apache.ambari.server.agent;
 
 import static org.apache.ambari.server.agent.DummyHeartbeatConstants.DummyCluster;
+import static org.apache.ambari.server.agent.DummyHeartbeatConstants.DummyClusterId;
 import static org.apache.ambari.server.agent.DummyHeartbeatConstants.DummyHostname1;
 import static org.apache.ambari.server.agent.DummyHeartbeatConstants.DummyOSRelease;
 import static org.apache.ambari.server.agent.DummyHeartbeatConstants.DummyOs;
@@ -43,6 +44,7 @@ import org.apache.ambari.server.actionmanager.Request;
 import org.apache.ambari.server.actionmanager.Stage;
 import org.apache.ambari.server.actionmanager.StageFactory;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
+import org.apache.ambari.server.events.publishers.STOMPUpdatePublisher;
 import org.apache.ambari.server.orm.InMemoryDefaultTestModule;
 import org.apache.ambari.server.orm.OrmTestHelper;
 import org.apache.ambari.server.orm.dao.ClusterDAO;
@@ -64,6 +66,7 @@ import org.apache.ambari.server.state.StackId;
 import org.apache.ambari.server.state.cluster.ClustersImpl;
 import org.apache.ambari.server.state.fsm.InvalidStateTransitionException;
 import org.apache.ambari.server.state.svccomphost.ServiceComponentHostStartEvent;
+import org.easymock.EasyMock;
 
 import com.google.inject.Inject;
 import com.google.inject.Injector;
@@ -116,13 +119,14 @@ public class HeartbeatTestHelper {
       @Override
       protected void configure() {
         super.configure();
+        binder().bind(STOMPUpdatePublisher.class).toInstance(EasyMock.createNiceMock(STOMPUpdatePublisher.class));
       }
     };
   }
 
-  public HeartBeatHandler getHeartBeatHandler(ActionManager am, ActionQueue aq)
+  public HeartBeatHandler getHeartBeatHandler(ActionManager am)
       throws InvalidStateTransitionException, AmbariException {
-    HeartBeatHandler handler = new HeartBeatHandler(clusters, aq, am, injector);
+    HeartBeatHandler handler = new HeartBeatHandler(clusters, am, injector);
     Register reg = new Register();
     HostInfo hi = new HostInfo();
     hi.setHostName(DummyHostname1);
@@ -151,11 +155,11 @@ public class HeartbeatTestHelper {
       add(DummyHostname1);
     }};
 
-    return getDummyCluster(DummyCluster, new StackId(DummyStackId), DummyRepositoryVersion,
+    return getDummyCluster(DummyCluster, new Long(DummyClusterId), new StackId(DummyStackId), DummyRepositoryVersion,
         configProperties, hostNames);
   }
 
-  public Cluster getDummyCluster(String clusterName, StackId stackId, String repositoryVersion,
+  public Cluster getDummyCluster(String clusterName, Long clusterId, StackId stackId, String repositoryVersion,
       Map<String, String> configProperties, Set<String> hostNames)
       throws Exception {
     StackEntity stackEntity = stackDAO.find(stackId.getStackName(), stackId.getStackVersion());
@@ -172,6 +176,7 @@ public class HeartbeatTestHelper {
 
     ClusterEntity clusterEntity = new ClusterEntity();
     clusterEntity.setClusterName(clusterName);
+    clusterEntity.setClusterId(clusterId);
     clusterEntity.setClusterInfo("test_cluster_info1");
     clusterEntity.setResource(resourceEntity);
     clusterEntity.setDesiredStack(stackEntity);
@@ -182,7 +187,7 @@ public class HeartbeatTestHelper {
     // forcefully will refresh the internal state so that any tests which
     // incorrect use Clusters after calling this won't be affected
     Clusters clusters = injector.getInstance(Clusters.class);
-    Method method = ClustersImpl.class.getDeclaredMethod("loadClustersAndHosts");
+    Method method = ClustersImpl.class.getDeclaredMethod("safelyLoadClustersAndHosts");
     method.setAccessible(true);
     method.invoke(clusters);
 
@@ -192,7 +197,7 @@ public class HeartbeatTestHelper {
     cluster.setCurrentStackVersion(stackId);
 
     ConfigFactory cf = injector.getInstance(ConfigFactory.class);
-    Config config = cf.createNew(stackId, cluster, "cluster-env", "version1", configProperties, new HashMap<String, Map<String, String>>());
+    Config config = cf.createNew(cluster, "cluster-env", "version1", configProperties, new HashMap<>());
     cluster.addDesiredConfig("user", Collections.singleton(config));
 
 

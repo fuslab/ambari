@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,10 +18,10 @@
 
 package org.apache.ambari.server.api.query;
 
-import org.apache.ambari.server.api.resources.ResourceDefinition;
-
 import java.util.HashSet;
 import java.util.Set;
+
+import org.apache.ambari.server.api.resources.ResourceDefinition;
 
 /**
  * Query related information.
@@ -48,7 +48,7 @@ public class QueryInfo {
    */
   public QueryInfo(ResourceDefinition resource, Set<String> properties) {
     m_resource   = resource;
-    m_properties = new HashSet<String>(properties);
+    m_properties = new HashSet<>(properties);
   }
 
   // ----- QueryInfo ---------------------------------------------------------

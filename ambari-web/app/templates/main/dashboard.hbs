@@ -16,21 +16,17 @@
 * limitations under the License.
 }}
 
-<div class="row-fluid">
-  <div class="services-menu well span2 service-menu-width" style="padding: 8px 0">
-    {{view App.MainServiceMenuView}}
-    {{view App.AllServicesActionView}}
-  </div>
-    <div class="summary-width span10" id="dashboard-widgets-container">
-      <ul class="nav nav-tabs background-text">
-        {{#each category in view.categories}}
-          {{#view view.NavItemView itemBinding="category.name" }}
-            <a href="#" {{action "goToDashboardView" category.url}} >{{category.label}}</a>
-          {{/view}}
-        {{/each}}
-      </ul>
+<div class="row">
+  <div class="summary-width col-md-12" id="dashboard-widgets-container">
+    <ul class="nav nav-tabs background-text">
+      {{#each category in view.categories}}
+        {{#view view.NavItemView itemBinding="category.name" }}
+          <a href="#" {{action "goToDashboardView" category.url}} >{{category.label}}</a>
+        {{/view}}
+      {{/each}}
+    </ul>
 
-      <!--show widgets, heatmaps or configs in the content-->
-      {{outlet}}
-    </div>
+    <!--show widgets, heatmaps or configs in the content-->
+    {{outlet}}
+  </div>
 </div>

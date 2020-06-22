@@ -27,8 +27,66 @@ import socket
 import re
 import xml.etree.ElementTree as ET
 
+# Local Imports
+
+try:
+  from stack_advisor_hdp21 import *
+except ImportError:
+  #Ignore ImportError
+  print("stack_advisor_hdp21 not found")
 
 class HDP22StackAdvisor(HDP21StackAdvisor):
+
+  def __init__(self):
+    super(HDP22StackAdvisor, self).__init__()
+    self.initialize_logger("HDP22StackAdvisor")
+
+    self.modifyMastersWithMultipleInstances()
+    self.modifyCardinalitiesDict()
+    self.modifyHeapSizeProperties()
+    self.modifyNotValuableComponents()
+    self.modifyComponentsNotPreferableOnServer()
+
+  def modifyMastersWithMultipleInstances(self):
+    """
+    Modify the set of masters with multiple instances.
+    Must be overriden in child class.
+    """
+    self.mastersWithMultipleInstances |= set(['METRICS_COLLECTOR'])
+
+  def modifyCardinalitiesDict(self):
+    """
+    Modify the dictionary of cardinalities.
+    Must be overriden in child class.
+    """
+    self.cardinalitiesDict.update(
+      {
+        'METRICS_COLLECTOR': {"min": 1}
+      }
+    )
+
+  def modifyHeapSizeProperties(self):
+    """
+    Modify the dictionary of heap size properties.
+    Must be overriden in child class.
+    """
+    # Nothing to do
+    pass
+
+  def modifyNotValuableComponents(self):
+    """
+    Modify the set of components whose host assignment is based on other services.
+    Must be overriden in child class.
+    """
+    self.notValuableComponents |= set(['METRICS_MONITOR'])
+
+  def modifyComponentsNotPreferableOnServer(self):
+    """
+    Modify the set of components that are not preferable on the server.
+    Must be overriden in child class.
+    """
+    # Nothing to do
+    pass
 
   def getServiceConfigurationRecommenderDict(self):
     parentRecommendConfDict = super(HDP22StackAdvisor, self).getServiceConfigurationRecommenderDict()
@@ -38,12 +96,10 @@ class HDP22StackAdvisor(HDP21StackAdvisor):
       "HBASE": self.recommendHBASEConfigurations,
       "MAPREDUCE2": self.recommendMapReduce2Configurations,
       "TEZ": self.recommendTezConfigurations,
-      "AMBARI_METRICS": self.recommendAmsConfigurations,
       "YARN": self.recommendYARNConfigurations,
       "STORM": self.recommendStormConfigurations,
       "KNOX": self.recommendKnoxConfigurations,
       "RANGER": self.recommendRangerConfigurations,
-      "LOGSEARCH" : self.recommendLogsearchConfigurations,
       "SPARK": self.recommendSparkConfigurations,
       "KAFKA": self.recommendKafkaConfigurations,
     }
@@ -76,7 +132,6 @@ class HDP22StackAdvisor(HDP21StackAdvisor):
       recommended_spark_queue = self.recommendYarnQueue(services, "spark-thrift-sparkconf", "spark.yarn.queue")
       if recommended_spark_queue is not None:
         putSparkThriftSparkConf("spark.yarn.queue", recommended_spark_queue)
-
 
   def recommendYARNConfigurations(self, configurations, clusterData, services, hosts):
     super(HDP22StackAdvisor, self).recommendYARNConfigurations(configurations, clusterData, services, hosts)
@@ -1002,71 +1057,6 @@ class HDP22StackAdvisor(HDP21StackAdvisor):
     self.mergeValidators(parentValidators, childValidators)
     return parentValidators
 
-  def recommendLogsearchConfigurations(self, configurations, clusterData, services, hosts):
-    putLogsearchProperty = self.putProperty(configurations, "logsearch-properties", services)
-    putLogsearchAttribute = self.putPropertyAttribute(configurations, "logsearch-properties")
-    putLogsearchCommonEnvProperty = self.putProperty(configurations, "logsearch-common-env", services)
-    putLogsearchCommonEnvAttribute = self.putPropertyAttribute(configurations, "logsearch-common-env")
-    putLogsearchEnvAttribute = self.putPropertyAttribute(configurations, "logsearch-env")
-    putLogfeederEnvAttribute = self.putPropertyAttribute(configurations, "logfeeder-env")
-
-    logSearchServerHosts = self.getComponentHostNames(services, "LOGSEARCH", "LOGSEARCH_SERVER")
-    if logSearchServerHosts is None or len(logSearchServerHosts) == 0:
-      for key in services['configurations']['logsearch-env']['properties']:
-        putLogsearchEnvAttribute(key, 'visible', 'false')
-      for key in services['configurations']['logsearch-properties']['properties']:
-        if key not in ['logsearch.collection.service.logs.numshards', 'logsearch.collection.audit.logs.numshards',
-                       'logsearch.solr.collection.service.logs', 'logsearch.solr.collection.audit.logs',
-                       'logsearch.service.logs.split.interval.mins', 'logsearch.audit.logs.split.interval.mins']:
-          putLogsearchAttribute(key, 'visible', 'false')
-      for key in services['configurations']['logsearch-audit_logs-solrconfig']['properties']:
-        self.putPropertyAttribute(configurations, "logsearch-audit_logs-solrconfig")(key, 'visible', 'false')
-      for key in services['configurations']['logsearch-service_logs-solrconfig']['properties']:
-        self.putPropertyAttribute(configurations, "logsearch-service_logs-solrconfig")(key, 'visible', 'false')
-      for key in services['configurations']['logsearch-log4j']['properties']:
-        self.putPropertyAttribute(configurations, "logsearch-log4j")(key, 'visible', 'false')
-      
-      putLogsearchProperty("logsearch.collection.service.logs.numshards", 2)
-      putLogsearchProperty("logsearch.collection.audit.logs.numshards", 2)
-    else:
-      infraSolrHosts = self.getComponentHostNames(services, "AMBARI_INFRA", "INFRA_SOLR")
-      if infraSolrHosts is not None and len(infraSolrHosts) > 0 and "logsearch-properties" in services["configurations"]:
-        replicationReccomendFloat = math.log(len(infraSolrHosts), 5)
-        recommendedReplicationFactor = int(1 + math.floor(replicationReccomendFloat))
-        
-        recommendedMinShards = len(infraSolrHosts)
-        recommendedShards = 2 * len(infraSolrHosts)
-        recommendedMaxShards = max(3 * len(infraSolrHosts), 5)
-      else:
-        recommendedReplicationFactor = 2
-        
-        recommendedMinShards = 1
-        recommendedShards = 1
-        recommendedMaxShards = 100
-        
-        putLogsearchCommonEnvProperty('logsearch_use_external_solr', 'true')
-        
-      # recommend number of shard
-      putLogsearchAttribute('logsearch.collection.service.logs.numshards', 'minimum', recommendedMinShards)
-      putLogsearchAttribute('logsearch.collection.service.logs.numshards', 'maximum', recommendedMaxShards)
-      putLogsearchProperty("logsearch.collection.service.logs.numshards", recommendedShards)
-      
-      putLogsearchAttribute('logsearch.collection.audit.logs.numshards', 'minimum', recommendedMinShards)
-      putLogsearchAttribute('logsearch.collection.audit.logs.numshards', 'maximum', recommendedMaxShards)
-      putLogsearchProperty("logsearch.collection.audit.logs.numshards", recommendedShards)
-      # recommend replication factor
-      putLogsearchProperty("logsearch.collection.service.logs.replication.factor", recommendedReplicationFactor)
-      putLogsearchProperty("logsearch.collection.audit.logs.replication.factor", recommendedReplicationFactor)
-      
-    kerberos_authentication_enabled = self.isSecurityEnabled(services)
-    if not kerberos_authentication_enabled:
-       putLogsearchCommonEnvProperty('logsearch_external_solr_kerberos_enabled', 'false')
-       putLogsearchCommonEnvAttribute('logsearch_external_solr_kerberos_enabled', 'visible', 'false')
-       putLogsearchEnvAttribute('logsearch_external_solr_kerberos_keytab', 'visible', 'false')
-       putLogsearchEnvAttribute('logsearch_external_solr_kerberos_principal', 'visible', 'false')
-       putLogfeederEnvAttribute('logfeeder_external_solr_kerberos_keytab', 'visible', 'false')
-       putLogfeederEnvAttribute('logfeeder_external_solr_kerberos_principal', 'visible', 'false')
-
   def validateTezConfigurations(self, properties, recommendedDefaults, configurations, services, hosts):
     validationItems = [ {"config-name": 'tez.am.resource.memory.mb', "item": self.validatorLessThenDefaultValue(properties, recommendedDefaults, 'tez.am.resource.memory.mb')},
                         {"config-name": 'tez.task.resource.memory.mb', "item": self.validatorLessThenDefaultValue(properties, recommendedDefaults, 'tez.task.resource.memory.mb')},
@@ -1154,23 +1144,23 @@ class HDP22StackAdvisor(HDP21StackAdvisor):
                         {"config-name": 'mapreduce.job.queuename', "item": self.validatorYarnQueue(properties, recommendedDefaults, 'mapreduce.job.queuename', services)} ]
 
     if 'mapreduce.map.java.opts' in properties and \
-      checkXmxValueFormat(properties['mapreduce.map.java.opts']):
-      mapreduceMapJavaOpts = formatXmxSizeToBytes(getXmxSize(properties['mapreduce.map.java.opts'])) / (1024.0 * 1024)
-      mapreduceMapMemoryMb = to_number(properties['mapreduce.map.memory.mb'])
+      self.checkXmxValueFormat(properties['mapreduce.map.java.opts']):
+      mapreduceMapJavaOpts = self.formatXmxSizeToBytes(self.getXmxSize(properties['mapreduce.map.java.opts'])) / (1024.0 * 1024)
+      mapreduceMapMemoryMb = self.to_number(properties['mapreduce.map.memory.mb'])
       if mapreduceMapJavaOpts > mapreduceMapMemoryMb:
         validationItems.append({"config-name": 'mapreduce.map.java.opts', "item": self.getWarnItem("mapreduce.map.java.opts Xmx should be less than mapreduce.map.memory.mb ({0})".format(mapreduceMapMemoryMb))})
 
     if 'mapreduce.reduce.java.opts' in properties and \
-      checkXmxValueFormat(properties['mapreduce.reduce.java.opts']):
-      mapreduceReduceJavaOpts = formatXmxSizeToBytes(getXmxSize(properties['mapreduce.reduce.java.opts'])) / (1024.0 * 1024)
-      mapreduceReduceMemoryMb = to_number(properties['mapreduce.reduce.memory.mb'])
+      self.checkXmxValueFormat(properties['mapreduce.reduce.java.opts']):
+      mapreduceReduceJavaOpts = self.formatXmxSizeToBytes(self.getXmxSize(properties['mapreduce.reduce.java.opts'])) / (1024.0 * 1024)
+      mapreduceReduceMemoryMb = self.to_number(properties['mapreduce.reduce.memory.mb'])
       if mapreduceReduceJavaOpts > mapreduceReduceMemoryMb:
         validationItems.append({"config-name": 'mapreduce.reduce.java.opts', "item": self.getWarnItem("mapreduce.reduce.java.opts Xmx should be less than mapreduce.reduce.memory.mb ({0})".format(mapreduceReduceMemoryMb))})
 
     if 'yarn.app.mapreduce.am.command-opts' in properties and \
-      checkXmxValueFormat(properties['yarn.app.mapreduce.am.command-opts']):
-      yarnAppMapreduceAmCommandOpts = formatXmxSizeToBytes(getXmxSize(properties['yarn.app.mapreduce.am.command-opts'])) / (1024.0 * 1024)
-      yarnAppMapreduceAmResourceMb = to_number(properties['yarn.app.mapreduce.am.resource.mb'])
+      self.checkXmxValueFormat(properties['yarn.app.mapreduce.am.command-opts']):
+      yarnAppMapreduceAmCommandOpts = self.formatXmxSizeToBytes(self.getXmxSize(properties['yarn.app.mapreduce.am.command-opts'])) / (1024.0 * 1024)
+      yarnAppMapreduceAmResourceMb = self.to_number(properties['yarn.app.mapreduce.am.resource.mb'])
       if yarnAppMapreduceAmCommandOpts > yarnAppMapreduceAmResourceMb:
         validationItems.append({"config-name": 'yarn.app.mapreduce.am.command-opts', "item": self.getWarnItem("yarn.app.mapreduce.am.command-opts Xmx should be less than yarn.app.mapreduce.am.resource.mb ({0})".format(yarnAppMapreduceAmResourceMb))})
 
@@ -1236,7 +1226,7 @@ class HDP22StackAdvisor(HDP21StackAdvisor):
     for address_property in address_properties:
       if address_property in hdfs_site:
         value = hdfs_site[address_property]
-        if not is_valid_host_port_authority(value):
+        if not self.is_valid_host_port_authority(value):
           validationItems.append({"config-name" : address_property, "item" :
             self.getErrorItem(address_property + " does not contain a valid host:port authority: " + value)})
 
@@ -1265,15 +1255,15 @@ class HDP22StackAdvisor(HDP21StackAdvisor):
       data_transfer_protection = 'dfs.data.transfer.protection'
 
       try: # Params may be absent
-        privileged_dfs_dn_port = isSecurePort(getPort(hdfs_site[dfs_datanode_address]))
+        privileged_dfs_dn_port = self.isSecurePort(self.getPort(hdfs_site[dfs_datanode_address]))
       except KeyError:
         privileged_dfs_dn_port = False
       try:
-        privileged_dfs_http_port = isSecurePort(getPort(hdfs_site[datanode_http_address]))
+        privileged_dfs_http_port = self.isSecurePort(self.getPort(hdfs_site[datanode_http_address]))
       except KeyError:
         privileged_dfs_http_port = False
       try:
-        privileged_dfs_https_port = isSecurePort(getPort(hdfs_site[datanode_https_address]))
+        privileged_dfs_https_port = self.isSecurePort(self.getPort(hdfs_site[datanode_https_address]))
       except KeyError:
         privileged_dfs_https_port = False
       try:
@@ -1702,21 +1692,6 @@ class HDP22StackAdvisor(HDP21StackAdvisor):
                               "item": self.getWarnItem("Ranger Storm plugin should not be enabled in non-kerberos environment.")})
     return self.toConfigurationValidationProblems(validationItems, "ranger-env")
 
-  def getMastersWithMultipleInstances(self):
-    result = super(HDP22StackAdvisor, self).getMastersWithMultipleInstances()
-    result.extend(['METRICS_COLLECTOR'])
-    return result
-
-  def getNotValuableComponents(self):
-    result = super(HDP22StackAdvisor, self).getNotValuableComponents()
-    result.extend(['METRICS_MONITOR'])
-    return result
-
-  def getCardinalitiesDict(self, hosts):
-    result = super(HDP22StackAdvisor, self).getCardinalitiesDict(hosts)
-    result['METRICS_COLLECTOR'] = {"min": 1}
-    return result
-
   def getAffectedConfigs(self, services):
     affectedConfigs = super(HDP22StackAdvisor, self).getAffectedConfigs(services)
 
@@ -1747,16 +1722,4 @@ def is_number(s):
   except ValueError:
     pass
 
-  return False
-
-def is_valid_host_port_authority(target):
-  has_scheme = "://" in target
-  if not has_scheme:
-    target = "dummyscheme://"+target
-  try:
-    result = urlparse(target)
-    if result.hostname is not None and result.port is not None:
-      return True
-  except ValueError:
-    pass
   return False

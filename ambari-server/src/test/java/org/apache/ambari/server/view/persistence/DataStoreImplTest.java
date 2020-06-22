@@ -18,10 +18,24 @@
 
 package org.apache.ambari.server.view.persistence;
 
-import com.google.inject.Binder;
-import com.google.inject.Guice;
-import com.google.inject.Injector;
-import com.google.inject.Module;
+import static org.easymock.EasyMock.capture;
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.eq;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.verify;
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+
+import javax.persistence.EntityManager;
+import javax.persistence.EntityManagerFactory;
+import javax.persistence.EntityTransaction;
+import javax.persistence.Query;
 
 import org.apache.ambari.server.orm.entities.ViewEntity;
 import org.apache.ambari.server.orm.entities.ViewEntityEntity;
@@ -54,25 +68,10 @@ import org.powermock.api.easymock.PowerMock;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
-import javax.persistence.EntityTransaction;
-import javax.persistence.Query;
-
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-
-import static org.easymock.EasyMock.capture;
-import static org.easymock.EasyMock.createMock;
-import static org.easymock.EasyMock.createNiceMock;
-import static org.easymock.EasyMock.eq;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.newCapture;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.verify;
+import com.google.inject.Binder;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import com.google.inject.Module;
 
 /**
  * DataStoreImpl tests.
@@ -119,11 +118,11 @@ public class DataStoreImplTest {
     PowerMock.replay(JpaHelper.class);
     expect(jpaEntityManager.getServerSession()).andReturn(session).anyTimes();
     expect(session.getLogin()).andReturn(databaseLogin).anyTimes();
-    Capture<Sequence> sequenceCapture = newCapture();
+    Capture<Sequence> sequenceCapture = EasyMock.newCapture();
     databaseLogin.addSequence(capture(sequenceCapture));
     EasyMock.expectLastCall().anyTimes();
 
-    Capture<DynamicEntity> entityCapture = newCapture();
+    Capture<DynamicEntity> entityCapture = EasyMock.newCapture();
     entityManager.persist(capture(entityCapture));
     EasyMock.expectLastCall().andAnswer(new IAnswer<Object>() {
       @Override
@@ -134,7 +133,7 @@ public class DataStoreImplTest {
       }
     });
 
-    Capture<DynamicEntity> entityCapture2 = newCapture();
+    Capture<DynamicEntity> entityCapture2 = EasyMock.newCapture();
     entityManager.persist(capture(entityCapture2));
     EasyMock.expectLastCall().andAnswer(new IAnswer<Object>() {
       @Override
@@ -145,8 +144,8 @@ public class DataStoreImplTest {
       }
     });
 
-    Capture<DynamicType> typeCapture = newCapture();
-    Capture<DynamicType> typeCapture2 = newCapture();
+    Capture<DynamicType> typeCapture = EasyMock.newCapture();
+    Capture<DynamicType> typeCapture2 = EasyMock.newCapture();
     jpaDynamicHelper.addTypes(eq(true), eq(true), capture(typeCapture), capture(typeCapture2));
 
     expect(entityManagerFactory.createEntityManager()).andReturn(entityManager).anyTimes();
@@ -165,9 +164,9 @@ public class DataStoreImplTest {
     dataStore.store(new TestEntity("foo", new TestSubEntity("bar")));
 
     Assert.assertEquals("bar", entityCapture.getValue().get("DS_name"));
-    Assert.assertEquals(99, entityCapture.getValue().get("DS_id"));
+    Assert.assertEquals(new Integer(99), entityCapture.getValue().get("DS_id"));
 
-    Assert.assertEquals(100, entityCapture2.getValue().get("DS_id"));
+    Assert.assertEquals(new Integer(100), entityCapture2.getValue().get("DS_id"));
     Assert.assertEquals("foo", entityCapture2.getValue().get("DS_name"));
 
     // verify mocks
@@ -194,12 +193,12 @@ public class DataStoreImplTest {
     PowerMock.replay(JpaHelper.class);
     expect(jpaEntityManager.getServerSession()).andReturn(session).anyTimes();
     expect(session.getLogin()).andReturn(databaseLogin).anyTimes();
-    Capture<Sequence> sequenceCapture = newCapture();
+    Capture<Sequence> sequenceCapture = EasyMock.newCapture();
     databaseLogin.addSequence(capture(sequenceCapture));
     EasyMock.expectLastCall().anyTimes();
 
-    Capture<DynamicType> typeCapture = newCapture();
-    Capture<DynamicType> typeCapture2 = newCapture();
+    Capture<DynamicType> typeCapture = EasyMock.newCapture();
+    Capture<DynamicType> typeCapture2 = EasyMock.newCapture();
     jpaDynamicHelper.addTypes(eq(true), eq(true), capture(typeCapture), capture(typeCapture2));
 
     expect(entityManagerFactory.createEntityManager()).andReturn(entityManager).anyTimes();
@@ -253,12 +252,12 @@ public class DataStoreImplTest {
     PowerMock.replay(JpaHelper.class);
     expect(jpaEntityManager.getServerSession()).andReturn(session).anyTimes();
     expect(session.getLogin()).andReturn(databaseLogin).anyTimes();
-    Capture<Sequence> sequenceCapture = newCapture();
+    Capture<Sequence> sequenceCapture = EasyMock.newCapture();
     databaseLogin.addSequence(capture(sequenceCapture));
     EasyMock.expectLastCall().anyTimes();
 
-    Capture<DynamicType> typeCapture = newCapture();
-    Capture<DynamicType> typeCapture2 = newCapture();
+    Capture<DynamicType> typeCapture = EasyMock.newCapture();
+    Capture<DynamicType> typeCapture2 = EasyMock.newCapture();
     jpaDynamicHelper.addTypes(eq(true), eq(true), capture(typeCapture), capture(typeCapture2));
 
     expect(entityManagerFactory.createEntityManager()).andReturn(entityManager).anyTimes();
@@ -307,21 +306,21 @@ public class DataStoreImplTest {
     PowerMock.replay(JpaHelper.class);
     expect(jpaEntityManager.getServerSession()).andReturn(session).anyTimes();
     expect(session.getLogin()).andReturn(databaseLogin).anyTimes();
-    Capture<Sequence> sequenceCapture = newCapture();
+    Capture<Sequence> sequenceCapture = EasyMock.newCapture();
     databaseLogin.addSequence(capture(sequenceCapture));
     EasyMock.expectLastCall().anyTimes();
 
-    Capture<DynamicType> typeCapture = newCapture();
-    Capture<DynamicType> typeCapture2 = newCapture();
+    Capture<DynamicType> typeCapture = EasyMock.newCapture();
+    Capture<DynamicType> typeCapture2 = EasyMock.newCapture();
     jpaDynamicHelper.addTypes(eq(true), eq(true), capture(typeCapture), capture(typeCapture2));
 
     expect(entityManagerFactory.createEntityManager()).andReturn(entityManager).anyTimes();
     expect(entityManager.getTransaction()).andReturn(transaction).anyTimes();
 
-    Capture<Class> entityClassCapture = newCapture();
+    Capture<Class> entityClassCapture = EasyMock.newCapture();
     expect(entityManager.find(capture(entityClassCapture), eq(100))).andReturn(dynamicEntity);
 
-    Capture<Class> entityClassCapture2 = newCapture();
+    Capture<Class> entityClassCapture2 = EasyMock.newCapture();
     expect(entityManager.find(capture(entityClassCapture2), eq(99))).andReturn(dynamicSubEntity);
 
     entityManager.close();
@@ -332,7 +331,7 @@ public class DataStoreImplTest {
     expect(dynamicSubEntity.set("DS_id", 99)).andReturn(dynamicSubEntity);
     expect(dynamicSubEntity.set("DS_name", "bar")).andReturn(dynamicSubEntity);
 
-    Capture<DynamicEntity> subEntityCapture = newCapture();
+    Capture<DynamicEntity> subEntityCapture = EasyMock.newCapture();
     expect(dynamicEntity.set(eq("DS_subEntity"), capture(subEntityCapture))).andReturn(dynamicSubEntity);
 
     expect(dynamicEntity.get("DS_id")).andReturn(100);
@@ -387,18 +386,18 @@ public class DataStoreImplTest {
     PowerMock.replay(JpaHelper.class);
     expect(jpaEntityManager.getServerSession()).andReturn(session).anyTimes();
     expect(session.getLogin()).andReturn(databaseLogin).anyTimes();
-    Capture<Sequence> sequenceCapture = newCapture();
+    Capture<Sequence> sequenceCapture = EasyMock.newCapture();
     databaseLogin.addSequence(capture(sequenceCapture));
     EasyMock.expectLastCall().anyTimes();
 
-    Capture<DynamicType> typeCapture = newCapture();
-    Capture<DynamicType> typeCapture2 = newCapture();
+    Capture<DynamicType> typeCapture = EasyMock.newCapture();
+    Capture<DynamicType> typeCapture2 = EasyMock.newCapture();
     jpaDynamicHelper.addTypes(eq(true), eq(true), capture(typeCapture), capture(typeCapture2));
 
     expect(entityManagerFactory.createEntityManager()).andReturn(entityManager).anyTimes();
     expect(entityManager.getTransaction()).andReturn(transaction).anyTimes();
 
-    Capture<Class> entityClassCapture2 = newCapture();
+    Capture<Class> entityClassCapture2 = EasyMock.newCapture();
     expect(entityManager.find(capture(entityClassCapture2), eq(99))).andReturn(dynamicEntity);
 
     entityManager.close();
@@ -452,17 +451,17 @@ public class DataStoreImplTest {
     PowerMock.replay(JpaHelper.class);
     expect(jpaEntityManager.getServerSession()).andReturn(session).anyTimes();
     expect(session.getLogin()).andReturn(databaseLogin).anyTimes();
-    Capture<Sequence> sequenceCapture = newCapture();
+    Capture<Sequence> sequenceCapture = EasyMock.newCapture();
     databaseLogin.addSequence(capture(sequenceCapture));
     EasyMock.expectLastCall().anyTimes();
 
-    Capture<DynamicType> typeCapture = newCapture();
-    Capture<DynamicType> typeCapture2 = newCapture();
+    Capture<DynamicType> typeCapture = EasyMock.newCapture();
+    Capture<DynamicType> typeCapture2 = EasyMock.newCapture();
     jpaDynamicHelper.addTypes(eq(true), eq(true), capture(typeCapture), capture(typeCapture2));
 
     expect(entityManagerFactory.createEntityManager()).andReturn(entityManager).anyTimes();
     expect(entityManager.getTransaction()).andReturn(transaction).anyTimes();
-    Capture<Class> entityClassCapture = newCapture();
+    Capture<Class> entityClassCapture = EasyMock.newCapture();
     expect(entityManager.getReference(capture(entityClassCapture), eq(99))).andReturn(dynamicEntity);
     entityManager.remove(dynamicEntity);
     entityManager.close();
@@ -506,16 +505,16 @@ public class DataStoreImplTest {
     PowerMock.replay(JpaHelper.class);
     expect(jpaEntityManager.getServerSession()).andReturn(session).anyTimes();
     expect(session.getLogin()).andReturn(databaseLogin).anyTimes();
-    Capture<Sequence> sequenceCapture = newCapture();
+    Capture<Sequence> sequenceCapture = EasyMock.newCapture();
     databaseLogin.addSequence(capture(sequenceCapture));
     EasyMock.expectLastCall().anyTimes();
 
-    Capture<DynamicType> typeCapture = newCapture();
-    Capture<DynamicType> typeCapture2 = newCapture();
+    Capture<DynamicType> typeCapture = EasyMock.newCapture();
+    Capture<DynamicType> typeCapture2 = EasyMock.newCapture();
     jpaDynamicHelper.addTypes(eq(true), eq(true), capture(typeCapture), capture(typeCapture2));
 
     expect(entityManagerFactory.createEntityManager()).andReturn(entityManager).anyTimes();
-    Capture<Class> entityClassCapture = newCapture();
+    Capture<Class> entityClassCapture = EasyMock.newCapture();
     expect(entityManager.find(capture(entityClassCapture), eq(99))).andReturn(dynamicEntity);
     entityManager.close();
 
@@ -564,11 +563,11 @@ public class DataStoreImplTest {
     PowerMock.replay(JpaHelper.class);
     expect(jpaEntityManager.getServerSession()).andReturn(session).anyTimes();
     expect(session.getLogin()).andReturn(databaseLogin).anyTimes();
-    Capture<Sequence> sequenceCapture = newCapture();
+    Capture<Sequence> sequenceCapture = EasyMock.newCapture();
     databaseLogin.addSequence(capture(sequenceCapture));
     EasyMock.expectLastCall().anyTimes();
-    Capture<DynamicType> typeCapture = newCapture();
-    Capture<DynamicType> typeCapture2 = newCapture();
+    Capture<DynamicType> typeCapture = EasyMock.newCapture();
+    Capture<DynamicType> typeCapture2 = EasyMock.newCapture();
     jpaDynamicHelper.addTypes(eq(true), eq(true), capture(typeCapture), capture(typeCapture2));
 
     expect(entityManagerFactory.createEntityManager()).andReturn(entityManager).anyTimes();
@@ -624,11 +623,11 @@ public class DataStoreImplTest {
     PowerMock.replay(JpaHelper.class);
     expect(jpaEntityManager.getServerSession()).andReturn(session).anyTimes();
     expect(session.getLogin()).andReturn(databaseLogin).anyTimes();
-    Capture<Sequence> sequenceCapture = newCapture();
+    Capture<Sequence> sequenceCapture = EasyMock.newCapture();
     databaseLogin.addSequence(capture(sequenceCapture));
     EasyMock.expectLastCall().anyTimes();
-    Capture<DynamicType> typeCapture = newCapture();
-    Capture<DynamicType> typeCapture2 = newCapture();
+    Capture<DynamicType> typeCapture = EasyMock.newCapture();
+    Capture<DynamicType> typeCapture2 = EasyMock.newCapture();
     jpaDynamicHelper.addTypes(eq(true), eq(true), capture(typeCapture), capture(typeCapture2));
 
     expect(entityManagerFactory.createEntityManager()).andReturn(entityManager).anyTimes();
@@ -636,7 +635,7 @@ public class DataStoreImplTest {
         "SELECT e FROM DS_DataStoreImplTest$TestEntity_1 e WHERE e.DS_name='foo'")).andReturn(query);
     entityManager.close();
 
-    List<DynamicEntity> entityList = new LinkedList<DynamicEntity>();
+    List<DynamicEntity> entityList = new LinkedList<>();
     entityList.add(dynamicEntity1);
     entityList.add(dynamicEntity2);
     entityList.add(dynamicEntity3);
@@ -699,7 +698,7 @@ public class DataStoreImplTest {
   // TODO : move to ViewEntityEntity test.
   private static void setPersistenceEntities(ViewInstanceEntity viewInstanceDefinition) {
     ViewEntity viewDefinition = viewInstanceDefinition.getViewEntity();
-    Collection<ViewEntityEntity> entities = new HashSet<ViewEntityEntity>();
+    Collection<ViewEntityEntity> entities = new HashSet<>();
 
     ViewConfig viewConfig = viewDefinition.getConfiguration();
     for (EntityConfig entityConfiguration : viewConfig.getPersistence().getEntities()) {

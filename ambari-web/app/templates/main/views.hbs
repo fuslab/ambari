@@ -17,19 +17,18 @@
 }}
 
 <div id="views">
-  <h4 class="background-text">{{t views.main.yourViews}}</h4>
+  <h2 class="table-title">{{t views.main.yourViews}}</h2>
   {{#if view.views.length}}
-    <table class="table views-table">
+    <table class="table table-hover views-table">
       <tbody>
         {{#each instance in view.views}}
           {{#if instance.visible}}
             <tr {{action "setView" instance target="controller"}}>
               <td class="icon">
-                <a class="view-icon-image" target="_blank"><img {{bindAttr src="instance.iconPath"}}></a>
+                <a class="view-icon-image"><img {{bindAttr src="instance.iconPath"}}></a>
               </td>
               <td class="label-version-description">
-                <p class="view-label-text">{{instance.label}}</p>
-                <p class="view-version-text"> &nbsp;&nbsp;({{instance.version}})</p> <br />
+                <h4 class="view-label-text">{{instance.label}} <small class="view-version-text"> &nbsp;&nbsp;({{instance.version}})</small></h4>
                 <p class="view-description-text">{{instance.description}}</p>
               </td>
             </tr>

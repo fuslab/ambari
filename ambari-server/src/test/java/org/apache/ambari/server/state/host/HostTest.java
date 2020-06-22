@@ -22,6 +22,7 @@ import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -32,11 +33,12 @@ import java.util.Map;
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.H2DatabaseCleaner;
 import org.apache.ambari.server.actionmanager.ActionManager;
-import org.apache.ambari.server.agent.ActionQueue;
 import org.apache.ambari.server.agent.AgentEnv;
 import org.apache.ambari.server.agent.DiskInfo;
 import org.apache.ambari.server.agent.HeartBeatHandler;
 import org.apache.ambari.server.agent.HostInfo;
+import org.apache.ambari.server.api.services.AmbariMetaInfo;
+import org.apache.ambari.server.events.publishers.AmbariEventPublisher;
 import org.apache.ambari.server.orm.GuiceJpaInitializer;
 import org.apache.ambari.server.orm.InMemoryDefaultTestModule;
 import org.apache.ambari.server.orm.OrmTestHelper;
@@ -59,6 +61,8 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -69,6 +73,7 @@ public class HostTest {
   private Clusters clusters;
   private HostDAO hostDAO;
   private OrmTestHelper helper;
+  private static final Logger LOG = LoggerFactory.getLogger(HostTest.class);
 
   @Before
    public void setup() throws AmbariException{
@@ -123,11 +128,11 @@ public class HostTest {
   @Test
   public void testHostOs() throws Exception {
     Clusters clusters = mock(Clusters.class);
-    ActionQueue queue = mock(ActionQueue.class);
     ActionManager manager = mock(ActionManager.class);
     Injector injector = mock(Injector.class);
     doNothing().when(injector).injectMembers(any());
-    HeartBeatHandler handler = new HeartBeatHandler(clusters, queue, manager, injector);
+    when(injector.getInstance(AmbariEventPublisher.class)).thenReturn(mock(AmbariEventPublisher.class));
+    HeartBeatHandler handler = new HeartBeatHandler(clusters, manager, injector);
     String os = handler.getOsType("RedHat", "6.1");
     Assert.assertEquals("redhat6", os);
     os = handler.getOsType("RedHat", "6");
@@ -159,7 +164,7 @@ public class HostTest {
 
     HostRegistrationRequestEvent e =
         new HostRegistrationRequestEvent("foo", agentVersion, currentTime,
-            info, agentEnv);
+            info, agentEnv, currentTime);
 
     if (!firstReg) {
       Assert.assertNotNull(host.getHostId());
@@ -355,6 +360,8 @@ public class HostTest {
 
   @Test
   public void testHostDesiredConfig() throws Exception {
+    AmbariMetaInfo metaInfo = injector.getInstance(AmbariMetaInfo.class);
+
     StackId stackId = new StackId("HDP-0.1");
     clusters.addCluster("c1", stackId);
     Cluster c1 = clusters.getCluster("c1");
@@ -377,7 +384,7 @@ public class HostTest {
 
     ConfigFactory configFactory = injector.getInstance(ConfigFactory.class);
     Config config = configFactory.createNew(c1, "global", "v1",
-        new HashMap<String,String>() {{ put("a", "b"); put("x", "y"); }}, new HashMap<String, Map<String,String>>());
+        new HashMap<String,String>() {{ put("a", "b"); put("x", "y"); }}, new HashMap<>());
 
     try {
       host.addDesiredConfig(c1.getClusterId(), true, null, config);
@@ -394,7 +401,7 @@ public class HostTest {
     Assert.assertTrue("Expect desired config to contain global", map.containsKey("global"));
 
     config = configFactory.createNew(c1, "global", "v2",
-        new HashMap<String,String>() {{ put("c", "d"); }}, new HashMap<String, Map<String,String>>());
+        new HashMap<String,String>() {{ put("c", "d"); }}, new HashMap<>());
     host.addDesiredConfig(c1.getClusterId(), true, "_test1", config);
 
     map = host.getDesiredConfigs(c1.getClusterId());
@@ -409,6 +416,8 @@ public class HostTest {
 
   @Test
   public void testHostMaintenance() throws Exception {
+    AmbariMetaInfo metaInfo = injector.getInstance(AmbariMetaInfo.class);
+
     StackId stackId = new StackId("HDP-0.1");
     clusters.addCluster("c1", stackId);
     Cluster c1 = clusters.getCluster("c1");

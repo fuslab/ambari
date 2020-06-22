@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,23 +18,24 @@
 
 package org.apache.ambari.server.api.services;
 
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.UriInfo;
+
 import org.apache.ambari.server.api.resources.ResourceInstance;
 import org.apache.ambari.server.api.services.parsers.RequestBodyParser;
 import org.apache.ambari.server.api.services.serializers.ResultSerializer;
 import org.junit.Assert;
-
-import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.UriInfo;
-import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * UpgradeItemService tests.
  */
 public class UpgradeItemServiceTest extends BaseServiceTest {
   public List<ServiceTestInvocation> getTestInvocations() throws Exception {
-    List<ServiceTestInvocation> listInvocations = new ArrayList<ServiceTestInvocation>();
+    List<ServiceTestInvocation> listInvocations = new ArrayList<>();
 
     //updateServices
     UpgradeItemService service = new TestUpgradeItemService("clusterName", "upgradeId", "upgradeGroupId", 99L);

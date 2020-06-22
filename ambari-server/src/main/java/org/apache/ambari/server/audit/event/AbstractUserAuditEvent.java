@@ -37,13 +37,18 @@ public abstract class AbstractUserAuditEvent extends AbstractAuditEvent {
     private String userName = AuthorizationHelper.getAuthenticatedName();
 
     /**
-     * Ip of the user who started the operation. Note: remote ip might not be the original ip (proxies, routers can modify it)
-     */
-    private String remoteIp;
-    /**
      * Name of the proxy user if proxied
      */
     private String proxyUserName = AuthorizationHelper.getProxyUserName();
+
+    /**
+     * Ip of the user who started the operation. Note: remote ip might not be the original ip (proxies, routers can modify it)
+     */
+    private String remoteIp;
+
+    protected AbstractUserAuditEventBuilder(Class<? extends TBuilder> builderClass) {
+      super(builderClass);
+    }
 
     /**
      * Appends to audit event details the user name and remote ip of the host
@@ -61,9 +66,9 @@ public abstract class AbstractUserAuditEvent extends AbstractAuditEvent {
         .append(")");
       if (StringUtils.isNotEmpty(this.proxyUserName)){
         builder
-          .append(", ProxyUser(")
-          .append(this.proxyUserName)
-          .append(")");
+            .append(", ProxyUser(")
+            .append(this.proxyUserName)
+            .append(")");
       }
     }
 
@@ -76,19 +81,7 @@ public abstract class AbstractUserAuditEvent extends AbstractAuditEvent {
     public TBuilder withUserName(String userName) {
       this.userName = userName;
 
-      return (TBuilder) this;
-    }
-
-    /**
-     * Sets the remote ip where the user action originated from.
-     *
-     * @param ip
-     * @return the builder
-     */
-    public TBuilder withRemoteIp(String ip) {
-      this.remoteIp = ip;
-
-      return (TBuilder) this;
+      return self();
     }
 
     /**
@@ -100,7 +93,19 @@ public abstract class AbstractUserAuditEvent extends AbstractAuditEvent {
     public TBuilder withProxyUserName(String proxyUserName) {
       this.proxyUserName = proxyUserName;
 
-      return (TBuilder) this;
+      return self();
+    }
+
+    /**
+     * Sets the remote ip where the user action originated from.
+     *
+     * @param ip
+     * @return the builder
+     */
+    public TBuilder withRemoteIp(String ip) {
+      this.remoteIp = ip;
+
+      return self();
     }
   }
 

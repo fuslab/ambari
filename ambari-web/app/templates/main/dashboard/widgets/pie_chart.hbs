@@ -17,19 +17,26 @@
 }}
 
 <div class="has-hidden-info">
-  <ul>
-    <li class="thumbnail row">
-      <a {{bindAttr class=":corner-icon :span1 view.parentView.isMoving:hidden"}}
-              href="#" {{action deleteWidget target="view"}}>
-        <i class="icon-remove-sign icon-large"></i>
-      </a>
+  <ul class="list-unstyled">
+    <li class="img-thumbnail row">
 
-      <div class="caption span10">{{view.title}}</div>
+      <div class="caption col-md-10">{{view.title}}</div>
+      {{#if view.showActions}}
+        <div class="corner-icon col-md-1">
+          <button class="dropdown-toggle ellipsis-menu button-border" data-toggle="dropdown" href="#"></button>
+          <ul class="dropdown-menu">
+            <li><button type="button" href="#" class="button-border"
+              {{action editWidget target="view"}}>
+              <i class="icon-pencil"></i>&nbsp;{{t common.edit}}</button>
+            </li>
+            <li><button type="button" href="#" class="button-border"
+              {{action deleteWidget target="view"}}>
+              <i class="icon-trash"></i>&nbsp;{{t common.delete}}</button>
+            </li>
+          </ul>
+        </div>
+      {{/if}}
       {{#if view.isDataLoaded}}
-        <a class="corner-icon span1" href="#" {{action editWidget target="view"}}>
-          <i class="icon-edit"></i>
-        </a>
-
         <div {{bindAttr class=":hidden-info-general view.hiddenInfoClass" }}>
           <table align="center">
             {{#each line in view.hiddenInfo}}
@@ -41,8 +48,11 @@
         </div>
 
         {{#if view.isPieExist}}
-          <div {{bindAttr class=":widget-content view.hoverContentTopClass"}}>
-            {{view view.content modelBinding="view.model" thresh1Binding="view.thresh1" thresh2Binding="view.thresh2"}}
+          <div class="widget-content">
+            {{view view.content
+                modelBinding="view.model"
+                thresholdMinBinding="view.thresholdMin"
+                thresholdMaxBinding="view.thresholdMax"}}
           </div>
         {{else}}
           <div class="widget-content-isNA">{{t services.service.summary.notAvailable}}</div>

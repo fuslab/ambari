@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,9 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import static java.util.stream.Collectors.toSet;
+
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -44,6 +45,7 @@ import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.apache.ambari.server.orm.dao.BlueprintDAO;
+import org.apache.ambari.server.orm.dao.TopologyRequestDAO;
 import org.apache.ambari.server.orm.entities.BlueprintConfigEntity;
 import org.apache.ambari.server.orm.entities.BlueprintConfiguration;
 import org.apache.ambari.server.orm.entities.BlueprintEntity;
@@ -51,6 +53,7 @@ import org.apache.ambari.server.orm.entities.BlueprintSettingEntity;
 import org.apache.ambari.server.orm.entities.HostGroupComponentEntity;
 import org.apache.ambari.server.orm.entities.HostGroupEntity;
 import org.apache.ambari.server.orm.entities.StackEntity;
+import org.apache.ambari.server.orm.entities.TopologyRequestEntity;
 import org.apache.ambari.server.stack.NoSuchStackException;
 import org.apache.ambari.server.state.SecurityType;
 import org.apache.ambari.server.state.StackInfo;
@@ -61,9 +64,13 @@ import org.apache.ambari.server.topology.InvalidTopologyException;
 import org.apache.ambari.server.topology.SecurityConfiguration;
 import org.apache.ambari.server.topology.SecurityConfigurationFactory;
 import org.apache.ambari.server.utils.SecretReference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 
 
@@ -71,6 +78,8 @@ import com.google.gson.Gson;
  * Resource Provider for Blueprint resources.
  */
 public class BlueprintResourceProvider extends AbstractControllerResourceProvider {
+
+  private static final Logger LOG = LoggerFactory.getLogger(BlueprintResourceProvider.class);
 
   // ----- Property ID constants ---------------------------------------------
 
@@ -115,10 +124,25 @@ public class BlueprintResourceProvider extends AbstractControllerResourceProvide
     "Configuration elements must be Maps";
   public static final String CONFIGURATION_MAP_SIZE_CHECK_ERROR_MESSAGE =
     "Configuration Maps must hold a single configuration type each";
-  // Primary Key Fields
-  private static Set<String> pkPropertyIds =
-      new HashSet<String>(Arrays.asList(new String[]{
-          BLUEPRINT_NAME_PROPERTY_ID}));
+
+  /**
+   * The key property ids for a Blueprint resource.
+   */
+  private static Map<Resource.Type, String> keyPropertyIds = ImmutableMap.<Resource.Type, String>builder()
+      .put(Resource.Type.Blueprint, BLUEPRINT_NAME_PROPERTY_ID)
+      .build();
+
+  /**
+   * The property ids for a Blueprint resource.
+   */
+  private static Set<String> propertyIds = Sets.newHashSet(
+      BLUEPRINT_NAME_PROPERTY_ID,
+      STACK_NAME_PROPERTY_ID,
+      STACK_VERSION_PROPERTY_ID,
+      BLUEPRINT_SECURITY_PROPERTY_ID,
+      HOST_GROUP_PROPERTY_ID,
+      CONFIGURATION_PROPERTY_ID,
+      SETTING_PROPERTY_ID);
 
   /**
    * Used to create Blueprint instances
@@ -136,6 +160,11 @@ public class BlueprintResourceProvider extends AbstractControllerResourceProvide
   private static BlueprintDAO blueprintDAO;
 
   /**
+   * Topology request dao
+   */
+  private static TopologyRequestDAO topologyRequestDAO;
+
+  /**
    * Used to serialize to/from json.
    */
   private static Gson jsonSerializer;
@@ -145,28 +174,24 @@ public class BlueprintResourceProvider extends AbstractControllerResourceProvide
   /**
    * Create a  new resource provider for the given management controller.
    *
-   * @param propertyIds     the property ids
-   * @param keyPropertyIds  the key property ids
    * @param controller      management controller
    */
-  BlueprintResourceProvider(Set<String> propertyIds,
-                            Map<Resource.Type, String> keyPropertyIds,
-                            AmbariManagementController controller) {
-
-    super(propertyIds, keyPropertyIds, controller);
+  BlueprintResourceProvider(AmbariManagementController controller) {
+    super(Resource.Type.Blueprint, propertyIds, keyPropertyIds, controller);
   }
 
   /**
    * Static initialization.
    *
    * @param factory   blueprint factory
-   * @param dao       blueprint data access object
+   * @param bpDao       blueprint data access object
    * @param gson      json serializer
    */
-  public static void init(BlueprintFactory factory, BlueprintDAO dao, SecurityConfigurationFactory
-    securityFactory, Gson gson, AmbariMetaInfo metaInfo) {
+  public static void init(BlueprintFactory factory, BlueprintDAO bpDao, TopologyRequestDAO trDao,
+                          SecurityConfigurationFactory securityFactory, Gson gson, AmbariMetaInfo metaInfo) {
     blueprintFactory = factory;
-    blueprintDAO = dao;
+    blueprintDAO = bpDao;
+    topologyRequestDAO = trDao;
     securityConfigurationFactory = securityFactory;
     jsonSerializer = gson;
     ambariMetaInfo = metaInfo;
@@ -176,7 +201,7 @@ public class BlueprintResourceProvider extends AbstractControllerResourceProvide
 
   @Override
   protected Set<String> getPKPropertyIds() {
-    return pkPropertyIds;
+    return new HashSet<>(keyPropertyIds.values());
   }
 
   @Override
@@ -214,7 +239,7 @@ public class BlueprintResourceProvider extends AbstractControllerResourceProvide
 
         if (name != null) {
           BlueprintEntity entity = blueprintDAO.findByName(name);
-          results = entity == null ? Collections.<BlueprintEntity>emptyList() :
+          results = entity == null ? Collections.emptyList() :
               Collections.singletonList(entity);
         }
       }
@@ -225,7 +250,7 @@ public class BlueprintResourceProvider extends AbstractControllerResourceProvide
       results = blueprintDAO.findAll();
     }
 
-    Set<Resource> resources  = new HashSet<Resource>();
+    Set<Resource> resources  = new HashSet<>();
     for (BlueprintEntity entity : results) {
       Resource resource = toResource(entity, getRequestPropertyIds(request, predicate));
       if (predicate == null || ! applyPredicate || predicate.evaluate(resource)) {
@@ -259,18 +284,20 @@ public class BlueprintResourceProvider extends AbstractControllerResourceProvide
     Set<Resource> setResources = getResources(
         new RequestImpl(null, null, null, null), predicate);
 
+    List<TopologyRequestEntity> provisionRequests = topologyRequestDAO.findAllProvisionRequests();
+    // Blueprints for which a provision request was submitted. This blueprints (should be zero or one) are read only.
+    Set<String> provisionedBlueprints =
+      provisionRequests.stream().map(TopologyRequestEntity::getBlueprintName).collect(toSet());
+
     for (final Resource resource : setResources) {
       final String blueprintName =
         (String) resource.getPropertyValue(BLUEPRINT_NAME_PROPERTY_ID);
-
+      Preconditions.checkArgument(!provisionedBlueprints.contains(blueprintName),
+        "Blueprint %s cannot be deleted as cluster provisioning was initiated on it.", blueprintName);
       LOG.info("Deleting Blueprint, name = " + blueprintName);
-
-      modifyResources(new Command<Void>() {
-        @Override
-        public Void invoke() throws AmbariException {
-          blueprintDAO.removeByName(blueprintName);
-          return null;
-        }
+      modifyResources(() -> {
+        blueprintDAO.removeByName(blueprintName);
+        return null;
       });
     }
 
@@ -300,18 +327,18 @@ public class BlueprintResourceProvider extends AbstractControllerResourceProvide
     setResourceProperty(resource, STACK_NAME_PROPERTY_ID, stackEntity.getStackName(), requestedIds);
     setResourceProperty(resource, STACK_VERSION_PROPERTY_ID, stackEntity.getStackVersion(), requestedIds);
 
-    List<Map<String, Object>> listGroupProps = new ArrayList<Map<String, Object>>();
+    List<Map<String, Object>> listGroupProps = new ArrayList<>();
     Collection<HostGroupEntity> hostGroups = entity.getHostGroups();
     for (HostGroupEntity hostGroup : hostGroups) {
-      Map<String, Object> mapGroupProps = new HashMap<String, Object>();
+      Map<String, Object> mapGroupProps = new HashMap<>();
       mapGroupProps.put(HOST_GROUP_NAME_PROPERTY_ID, hostGroup.getName());
       listGroupProps.add(mapGroupProps);
       mapGroupProps.put(HOST_GROUP_CARDINALITY_PROPERTY_ID, hostGroup.getCardinality());
 
-      List<Map<String, String>> listComponentProps = new ArrayList<Map<String, String>>();
+      List<Map<String, String>> listComponentProps = new ArrayList<>();
       Collection<HostGroupComponentEntity> components = hostGroup.getComponents();
       for (HostGroupComponentEntity component : components) {
-        Map<String, String> mapComponentProps = new HashMap<String, String>();
+        Map<String, String> mapComponentProps = new HashMap<>();
         mapComponentProps.put(COMPONENT_NAME_PROPERTY_ID, component.getName());
 
         if (component.getProvisionAction() != null) {
@@ -352,10 +379,10 @@ public class BlueprintResourceProvider extends AbstractControllerResourceProvide
   List<Map<String, Map<String, Object>>> populateConfigurationList(
       Collection<? extends BlueprintConfiguration> configurations) throws NoSuchResourceException {
 
-    List<Map<String, Map<String, Object>>> listConfigurations = new ArrayList<Map<String, Map<String, Object>>>();
+    List<Map<String, Map<String, Object>>> listConfigurations = new ArrayList<>();
     for (BlueprintConfiguration config : configurations) {
-      Map<String, Map<String, Object>> mapConfigurations = new HashMap<String, Map<String, Object>>();
-      Map<String, Object> configTypeDefinition = new HashMap<String, Object>();
+      Map<String, Map<String, Object>> mapConfigurations = new HashMap<>();
+      Map<String, Object> configTypeDefinition = new HashMap<>();
       String type = config.getType();
 
       if(config instanceof BlueprintConfigEntity) {
@@ -404,7 +431,7 @@ public class BlueprintResourceProvider extends AbstractControllerResourceProvide
    */
   public static List<Map<String, Object>> populateSettingList(
           Collection<? extends BlueprintSettingEntity> settings) throws NoSuchResourceException {
-    List<Map<String, Object>> listSettings = new ArrayList<Map<String, Object>>();
+    List<Map<String, Object>> listSettings = new ArrayList<>();
 
     if (settings != null) {
       for (BlueprintSettingEntity setting : settings) {
@@ -428,7 +455,7 @@ public class BlueprintResourceProvider extends AbstractControllerResourceProvide
   void createBlueprintConfigEntities(Collection<Map<String, String>> propertyMaps,
                                              BlueprintEntity blueprint) {
 
-    Collection<BlueprintConfigEntity> configurations = new ArrayList<BlueprintConfigEntity>();
+    Collection<BlueprintConfigEntity> configurations = new ArrayList<>();
     if (propertyMaps != null) {
       for (Map<String, String> configuration : propertyMaps) {
         BlueprintConfigEntity configEntity = new BlueprintConfigEntity();
@@ -556,8 +583,8 @@ public class BlueprintResourceProvider extends AbstractControllerResourceProvide
   protected static abstract class BlueprintConfigPopulationStrategy {
 
     public void applyConfiguration(Map<String, String> configuration, BlueprintConfiguration blueprintConfiguration) {
-      Map<String, String> configData = new HashMap<String, String>();
-      Map<String, Map<String, String>> configAttributes = new HashMap<String, Map<String, String>>();
+      Map<String, String> configData = new HashMap<>();
+      Map<String, Map<String, String>> configAttributes = new HashMap<>();
 
       if (configuration != null) {
         for (Map.Entry<String, String> entry : configuration.entrySet()) {
@@ -619,7 +646,7 @@ public class BlueprintResourceProvider extends AbstractControllerResourceProvide
     private void addConfigAttribute(Map<String, Map<String, String>> configDependencyProperties,
                                     String[] propertyNameTokens, String value) {
       if (!configDependencyProperties.containsKey(propertyNameTokens[2])) {
-        configDependencyProperties.put(propertyNameTokens[2], new HashMap<String, String>());
+        configDependencyProperties.put(propertyNameTokens[2], new HashMap<>());
       }
       Map<String, String> propertiesGroup = configDependencyProperties.get(propertyNameTokens[2]);
       propertiesGroup.put(propertyNameTokens[3], value);

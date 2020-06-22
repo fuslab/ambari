@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,17 @@
 
 package org.apache.ambari.server.api.services.serializers;
 
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.verify;
+import static org.junit.Assert.assertEquals;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+import javax.ws.rs.core.UriInfo;
+
 import org.apache.ambari.server.api.services.DeleteResultMetadata;
 import org.apache.ambari.server.api.services.Result;
 import org.apache.ambari.server.api.services.ResultImpl;
@@ -26,14 +37,6 @@ import org.apache.ambari.server.api.util.TreeNode;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.security.authorization.AuthorizationException;
 import org.junit.Test;
-
-import javax.ws.rs.core.UriInfo;
-
-import java.util.LinkedHashMap;
-import java.util.Map;
-
-import static org.easymock.EasyMock.*;
-import static org.junit.Assert.assertEquals;
 
 /**
  * JSONSerializer unit tests
@@ -59,11 +62,11 @@ public class JsonSerializerTest {
     mapRootProps.put("prop2", "value2");
     mapRootProps.put("prop1", "value1");
 
-    Map<String, Object> mapCategoryProps = new LinkedHashMap<String, Object>();
+    Map<String, Object> mapCategoryProps = new LinkedHashMap<>();
     mapCategoryProps.put("catProp1", "catValue1");
     mapCategoryProps.put("catProp2", "catValue2");
 
-    Map<String, Map<String, Object>> propertyMap = new LinkedHashMap<String, Map<String, Object>>();
+    Map<String, Map<String, Object>> propertyMap = new LinkedHashMap<>();
 
     propertyMap.put(null, mapRootProps);
     propertyMap.put("category", mapCategoryProps);
@@ -109,15 +112,15 @@ public class JsonSerializerTest {
     resourcesNode.addChild(resource, "resource1");
 
     // resource properties
-    Map<String, Object> mapRootProps = new LinkedHashMap<String, Object>();
+    Map<String, Object> mapRootProps = new LinkedHashMap<>();
     mapRootProps.put("prop2", "value2");
     mapRootProps.put("prop1", "value1");
 
-    Map<String, Object> mapCategoryProps = new LinkedHashMap<String, Object>();
+    Map<String, Object> mapCategoryProps = new LinkedHashMap<>();
     mapCategoryProps.put("catProp1", "catValue1");
     mapCategoryProps.put("catProp2", "catValue2");
 
-    Map<String, Map<String, Object>> propertyMap = new LinkedHashMap<String, Map<String, Object>>();
+    Map<String, Map<String, Object>> propertyMap = new LinkedHashMap<>();
 
     propertyMap.put(null, mapRootProps);
     propertyMap.put("category", mapCategoryProps);
@@ -165,15 +168,15 @@ public class JsonSerializerTest {
     //child.addChild(resource2, "sub-resource");
 
     // resource properties
-    Map<String, Object> mapRootProps = new LinkedHashMap<String, Object>();
+    Map<String, Object> mapRootProps = new LinkedHashMap<>();
     mapRootProps.put("prop2", "value2");
     mapRootProps.put("prop1", "value1");
 
-    Map<String, Object> mapCategoryProps = new LinkedHashMap<String, Object>();
+    Map<String, Object> mapCategoryProps = new LinkedHashMap<>();
     mapCategoryProps.put("catProp1", "catValue1");
     mapCategoryProps.put("catProp2", "catValue2");
 
-    Map<String, Map<String, Object>> propertyMap = new LinkedHashMap<String, Map<String, Object>>();
+    Map<String, Map<String, Object>> propertyMap = new LinkedHashMap<>();
 
     propertyMap.put(null, mapRootProps);
     propertyMap.put("category", mapCategoryProps);
@@ -232,8 +235,7 @@ public class JsonSerializerTest {
         "      \"error\" : {\n" +
         "        \"key\" : \"key2\",\n" +
         "        \"code\" : 403,\n" +
-        "        \"message\" : \"org.apache.ambari.server.security.authorization.AuthorizationException:"+
-                              " The authenticated user is not authorized to perform the requested operation\"\n" +
+        "        \"message\" : \"The authenticated user is not authorized to perform the requested operation\"\n" +
         "      }\n" +
         "    }\n" +
         "  ]\n" +

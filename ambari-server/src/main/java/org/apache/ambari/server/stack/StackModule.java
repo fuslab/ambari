@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,10 +34,13 @@ import java.util.Set;
 import org.apache.ambari.annotations.Experimental;
 import org.apache.ambari.annotations.ExperimentalFeature;
 import org.apache.ambari.server.AmbariException;
+import org.apache.ambari.server.state.BulkCommandDefinition;
+import org.apache.ambari.server.state.ComponentInfo;
 import org.apache.ambari.server.state.ConfigHelper;
 import org.apache.ambari.server.state.ExtensionInfo;
 import org.apache.ambari.server.state.PropertyDependencyInfo;
 import org.apache.ambari.server.state.PropertyInfo;
+import org.apache.ambari.server.state.RefreshCommand;
 import org.apache.ambari.server.state.RepositoryInfo;
 import org.apache.ambari.server.state.ServiceInfo;
 import org.apache.ambari.server.state.StackInfo;
@@ -188,7 +191,7 @@ public class StackModule extends BaseModule<StackModule, StackInfo> implements V
       StackModule parentModule, Map<String, StackModule> allStacks, Map<String, ServiceModule> commonServices, Map<String, ExtensionModule> extensions)
       throws AmbariException {
     moduleState = ModuleState.VISITED;
-    LOG.info("Resolve: " + stackInfo.getName() + ":" + stackInfo.getVersion());
+    LOG.info(String.format("Resolve: %s:%s", stackInfo.getName(), stackInfo.getVersion()));
     String parentVersion = stackInfo.getParentStackVersion();
     mergeServicesWithExplicitParent(allStacks, commonServices, extensions);
     addExtensionServices();
@@ -211,6 +214,7 @@ public class StackModule extends BaseModule<StackModule, StackInfo> implements V
     processUpgradePacks();
     processRepositories();
     processPropertyDependencies();
+    validateBulkCommandComponents(allStacks);
     moduleState = ModuleState.RESOLVED;
   }
 
@@ -239,6 +243,15 @@ public class StackModule extends BaseModule<StackModule, StackInfo> implements V
     for (ServiceModule module : serviceModules.values()) {
       mergeRoleCommandOrder(module);
     }
+
+    // Generate list of services that have no config types
+    List<String> servicesWithNoConfigs = new ArrayList<>();
+    for(ServiceModule serviceModule: serviceModules.values()){
+      if (!serviceModule.hasConfigs()){
+        servicesWithNoConfigs.add(serviceModule.getId());
+      }
+    }
+    stackInfo.setServicesWithNoConfigs(servicesWithNoConfigs);
   }
 
   /**
@@ -275,22 +288,9 @@ public class StackModule extends BaseModule<StackModule, StackInfo> implements V
     mergeConfigurations(parentStack, allStacks, commonServices, extensions);
     mergeRoleCommandOrder(parentStack);
 
-    if (stackInfo.getStackHooksFolder() == null) {
-      stackInfo.setStackHooksFolder(parentStack.getModuleInfo().getStackHooksFolder());
-    }
-
-    // grab stack level kerberos.json from parent stack
-    if (stackInfo.getKerberosDescriptorFileLocation() == null) {
-      stackInfo.setKerberosDescriptorFileLocation(parentStack.getModuleInfo().getKerberosDescriptorFileLocation());
-    }
-
     // grab stack level kerberos_preconfigure.json from parent stack
     if (stackInfo.getKerberosDescriptorPreConfigurationFileLocation() == null) {
       stackInfo.setKerberosDescriptorPreConfigurationFileLocation(parentStack.getModuleInfo().getKerberosDescriptorPreConfigurationFileLocation());
-    }
-
-    if (stackInfo.getWidgetsDescriptorFileLocation() == null) {
-      stackInfo.setWidgetsDescriptorFileLocation(parentStack.getModuleInfo().getWidgetsDescriptorFileLocation());
     }
 
     mergeServicesWithParent(parentStack, allStacks, commonServices, extensions);
@@ -371,7 +371,7 @@ public class StackModule extends BaseModule<StackModule, StackInfo> implements V
       Map<String, ServiceModule> commonServices, Map<String, ExtensionModule> extensions)
       throws AmbariException {
 
-    LOG.info("mergeServiceWithExplicitParent" + parent);
+    LOG.info(String.format("Merge service %s with explicit parent: %s", service.getModuleInfo().getName(), parent));
     if(isCommonServiceParent(parent)) {
       mergeServiceWithCommonServiceParent(service, parent, allStacks, commonServices, extensions);
     } else if(isExtensionServiceParent(parent)) {
@@ -554,9 +554,7 @@ public class StackModule extends BaseModule<StackModule, StackInfo> implements V
 
     id = String.format("%s:%s", stackInfo.getName(), stackInfo.getVersion());
 
-    LOG.debug("Adding new stack to known stacks"
-        + ", stackName = " + stackInfo.getName()
-        + ", stackVersion = " + stackInfo.getVersion());
+    LOG.debug("Adding new stack to known stacks, stackName = {}, stackVersion = {}", stackInfo.getName(), stackInfo.getVersion());
 
     //todo: give additional thought on handling missing metainfo.xml
     StackMetainfoXml smx = stackDirectory.getMetaInfoFile();
@@ -570,11 +568,8 @@ public class StackModule extends BaseModule<StackModule, StackInfo> implements V
       stackInfo.setMinUpgradeVersion(smx.getVersion().getUpgrade());
       stackInfo.setActive(smx.getVersion().isActive());
       stackInfo.setParentStackVersion(smx.getExtends());
-      stackInfo.setStackHooksFolder(stackDirectory.getHooksDir());
       stackInfo.setRcoFileLocation(stackDirectory.getRcoFilePath());
-      stackInfo.setKerberosDescriptorFileLocation(stackDirectory.getKerberosDescriptorFilePath());
       stackInfo.setKerberosDescriptorPreConfigurationFileLocation(stackDirectory.getKerberosDescriptorPreconfigureFilePath());
-      stackInfo.setWidgetsDescriptorFileLocation(stackDirectory.getWidgetsDescriptorFilePath());
       stackInfo.setUpgradesFolder(stackDirectory.getUpgradesDir());
       stackInfo.setUpgradePacks(stackDirectory.getUpgradePacks());
       stackInfo.setConfigUpgradePack(stackDirectory.getConfigUpgradePack());
@@ -591,6 +586,7 @@ public class StackModule extends BaseModule<StackModule, StackInfo> implements V
       }
       // Read the service and available configs for this stack
       populateServices();
+
       if (!stackInfo.isValid()) {
         setValid(false);
         addErrors(stackInfo.getErrors());
@@ -639,7 +635,7 @@ public class StackModule extends BaseModule<StackModule, StackInfo> implements V
     for (ServiceInfo serviceInfo : serviceInfos) {
       ServiceModule serviceModule = new ServiceModule(stackContext, serviceInfo, serviceDirectory);
       serviceModules.add(serviceModule);
-      if (!serviceModule.isValid()){
+      if (!serviceModule.isValid()) {
         stackInfo.setValid(false);
         setValid(false);
         stackInfo.addErrors(serviceModule.getErrors());
@@ -681,7 +677,7 @@ public class StackModule extends BaseModule<StackModule, StackInfo> implements V
       StackModule parent, Map<String,StackModule> allStacks, Map<String, ServiceModule> commonServices, Map<String, ExtensionModule> extensions)
       throws AmbariException {
     stackInfo.getProperties().clear();
-    stackInfo.setAllConfigAttributes(new HashMap<String, Map<String, Map<String, String>>>());
+    stackInfo.setAllConfigAttributes(new HashMap<>());
 
     Collection<ConfigurationModule> mergedModules = mergeChildModules(
         allStacks, commonServices, extensions, configurationModules, parent.configurationModules);
@@ -781,7 +777,11 @@ public class StackModule extends BaseModule<StackModule, StackInfo> implements V
     // relationship into map. Since we do not have the reverse {@link PropertyInfo},
     // we have to loop through service-configs again later.
     for (ServiceModule serviceModule : serviceModules.values()) {
+
+      Map<String, Map<String, String>> componentRefreshCommandsMap = new HashMap();
+
       for (PropertyInfo pi : serviceModule.getModuleInfo().getProperties()) {
+
         for (PropertyDependencyInfo pdi : pi.getDependsOnProperties()) {
           String type = ConfigHelper.fileNameToConfigType(pi.getFilename());
           String name = pi.getName();
@@ -796,7 +796,28 @@ public class StackModule extends BaseModule<StackModule, StackInfo> implements V
             dependedByMap.put(pdi, newDependenciesSet);
           }
         }
+
+        // set refresh commands
+        if (pi.getSupportedRefreshCommands() != null && pi.getSupportedRefreshCommands().size() > 0) {
+          String type = ConfigHelper.fileNameToConfigType(pi.getFilename());
+          String propertyName = type + "/" + pi.getName();
+
+          Map<String, String> refreshCommandPropertyMap = componentRefreshCommandsMap.get(propertyName);
+
+          for (RefreshCommand refreshCommand : pi.getSupportedRefreshCommands()) {
+            String componentName = refreshCommand.getComponentName();
+            if (refreshCommandPropertyMap == null) {
+              refreshCommandPropertyMap = new HashMap<>();
+              componentRefreshCommandsMap.put(propertyName, refreshCommandPropertyMap);
+            }
+            refreshCommandPropertyMap.put(componentName, refreshCommand.getCommand());
+          }
+
+        }
+
       }
+
+      stackInfo.getRefreshCommandConfiguration().addRefreshCommands(componentRefreshCommandsMap);
     }
 
     // Go through all service-configs again and set their 'depended-by' if necessary.
@@ -1015,7 +1036,7 @@ public class StackModule extends BaseModule<StackModule, StackInfo> implements V
         String name = groups.get(index).name;
         if (name.equals(group.addAfterGroup)) {
           groups.add(index + 1, group);
-          LOG.debug("Added group/after: " + group.name + "/" + group.addAfterGroup);
+          LOG.debug("Added group/after: {}/{}", group.name, group.addAfterGroup);
           return true;
         }
       }
@@ -1045,7 +1066,7 @@ public class StackModule extends BaseModule<StackModule, StackInfo> implements V
    * Finds an upgrade pack that:
    * <ul>
    *   <li>Is found in the $SERVICENAME/upgrades/$STACKNAME folder</li>
-   *   <li>Matches the same {@link UpgradeType#getType()}as the {@code base} upgrade pack</li>
+   *   <li>Matches the same {@link UpgradeType} as the {@code base} upgrade pack</li>
    *   <li>Has the {@link UpgradePack#getTarget()} value equals to "*"</li>
    *   <li>Has the {@link UpgradePack#getTargetStack()} value equals to "*"</li>
    * </ul>
@@ -1127,16 +1148,11 @@ public class StackModule extends BaseModule<StackModule, StackInfo> implements V
     if (null != rxml) {
       stackInfo.setRepositoryXml(rxml);
 
-      LOG.debug("Adding repositories to stack" +
-          ", stackName=" + stackInfo.getName() +
-          ", stackVersion=" + stackInfo.getVersion() +
-          ", repoFolder=" + stackDirectory.getRepoDir());
+      LOG.debug("Adding repositories to stack, stackName={}, stackVersion={}, repoFolder={}",
+        stackInfo.getName(), stackInfo.getVersion(), stackDirectory.getRepoDir());
 
       stackRepos = rxml.getRepositories();
 
-      for (RepositoryInfo ri : stackRepos) {
-        processRepository(ri);
-      }
 
       stackInfo.getRepositories().addAll(stackRepos);
     }
@@ -1192,7 +1208,6 @@ public class StackModule extends BaseModule<StackModule, StackInfo> implements V
     return uri;
   }
 
-
   /**
    * Gets the service repos with duplicates filtered out. A service repo is considered duplicate if:
    * <ul>
@@ -1204,18 +1219,17 @@ public class StackModule extends BaseModule<StackModule, StackInfo> implements V
    * @param stackRepos the list of stack repositories
    * @return the service repos with duplicates filtered out.
    */
-  @Experimental(feature = ExperimentalFeature.CUSTOM_SERVICE_REPOS,
-    comment = "Remove logic for handling custom service repos after enabling multi-mpack cluster deployment")
-  private Collection<RepositoryInfo> getUniqueServiceRepos(List<RepositoryInfo> stackRepos) {
+   @Experimental(feature = ExperimentalFeature.CUSTOM_SERVICE_REPOS,
+     comment = "Remove logic for handling custom service repos after enabling multi-mpack cluster deployment")
+   private Collection<RepositoryInfo> getUniqueServiceRepos(List<RepositoryInfo> stackRepos) {
     List<RepositoryInfo> serviceRepos = getAllServiceRepos();
     ImmutableListMultimap<String, RepositoryInfo> serviceReposByOsType = Multimaps.index(serviceRepos, RepositoryInfo.GET_OSTYPE_FUNCTION);
     ImmutableListMultimap<String, RepositoryInfo> stackReposByOsType = Multimaps.index(stackRepos, RepositoryInfo.GET_OSTYPE_FUNCTION);
-
-    Map<String, RepositoryInfo> uniqueServiceRepos = new HashMap<>();
+     Map<String, RepositoryInfo> uniqueServiceRepos = new HashMap<>();
 
     // Uniqueness is checked for each os type
     for (String osType: serviceReposByOsType.keySet()) {
-      List<RepositoryInfo> stackReposForOsType = stackReposByOsType.containsKey(osType) ? stackReposByOsType.get(osType) : Collections.<RepositoryInfo>emptyList();
+      List<RepositoryInfo> stackReposForOsType = stackReposByOsType.containsKey(osType) ? stackReposByOsType.get(osType) : Collections.emptyList();
       List<RepositoryInfo> serviceReposForOsType = serviceReposByOsType.get(osType);
       Set<String> stackRepoNames = ImmutableSet.copyOf(Lists.transform(stackReposForOsType, RepositoryInfo.GET_REPO_NAME_FUNCTION));
       Set<String> stackRepoUrls = ImmutableSet.copyOf(Lists.transform(stackReposForOsType, RepositoryInfo.SAFE_GET_BASE_URL_FUNCTION));
@@ -1298,28 +1312,6 @@ public class StackModule extends BaseModule<StackModule, StackInfo> implements V
     return repos;
   }
 
-  /**
-   * Process a repository associated with the stack.
-   *
-   * @param ri The RespositoryInfo to process
-   */
-  private RepositoryInfo processRepository(RepositoryInfo ri) {
-
-    LOG.debug("Checking for override for base_url");
-    String updatedUrl = stackContext.getUpdatedRepoUrl(stackInfo.getName(), stackInfo.getVersion(),
-        ri.getOsType(), ri.getRepoId());
-
-    if (null != updatedUrl) {
-      ri.setBaseUrl(updatedUrl);
-      ri.setBaseUrlFromSaved(true);
-    }
-
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("Adding repo to stack"
-          + ", repoInfo=" + ri.toString());
-    }
-    return ri;
-  }
 
 
   /**
@@ -1343,9 +1335,38 @@ public class StackModule extends BaseModule<StackModule, StackInfo> implements V
 
     stackInfo.getRoleCommandOrder().merge(service.getModuleInfo().getRoleCommandOrder(), true);
     if (LOG.isDebugEnabled()) {
-      LOG.debug("Role Command Order for " + stackInfo.getName() + "-" + stackInfo.getVersion() +
-        " service " + service.getModuleInfo().getName());
+      LOG.debug("Role Command Order for {}-{} service {}", stackInfo.getName(), stackInfo.getVersion(), service.getModuleInfo().getName());
       stackInfo.getRoleCommandOrder().printRoleCommandOrder(LOG);
+    }
+  }
+
+  /**
+   * Validate the component defined in the bulkCommand section is defined for the service
+   * This needs to happen after the stack is resolved
+   * */
+  private void validateBulkCommandComponents(Map<String, StackModule> allStacks){
+    if (null != stackInfo) {
+      String currentStackId = stackInfo.getName() + StackManager.PATH_DELIMITER + stackInfo.getVersion();
+      LOG.debug("Validate bulk command components for: {}", currentStackId);
+      StackModule currentStack = allStacks.get(currentStackId);
+      if (null != currentStack){
+        for (ServiceModule serviceModule : currentStack.getServiceModules().values()) {
+          ServiceInfo service = serviceModule.getModuleInfo();
+          for(ComponentInfo component: service.getComponents()){
+            BulkCommandDefinition bcd = component.getBulkCommandDefinition();
+            if (null != bcd && null != bcd.getMasterComponent()){
+              String name = bcd.getMasterComponent();
+              ComponentInfo targetComponent = service.getComponentByName(name);
+              if (null == targetComponent){
+                String serviceName = service.getName();
+                LOG.error(
+                    String.format("%s bulk command section for service %s in stack %s references a component %s which doesn't exist.",
+                        component.getName(), serviceName, currentStackId, name));
+              }
+            }
+          }
+        }
+      }
     }
   }
 

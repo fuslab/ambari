@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,28 +18,21 @@
 
 package org.apache.ambari.server.controller.internal;
 
-import org.apache.ambari.server.AmbariException;
-import org.apache.ambari.server.DuplicateResourceException;
-import org.apache.ambari.server.controller.spi.Predicate;
-import org.apache.ambari.server.controller.spi.Resource;
-import org.apache.ambari.server.controller.spi.ResourceAlreadyExistsException;
-import org.apache.ambari.server.controller.utilities.PredicateBuilder;
-import org.apache.ambari.server.controller.utilities.PropertyHelper;
-import org.apache.ambari.server.orm.entities.ViewEntity;
-import org.apache.ambari.server.orm.entities.ViewInstanceDataEntity;
-import org.apache.ambari.server.orm.entities.ViewInstanceEntity;
-import org.apache.ambari.server.security.TestAuthenticationFactory;
-import org.apache.ambari.server.security.authorization.AuthorizationException;
-import org.apache.ambari.server.view.ViewRegistry;
-import org.apache.ambari.server.view.configuration.ViewConfig;
-import org.apache.ambari.view.ViewDefinition;
-import org.easymock.Capture;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import static org.easymock.EasyMock.anyObject;
+import static org.easymock.EasyMock.capture;
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.eq;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.reset;
+import static org.easymock.EasyMock.verify;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -47,20 +40,34 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import static org.junit.Assert.*;
-import static org.easymock.EasyMock.*;
-import static org.junit.Assert.assertEquals;
+import org.apache.ambari.server.controller.spi.Predicate;
+import org.apache.ambari.server.controller.spi.Resource;
+import org.apache.ambari.server.controller.spi.ResourceAlreadyExistsException;
+import org.apache.ambari.server.controller.utilities.PredicateBuilder;
+import org.apache.ambari.server.controller.utilities.PropertyHelper;
+import org.apache.ambari.server.orm.entities.ViewEntity;
+import org.apache.ambari.server.orm.entities.ViewInstanceEntity;
+import org.apache.ambari.server.security.TestAuthenticationFactory;
+import org.apache.ambari.server.security.authorization.AuthorizationException;
+import org.apache.ambari.server.view.ViewRegistry;
+import org.apache.ambari.server.view.configuration.ViewConfig;
+import org.apache.ambari.view.ViewDefinition;
+import org.easymock.Capture;
+import org.easymock.EasyMock;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 public class ViewInstanceResourceProviderTest {
 
   private static final ViewRegistry viewregistry = createMock(ViewRegistry.class);
 
-  static {
-    ViewRegistry.initInstance(viewregistry);
-  }
-
   @Before
   public void before() {
+    ViewRegistry.initInstance(viewregistry);
     reset(viewregistry);
   }
 
@@ -72,21 +79,21 @@ public class ViewInstanceResourceProviderTest {
   @Test
   public void testToResource() throws Exception {
     ViewInstanceResourceProvider provider = new ViewInstanceResourceProvider();
-    Set<String> propertyIds = new HashSet<String>();
-    propertyIds.add(ViewInstanceResourceProvider.PROPERTIES_PROPERTY_ID);
-    propertyIds.add(ViewInstanceResourceProvider.CLUSTER_HANDLE_PROPERTY_ID);
+    Set<String> propertyIds = new HashSet<>();
+    propertyIds.add(ViewInstanceResourceProvider.PROPERTIES);
+    propertyIds.add(ViewInstanceResourceProvider.CLUSTER_HANDLE);
     ViewInstanceEntity viewInstanceEntity = createNiceMock(ViewInstanceEntity.class);
     ViewEntity viewEntity = createNiceMock(ViewEntity.class);
     expect(viewInstanceEntity.getViewEntity()).andReturn(viewEntity).anyTimes();
 
-    Map<String, String> propertyMap = new HashMap<String, String>();
+    Map<String, String> propertyMap = new HashMap<>();
 
     propertyMap.put("par1", "val1");
     propertyMap.put("par2", "val2");
 
     expect(viewInstanceEntity.getPropertyMap()).andReturn(propertyMap);
 
-    expect(viewInstanceEntity.getData()).andReturn(Collections.<ViewInstanceDataEntity>emptyList()).anyTimes();
+    expect(viewInstanceEntity.getData()).andReturn(Collections.emptyList()).anyTimes();
 
     expect(viewregistry.checkAdmin()).andReturn(true);
     expect(viewregistry.checkAdmin()).andReturn(false);
@@ -132,14 +139,14 @@ public class ViewInstanceResourceProviderTest {
   private void testCreateResources(Authentication authentication) throws Exception {
     ViewInstanceResourceProvider provider = new ViewInstanceResourceProvider();
 
-    Set<Map<String, Object>> properties = new HashSet<Map<String, Object>>();
+    Set<Map<String, Object>> properties = new HashSet<>();
 
-    Map<String, Object> propertyMap = new HashMap<String, Object>();
+    Map<String, Object> propertyMap = new HashMap<>();
 
-    propertyMap.put(ViewInstanceResourceProvider.VIEW_NAME_PROPERTY_ID, "V1");
-    propertyMap.put(ViewInstanceResourceProvider.VIEW_VERSION_PROPERTY_ID, "1.0.0");
-    propertyMap.put(ViewInstanceResourceProvider.INSTANCE_NAME_PROPERTY_ID, "I1");
-    propertyMap.put(ViewInstanceResourceProvider.PROPERTIES_PROPERTY_ID + "/test_property", "test_value");
+    propertyMap.put(ViewInstanceResourceProvider.VIEW_NAME, "V1");
+    propertyMap.put(ViewInstanceResourceProvider.VERSION, "1.0.0");
+    propertyMap.put(ViewInstanceResourceProvider.INSTANCE_NAME, "I1");
+    propertyMap.put(ViewInstanceResourceProvider.PROPERTIES + "/test_property", "test_value");
 
     properties.add(propertyMap);
 
@@ -163,12 +170,12 @@ public class ViewInstanceResourceProviderTest {
     expect(viewregistry.getDefinition("V1", "1.0.0")).andReturn(viewEntity).anyTimes();
     expect(viewregistry.getDefinition("V1", null)).andReturn(viewEntity).anyTimes();
 
-    Capture<Map<String, String>> captureProperties = new Capture<Map<String, String>>();
+    Capture<Map<String, String>> captureProperties = EasyMock.newCapture();
 
     viewregistry.setViewInstanceProperties(eq(viewInstanceEntity), capture(captureProperties),
         anyObject(ViewConfig.class), anyObject(ClassLoader.class));
 
-    Capture<ViewInstanceEntity> instanceEntityCapture = new Capture<ViewInstanceEntity>();
+    Capture<ViewInstanceEntity> instanceEntityCapture = EasyMock.newCapture();
     viewregistry.installViewInstance(capture(instanceEntityCapture));
     expectLastCall().anyTimes();
 
@@ -199,13 +206,13 @@ public class ViewInstanceResourceProviderTest {
   public void testCreateResources_existingInstance() throws Exception {
     ViewInstanceResourceProvider provider = new ViewInstanceResourceProvider();
 
-    Set<Map<String, Object>> properties = new HashSet<Map<String, Object>>();
+    Set<Map<String, Object>> properties = new HashSet<>();
 
-    Map<String, Object> propertyMap = new HashMap<String, Object>();
+    Map<String, Object> propertyMap = new HashMap<>();
 
-    propertyMap.put(ViewInstanceResourceProvider.VIEW_NAME_PROPERTY_ID, "V1");
-    propertyMap.put(ViewInstanceResourceProvider.VIEW_VERSION_PROPERTY_ID, "1.0.0");
-    propertyMap.put(ViewInstanceResourceProvider.INSTANCE_NAME_PROPERTY_ID, "I1");
+    propertyMap.put(ViewInstanceResourceProvider.VIEW_NAME, "V1");
+    propertyMap.put(ViewInstanceResourceProvider.VERSION, "1.0.0");
+    propertyMap.put(ViewInstanceResourceProvider.INSTANCE_NAME, "I1");
 
     properties.add(propertyMap);
 
@@ -243,13 +250,13 @@ public class ViewInstanceResourceProviderTest {
   public void testCreateResources_viewNotLoaded() throws Exception {
     ViewInstanceResourceProvider provider = new ViewInstanceResourceProvider();
 
-    Set<Map<String, Object>> properties = new HashSet<Map<String, Object>>();
+    Set<Map<String, Object>> properties = new HashSet<>();
 
-    Map<String, Object> propertyMap = new HashMap<String, Object>();
+    Map<String, Object> propertyMap = new HashMap<>();
 
-    propertyMap.put(ViewInstanceResourceProvider.VIEW_NAME_PROPERTY_ID, "V1");
-    propertyMap.put(ViewInstanceResourceProvider.VIEW_VERSION_PROPERTY_ID, "1.0.0");
-    propertyMap.put(ViewInstanceResourceProvider.INSTANCE_NAME_PROPERTY_ID, "I1");
+    propertyMap.put(ViewInstanceResourceProvider.VIEW_NAME, "V1");
+    propertyMap.put(ViewInstanceResourceProvider.VERSION, "1.0.0");
+    propertyMap.put(ViewInstanceResourceProvider.INSTANCE_NAME, "I1");
 
     properties.add(propertyMap);
 
@@ -286,17 +293,17 @@ public class ViewInstanceResourceProviderTest {
   public void testUpdateResources_viewNotLoaded() throws Exception {
     ViewInstanceResourceProvider provider = new ViewInstanceResourceProvider();
 
-    Set<Map<String, Object>> properties = new HashSet<Map<String, Object>>();
+    Set<Map<String, Object>> properties = new HashSet<>();
 
-    Map<String, Object> propertyMap = new HashMap<String, Object>();
+    Map<String, Object> propertyMap = new HashMap<>();
 
-    propertyMap.put(ViewInstanceResourceProvider.ICON_PATH_ID, "path");
+    propertyMap.put(ViewInstanceResourceProvider.ICON_PATH, "path");
 
     properties.add(propertyMap);
 
     PredicateBuilder predicateBuilder = new PredicateBuilder();
     Predicate predicate =
-        predicateBuilder.property(ViewInstanceResourceProvider.VIEW_NAME_PROPERTY_ID).equals("V1").toPredicate();
+        predicateBuilder.property(ViewInstanceResourceProvider.VIEW_NAME).equals("V1").toPredicate();
     ViewEntity viewEntity = new ViewEntity();
     viewEntity.setName("V1{1.0.0}");
     viewEntity.setStatus(ViewDefinition.ViewStatus.DEPLOYING);
@@ -333,7 +340,7 @@ public class ViewInstanceResourceProviderTest {
 
     PredicateBuilder predicateBuilder = new PredicateBuilder();
     Predicate predicate =
-        predicateBuilder.property(ViewInstanceResourceProvider.VIEW_NAME_PROPERTY_ID).equals("V1").toPredicate();
+        predicateBuilder.property(ViewInstanceResourceProvider.VIEW_NAME).equals("V1").toPredicate();
 
     ViewEntity viewEntity = new ViewEntity();
     viewEntity.setName("V1{1.0.0}");

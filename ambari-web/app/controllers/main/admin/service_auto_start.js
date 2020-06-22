@@ -21,21 +21,111 @@ var App = require('app');
 App.MainAdminServiceAutoStartController = Em.Controller.extend({
   name: 'mainAdminServiceAutoStartController',
 
+  /**
+   * @type {?object}
+   * @default null
+   */
   clusterConfigs: null,
-  componentsConfigs: [],
-  isSaveDisabled: true,
-  valueChanged: false,
-  syncTrigger: false, // trigger status reset in switch view after "save"
-  revertTrigger: false, // trigger status reset in switch view after "discard"
 
-  loadClusterConfig: function () {
-    return App.ajax.send({
-      name: 'config.tags.site',
-      sender: this,
-      data: {
-        site: 'cluster-env'
-      }
+  /**
+   * @type {Array}
+   */
+  componentsConfigsCached: [],
+
+  /**
+   * @type {object}
+   */
+  componentsConfigsCachedMap: function() {
+    const map = {};
+    this.get('componentsConfigsCached').mapProperty('ServiceComponentInfo').forEach((component) => {
+      map[component.component_name] = component.recovery_enabled === 'true'
     });
+    return map;
+  }.property('componentsConfigsCached.@each.ServiceComponentInfo.recovery_enabled'),
+
+  /**
+   * @type {Array}
+   */
+  componentsConfigsGrouped: [],
+
+  /**
+   * @type {boolean}
+   */
+  isLoaded: false,
+
+  /**
+   * @type {boolean}
+   */
+  isGeneralRecoveryEnabled: false,
+
+  /**
+   * @type {boolean}
+   */
+  isGeneralRecoveryEnabledCached: false,
+
+  /**
+   * @type {boolean}
+   */
+  saveInProgress: false,
+
+  /**
+   * @type {boolean}
+   */
+  isModified: function() {
+    return this.get('isGeneralModified') || this.get('isComponentModified');
+  }.property('isGeneralModified', 'isComponentModified'),
+
+  /**
+   * @type {boolean}
+   */
+  isGeneralModified: function() {
+    return this.get('isGeneralRecoveryEnabled') !== this.get('isGeneralRecoveryEnabledCached')
+  }.property('isGeneralRecoveryEnabled', 'isGeneralRecoveryEnabledCached'),
+
+  /**
+   * @type {boolean}
+   */
+  isComponentModified: function() {
+    const componentsConfigsCachedMap = this.get('componentsConfigsCachedMap');
+
+    return this.get('componentsConfigsGrouped').some((component) => {
+      return component.get('recoveryEnabled') !== componentsConfigsCachedMap[component.get('componentName')];
+    });
+  }.property('componentsConfigsGrouped.@each.recoveryEnabled', 'componentsConfigsCachedMap'),
+
+  parseComponentConfigs: function(componentsConfigsCached) {
+    componentsConfigsCached.sortPropertyLight('ServiceComponentInfo.service_name');
+    const componentsConfigsGrouped = [];
+    const servicesMap = componentsConfigsCached
+      .mapProperty('ServiceComponentInfo.service_name').uniq().toWickMap();
+
+    componentsConfigsCached.mapProperty('ServiceComponentInfo').forEach((component) => {
+      componentsConfigsGrouped.push(Em.Object.create({
+        serviceDisplayName: App.format.role(component.service_name, true),
+        isFirst: servicesMap[component.service_name],
+        componentName: component.component_name,
+        displayName: App.format.role(component.component_name, false),
+        recoveryEnabled: component.recovery_enabled === 'true'
+      }));
+      servicesMap[component.service_name] = false;
+    });
+    return componentsConfigsGrouped;
+  },
+
+  load: function() {
+    const self = this;
+    const clusterConfigController = App.router.get('configurationController');
+    clusterConfigController.updateConfigTags().always(function () {
+      clusterConfigController.getCurrentConfigsBySites(['cluster-env']).done((data) => {
+        self.set('clusterConfigs', data[0].properties);
+        self.set('isGeneralRecoveryEnabled', data[0].properties.recovery_enabled === 'true');
+        self.set('isGeneralRecoveryEnabledCached', self.get('isGeneralRecoveryEnabled'));
+        self.loadComponentsConfigs().then(() => {
+          self.set('isLoaded', true);
+        });
+      });
+    });
+
   },
 
   loadComponentsConfigs: function () {
@@ -47,122 +137,57 @@ App.MainAdminServiceAutoStartController = Em.Controller.extend({
   },
 
   loadComponentsConfigsSuccess: function (data) {
-    this.set('componentsConfigs', data.items);
+    this.set('componentsConfigsCached', data.items);
+    this.set('componentsConfigsGrouped', this.parseComponentConfigs(data.items));
   },
 
-  tabs: function() {
-    var services = {};
-    var tabs = [];
-    this.get('componentsConfigs').forEach(function(component) {
-      var serviceComponentInfo = component.ServiceComponentInfo;
-      if (serviceComponentInfo.total_count) {
-        if (serviceComponentInfo.category === "MASTER" || serviceComponentInfo.category === "SLAVE") {
-          var componentRecovery = Ember.Object.create({
-            display_name: App.format.role(serviceComponentInfo.component_name, false),
-            component_name: serviceComponentInfo.component_name,
-            recovery_enabled: serviceComponentInfo.recovery_enabled === 'true',
-            valueChanged: false,
-            service_name: serviceComponentInfo.service_name,
-            syncTrigger: false,
-            revertTrigger: false,
-          });
-          if (services[serviceComponentInfo.service_name]) {
-            services[serviceComponentInfo.service_name].get('componentRecovery').push(componentRecovery);
-            services[serviceComponentInfo.service_name].set('enabledComponents', services[serviceComponentInfo.service_name].get('enabledComponents') + (componentRecovery.get('recovery_enabled') ? 1 : 0));
-            services[serviceComponentInfo.service_name].set('totalComponents', services[serviceComponentInfo.service_name].get('totalComponents') + 1);
-          } else {
-            services[serviceComponentInfo.service_name] = Ember.Object.create({
-              service_name: serviceComponentInfo.service_name,
-              display_name: App.format.role(serviceComponentInfo.service_name, true),
-              headingClass: "." + serviceComponentInfo.service_name,
-              isActive: false,
-              tooltip: function () {
-                var percentage = this.get('enabledComponents') / this.get('totalComponents');
-                var tooltip = '';
-                if (percentage === 1) {
-                  tooltip = Em.I18n.t('admin.serviceAutoStart.tooltip.text').format("All");
-                } else if (percentage === 0) {
-                  tooltip = Em.I18n.t('admin.serviceAutoStart.tooltip.text').format("No");
-                } else {
-                  tooltip = Em.I18n.t('admin.serviceAutoStart.tooltip.text').format(this.get('enabledComponents') + "/" + this.get('totalComponents'));
-                }
-                return tooltip;
-              }.property('enabledComponents', 'totalComponents'),
-              componentRecovery: [componentRecovery],
-              enabledComponents: componentRecovery.recovery_enabled ? 1 : 0,
-              totalComponents: 1,
-              indicator: function () {
-                var percentage = this.get('enabledComponents') / this.get('totalComponents');
-                var indicator = "icon-adjust";
-                if (percentage === 1) {
-                  indicator = "icon-circle";
-                } else if (percentage === 0) {
-                  indicator = "icon-circle-blank";
-                }
-                return indicator;
-              }.property('enabledComponents', 'totalComponents')
-            });
-          }
-        }
+  saveClusterConfigs: function (clusterConfigs, recoveryEnabled) {
+    clusterConfigs.recovery_enabled = String(recoveryEnabled);
+    return App.ajax.send({
+      name: 'admin.save_configs',
+      sender: this,
+      data: {
+        siteName: 'cluster-env',
+        properties: clusterConfigs
       }
     });
-    for (var service in services ) {
-      tabs.push(services[service]);
-    }
-    if (tabs.length) {
-      tabs[0].set('isActive', true);
-    }
-    return tabs;
-  }.property('componentsConfigs'),
+  },
 
-  checkValuesChange: function () {
-    var valuesChanged = this.get('valueChanged');
-    this.get('tabs').forEach(function (service) {
-      service.get('componentRecovery').forEach(function (component) {
-        valuesChanged = valuesChanged || component.get('valueChanged');
-      });
+  saveComponentSettingsCall: function(recoveryEnabled, components) {
+    return App.ajax.send({
+      name: 'components.update',
+      sender: this,
+      data: {
+        ServiceComponentInfo: {
+          recovery_enabled: recoveryEnabled
+        },
+        query: 'ServiceComponentInfo/component_name.in(' + components.join(',') + ')'
+      }
     });
-    this.set('isSaveDisabled', !valuesChanged);
-  }.observes('valueChanged'),
+  },
 
   syncStatus: function () {
-    // component level switches
-    this.get('tabs').forEach(function (service) {
-      service.get('componentRecovery').forEach(function (component) {
-        component.set('valueChanged', false);
-        component.toggleProperty('syncTrigger');
-      });
+    const componentsConfigsGrouped = this.get('componentsConfigsGrouped');
+    this.set('isGeneralRecoveryEnabledCached', this.get('isGeneralRecoveryEnabled'));
+    this.get('componentsConfigsCached').mapProperty('ServiceComponentInfo').forEach((component) => {
+      const actualComponent = componentsConfigsGrouped.findProperty('componentName', component.component_name);
+      component.recovery_enabled = String(actualComponent.get('recoveryEnabled'));
     });
-    // service level switch
-    this.toggleProperty('syncTrigger');
-    this.set('valueChanged', false);
-    this.set('isSaveDisabled', true);
+    this.propertyDidChange('componentsConfigsCached');
   },
 
-  revertStatus: function () {
-    // component level switches
-    this.get('tabs').forEach(function (service) {
-      service.get('componentRecovery').forEach(function (component) {
-        component.set('valueChanged', false);
-        component.toggleProperty('revertTrigger');
-      });
-    });
-    // service level switch
-    this.toggleProperty('revertTrigger');
-    this.set('valueChanged', false);
-    this.set('isSaveDisabled', true);
+  restoreCachedValues: function () {
+    this.set('isGeneralRecoveryEnabled', this.get('isGeneralRecoveryEnabledCached'));
+    this.set('componentsConfigsGrouped', this.parseComponentConfigs(this.get('componentsConfigsCached')));
   },
 
-  enableAll: function (event) {
-    event.context.get('componentRecovery').forEach(function (component) {
-      component.set('recoveryEnabled', true);
-    });
-  },
+  filterComponentsByChange: function(components, value) {
+    const map = this.get('componentsConfigsCachedMap');
 
-  disableAll: function (event) {
-    event.context.get('componentRecovery').forEach(function (component) {
-      component.set('recoveryEnabled', false);
-    });
+    return components.filter((component) => {
+      return component.get('recoveryEnabled') !== map[component.get('componentName')]
+          && component.get('recoveryEnabled') === value;
+    }).mapProperty('componentName');
   },
 
   /**
@@ -193,78 +218,41 @@ App.MainAdminServiceAutoStartController = Em.Controller.extend({
       primary: Em.I18n.t('common.save'),
       secondary: Em.I18n.t('common.cancel'),
       onSave: function () {
-        //save cluster setting
-        if (self.get('valueChanged')) {
-          self.saveClusterConfigs(self.get('clusterConfigs'));
+        let clusterConfigsCall, enabledComponentsCall, disabledComponentsCall;
+
+        if (self.get('isGeneralModified')) {
+          clusterConfigsCall = self.saveClusterConfigs(self.get('clusterConfigs'), self.get('isGeneralRecoveryEnabled'));
         }
-        //save component settings
-        var enabledComponents = [];
-        var disabledComponents = [];
-        self.get('tabs').forEach(function (service) {
-          service.get('componentRecovery').forEach(function (component) {
-            if (component.get('valueChanged')) {
-              if (component.get('recovery_enabled')) {
-                enabledComponents.push(component.get('component_name'));
-              } else {
-                disabledComponents.push(component.get('component_name'));
-              }
-            }
-          });
-        });
-        if (enabledComponents.length){
-          var promise1 = App.ajax.send({
-            name: 'components.update',
-            sender: this,
-            data: {
-              ServiceComponentInfo: {
-                recovery_enabled: "true"
-              },
-              query: 'ServiceComponentInfo/component_name.in(' + enabledComponents.join(',') + ')'
-            }
-          });
+
+        const enabledComponents = self.filterComponentsByChange(self.get('componentsConfigsGrouped'), true);
+        const disabledComponents = self.filterComponentsByChange(self.get('componentsConfigsGrouped'), false);
+
+        if (enabledComponents.length) {
+          enabledComponentsCall = self.saveComponentSettingsCall('true', enabledComponents);
         }
-        if (disabledComponents.length){
-          var promise2 = App.ajax.send({
-            name: 'components.update',
-            sender: this,
-            data: {
-              ServiceComponentInfo: {
-                recovery_enabled: "false"
-              },
-              query: 'ServiceComponentInfo/component_name.in(' + disabledComponents.join(',') + ')'
-            }
-          });
+        if (disabledComponents.length) {
+          disabledComponentsCall = self.saveComponentSettingsCall('false', disabledComponents);
         }
-        $.when(promise1, promise2).done(
-          function () {
-            if (typeof transitionCallback === 'function') {
-              transitionCallback();
-            }
-            self.syncStatus();
+        self.set('saveInProgress', true);
+        $.when(clusterConfigsCall, enabledComponentsCall, disabledComponentsCall).done(function () {
+          if (typeof transitionCallback === 'function') {
+            transitionCallback();
           }
-        );
+          self.syncStatus();
+        }).always(function() {
+          self.set('saveInProgress', false);
+        });
         this.hide();
       },
       onDiscard: function () {
+        self.restoreCachedValues();
         if (typeof transitionCallback === 'function') {
           transitionCallback();
         }
-        self.revertStatus();
         this.hide();
       },
       onCancel: function () {
         this.hide();
-      }
-    });
-  },
-
-  saveClusterConfigs: function (clusterConfigs) {
-    return App.ajax.send({
-      name: 'admin.save_configs',
-      sender: this,
-      data: {
-        siteName: 'cluster-env',
-        properties: clusterConfigs
       }
     });
   }

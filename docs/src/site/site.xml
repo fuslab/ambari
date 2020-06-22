@@ -83,7 +83,7 @@
 
     <links>
       <item name="JIRA" href="https://issues.apache.org/jira/browse/AMBARI" />
-      <item name="Git" href="https://git-wip-us.apache.org/repos/asf/ambari/repo?p=ambari.git;a=summary" />
+      <item name="Git" href="https://gitbox.apache.org/repos/asf/ambari/repo?p=ambari.git;a=summary" />
       <item name="Wiki" href="https://cwiki.apache.org/confluence/display/AMBARI/Ambari" />
     </links>
 
@@ -107,6 +107,18 @@
       <item name="Quick Start Guide" href="https://cwiki.apache.org/confluence/display/AMBARI/Quick+Start+Guide"/>
       <item name="Features + Roadmap" href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=30755705"/>
       <item name="API Reference" href="https://github.com/apache/ambari/blob/trunk/ambari-server/docs/api/v1/index.md"/>
+      <item name="Install Guide for 2.7.1" href="https://cwiki.apache.org/confluence/display/AMBARI/Installation+Guide+for+Ambari+2.7.1"/>
+      <item name="Install Guide for 2.7.0" href="https://cwiki.apache.org/confluence/display/AMBARI/Installation+Guide+for+Ambari+2.7.0"/>
+      <item name="Install Guide for 2.6.2" href="https://cwiki.apache.org/confluence/display/AMBARI/Installation+Guide+for+Ambari+2.6.2"/>
+      <item name="Install Guide for 2.6.1" href="https://cwiki.apache.org/confluence/display/AMBARI/Installation+Guide+for+Ambari+2.6.1"/>
+      <item name="Install Guide for 2.6.0" href="https://cwiki.apache.org/confluence/display/AMBARI/Installation+Guide+for+Ambari+2.6.0"/>
+      <item name="Install Guide for 2.5.2" href="https://cwiki.apache.org/confluence/display/AMBARI/Installation+Guide+for+Ambari+2.5.2"/>
+      <item name="Install Guide for 2.5.1" href="https://cwiki.apache.org/confluence/display/AMBARI/Installation+Guide+for+Ambari+2.5.1"/>
+      <item name="Install Guide for 2.5.0" href="https://cwiki.apache.org/confluence/display/AMBARI/Installation+Guide+for+Ambari+2.5.0"/>
+      <item name="Install Guide for 2.4.3" href="https://cwiki.apache.org/confluence/display/AMBARI/Installation+Guide+for+Ambari+2.4.3"/>
+      <item name="Install Guide for 2.4.2" href="https://cwiki.apache.org/confluence/display/AMBARI/Installation+Guide+for+Ambari+2.4.2"/>
+      <item name="Install Guide for 2.4.1" href="https://cwiki.apache.org/confluence/display/AMBARI/Installation+Guide+for+Ambari+2.4.1"/>
+      <item name="Install Guide for 2.4.0" href="https://cwiki.apache.org/confluence/display/AMBARI/Installation+Guide+for+Ambari+2.4.0"/>
       <item name="Install Guide for 2.2.2" href="https://cwiki.apache.org/confluence/display/AMBARI/Installation+Guide+for+Ambari+2.2.2"/>
       <item name="Install Guide for 2.2.1" href="https://cwiki.apache.org/confluence/display/AMBARI/Installation+Guide+for+Ambari+2.2.1"/>
       <item name="Install Guide for 2.2.0" href="https://cwiki.apache.org/confluence/display/AMBARI/Installation+Guide+for+Ambari+2.2.0"/>
@@ -135,7 +147,18 @@
     </menu>
 
     <menu name="Releases">
-      <item name="2.2.2" href="http://www.apache.org/dyn/closer.cgi/ambari/ambari-2.2.2"/>
+      <item name="2.7.0" href="http://www.apache.org/dyn/closer.cgi/ambari/ambari-2.7.0"/>
+      <item name="2.6.2" href="http://www.apache.org/dyn/closer.cgi/ambari/ambari-2.6.2"/>
+      <item name="2.6.1" href="http://www.apache.org/dyn/closer.cgi/ambari/ambari-2.6.1"/>
+      <item name="2.6.0" href="http://archive.apache.org/dist/ambari/ambari-2.6.0"/>
+      <item name="2.5.2" href="http://archive.apache.org/dist/ambari/ambari-2.5.2"/>
+      <item name="2.5.1" href="http://archive.apache.org/dist/ambari/ambari-2.5.1"/>
+      <item name="2.5.0" href="http://archive.apache.org/dist/ambari/ambari-2.5.0"/>
+      <item name="2.4.3" href="http://archive.apache.org/dist/ambari/ambari-2.4.3"/>
+      <item name="2.4.2" href="http://archive.apache.org/dist/ambari/ambari-2.4.2"/>
+      <item name="2.4.1" href="http://archive.apache.org/dist/ambari/ambari-2.4.1"/>
+      <item name="2.4.0" href="http://archive.apache.org/dist/ambari/ambari-2.4.0"/>
+      <item name="2.2.2" href="http://archive.apache.org/dist/ambari/ambari-2.2.2"/>
       <item name="2.2.1" href="http://archive.apache.org/dist/ambari/ambari-2.2.1"/>
       <item name="2.2.0" href="http://archive.apache.org/dist/ambari/ambari-2.2.0"/>
       <item name="2.1.2" href="http://archive.apache.org/dist/ambari/ambari-2.1.2"/>
@@ -160,6 +183,16 @@
       <item name="1.2.1" href="http://archive.apache.org/dist/incubator/ambari/ambari-1.2.1/"/>
       <item name="1.2.0" href="http://archive.apache.org/dist/incubator/ambari/ambari-1.2.0/"/>
       <item name="0.9" href="http://archive.apache.org/dist/incubator/ambari/ambari-0.9-incubating/"/>
+    </menu>
+
+    <menu name="ASF" title="Apache Software Foundation">
+        <item name="Home"            href="https://www.apache.org" />
+        <item name="Events"          href="https://www.apache.org/events/current-event" />
+        <item name="License"         href="https://www.apache.org/licenses/" />
+        <item name="Sponsorship"     href="https://www.apache.org/foundation/sponsorship" />
+        <item name="Security"        href="https://www.apache.org/security" />
+        <item name="Thanks"          href="https://www.apache.org/foundation/thanks" />
+        <item name="Code of Conduct" href="https://www.apache.org/foundation/policies/conduct" />
     </menu>
 
     <footer>

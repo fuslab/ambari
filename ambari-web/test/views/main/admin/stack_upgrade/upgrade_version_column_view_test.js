@@ -126,7 +126,7 @@ describe('App.UpgradeVersionColumnView', function () {
           isAvailable: true
         })
       ]
-    }),
+    })
   ];
 
   describe("#isStackServiceAvailable", function () {

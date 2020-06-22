@@ -28,7 +28,7 @@ App.upgradeGroupView = Em.View.extend({
    */
   progressBarView: App.ProgressBarView.extend({
     classNames: ['progress-counter'],
-    template: Ember.Handlebars.compile('<div class="bar" {{bindAttr style="view.progressWidth"}}></div>' +
+    template: Ember.Handlebars.compile('<div class="progress-bar" {{bindAttr style="view.progressWidth"}}></div>' +
     '<div class="counters-label">{{view.completedTasks}}/{{view.totalTasks}}</div>')
   }),
 
@@ -45,7 +45,6 @@ App.upgradeGroupView = Em.View.extend({
     this.collapseLowerLevels(event.context);
     event.context.set('isExpanded', !isExpanded);
     if (!isExpanded && event.context.get('type') === 'ITEM') {
-      event.context.set('isTasksLoaded', false);
       this.doPolling(event.context);
     }
   },
@@ -75,9 +74,11 @@ App.upgradeGroupView = Em.View.extend({
 
     if (item && item.get('isExpanded')) {
       this.get('controller').getUpgradeItem(item).complete(function () {
-        self.set('timer', setTimeout(function () {
-          self.doPolling(item);
-        }, App.bgOperationsUpdateInterval));
+        if (!item.get('isCompleted')) {
+          self.set('timer', setTimeout(function () {
+            self.doPolling(item);
+          }, App.bgOperationsUpdateInterval));
+        }
       });
     } else {
       clearTimeout(this.get('timer'));

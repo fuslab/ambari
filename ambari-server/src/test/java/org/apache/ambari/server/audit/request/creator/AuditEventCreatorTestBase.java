@@ -21,6 +21,7 @@ package org.apache.ambari.server.audit.request.creator;
 import java.util.Collection;
 import java.util.Collections;
 
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -55,7 +56,7 @@ public class AuditEventCreatorTestBase {
 
           @Override
           public Object getPrincipal() {
-            return new User(userName, "password", Collections.EMPTY_LIST);
+            return new User(userName, "password", Collections.emptyList());
           }
 
           @Override
@@ -80,5 +81,9 @@ public class AuditEventCreatorTestBase {
 
       }
     });
+  }
+  @AfterClass
+  public static void afterClass(){
+    SecurityContextHolder.clearContext();
   }
 }

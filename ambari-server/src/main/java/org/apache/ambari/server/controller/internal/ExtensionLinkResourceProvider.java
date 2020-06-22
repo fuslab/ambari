@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
 
 package org.apache.ambari.server.controller.internal;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
@@ -29,12 +28,22 @@ import org.apache.ambari.server.StaticallyInject;
 import org.apache.ambari.server.controller.AmbariManagementController;
 import org.apache.ambari.server.controller.ExtensionLinkRequest;
 import org.apache.ambari.server.controller.RequestStatusResponse;
-import org.apache.ambari.server.controller.spi.*;
+import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
+import org.apache.ambari.server.controller.spi.NoSuchResourceException;
+import org.apache.ambari.server.controller.spi.Predicate;
+import org.apache.ambari.server.controller.spi.Request;
+import org.apache.ambari.server.controller.spi.RequestStatus;
+import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.spi.Resource.Type;
+import org.apache.ambari.server.controller.spi.ResourceAlreadyExistsException;
+import org.apache.ambari.server.controller.spi.SystemException;
+import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.apache.ambari.server.orm.dao.ExtensionLinkDAO;
 import org.apache.ambari.server.orm.entities.ExtensionLinkEntity;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 
 /**
@@ -60,16 +69,32 @@ public class ExtensionLinkResourceProvider extends AbstractControllerResourcePro
   public static final String EXTENSION_VERSION_PROPERTY_ID = PropertyHelper
       .getPropertyId("ExtensionLink", "extension_version");
 
-  private static Set<String> pkPropertyIds = new HashSet<String>(
-      Arrays.asList(new String[] { LINK_ID_PROPERTY_ID, STACK_NAME_PROPERTY_ID, STACK_VERSION_PROPERTY_ID, EXTENSION_NAME_PROPERTY_ID, EXTENSION_VERSION_PROPERTY_ID }));
+  /**
+   * The key property ids for a ExtensionLink resource.
+   */
+  private static Map<Resource.Type, String> keyPropertyIds = ImmutableMap.<Resource.Type, String>builder()
+      .put(Type.ExtensionLink, LINK_ID_PROPERTY_ID)
+      .put(Type.Stack, STACK_NAME_PROPERTY_ID)
+      .put(Type.StackVersion, STACK_VERSION_PROPERTY_ID)
+      .put(Type.Extension, EXTENSION_NAME_PROPERTY_ID)
+      .put(Type.ExtensionVersion, EXTENSION_VERSION_PROPERTY_ID)
+      .build();
+
+  /**
+   * The property ids for a ExtensionLink resource.
+   */
+  private static Set<String> propertyIds = Sets.newHashSet(
+      LINK_ID_PROPERTY_ID,
+      STACK_NAME_PROPERTY_ID,
+      STACK_VERSION_PROPERTY_ID,
+      EXTENSION_NAME_PROPERTY_ID,
+      EXTENSION_VERSION_PROPERTY_ID);
 
   @Inject
   private static ExtensionLinkDAO dao;
 
-  protected ExtensionLinkResourceProvider(Set<String> propertyIds,
-      Map<Type, String> keyPropertyIds,
-      AmbariManagementController managementController) {
-    super(propertyIds, keyPropertyIds, managementController);
+  protected ExtensionLinkResourceProvider(AmbariManagementController managementController) {
+    super(Type.ExtensionLink, propertyIds, keyPropertyIds, managementController);
   }
 
   @Override
@@ -77,7 +102,7 @@ public class ExtensionLinkResourceProvider extends AbstractControllerResourcePro
 	        throws SystemException, UnsupportedPropertyException,
 	        NoSuchParentResourceException, ResourceAlreadyExistsException {
 
-    final Set<ExtensionLinkRequest> requests = new HashSet<ExtensionLinkRequest>();
+    final Set<ExtensionLinkRequest> requests = new HashSet<>();
     for (Map<String, Object> propertyMap : request.getProperties()) {
       requests.add(getRequest(propertyMap));
     }
@@ -110,9 +135,9 @@ public class ExtensionLinkResourceProvider extends AbstractControllerResourcePro
         throws SystemException, UnsupportedPropertyException,
         NoSuchResourceException, NoSuchParentResourceException {
 
-    final Set<ExtensionLinkRequest> requests = new HashSet<ExtensionLinkRequest>();
+    final Set<ExtensionLinkRequest> requests = new HashSet<>();
     if (predicate == null) {
-      requests.add(getRequest(Collections.<String, Object>emptyMap()));
+      requests.add(getRequest(Collections.emptyMap()));
     } else {
       for (Map<String, Object> propertyMap : getPropertyMaps(predicate)) {
         requests.add(getRequest(propertyMap));
@@ -146,19 +171,19 @@ public class ExtensionLinkResourceProvider extends AbstractControllerResourcePro
         throws SystemException, UnsupportedPropertyException,
         NoSuchResourceException, NoSuchParentResourceException {
 
-    final Set<Resource> resources = new HashSet<Resource>();
+    final Set<Resource> resources = new HashSet<>();
     final Set<String> requestedIds = getRequestPropertyIds(request, predicate);
 
-    final Set<ExtensionLinkRequest> requests = new HashSet<ExtensionLinkRequest>();
+    final Set<ExtensionLinkRequest> requests = new HashSet<>();
     if (predicate == null) {
-      requests.add(getRequest(Collections.<String, Object>emptyMap()));
+      requests.add(getRequest(Collections.emptyMap()));
     } else {
       for (Map<String, Object> propertyMap : getPropertyMaps(predicate)) {
         requests.add(getRequest(propertyMap));
       }
     }
 
-    Set<ExtensionLinkEntity> entities = new HashSet<ExtensionLinkEntity>();
+    Set<ExtensionLinkEntity> entities = new HashSet<>();
 
     for (ExtensionLinkRequest extensionLinkRequest : requests) {
       verifyStackAndExtensionExist(extensionLinkRequest);
@@ -251,6 +276,6 @@ public class ExtensionLinkResourceProvider extends AbstractControllerResourcePro
 
   @Override
   protected Set<String> getPKPropertyIds() {
-    return pkPropertyIds;
+    return new HashSet<>(keyPropertyIds.values());
   }
 }

@@ -18,10 +18,15 @@
 
 package org.apache.ambari.server.controller.internal;
 
-import com.google.inject.AbstractModule;
-import com.google.inject.Guice;
-import com.google.inject.Injector;
-import com.google.inject.util.Modules;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.reset;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
+import javax.persistence.EntityManager;
+
 import org.apache.ambari.server.controller.AmbariManagementController;
 import org.apache.ambari.server.controller.spi.Predicate;
 import org.apache.ambari.server.controller.spi.Request;
@@ -39,12 +44,10 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import javax.persistence.EntityManager;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-
-import static org.easymock.EasyMock.*;
+import com.google.inject.AbstractModule;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import com.google.inject.util.Modules;
 
 
 /**
@@ -79,7 +82,7 @@ public class RoleAuthorizationResourceProviderTest extends EasyMockSupport {
     expect(roleAuthorizationEntity.getAuthorizationId()).andReturn("TEST.DO_SOMETHING");
     expect(roleAuthorizationEntity.getAuthorizationName()).andReturn("Do Something");
 
-    List<RoleAuthorizationEntity> authorizationEntities = new ArrayList<RoleAuthorizationEntity>();
+    List<RoleAuthorizationEntity> authorizationEntities = new ArrayList<>();
     authorizationEntities.add(roleAuthorizationEntity);
 
     RoleAuthorizationDAO roleAuthorizationDAO = injector.getInstance(RoleAuthorizationDAO.class);
@@ -109,7 +112,7 @@ public class RoleAuthorizationResourceProviderTest extends EasyMockSupport {
     expect(roleAuthorizationEntity.getAuthorizationId()).andReturn("TEST.DO_SOMETHING").once();
     expect(roleAuthorizationEntity.getAuthorizationName()).andReturn("Do Something").once();
 
-    List<RoleAuthorizationEntity> authorizationEntities = new ArrayList<RoleAuthorizationEntity>();
+    List<RoleAuthorizationEntity> authorizationEntities = new ArrayList<>();
     authorizationEntities.add(roleAuthorizationEntity);
 
     PermissionEntity permissionEntry = createStrictMock(PermissionEntity.class);
@@ -149,7 +152,7 @@ public class RoleAuthorizationResourceProviderTest extends EasyMockSupport {
     expect(roleAuthorizationEntity2.getAuthorizationId()).andReturn("TEST.DO_SOMETHING_ELSE").anyTimes();
     expect(roleAuthorizationEntity2.getAuthorizationName()).andReturn("Do Something Else").anyTimes();
 
-    List<RoleAuthorizationEntity> authorizationEntities = new ArrayList<RoleAuthorizationEntity>();
+    List<RoleAuthorizationEntity> authorizationEntities = new ArrayList<>();
     authorizationEntities.add(roleAuthorizationEntity1);
     authorizationEntities.add(roleAuthorizationEntity2);
 

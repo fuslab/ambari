@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -37,22 +37,20 @@ public class RepositoryResponse {
   private String components;
   private String mirrorsList;
   private String defaultBaseUrl;
-  private String latestBaseUrl;
   private Long repositoryVersionId;
   private String versionDefinitionId;
   private Long clusterVersionId;
   private boolean unique;
+  private Set<RepoTag> tags;
 
   @Experimental(feature = ExperimentalFeature.CUSTOM_SERVICE_REPOS,
     comment = "Remove logic for handling custom service repos after enabling multi-mpack cluster deployment")
   private List<String> applicableServices;
 
-  private Set<RepoTag> tags;
-
   public RepositoryResponse(String baseUrl, String osType, String repoId,
-      String repoName, String distribution, String components,
-      String mirrorsList, String defaultBaseUrl, String latestBaseUrl, List<String> applicableServices,
-      Set<RepoTag> repoTags) {
+                            String repoName, String distribution, String components,
+                            String mirrorsList, String defaultBaseUrl,
+                            Set<RepoTag> repoTags, List<String> applicableServices) {
     setBaseUrl(baseUrl);
     setOsType(osType);
     setRepoId(repoId);
@@ -61,9 +59,8 @@ public class RepositoryResponse {
     setComponents(components);
     setMirrorsList(mirrorsList);
     setDefaultBaseUrl(defaultBaseUrl);
-    setLatestBaseUrl(latestBaseUrl);
-    setApplicableServices(applicableServices);
     setTags(repoTags);
+    setApplicableServices(applicableServices);
   }
 
   public String getStackName() {
@@ -146,14 +143,6 @@ public class RepositoryResponse {
     this.defaultBaseUrl = url;
   }
 
-  public String getLatestBaseUrl() {
-    return latestBaseUrl;
-  }
-
-  public void setLatestBaseUrl(String url) {
-    latestBaseUrl = url;
-  }
-
   public Long getRepositoryVersionId() {
     return repositoryVersionId;
   }
@@ -198,17 +187,6 @@ public class RepositoryResponse {
     this.unique = unique;
   }
 
-  @Experimental(feature = ExperimentalFeature.CUSTOM_SERVICE_REPOS,
-    comment = "Remove logic for handling custom service repos after enabling multi-mpack cluster deployment")
-  public List<String> getApplicableServices() {
-    return applicableServices;
-  }
-
-  @Experimental(feature = ExperimentalFeature.CUSTOM_SERVICE_REPOS,
-    comment = "Remove logic for handling custom service repos after enabling multi-mpack cluster deployment")
-  public void setApplicableServices(List<String> applicableServices) {
-    this.applicableServices = applicableServices;
-  }
 
   /**
    * @return the repo tags
@@ -224,4 +202,15 @@ public class RepositoryResponse {
     tags = repoTags;
   }
 
+  @Experimental(feature = ExperimentalFeature.CUSTOM_SERVICE_REPOS,
+    comment = "Remove logic for handling custom service repos after enabling multi-mpack cluster deployment")
+  public List<String> getApplicableServices() {
+    return applicableServices;
+  }
+
+  @Experimental(feature = ExperimentalFeature.CUSTOM_SERVICE_REPOS,
+    comment = "Remove logic for handling custom service repos after enabling multi-mpack cluster deployment")
+  public void setApplicableServices(List<String> applicableServices) {
+    this.applicableServices = applicableServices;
+  }
 }

@@ -6,7 +6,8 @@
       "path": "/root/test-logs/zookeeper/zookeeper-test-log.txt",
       "cache_enabled" : "true",
       "cache_size" : "10",
-      "cache_dedup_interval" : "1000"
+      "cache_dedup_interval" : "1000",
+      "group": "Zookeeper"
     }
   ],
   "filter": [
@@ -25,7 +26,7 @@
       "post_map_values": {
         "logtime": {
           "map_date": {
-            "date_pattern": "yyyy-MM-dd HH:mm:ss,SSS"
+            "target_date_pattern": "yyyy-MM-dd HH:mm:ss,SSS"
           }
         }
       }

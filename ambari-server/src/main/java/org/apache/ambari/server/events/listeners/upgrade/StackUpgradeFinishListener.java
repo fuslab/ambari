@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -93,6 +93,13 @@ public class StackUpgradeFinishListener {
         CachedRoleCommandOrderProvider cachedRcoProvider = (CachedRoleCommandOrderProvider) roleCommandOrderProvider.get();
         cachedRcoProvider.clearRoleCommandOrderCache();
       }
+
+      try {
+        ambariMetaInfo.get().reconcileAlertDefinitions(cluster, true);
+      } catch (AmbariException e){
+        LOG.error("Caught AmbariException when update alert definitions", e);
+      }
+
     }
 
   }

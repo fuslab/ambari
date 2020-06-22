@@ -18,9 +18,9 @@
 
 package org.apache.ambari.server.upgrade;
 
-import org.apache.ambari.server.orm.DBAccessor;
-
 import java.sql.SQLException;
+
+import org.apache.ambari.server.orm.DBAccessor;
 
 /**
  * Interface to encapsulate the logic that a DDL update requires for a particular feature or collection of tables.
@@ -33,12 +33,12 @@ public interface SectionDDL {
    * @param dbAccessor
    * @throws SQLException
    */
-  public void execute(DBAccessor dbAccessor) throws SQLException;
+  void execute(DBAccessor dbAccessor) throws SQLException;
 
   /**
    * Retrieve the capture groups and make assertions about tables/columns created.
    * @param dbAccessor
    * @throws SQLException
    */
-  public void verify(DBAccessor dbAccessor) throws SQLException;
+  void verify(DBAccessor dbAccessor) throws SQLException;
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,10 +18,10 @@
 
 package org.apache.ambari.server.api.predicate.expressions;
 
-import org.apache.ambari.server.api.predicate.operators.Operator;
-
 import java.util.ArrayList;
 import java.util.List;
+
+import org.apache.ambari.server.api.predicate.operators.Operator;
 
 /**
  * Base class for expressions.
@@ -92,7 +92,7 @@ public abstract class AbstractExpression<T> implements Expression<T> {
    * @return a list containing the un-merged left expression, this and right expression
    */
   protected List<Expression> defaultMerge(Expression left, Expression right) {
-    List<Expression> listExpressions = new ArrayList<Expression>();
+    List<Expression> listExpressions = new ArrayList<>();
     if (left != null) {
       listExpressions.add(left);
     }

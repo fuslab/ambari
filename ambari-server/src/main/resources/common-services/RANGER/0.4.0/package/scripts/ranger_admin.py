@@ -21,7 +21,6 @@ from resource_management.core.exceptions import Fail
 from resource_management.libraries.functions.check_process_status import check_process_status
 from resource_management.libraries.functions import stack_select
 from resource_management.libraries.functions import upgrade_summary
-from resource_management.libraries.functions.constants import Direction
 from resource_management.libraries.script import Script
 from resource_management.core.resources.system import Execute, File
 from resource_management.core.exceptions import ComponentIsNotRunning
@@ -29,10 +28,12 @@ from resource_management.libraries.functions.format import format
 from resource_management.core.logger import Logger
 from resource_management.core import shell
 from ranger_service import ranger_service
-from setup_ranger_xml import setup_ranger_audit_solr, setup_ranger_admin_passwd_change, update_password_configs
 from resource_management.libraries.functions import solr_cloud_util
-from ambari_commons.constants import UPGRADE_TYPE_NON_ROLLING, UPGRADE_TYPE_ROLLING
+from ambari_commons.constants import UPGRADE_TYPE_NON_ROLLING
 from resource_management.libraries.functions.constants import Direction
+
+import setup_ranger_xml
+
 import os, errno
 
 class RangerAdmin(Script):
@@ -94,9 +95,9 @@ class RangerAdmin(Script):
 
     if params.stack_supports_infra_client and params.audit_solr_enabled and params.is_solrCloud_enabled:
       solr_cloud_util.setup_solr_client(params.config, custom_log4j = params.custom_log4j)
-      setup_ranger_audit_solr()
+      setup_ranger_xml.setup_ranger_audit_solr()
 
-    update_password_configs()
+    setup_ranger_xml.update_password_configs()
     ranger_service('ranger_admin')
 
 
@@ -143,7 +144,7 @@ class RangerAdmin(Script):
         setup_java_patch()
 
       if params.stack_supports_ranger_admin_password_change:
-        setup_ranger_admin_passwd_change()
+        setup_ranger_xml.setup_ranger_admin_passwd_change()
 
   def set_ru_rangeradmin_in_progress(self, upgrade_marker_file):
     config_dir = os.path.dirname(upgrade_marker_file)
@@ -174,10 +175,11 @@ class RangerAdmin(Script):
     stack_version = upgrade_stack[1]
 
     if params.xml_configurations_supported and params.upgrade_direction == Direction.UPGRADE:
-      Logger.info(format('Setting Ranger database schema, using version {stack_version}'))
+      target_version = upgrade_summary.get_target_version("RANGER", default_version = stack_version)
+      Logger.info(format('Setting Ranger database schema, using version {target_version}'))
 
       from setup_ranger_xml import setup_ranger_db
-      setup_ranger_db(stack_version=stack_version)
+      setup_ranger_db(stack_version = target_version)
 
   def setup_ranger_java_patches(self, env):
     import params
@@ -190,10 +192,11 @@ class RangerAdmin(Script):
     stack_version = upgrade_stack[1]
 
     if params.xml_configurations_supported and params.upgrade_direction == Direction.UPGRADE:
-      Logger.info(format('Applying Ranger java patches, using version {stack_version}'))
+      target_version = upgrade_summary.get_target_version("RANGER", default_version = stack_version)
+      Logger.info(format('Applying Ranger java patches, using version {target_version}'))
 
       from setup_ranger_xml import setup_java_patch
-      setup_java_patch(stack_version=stack_version)
+      setup_java_patch(stack_version = target_version)
 
   def set_pre_start(self, env):
     import params

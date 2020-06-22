@@ -28,7 +28,6 @@ from resource_management.libraries.functions.version import format_stack_version
 from resource_management.libraries.functions.default import default
 from resource_management.libraries.functions.get_port_from_url import get_port_from_url
 from resource_management.libraries.functions.get_stack_version import get_stack_version
-from resource_management.libraries.functions.stack_tools import get_stack_name, get_stack_root
 from resource_management.libraries.functions import get_kinit_path
 from resource_management.libraries.script.script import Script
 from status_params import *
@@ -55,7 +54,7 @@ version = default("/commandParams/version", None)
 version_formatted = format_stack_version(version)
 
 # E.g., 2.3
-stack_version_unformatted = config['hostLevelParams']['stack_version']
+stack_version_unformatted = config['clusterLevelParams']['stack_version']
 stack_version_formatted = format_stack_version(stack_version_unformatted)
 
 # get the correct version to use for checking stack features
@@ -68,15 +67,6 @@ stack_supports_core_site_for_ranger_plugin = check_stack_feature(StackFeature.CO
 # This is the version whose state is CURRENT. During an RU, this is the source version.
 # DO NOT format it since we need the build number too.
 upgrade_from_version = upgrade_summary.get_source_version()
-
-source_stack = default("/commandParams/source_stack", None)
-if source_stack is None:
-  source_stack = upgrade_summary.get_source_stack("KNOX")
-source_stack_name = get_stack_name(source_stack)
-if source_stack_name is not None and source_stack_name != stack_name:
-  source_stack_root = get_stack_root(source_stack_name, default('/configurations/cluster-env/stack_root', None))
-else:
-  source_stack_root = stack_root
 
 # server configurations
 # Default value used in HDP 2.3.0.0 and earlier.
@@ -119,7 +109,7 @@ if stack_version_formatted and check_stack_feature(StackFeature.ROLLING_UPGRADE,
 knox_group = default("/configurations/knox-env/knox_group", "knox")
 mode = 0644
 
-stack_version_unformatted = config['hostLevelParams']['stack_version']
+stack_version_unformatted = config['clusterLevelParams']['stack_version']
 stack_version_formatted = format_stack_version(stack_version_unformatted)
 
 dfs_ha_enabled = False
@@ -152,7 +142,7 @@ if dfs_ha_enabled:
         namenode_port_map[nn_host_parts[0]] = nn_host_parts[1]
 
 
-namenode_hosts = default("/clusterHostInfo/namenode_host", None)
+namenode_hosts = default("/clusterHostInfo/namenode_hosts", None)
 if type(namenode_hosts) is list:
   namenode_host = namenode_hosts[0]
 else:
@@ -160,16 +150,29 @@ else:
 
 has_namenode = not namenode_host == None
 namenode_http_port = "50070"
+namenode_https_port = "50470"
 namenode_rpc_port = "8020"
 
 if has_namenode:
   if 'dfs.namenode.http-address' in config['configurations']['hdfs-site']:
     namenode_http_port = get_port_from_url(config['configurations']['hdfs-site']['dfs.namenode.http-address'])
+  if 'dfs.namenode.https-address' in config['configurations']['hdfs-site']:
+    namenode_https_port = get_port_from_url(config['configurations']['hdfs-site']['dfs.namenode.https-address'])
   if dfs_ha_enabled and namenode_rpc:
     namenode_rpc_port = get_port_from_url(namenode_rpc)
   else:
     if 'dfs.namenode.rpc-address' in config['configurations']['hdfs-site']:
       namenode_rpc_port = get_port_from_url(config['configurations']['hdfs-site']['dfs.namenode.rpc-address'])
+
+dfs_http_policy = default('/configurations/hdfs-site/dfs.http.policy', None)
+
+hdfs_https_on = False
+hdfs_scheme = 'http'
+if dfs_http_policy  !=  None :
+   hdfs_https_on = (dfs_http_policy.upper() == 'HTTPS_ONLY')
+   hdfs_scheme = 'http' if not hdfs_https_on else 'https'
+   hdfs_port = str(namenode_http_port)  if not hdfs_https_on else str(namenode_https_port)
+   namenode_http_port = hdfs_port
 
 webhdfs_service_urls = ""
 
@@ -191,7 +194,14 @@ else:
   webhdfs_service_urls = buildUrlElement("http", namenode_host, namenode_http_port, "/webhdfs")
 
 
-rm_hosts = default("/clusterHostInfo/rm_host", None)
+yarn_http_policy = default('/configurations/yarn-site/yarn.http.policy', None )
+yarn_https_on = False
+yarn_scheme = 'http'
+if yarn_http_policy !=  None :
+   yarn_https_on = ( yarn_http_policy.upper() == 'HTTPS_ONLY')
+   yarn_scheme = 'http' if not yarn_https_on else 'https'
+
+rm_hosts = default("/clusterHostInfo/resourcemanager_hosts", None)
 if type(rm_hosts) is list:
   rm_host = rm_hosts[0]
 else:
@@ -210,14 +220,14 @@ if has_rm:
 
 hive_http_port = default('/configurations/hive-site/hive.server2.thrift.http.port', "10001")
 hive_http_path = default('/configurations/hive-site/hive.server2.thrift.http.path', "cliservice")
-hive_server_hosts = default("/clusterHostInfo/hive_server_host", None)
+hive_server_hosts = default("/clusterHostInfo/hive_server_hosts", None)
 if type(hive_server_hosts) is list:
-  hive_server_host = hive_server_hosts[0]
+  hive_server_host = hive_server_hosts[0] if len(hive_server_hosts) > 0 else None
 else:
   hive_server_host = hive_server_hosts
 
 templeton_port = default('/configurations/webhcat-site/templeton.port', "50111")
-webhcat_server_hosts = default("/clusterHostInfo/webhcat_server_host", None)
+webhcat_server_hosts = default("/clusterHostInfo/webhcat_server_hosts", None)
 if type(webhcat_server_hosts) is list:
   webhcat_server_host = webhcat_server_hosts[0]
 else:
@@ -288,12 +298,12 @@ solr_port=default("/configuration/solr/solr-env/solr_port","8983")
 
 #
 # Spark
-# 
+#
 spark_scheme = 'http'
 spark_historyserver_hosts = default("/clusterHostInfo/spark_jobhistoryserver_hosts", None)
 if type(spark_historyserver_hosts) is list:
   spark_historyserver_host = spark_historyserver_hosts[0]
-else: 
+else:
   spark_historyserver_host = spark_historyserver_hosts
 spark_historyserver_ui_port = default("/configurations/spark-defaults/spark.history.ui.port", "18080")
 
@@ -302,14 +312,14 @@ spark_historyserver_ui_port = default("/configurations/spark-defaults/spark.hist
 # JobHistory mapreduce
 #
 mr_scheme='http'
-mr_historyserver_address = default("/configurations/mapred-site/mapreduce.jobhistory.webapp.address", None) 
+mr_historyserver_address = default("/configurations/mapred-site/mapreduce.jobhistory.webapp.address", None)
 
 #
 # Yarn nodemanager
 #
 nodeui_scheme= 'http'
 nodeui_port = "8042"
-nm_hosts = default("/clusterHostInfo/nm_hosts", None)
+nm_hosts = default("/clusterHostInfo/nodemanager_hosts", None)
 if type(nm_hosts) is list:
   nm_host = nm_hosts[0]
 else:
@@ -343,15 +353,15 @@ knox_ldap_log_maxbackupindex = default('/configurations/ldap-log4j/knox_ldap_log
 # server configurations
 knox_master_secret = config['configurations']['knox-env']['knox_master_secret']
 knox_host_name = config['clusterHostInfo']['knox_gateway_hosts'][0]
-knox_host_name_in_cluster = config['hostname']
+knox_host_name_in_cluster = config['agentLevelParams']['hostname']
 knox_host_port = config['configurations']['gateway-site']['gateway.port']
 topology_template = config['configurations']['topology']['content']
-admin_topology_template = config['configurations']['admin-topology']['content']
+admin_topology_template = default('/configurations/admin-topology/content', None)
 knoxsso_topology_template = config['configurations']['knoxsso-topology']['content']
 gateway_log4j = config['configurations']['gateway-log4j']['content']
 ldap_log4j = config['configurations']['ldap-log4j']['content']
 users_ldif = config['configurations']['users-ldif']['content']
-java_home = config['hostLevelParams']['java_home']
+java_home = config['ambariLevelParams']['java_home']
 security_enabled = config['configurations']['cluster-env']['security_enabled']
 smokeuser = config['configurations']['cluster-env']['smokeuser']
 smokeuser_principal = config['configurations']['cluster-env']['smokeuser_principal_name']
@@ -359,11 +369,11 @@ smoke_user_keytab = config['configurations']['cluster-env']['smokeuser_keytab']
 kinit_path_local = get_kinit_path(default('/configurations/kerberos-env/executable_search_paths', None))
 if security_enabled:
   knox_keytab_path = config['configurations']['knox-env']['knox_keytab_path']
-  _hostname_lowercase = config['hostname'].lower()
+  _hostname_lowercase = config['agentLevelParams']['hostname'].lower()
   knox_principal_name = config['configurations']['knox-env']['knox_principal_name'].replace('_HOST',_hostname_lowercase)
 
 # for curl command in ranger plugin to get db connector
-jdk_location = config['hostLevelParams']['jdk_location']
+jdk_location = config['ambariLevelParams']['jdk_location']
 
 # ranger knox plugin start section
 
@@ -375,7 +385,7 @@ has_ranger_admin = not len(ranger_admin_hosts) == 0
 xml_configurations_supported = check_stack_feature(StackFeature.RANGER_XML_CONFIGURATION, version_for_stack_feature_checks)
 
 # ambari-server hostname
-ambari_server_hostname = config['clusterHostInfo']['ambari_server_host'][0]
+ambari_server_hostname = config['ambariLevelParams']['ambari_server_host']
 
 # ranger knox plugin enabled property
 enable_ranger_knox = default("/configurations/ranger-knox-plugin-properties/ranger-knox-plugin-enabled", "No")
@@ -503,6 +513,7 @@ hdfs_site = config['configurations']['hdfs-site'] if has_namenode else None
 default_fs = config['configurations']['core-site']['fs.defaultFS'] if has_namenode else None
 hadoop_bin_dir = stack_select.get_hadoop_dir("bin") if has_namenode else None
 hadoop_conf_dir = conf_select.get_hadoop_conf_dir() if has_namenode else None
+dfs_type = default("/clusterLevelParams/dfs_type", "")
 
 import functools
 #create partial functions with common arguments for every HdfsResource call
@@ -519,7 +530,8 @@ HdfsResource = functools.partial(
   principal_name = hdfs_principal_name,
   hdfs_site = hdfs_site,
   default_fs = default_fs,
-  immutable_paths = get_not_managed_resources()
+  immutable_paths = get_not_managed_resources(),
+  dfs_type = dfs_type
 )
 
 druid_coordinator_urls = ""

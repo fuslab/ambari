@@ -20,9 +20,13 @@ Ambari Agent
 """
 import sys
 import os.path
-from resource_management import *
-from resource_management.core.resources.system import Execute
-from resource_management.libraries.functions import StackFeature
+from resource_management.core.resources.system import Directory, Execute, File
+from resource_management.core.resources.service import ServiceConfig
+from resource_management.core.source import InlineTemplate, StaticFile
+from resource_management.libraries.script.script import Script
+from resource_management.libraries.resources.xml_config import XmlConfig
+from resource_management.libraries.functions.constants import StackFeature
+from resource_management.libraries.functions.format import format
 from resource_management.libraries.functions.stack_features import check_stack_feature
 from ambari_commons.os_family_impl import OsFamilyFuncImpl, OsFamilyImpl
 from resource_management.libraries.functions.setup_atlas_hook import has_atlas_in_cluster, setup_atlas_hook
@@ -40,8 +44,8 @@ def webhcat():
   # Manually overriding service logon user & password set by the installation package
   ServiceConfig(params.webhcat_server_win_service_name,
                 action="change_user",
-                username = params.hcat_user,
-                password = Script.get_password(params.hcat_user))
+                username = params.webhcat_user,
+                password = Script.get_password(params.webhcat_user))
 
 
 @OsFamilyFuncImpl(os_family=OsFamilyImpl.DEFAULT)
@@ -76,7 +80,7 @@ def webhcat():
   XmlConfig("webhcat-site.xml",
             conf_dir=params.config_dir,
             configurations=webhcat_site,
-            configuration_attributes=params.config['configuration_attributes']['webhcat-site'],
+            configuration_attributes=params.config['configurationAttributes']['webhcat-site'],
             owner=params.webhcat_user,
             group=params.user_group,
             )
@@ -87,7 +91,7 @@ def webhcat():
     XmlConfig("hive-site.xml",
       conf_dir = format("{stack_root}/{version}/hive/conf"),
       configurations = params.config['configurations']['hive-site'],
-      configuration_attributes = params.config['configuration_attributes']['hive-site'],
+      configuration_attributes = params.config['configurationAttributes']['hive-site'],
       owner = params.hive_user,
       group = params.user_group,
       )
@@ -95,7 +99,7 @@ def webhcat():
     XmlConfig("yarn-site.xml",
       conf_dir = format("{stack_root}/{version}/hadoop/conf"),
       configurations = params.config['configurations']['yarn-site'],
-      configuration_attributes = params.config['configuration_attributes']['yarn-site'],
+      configuration_attributes = params.config['configurationAttributes']['yarn-site'],
       owner = params.yarn_user,
       group = params.user_group,    
   )

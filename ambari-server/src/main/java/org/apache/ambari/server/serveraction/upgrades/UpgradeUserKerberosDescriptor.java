@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentMap;
 
+import org.apache.ambari.annotations.Experimental;
+import org.apache.ambari.annotations.ExperimentalFeature;
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.actionmanager.HostRoleCommand;
 import org.apache.ambari.server.actionmanager.HostRoleStatus;
@@ -29,10 +31,9 @@ import org.apache.ambari.server.agent.CommandReport;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
 import org.apache.ambari.server.orm.dao.ArtifactDAO;
 import org.apache.ambari.server.orm.entities.ArtifactEntity;
-import org.apache.ambari.server.serveraction.AbstractServerAction;
 import org.apache.ambari.server.state.Cluster;
-import org.apache.ambari.server.state.Clusters;
 import org.apache.ambari.server.state.StackId;
+import org.apache.ambari.server.state.UpgradeContext;
 import org.apache.ambari.server.state.kerberos.KerberosDescriptor;
 import org.apache.ambari.server.state.kerberos.KerberosDescriptorFactory;
 import org.apache.ambari.server.state.kerberos.KerberosDescriptorUpdateHelper;
@@ -48,23 +49,14 @@ import com.google.inject.Inject;
  *
  * @see org.apache.ambari.server.state.kerberos.KerberosDescriptorUpdateHelper
  */
-public class UpgradeUserKerberosDescriptor extends AbstractServerAction {
+public class UpgradeUserKerberosDescriptor extends AbstractUpgradeServerAction {
   private static final Logger LOG = LoggerFactory.getLogger(UpgradeUserKerberosDescriptor.class);
 
-  /**
-   * The upgrade direction.
-   *
-   * @see Direction
-   */
-  private static final String UPGRADE_DIRECTION_KEY = "upgrade_direction";
   private final static String KERBEROS_DESCRIPTOR_NAME = "kerberos_descriptor";
   private final static String KERBEROS_DESCRIPTOR_BACKUP_NAME = "kerberos_descriptor_backup";
 
   @Inject
   private ArtifactDAO artifactDAO;
-
-  @Inject
-  private Clusters clusters;
 
   @Inject
   private AmbariMetaInfo ambariMetaInfo;
@@ -85,74 +77,77 @@ public class UpgradeUserKerberosDescriptor extends AbstractServerAction {
       throws AmbariException, InterruptedException {
     HostRoleCommand hostRoleCommand = getHostRoleCommand();
     String clusterName = hostRoleCommand.getExecutionCommandWrapper().getExecutionCommand().getClusterName();
-    Cluster cluster = clusters.getCluster(clusterName);
+    Cluster cluster = getClusters().getCluster(clusterName);
     List<String> messages = new ArrayList<>();
     List<String> errorMessages = new ArrayList<>();
 
-    if (cluster != null) {
-      logMessage(messages, "Obtaining the user-defined Kerberos descriptor");
+    UpgradeContext upgradeContext = getUpgradeContext(cluster);
 
-      TreeMap<String, String> foreignKeys = new TreeMap<>();
-      foreignKeys.put("cluster", String.valueOf(cluster.getClusterId()));
+    logMessage(messages, "Obtaining the user-defined Kerberos descriptor");
 
-      ArtifactEntity entity = artifactDAO.findByNameAndForeignKeys("kerberos_descriptor", foreignKeys);
-      KerberosDescriptor userDescriptor = (entity == null) ? null : kerberosDescriptorFactory.createInstance(entity.getArtifactData());
+    TreeMap<String, String> foreignKeys = new TreeMap<>();
+    foreignKeys.put("cluster", String.valueOf(cluster.getClusterId()));
 
-      if (userDescriptor != null) {
-        StackId originalStackId = cluster.getCurrentStackVersion();
-        StackId targetStackId = cluster.getDesiredStackVersion();
+    ArtifactEntity entity = artifactDAO.findByNameAndForeignKeys("kerberos_descriptor", foreignKeys);
+    KerberosDescriptor userDescriptor = (entity == null) ? null : kerberosDescriptorFactory.createInstance(entity.getArtifactData());
 
-        if (isDowngrade()) {
-          restoreDescriptor(foreignKeys, messages, errorMessages);
+    if (userDescriptor != null) {
+
+      @Experimental(
+          feature = ExperimentalFeature.PATCH_UPGRADES,
+          comment = "This needs to be correctly done per-service")
+
+      StackId originalStackId = cluster.getCurrentStackVersion();
+      StackId targetStackId = upgradeContext.getRepositoryVersion().getStackId();
+
+      if (upgradeContext.getDirection() == Direction.DOWNGRADE) {
+        restoreDescriptor(foreignKeys, messages, errorMessages);
+      } else {
+        backupDescriptor(foreignKeys, messages, errorMessages);
+
+        KerberosDescriptor newDescriptor = null;
+        KerberosDescriptor previousDescriptor = null;
+
+        if (targetStackId == null) {
+          logErrorMessage(messages, errorMessages, "The new stack version information was not found.");
         } else {
-          backupDescriptor(foreignKeys, messages, errorMessages);
+          logMessage(messages, String.format("Obtaining new stack Kerberos descriptor for %s.", targetStackId.toString()));
+          newDescriptor = ambariMetaInfo.getKerberosDescriptor(targetStackId.getStackName(), targetStackId.getStackVersion(), false);
 
-          KerberosDescriptor newDescriptor = null;
-          KerberosDescriptor previousDescriptor = null;
-
-          if (targetStackId == null) {
-            logErrorMessage(messages, errorMessages, "The new stack version information was not found.");
-          } else {
-            logMessage(messages, String.format("Obtaining new stack Kerberos descriptor for %s.", targetStackId.toString()));
-            newDescriptor = ambariMetaInfo.getKerberosDescriptor(targetStackId.getStackName(), targetStackId.getStackVersion(), false);
-
-            if (newDescriptor == null) {
-              logErrorMessage(messages, errorMessages, String.format("The Kerberos descriptor for the new stack version, %s, was not found.", targetStackId.toString()));
-            }
-          }
-
-          if (originalStackId == null) {
-            logErrorMessage(messages, errorMessages, "The previous stack version information was not found.");
-          } else {
-            logMessage(messages, String.format("Obtaining previous stack Kerberos descriptor for %s.", originalStackId.toString()));
-            previousDescriptor = ambariMetaInfo.getKerberosDescriptor(originalStackId.getStackName(), originalStackId.getStackVersion(), false);
-
-            if (previousDescriptor == null) {
-              logErrorMessage(messages, errorMessages, String.format("The Kerberos descriptor for the previous stack version, %s, was not found.", originalStackId.toString()));
-            }
-          }
-
-          if (errorMessages.isEmpty()) {
-            logMessage(messages, "Updating the user-specified Kerberos descriptor.");
-
-            KerberosDescriptor updatedDescriptor = KerberosDescriptorUpdateHelper.updateUserKerberosDescriptor(
-                previousDescriptor,
-                newDescriptor,
-                userDescriptor);
-
-            logMessage(messages, "Storing updated user-specified Kerberos descriptor.");
-
-            entity.setArtifactData(updatedDescriptor.toMap());
-            artifactDAO.merge(entity);
-
-            logMessage(messages, "Successfully updated the user-specified Kerberos descriptor.");
+          if (newDescriptor == null) {
+            logErrorMessage(messages, errorMessages, String.format("The Kerberos descriptor for the new stack version, %s, was not found.", targetStackId.toString()));
           }
         }
-      } else {
-        logMessage(messages, "A user-specified Kerberos descriptor was not found. No updates are necessary.");
+
+        if (originalStackId == null) {
+          logErrorMessage(messages, errorMessages, "The previous stack version information was not found.");
+        } else {
+          logMessage(messages, String.format("Obtaining previous stack Kerberos descriptor for %s.", originalStackId.toString()));
+          previousDescriptor = ambariMetaInfo.getKerberosDescriptor(originalStackId.getStackName(), originalStackId.getStackVersion(), false);
+
+          if (newDescriptor == null) {
+            logErrorMessage(messages, errorMessages, String.format("The Kerberos descriptor for the previous stack version, %s, was not found.", originalStackId.toString()));
+          }
+        }
+
+        if (errorMessages.isEmpty()) {
+          logMessage(messages, "Updating the user-specified Kerberos descriptor.");
+
+          KerberosDescriptor updatedDescriptor = KerberosDescriptorUpdateHelper.updateUserKerberosDescriptor(
+              previousDescriptor,
+              newDescriptor,
+              userDescriptor);
+
+          logMessage(messages, "Storing updated user-specified Kerberos descriptor.");
+
+          entity.setArtifactData(updatedDescriptor.toMap());
+          artifactDAO.merge(entity);
+
+          logMessage(messages, "Successfully updated the user-specified Kerberos descriptor.");
+        }
       }
     } else {
-      logErrorMessage(messages, errorMessages, String.format("The cluster named %s was not found.", clusterName));
+      logMessage(messages, "A user-specified Kerberos descriptor was not found. No updates are necessary.");
     }
 
     if (!errorMessages.isEmpty()) {
@@ -160,15 +155,6 @@ public class UpgradeUserKerberosDescriptor extends AbstractServerAction {
     }
 
     return createCommandReport(0, HostRoleStatus.COMPLETED, "{}", StringUtils.join(messages, "\n"), StringUtils.join(errorMessages, "\n"));
-  }
-
-  /**
-   * Determines if upgrade direction is {@link Direction#UPGRADE} or {@link Direction#DOWNGRADE}.
-   *
-   * @return {@code true} if {@link Direction#DOWNGRADE}; {@code false} if {@link Direction#UPGRADE}
-   */
-  private boolean isDowngrade() {
-    return Direction.DOWNGRADE.name().equalsIgnoreCase(getCommandParameterValue(UPGRADE_DIRECTION_KEY));
   }
 
   private void logMessage(List<String> messages, String message) {

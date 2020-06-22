@@ -20,26 +20,24 @@ limitations under the License.
 
 import socket
 import status_params
+
+from setup_spark import *
 from ambari_commons.constants import AMBARI_SUDO_BINARY
 from resource_management.libraries.functions.stack_features import check_stack_feature
 from resource_management.libraries.functions.stack_features import get_stack_feature_version
-from resource_management.libraries.functions import StackFeature
-from resource_management.libraries.functions import Direction
-from setup_spark import *
-
-import resource_management.libraries.functions
-from resource_management.libraries.functions import conf_select
-from resource_management.libraries.functions import stack_select
-from resource_management.libraries.functions import format
+from resource_management.libraries.functions.constants import StackFeature
+from resource_management.libraries.functions import conf_select, stack_select
 from resource_management.libraries.functions.get_stack_version import get_stack_version
 from resource_management.libraries.functions.copy_tarball import get_sysprep_skip_copy_tarballs_hdfs
-from resource_management.libraries.functions.version import format_stack_version
+from resource_management.libraries.functions.format import format
 from resource_management.libraries.functions.default import default
 from resource_management.libraries.functions import get_kinit_path
 from resource_management.libraries.functions.get_not_managed_resources import get_not_managed_resources
 from resource_management.libraries.functions.version import format_stack_version, get_major_version
-
+from resource_management.libraries.resources.hdfs_resource import HdfsResource
 from resource_management.libraries.script.script import Script
+from resource_management.libraries.functions import Direction
+
 
 # a map of the Ambari role to the component name
 # for use with <stack-root>/current/<component>
@@ -57,12 +55,12 @@ component_directory = Script.get_component_from_role(SERVER_ROLE_DIRECTORY_MAP, 
 config = Script.get_config()
 tmp_dir = Script.get_tmp_dir()
 
-stack_version_unformatted = config['hostLevelParams']['stack_version']
+stack_version_unformatted = config['clusterLevelParams']['stack_version']
 stack_version_formatted = format_stack_version(stack_version_unformatted)
 major_stack_version = get_major_version(stack_version_formatted)
 
 upgrade_direction = default("/commandParams/upgrade_direction", None)
-java_home = config['hostLevelParams']['java_home']
+java_home = config['ambariLevelParams']['java_home']
 stack_name = status_params.stack_name
 stack_root = Script.get_stack_root()
 
@@ -86,7 +84,7 @@ if check_stack_feature(StackFeature.ROLLING_UPGRADE, version_for_stack_feature_c
   spark_home = format("{stack_root}/current/{component_directory}")
 
 spark_thrift_server_conf_file = spark_conf + "/spark-thrift-sparkconf.conf"
-java_home = config['hostLevelParams']['java_home']
+java_home = config['ambariLevelParams']['java_home']
 
 hdfs_user = config['configurations']['hadoop-env']['hdfs_user']
 hdfs_principal_name = config['configurations']['hadoop-env']['hdfs_principal_name']
@@ -135,7 +133,7 @@ spark_env_sh = config['configurations']['spark-env']['content']
 spark_log4j_properties = config['configurations']['spark-log4j-properties']['content']
 spark_metrics_properties = config['configurations']['spark-metrics-properties']['content']
 
-hive_server_host = default("/clusterHostInfo/hive_server_host", [])
+hive_server_host = default("/clusterHostInfo/hive_server_hosts", [])
 is_hive_installed = not len(hive_server_host) == 0
 
 full_stack_version = get_stack_version('spark-client')
@@ -212,7 +210,7 @@ hdfs_resource_ignore_file = "/var/lib/ambari-agent/data/.hdfs_resource_ignore"
 ats_host = set(default("/clusterHostInfo/app_timeline_server_hosts", []))
 has_ats = len(ats_host) > 0
 
-dfs_type = default("/commandParams/dfs_type", "")
+dfs_type = default("/clusterLevelParams/dfs_type", "")
 
 # livy related config
 
@@ -262,7 +260,7 @@ if check_stack_feature(StackFeature.SPARK_LIVY, version_for_stack_feature_checks
   if len(livy_livyserver_hosts) > 0:
     has_livyserver = True
     if security_enabled:
-      livy_principal = livy_kerberos_principal.replace('_HOST', config['hostname'].lower())
+      livy_principal = livy_kerberos_principal.replace('_HOST', config['agentLevelParams']['hostname'].lower())
 
   livy_livyserver_port = default('configurations/livy-conf/livy.server.port',8998)
 

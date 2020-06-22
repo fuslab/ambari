@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,19 @@
 
 package org.apache.ambari.server.utils;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-import com.google.inject.Inject;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.StaticallyInject;
 import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.Config;
 import org.apache.ambari.server.state.PropertyInfo;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import com.google.inject.Inject;
 
 
 @StaticallyInject
@@ -84,7 +85,7 @@ public class SecretReference {
   }
 
   public static String generateStub(String configType, Long configVersion, String propertyName) {
-    return secretPrefix + ":" + configType + ":" + configVersion.toString() + ":" + propertyName;
+    return secretPrefix + ":" + configType + ":" + configVersion + ":" + propertyName;
   }
 
   /**

@@ -27,11 +27,18 @@ class TestHDP206StackAdvisor(TestCase):
     import os
 
     testDirectory = os.path.dirname(os.path.abspath(__file__))
-    stackAdvisorPath = os.path.join(testDirectory, '../../../../../main/resources/stacks/stack_advisor.py')
-    hdp206StackAdvisorPath = os.path.join(testDirectory, '../../../../../main/resources/stacks/HDP/2.0.6/services/stack_advisor.py')
+
+    stacksPath = os.path.join(testDirectory, '../../../../../main/resources/stacks')
+    stackAdvisorPath = os.path.join(stacksPath, 'stack_advisor.py')
+    ambariConfigurationPath = os.path.abspath(os.path.join(stacksPath, 'ambari_configuration.py'))
+    hdp206StackAdvisorPath = os.path.join(stacksPath, 'HDP/2.0.6/services/stack_advisor.py')
+
     hdp206StackAdvisorClassName = 'HDP206StackAdvisor'
+
+    with open(ambariConfigurationPath, 'rb') as fp:
+      imp.load_module('ambari_configuration', fp, ambariConfigurationPath, ('.py', 'rb', imp.PY_SOURCE))
     with open(stackAdvisorPath, 'rb') as fp:
-      stack_advisor = imp.load_module( 'stack_advisor', fp, stackAdvisorPath, ('.py', 'rb', imp.PY_SOURCE) )
+      imp.load_module( 'stack_advisor', fp, stackAdvisorPath, ('.py', 'rb', imp.PY_SOURCE) )
     with open(hdp206StackAdvisorPath, 'rb') as fp:
       self.stack_advisor_impl = imp.load_module('stack_advisor_impl', fp, hdp206StackAdvisorPath, ('.py', 'rb', imp.PY_SOURCE))
     clazz = getattr(self.stack_advisor_impl, hdp206StackAdvisorClassName)
@@ -191,6 +198,263 @@ class TestHDP206StackAdvisor(TestCase):
     ]
     self.assertValidationResult(expectedItems, result)
 
+
+  def test_handleComponentDependencies(self):
+    services = {
+      "Versions":
+        {
+          "stack_name":"HDP",
+          "stack_version":"2.0.6"
+        },
+      "services" : [
+        {
+          "StackServices" : {
+            "service_name" : "HDFS",
+            "service_version" : "2.0.6",
+          },
+          "components": [
+            {
+              "StackServiceComponents": {
+                "stack_version": "2.0.6",
+                "stack_name": "HDP",
+                "component_category": "MASTER",
+                "is_client": False,
+                "is_master": True,
+                "service_name": "HDFS",
+                "cardinality": "1-2",
+                "hostnames": [],
+                "component_name": "NAMENODE",
+                "display_name": "NameNode"
+              },
+              "dependencies": [
+                {
+                  "Dependencies": {
+                    "stack_name": "HDP",
+                    "stack_version": "2.0.6",
+                    "scope": "cluster",
+                    "conditions": [
+                      {
+                        "configType": "hdfs-site",
+                        "property": "dfs.nameservices",
+                        "type": "PropertyExists",
+                      }
+                    ],
+                    "dependent_service_name": "HDFS",
+                    "dependent_component_name": "NAMENODE",
+                    "component_name": "ZOOKEEPER_SERVER"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "StackServices" : {
+            "service_name" : "ZOOKEEPER",
+            "service_version" : "2.0.6",
+          },
+          "components": [
+            {
+              "StackServiceComponents": {
+                "stack_version": "2.0.6",
+                "stack_name": "HDP",
+                "component_category": "MASTER",
+                "is_client": False,
+                "is_master": True,
+                "service_name": "HDFS",
+                "cardinality": "1-2",
+                "hostnames": [],
+                "component_name": "ZOOKEEPER_SERVER",
+                "display_name": "ZooKeeper Server"
+              },
+              "dependencies": []
+            }
+          ]
+        }
+      ]
+    }
+
+    nameNodeDependencies = services["services"][0]["components"][0]["dependencies"][0]["Dependencies"]
+
+    # Tests for master component with dependencies
+
+    hosts = self.prepareHosts(["c6401.ambari.apache.org", "c6402.ambari.apache.org", "c6403.ambari.apache.org", "c6404.ambari.apache.org"])
+    services["services"][1]["components"][0]["StackServiceComponents"]["hostnames"] = ["c6402.ambari.apache.org", "c6403.ambari.apache.org"]
+    recommendations = self.stackAdvisor.createComponentLayoutRecommendations(services, hosts)
+    # Assert that dependencies are ignored when there are conditions and cluster scope
+    self.assertEquals(recommendations['blueprint']['host_groups'][3]['components'][0]['name'], 'NAMENODE')
+    self.assertEquals(len(recommendations['blueprint']['host_groups'][3]['components']), 1)
+
+    nameNodeDependencies["scope"] = "host"
+    recommendations = self.stackAdvisor.createComponentLayoutRecommendations(services, hosts)
+    # Assert that dependencies are ignored when there are conditions (even for host scope)
+    self.assertEquals(recommendations['blueprint']['host_groups'][3]['components'][0]['name'], 'NAMENODE')
+    self.assertEquals(len(recommendations['blueprint']['host_groups'][3]['components']), 1)
+
+    nameNodeDependencies["scope"] = "cluster"
+    originalConditions = nameNodeDependencies["conditions"]
+    nameNodeDependencies["conditions"] = []
+    recommendations = self.stackAdvisor.createComponentLayoutRecommendations(services, hosts)
+    # Assert that dependencies are ignored when scope is cluster
+    self.assertEquals(recommendations['blueprint']['host_groups'][3]['components'][0]['name'], 'NAMENODE')
+    self.assertEquals(len(recommendations['blueprint']['host_groups'][3]['components']), 1)
+
+    nameNodeDependencies["scope"] = "host"
+    recommendations = self.stackAdvisor.createComponentLayoutRecommendations(services, hosts)
+    # Assert that dependencies are enforced for host scope without conditions
+    #self.assertEquals(recommendations, "")
+    self.assertEquals(len(recommendations['blueprint']['host_groups'][0]['components']), 2)
+
+    services["services"][1]["components"][0]["StackServiceComponents"]["is_master"] = False
+    services["services"][1]["components"][0]["StackServiceComponents"]["component_category"] = "CLIENT"
+    recommendations = self.stackAdvisor.createComponentLayoutRecommendations(services, hosts)
+    # Assert that dependencies are ignored when depending on client components
+    self.assertEquals(recommendations['blueprint']['host_groups'][3]['components'][0]['name'], 'NAMENODE')
+    self.assertEquals(len(recommendations['blueprint']['host_groups'][3]['components']), 1)
+
+    # Tests for slave component with dependencies
+    services["services"][0]["components"][0]["StackServiceComponents"]["component_category"] = "SLAVE"
+    services["services"][0]["components"][0]["StackServiceComponents"]["is_master"] = False
+    services["services"][1]["components"][0]["StackServiceComponents"]["component_category"] = "MASTER"
+    services["services"][1]["components"][0]["StackServiceComponents"]["is_master"] = True
+
+    nameNodeDependencies["scope"] = "cluster"
+    nameNodeDependencies["conditions"] = originalConditions
+    recommendations = self.stackAdvisor.createComponentLayoutRecommendations(services, hosts)
+    # Assert that dependencies are ignored when there are conditions and cluster scope
+    self.assertEquals(recommendations['blueprint']['host_groups'][2]['components'][0]['name'], 'NAMENODE')
+    self.assertEquals(len(recommendations['blueprint']['host_groups'][2]['components']), 1)
+    self.assertEquals(recommendations['blueprint']['host_groups'][3]['components'][0]['name'], 'NAMENODE')
+    self.assertEquals(len(recommendations['blueprint']['host_groups'][3]['components']), 1)
+
+    nameNodeDependencies["scope"] = "host"
+    recommendations = self.stackAdvisor.createComponentLayoutRecommendations(services, hosts)
+    # Assert that dependencies are ignored when there are conditions (even for host scope)
+    self.assertEquals(recommendations['blueprint']['host_groups'][2]['components'][0]['name'], 'NAMENODE')
+    self.assertEquals(len(recommendations['blueprint']['host_groups'][2]['components']), 1)
+    self.assertEquals(recommendations['blueprint']['host_groups'][3]['components'][0]['name'], 'NAMENODE')
+    self.assertEquals(len(recommendations['blueprint']['host_groups'][3]['components']), 1)
+
+    nameNodeDependencies["scope"] = "cluster"
+    nameNodeDependencies["conditions"] = []
+    recommendations = self.stackAdvisor.createComponentLayoutRecommendations(services, hosts)
+    # Assert that dependencies are ignored when scope is cluster
+    self.assertEquals(recommendations['blueprint']['host_groups'][2]['components'][0]['name'], 'NAMENODE')
+    self.assertEquals(len(recommendations['blueprint']['host_groups'][2]['components']), 1)
+    self.assertEquals(recommendations['blueprint']['host_groups'][3]['components'][0]['name'], 'NAMENODE')
+    self.assertEquals(len(recommendations['blueprint']['host_groups'][3]['components']), 1)
+
+    nameNodeDependencies["scope"] = "host"
+    recommendations = self.stackAdvisor.createComponentLayoutRecommendations(services, hosts)
+    # Assert that dependencies are enforced when host scope and no conditions
+    self.assertEquals(recommendations['blueprint']['host_groups'][1]['components'][1]['name'], 'NAMENODE')
+    self.assertEquals(len(recommendations['blueprint']['host_groups'][1]['components']), 2)
+
+
+  def test_validateRequiredComponentsPresent(self):
+    services = {
+      "Versions":
+        {
+          "stack_name":"HDP",
+          "stack_version":"2.0.6"
+        },
+      "services" : [
+        {
+          "StackServices" : {
+            "service_name" : "HDFS",
+            "service_version" : "2.0.6",
+          },
+          "components": [
+            {
+              "StackServiceComponents": {
+                "stack_version": "2.0.6",
+                "stack_name": "HDP",
+                "component_category": "MASTER",
+                "is_client": False,
+                "is_master": True,
+                "service_name": "HDFS",
+                "cardinality": "1-2",
+                "hostnames": ["c6401.ambari.apache.org"],
+                "component_name": "NAMENODE",
+                "display_name": "NameNode"
+              },
+              "dependencies": [
+                {
+                  "Dependencies": {
+                    "stack_name": "HDP",
+                    "stack_version": "2.0.6",
+                    "scope": "cluster",
+                    "conditions": [
+                      {
+                        "configType": "hdfs-site",
+                        "property": "dfs.nameservices",
+                        "type": "PropertyExists",
+                      }
+                    ],
+                    "dependent_service_name": "HDFS",
+                    "dependent_component_name": "NAMENODE",
+                    "component_name": "ZOOKEEPER_SERVER"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "StackServices" : {
+            "service_name" : "ZOOKEEPER",
+            "service_version" : "2.0.6",
+          },
+          "components": [
+            {
+              "StackServiceComponents": {
+                "stack_version": "2.0.6",
+                "stack_name": "HDP",
+                "component_category": "MASTER",
+                "is_client": False,
+                "is_master": True,
+                "service_name": "HDFS",
+                "cardinality": "1-2",
+                "hostnames": [],
+                "component_name": "ZOOKEEPER_SERVER",
+                "display_name": "ZooKeeper Server"
+              },
+              "dependencies": []
+            }
+          ]
+        }
+      ]
+    }
+
+    actualItems = self.stackAdvisor.validateRequiredComponentsPresent(services)
+    self.assertTrue(len(actualItems) == 0, "Only dependencies that have no associated condition should be accounted")
+
+    services["services"][0]["components"][0]["dependencies"][0]["Dependencies"]["conditions"] = []
+    actualItems = self.stackAdvisor.validateRequiredComponentsPresent(services)
+    self.assertFalse(len(actualItems) == 0, "Dependencies without conditions should be accounted")
+    expectedItems = [{ "type": 'host-component', "level": 'ERROR', "message": "NameNode requires ZooKeeper Server to be present in the cluster.", "component-name": "NAMENODE"}]
+    self.assertEqual(expectedItems, actualItems, "Cluster scope dependency error should be raised")
+
+    services["services"][1]["components"][0]["StackServiceComponents"]["hostnames"] = ["c6402.ambari.apache.org"]
+    actualItems = self.stackAdvisor.validateRequiredComponentsPresent(services)
+    self.assertTrue(len(actualItems) == 0, "Validation error should not be raised when cluster scope dependency is satisfied")
+
+    services["services"][0]["components"][0]["dependencies"][0]["Dependencies"]["scope"] = "host"
+    actualItems = self.stackAdvisor.validateRequiredComponentsPresent(services)
+    self.assertFalse(len(actualItems) == 0, "Validation error should be raised when host scope dependency is not satisfied")
+    expectedItems = [{ "type": 'host-component', "level": 'ERROR', "message": "NameNode requires ZooKeeper Server to be co-hosted on following host(s): c6401.ambari.apache.org.", "component-name": "NAMENODE"}]
+    self.assertEqual(expectedItems, actualItems, "Host scope dependency error should be raised")
+
+    services["services"][1]["components"][0]["StackServiceComponents"]["component_category"] = "CLIENT"
+    actualItems = self.stackAdvisor.validateRequiredComponentsPresent(services)
+    self.assertTrue(len(actualItems) == 0, "Validation error should not be raised when dependency is a client component")
+
+    services["services"][1]["components"][0]["StackServiceComponents"]["component_category"] = "SLAVE"
+    services["services"][1]["components"][0]["StackServiceComponents"]["hostnames"] = ["c6401.ambari.apache.org"]
+    actualItems = self.stackAdvisor.validateRequiredComponentsPresent(services)
+    self.assertTrue(len(actualItems) == 0, "Validation error should not be raised when host scope dependency is satisfied")
+
+
   def test_get_components_list(self):
     servicesInfo = [
       {
@@ -277,7 +541,7 @@ class TestHDP206StackAdvisor(TestCase):
     hosts = self.prepareHosts([])
     result = self.stackAdvisor.validateConfigurations(services, hosts)
     expectedItems = [
-      {'message': 'Queue is not exist or not corresponds to existing YARN leaf queue', 'level': 'ERROR'}
+      {'message': 'Queue does not exist or correspond to an existing YARN leaf queue', 'level': 'ERROR'}
     ]
     self.assertValidationResult(expectedItems, result)
     services["configurations"]["yarn-env"]["properties"]["service_check.queue.name"] = "ndfqueue"
@@ -1182,7 +1446,8 @@ class TestHDP206StackAdvisor(TestCase):
             "cardinality": component["cardinality"],
             "component_category": component["category"],
             "is_master": component["is_master"]
-          }
+          },
+          "dependencies": []
         }
         try:
           nextComponent["StackServiceComponents"]["hostnames"] = component["hostnames"]
@@ -1848,6 +2113,12 @@ class TestHDP206StackAdvisor(TestCase):
     self.stackAdvisor.recommendHDFSConfigurations(configurations, clusterData, services2, hosts)
     self.assertEquals(configurations, expected)
 
+
+
+
+
+
+
     configurations["hadoop-env"]["properties"]['hdfs_user'] = "hdfs1"
 
     changedConfigurations = [{"type":"hadoop-env",
@@ -2051,214 +2322,6 @@ class TestHDP206StackAdvisor(TestCase):
 
 
 
-  def test_recommendAmsConfigurations(self):
-    configurations = {
-      "hadoop-env": {
-        "properties": {
-          "hdfs_user": "hdfs",
-          "proxyuser_group": "users"
-        }
-      }
-    }
-
-    hosts = {
-      "items": [
-        {
-          "href": "/api/v1/hosts/host1",
-          "Hosts": {
-            "cpu_count": 1,
-            "host_name": "c6401.ambari.apache.org",
-            "os_arch": "x86_64",
-            "os_type": "centos6",
-            "ph_cpu_count": 1,
-            "public_host_name": "public.c6401.ambari.apache.org",
-            "rack_info": "/default-rack",
-            "total_mem": 2097152,
-            "disk_info": [{
-              "size": '80000000',
-              "mountpoint": "/"
-            }]
-          }
-        },
-        {
-          "href": "/api/v1/hosts/host2",
-          "Hosts": {
-            "cpu_count": 1,
-            "host_name": "c6402.ambari.apache.org",
-            "os_arch": "x86_64",
-            "os_type": "centos6",
-            "ph_cpu_count": 1,
-            "public_host_name": "public.c6402.ambari.apache.org",
-            "rack_info": "/default-rack",
-            "total_mem": 1048576,
-            "disk_info": [{
-              "size": '800000000',
-              "mountpoint": "/"
-            }]
-          }
-        }
-      ]}
-
-
-    services1 = {
-      "services": [
-        {
-          "StackServices": {
-            "service_name": "HDFS"
-          }, "components": [
-          {
-            "StackServiceComponents": {
-              "component_name": "NAMENODE",
-              "hostnames": ["c6401.ambari.apache.org"]
-            }
-          }
-        ]
-        },
-        {
-          "StackServices": {
-            "service_name": "AMBARI_METRICS"
-          },
-          "components": [
-            {
-              "StackServiceComponents": {
-                "component_name": "METRICS_COLLECTOR",
-                "hostnames": ["c6401.ambari.apache.org", "c6402.ambari.apache.org"]
-              }
-            }, {
-              "StackServiceComponents": {
-                "component_name": "METRICS_MONITOR",
-                "hostnames": ["c6401.ambari.apache.org", "c6402.ambari.apache.org"]
-              }
-            }
-          ]
-        }],
-      "configurations": configurations,
-      "ambari-server-properties": {"ambari-server.user":"ambari_user"}
-    }
-
-    clusterData = {
-      "totalAvailableRam": 2048
-    }
-
-    expected = {'ams-env': {'properties': {'metrics_collector_heapsize': '512'}},
-                  'ams-grafana-env': {'properties': {},
-                                                             'property_attributes': {'metrics_grafana_password': {'visible': 'false'}}},
-                  'ams-hbase-env': {'properties': {'hbase_log_dir': '/var/log/ambari-metrics-collector',
-                                                                                       'hbase_master_heapsize': '512',
-                                                                                       'hbase_master_xmn_size': '102',
-                                                                                       'hbase_regionserver_heapsize': '1024',
-                                                                                       'regionserver_xmn_size': '128'}},
-                  'ams-hbase-site': {'properties': {'hbase.cluster.distributed': 'true',
-                                                                                         'hbase.hregion.memstore.flush.size': '134217728',
-                                                                                         'hbase.regionserver.global.memstore.lowerLimit': '0.3',
-                                                                                         'hbase.regionserver.global.memstore.upperLimit': '0.35',
-                                                                                         'hbase.rootdir': '/user/ams/hbase',
-                                                                                         'hbase.tmp.dir': '/var/lib/ambari-metrics-collector/hbase-tmp',
-                                                                                         'hbase.zookeeper.property.clientPort': '2181',
-                                                                                         'hfile.block.cache.size': '0.3'}},
-                  'ams-site': {'properties': {'timeline.metrics.cache.commit.interval': '10',
-                                                                             'timeline.metrics.cache.size': '100',
-                                                                             'timeline.metrics.cluster.aggregate.splitpoints': 'master.Balancer.BalancerCluster_95th_percentile',
-                                                                             'timeline.metrics.host.aggregate.splitpoints': 'master.Balancer.BalancerCluster_95th_percentile',
-                                                                             'timeline.metrics.service.handler.thread.count': '20',
-                                                                             'timeline.metrics.service.operation.mode': 'distributed',
-                                                                             'timeline.metrics.service.watcher.disabled': 'true',
-                                                                             'timeline.metrics.service.webapp.address': '0.0.0.0:6188'}},
-                  'hadoop-env': {'properties': {'hdfs_user': 'hdfs',
-                                                                                 'proxyuser_group': 'users'}}}
-
-    self.stackAdvisor.recommendAmsConfigurations(configurations, clusterData, services1, hosts)
-    self.assertEquals(configurations, expected)
-
-    services1 = {
-      "services": [
-        {
-          "StackServices": {
-            "service_name": "HDFS"
-          }, "components": [
-          {
-            "StackServiceComponents": {
-              "component_name": "NAMENODE",
-              "hostnames": ["c6401.ambari.apache.org"]
-            }
-          }
-        ]
-        },
-        {
-          "StackServices": {
-            "service_name": "AMBARI_METRICS"
-          },
-          "components": [
-            {
-              "StackServiceComponents": {
-                "component_name": "METRICS_COLLECTOR",
-                "hostnames": ["c6401.ambari.apache.org"]
-              }
-            }, {
-              "StackServiceComponents": {
-                "component_name": "METRICS_MONITOR",
-                "hostnames": ["c6401.ambari.apache.org", "c6402.ambari.apache.org"]
-              }
-            }
-          ]
-        }],
-      "configurations": configurations,
-      "ambari-server-properties": {"ambari-server.user":"ambari_user"}
-    }
-    expected = {'ams-env': {'properties': {'metrics_collector_heapsize': '512'}},
-                  'ams-grafana-env': {'properties': {},
-                                                             'property_attributes': {'metrics_grafana_password': {'visible': 'false'}}},
-                  'ams-hbase-env': {'properties': {'hbase_log_dir': '/var/log/ambari-metrics-collector',
-                                                                                       'hbase_master_heapsize': '512',
-                                                                                       'hbase_master_xmn_size': '102',
-                                                                                       'hbase_regionserver_heapsize': '1024',
-                                                                                       'regionserver_xmn_size': '128'}},
-                  'ams-hbase-site': {'properties': {'hbase.cluster.distributed': 'true',
-                                                                                         'hbase.hregion.memstore.flush.size': '134217728',
-                                                                                         'hbase.regionserver.global.memstore.lowerLimit': '0.3',
-                                                                                         'hbase.regionserver.global.memstore.upperLimit': '0.35',
-                                                                                         'hbase.rootdir': '/user/ams/hbase',
-                                                                                         'hbase.tmp.dir': '/var/lib/ambari-metrics-collector/hbase-tmp',
-                                                                                         'hbase.zookeeper.property.clientPort': '2181',
-                                                                                         'hfile.block.cache.size': '0.3',
-                                                                                         'phoenix.coprocessor.maxMetaDataCacheSize': '20480000'}},
-                  'ams-site': {'properties': {'timeline.metrics.cache.commit.interval': '10',
-                                                                             'timeline.metrics.cache.size': '100',
-                                                                             'timeline.metrics.cluster.aggregate.splitpoints': 'master.Balancer.BalancerCluster_95th_percentile',
-                                                                             'timeline.metrics.host.aggregate.splitpoints': 'master.Balancer.BalancerCluster_95th_percentile',
-                                                                             'timeline.metrics.service.handler.thread.count': '20',
-                                                                             'timeline.metrics.service.operation.mode': 'distributed',
-                                                                             'timeline.metrics.service.watcher.disabled': 'true',
-                                                                             'timeline.metrics.service.webapp.address': '0.0.0.0:6188'}},
-                  'hadoop-env': {'properties': {'hdfs_user': 'hdfs',
-                                                                                 'proxyuser_group': 'users'}}}
-    self.stackAdvisor.recommendAmsConfigurations(configurations, clusterData, services1, hosts)
-    self.assertEquals(configurations, expected)
-
-  def test_getHostNamesWithComponent(self):
-
-    services = {
-      "services":  [
-        {
-          "StackServices": {
-            "service_name": "SERVICE"
-          },
-          "components": [
-            {
-              "StackServiceComponents": {
-                "component_name": "COMPONENT",
-                "hostnames": ["host1","host2","host3"]
-              }
-            }
-          ]
-        }
-      ],
-      "configurations": {}
-    }
-
-    result = self.stackAdvisor.getHostNamesWithComponent("SERVICE","COMPONENT", services)
-    expected = ["host1","host2","host3"]
-    self.assertEquals(result, expected)
 
 
   def test_getZKHostPortString(self):
@@ -2356,17 +2419,146 @@ class TestHDP206StackAdvisor(TestCase):
     res = self.stackAdvisor.validateHDFSConfigurationsEnv(properties, recommendedDefaults, configurations, '', '')
     self.assertEquals(res, res_expected)
 
+  @patch("socket.getfqdn", new=lambda: 'test-mock-ambari-server-hostname1')
+  def test_recommendHadoopProxyUsers(self):
+    # input data stub
+    configurations = {'hadoop-env': {'properties': {'hdfs_user': 'hdfs-user'}},
+                      'yarn-env':   {'properties': {'yarn_user': 'yarn-user'}},
+                      'oozie-env':  {'properties': {'oozie_user': 'oozie-user'}},
+                      'hive-env':   {'properties': {'hive_user': 'hive-user',
+                                                    'webhcat_user': 'webhcat-user'}},
+                      'falcon-env': {'properties': {'falcon_user': 'falcon-user'}},
+                      'livy-env':   {'properties': {'livy_user': 'livy-user'}}
+                     }
+    services = {
+      'services':  [
+        { 'StackServices': {'service_name': 'HDFS'}},
+        { 'StackServices': {'service_name': 'FALCON'}},
+        { 'StackServices': {'service_name': 'SPARK'}},
+        { 'StackServices': {'service_name': 'YARN'},
+          'components': [
+           {
+             'StackServiceComponents': {
+               'component_name': 'RESOURCEMANAGER',
+               'hostnames': ['host1', 'host2']
+             }
+           }
+          ]
+        },
+        { 'StackServices': {'service_name': 'OOZIE'},
+          'components': [
+           {
+             'StackServiceComponents': {
+               'component_name': 'OOZIE_SERVER',
+               'hostnames': ['host2']
+             }
+           }
+          ]
+        },
+        { 'StackServices': {'service_name': 'HIVE'},
+          'components': [
+           {
+             'StackServiceComponents': {
+               'component_name': 'HIVE_SERVER',
+               'hostnames': ['host1']
+             }
+           },
+           {
+             'StackServiceComponents': {
+               'component_name': 'HIVE_SERVER_INTERACTIVE',
+               'hostnames': ['host3']
+             }
+           },
+           {
+             'StackServiceComponents': {
+               'component_name': 'WEBHCAT_SERVER',
+               'hostnames': ['host4']
+             }
+           }
+          ]
+        },
+      ],
+      'ambari-server-properties': {'ambari-server.user': 'ambari-user'},
+      'configurations': configurations
+    }
+    hosts = {
+      'items' : [
+        {'Hosts' : {'host_name' : 'host1'}},
+        {'Hosts' : {'host_name' : 'host2'}},
+        {'Hosts' : {'host_name' : 'host3'}},
+        {'Hosts' : {'host_name' : 'host4'}}
+      ]
+    }
+
+    # 1) ok: check recommendations
+    expected = {
+      'hadoop.proxyuser.ambari-user.groups': '*',
+      'hadoop.proxyuser.ambari-user.hosts': 'test-mock-ambari-server-hostname1',
+      'hadoop.proxyuser.falcon-user.groups': '*',
+      'hadoop.proxyuser.falcon-user.hosts': '*',
+      'hadoop.proxyuser.hdfs-user.groups': '*',
+      'hadoop.proxyuser.hdfs-user.hosts': '*',
+      'hadoop.proxyuser.hive-user.groups': '*',
+      'hadoop.proxyuser.hive-user.hosts': 'host1,host3',
+      'hadoop.proxyuser.livy-user.groups': '*',
+      'hadoop.proxyuser.livy-user.hosts': '*',
+      'hadoop.proxyuser.oozie-user.groups': '*',
+      'hadoop.proxyuser.oozie-user.hosts': 'host2',
+      'hadoop.proxyuser.webhcat-user.groups': '*',
+      'hadoop.proxyuser.webhcat-user.hosts': 'host4',
+      'hadoop.proxyuser.yarn-user.hosts': 'host1,host2'
+    }
+
+    self.stackAdvisor.recommendHadoopProxyUsers(configurations, services, hosts)
+    self.assertEquals(expected, configurations['core-site']['properties'])
+
+  @patch("socket.getfqdn", new=lambda: 'test-mock-ambari-server-hostname1')
   def test_validateHDFSConfigurationsCoreSite(self):
-
-    configurations = {}
-    services = {"gpl-license-accepted": True, "services": [{"StackServices": {"service_name": "HDFS"}}]}
-
-    # 1) ok: gpl is allowed
-    properties = {'io.compression.codec.lzo.class': 'com.hadoop.compression.lzo.LzoCodec',
+    # input data stub
+    configurations = {'hadoop-env': {'properties': {'hdfs_user': 'hdfs-user'}},
+                      'yarn-env': {'properties': {'yarn_user': 'yarn-user'}}}
+    recommendedDefaults = {'hadoop.proxyuser.ambari-user.hosts': '*',
+                           'hadoop.proxyuser.ambari-user.groups': '*',
+                           'hadoop.proxyuser.hdfs-user.hosts': '*',
+                           'hadoop.proxyuser.hdfs-user.groups': '*',
+                           'hadoop.proxyuser.yarn-user.hosts': 'host1,host2',
+                           'hadoop.proxyuser.yarn-user.groups': '*'}
+    properties = {'hadoop.proxyuser.ambari-user.hosts': '*',
+                  'hadoop.proxyuser.ambari-user.groups': '*',
+                  'hadoop.proxyuser.hdfs-user.hosts': '*',
+                  'hadoop.proxyuser.hdfs-user.groups': '*',
+                  'hadoop.proxyuser.yarn-user.hosts': 'host1,host2',
+                  'hadoop.proxyuser.yarn-user.groups': '*',
+                  'io.compression.codec.lzo.class': 'com.hadoop.compression.lzo.LzoCodec',
                   'io.compression.codecs': 'AnotherCodec, com.hadoop.compression.lzo.LzoCodec'}
-    res_expected = []
+    services = {
+      'services':  [
+        { 'StackServices': {'service_name': 'HDFS'}},
+        { 'StackServices': {'service_name': 'YARN'},
+          'components': [
+           {
+             'StackServiceComponents': {
+               'component_name': 'RESOURCEMANAGER',
+               'hostnames': ['host1', 'host2']
+             }
+           }
+          ]
+        }
+      ],
+      'ambari-server-properties': {'ambari-server.user': 'ambari-user'},
+      'configurations': configurations,
+      "gpl-license-accepted": True
+    }
+    hosts = {
+      'items' : [
+        {'Hosts' : {'host_name' : 'host1'}},
+        {'Hosts' : {'host_name' : 'host2'}}
+      ]
+    }
 
-    res = self.stackAdvisor.validateHDFSConfigurationsCoreSite(properties, {}, configurations, services, '')
+    # 1) ok: HDFS and Ambari proxyusers are present
+    res_expected = []
+    res = self.stackAdvisor.validateHDFSConfigurationsCoreSite(properties, recommendedDefaults, configurations, services, hosts)
     self.assertEquals(res, res_expected)
 
     # 2) fail: gpl is not allowed
@@ -2386,8 +2578,110 @@ class TestHDP206StackAdvisor(TestCase):
                      'config-name': 'io.compression.codec.lzo.class',
                      'level': 'NOT_APPLICABLE'}]
 
-    res = self.stackAdvisor.validateHDFSConfigurationsCoreSite(properties, {}, configurations, services, '')
+    res = self.stackAdvisor.validateHDFSConfigurationsCoreSite(properties, {}, configurations, services, hosts)
     self.assertEquals(res, res_expected)
+    services["gpl-license-accepted"] = True
+
+    # 3) fail: test filter function: two RESOURCE_MANAGERs, hadoop.proxyuser.yarn-user.hosts is expected to be set
+    del properties['hadoop.proxyuser.yarn-user.hosts']
+    res_expected = [{'config-name': 'hadoop.proxyuser.yarn-user.hosts',
+                     'config-type': 'core-site',
+                     'level': 'ERROR',
+                     'message': 'Value should be set for hadoop.proxyuser.yarn-user.hosts',
+                     'type': 'configuration'}]
+    res = self.stackAdvisor.validateHDFSConfigurationsCoreSite(properties, recommendedDefaults, configurations, services, hosts)
+    self.assertEquals(res, res_expected)
+
+    # 4) ok: test filter function: only one RESOURCE_MANAGER
+    services['services'][1]['components'][0]['StackServiceComponents']['hostnames'] = ["host1"]
+    res_expected = []
+    res = self.stackAdvisor.validateHDFSConfigurationsCoreSite(properties, recommendedDefaults, configurations, services, hosts)
+    self.assertEquals(res, res_expected)
+
+    # 5) fail: some proxyusers are empty or absent:
+    del properties['hadoop.proxyuser.ambari-user.hosts']
+    properties['hadoop.proxyuser.hdfs-user.groups'] = ''
+    res_expected = [{'config-name': 'hadoop.proxyuser.hdfs-user.groups',
+                     'config-type': 'core-site',
+                     'level': 'WARN',
+                     'message': 'Empty value for hadoop.proxyuser.hdfs-user.groups',
+                     'type': 'configuration'},
+                    {'config-type': 'core-site',
+                     'message': 'Value should be set for hadoop.proxyuser.ambari-user.hosts',
+                     'type': 'configuration',
+                     'config-name': 'hadoop.proxyuser.ambari-user.hosts',
+                     'level': 'ERROR'}]
+    res = self.stackAdvisor.validateHDFSConfigurationsCoreSite(properties, recommendedDefaults, configurations, services, hosts)
+    self.assertEquals(res, res_expected)
+
+  def test_getHadoopProxyUsers(self):
+    # input data stub
+    configurations = {'hadoop-env': {'properties': {'hdfs_user': 'hdfs-user'}},
+                      'yarn-env': {'properties': {'yarn_user': 'yarn-user'}}}
+    services = {
+      'services':  [
+        { 'StackServices': {'service_name': 'HDFS'}},
+        { 'StackServices': {'service_name': 'YARN'},
+          'components': [
+           {
+             'StackServiceComponents': {
+               'component_name': 'RESOURCEMANAGER',
+               'hostnames': ['host1', 'host2']
+             }
+           }
+          ]
+        }
+      ],
+      'ambari-server-properties': {'ambari-server.user': 'ambari-user'},
+      'configurations': configurations
+    }
+    hosts = {
+      'items' : [
+        {'Hosts' : {'host_name' : 'host1'}},
+        {'Hosts' : {'host_name' : 'host2'}}
+      ]
+    }
+
+    # 1) HDFS + YARN:
+    res_expected = {
+      'hdfs-user': {'propertyName': 'hdfs_user', 'config': 'hadoop-env', 'propertyHosts': '*', 'propertyGroups': '*'},
+      'yarn-user': {'propertyName': 'yarn_user', 'config': 'yarn-env', 'propertyHosts': 'host1,host2'}
+    }
+    res = self.stackAdvisor.getHadoopProxyUsers(services, hosts, configurations)
+    self.assertEquals(res, res_expected)
+
+    # 2) test filter function: only one RESOURCE_MANAGER
+    services['services'][1]['components'][0]['StackServiceComponents']['hostnames'] = ["host1"]
+    res_expected = {
+        'hdfs-user': {'propertyName': 'hdfs_user', 'config': 'hadoop-env', 'propertyHosts': '*', 'propertyGroups': '*'}
+    }
+    res = self.stackAdvisor.getHadoopProxyUsers(services, hosts, configurations)
+    self.assertEquals(res, res_expected)
+
+  # def test_validateHDFSConfigurationsCoreSite(self):
+  #
+  #   configurations = {}
+  #   services = {"gpl-license-accepted": True, "services": [{"StackServices": {"service_name": "HDFS"}}], 'ambari-server-properties': {'ambari-server.user': 'ambari-user'}}
+  #
+  #   # 1) ok: gpl is allowed
+  #   properties = {'io.compression.codec.lzo.class': 'com.hadoop.compression.lzo.LzoCodec'}
+  #   res_expected = []
+  #
+  #   res = self.stackAdvisor.validateHDFSConfigurationsCoreSite(properties, {}, configurations, services, '')
+  #   self.assertEquals(res, res_expected)
+  #
+  #   # 2) fail: gpl is not allowed
+  #   services["gpl-license-accepted"] = False
+  #   res_expected = [{'config-type': 'core-site',
+  #                    'message': 'Your Ambari Server has not been configured to download LZO and install it. '
+  #                               'LZO is GPL software and requires you to accept a license prior to use. '
+  #                               'Please refer to this documentation to configure Ambari before proceeding.',
+  #                    'type': 'configuration',
+  #                    'config-name': 'io.compression.codec.lzo.class',
+  #                    'level': 'ERROR'}]
+  #
+  #   res = self.stackAdvisor.validateHDFSConfigurationsCoreSite(properties, {}, configurations, services, '')
+  #   self.assertEquals(res, res_expected)
 
   def test_validateOneDataDirPerPartition(self):
     recommendedDefaults = {
@@ -2462,374 +2756,6 @@ class TestHDP206StackAdvisor(TestCase):
     validation_problems = self.stackAdvisor.validateHDFSConfigurations(properties, recommendedDefaults, configurations, services, hosts)
     self.assertEquals(validation_problems, expected)
 
-  def test_validateAmsSiteConfigurations(self):
-    configurations = {
-      "hdfs-site": {
-        "properties": {
-          'dfs.datanode.data.dir': "/hadoop/data"
-        }
-      },
-      "core-site": {
-        "properties": {
-          "fs.defaultFS": "hdfs://c6401.ambari.apache.org:8020"
-        }
-      },
-      "ams-site": {
-        "properties": {
-          "timeline.metrics.service.operation.mode": "embedded"
-        }
-      }
-    }
-    recommendedDefaults = {
-      'hbase.rootdir': 'file:///var/lib/ambari-metrics-collector/hbase',
-      'hbase.tmp.dir': '/var/lib/ambari-metrics-collector/hbase',
-      'hbase.cluster.distributed': 'false'
-    }
-    properties = {
-      'hbase.rootdir': 'file:///var/lib/ambari-metrics-collector/hbase',
-      'hbase.tmp.dir' : '/var/lib/ambari-metrics-collector/hbase',
-      'hbase.cluster.distributed': 'false',
-      'timeline.metrics.service.operation.mode' : 'embedded'
-    }
-    host1 = {
-      "href" : "/api/v1/hosts/host1",
-      "Hosts" : {
-        "cpu_count" : 1,
-        "host_name" : "host1",
-        "os_arch" : "x86_64",
-        "os_type" : "centos6",
-        "ph_cpu_count" : 1,
-        "public_host_name" : "host1",
-        "rack_info" : "/default-rack",
-        "total_mem" : 2097152,
-        "disk_info": [
-          {
-            "available": str(15<<30), # 15 GB
-            "type": "ext4",
-            "mountpoint": "/"
-          }
-        ]
-      }
-    }
-    host2 = {
-      "href" : "/api/v1/hosts/host2",
-      "Hosts" : {
-        "cpu_count" : 1,
-        "host_name" : "host2",
-        "os_arch" : "x86_64",
-        "os_type" : "centos6",
-        "ph_cpu_count" : 1,
-        "public_host_name" : "host2",
-        "rack_info" : "/default-rack",
-        "total_mem" : 2097152,
-        "disk_info": [
-          {
-            "available": str(15<<30), # 15 GB
-            "type": "ext4",
-            "mountpoint": "/"
-          }
-        ]
-      }
-    }
-
-    hosts = {
-      "items" : [
-        host1, host2
-      ]
-    }
-
-    services = {
-      "services":  [
-        {
-          "StackServices": {
-            "service_name": "AMBARI_METRICS"
-          },
-          "components": [
-            {
-              "StackServiceComponents": {
-                "component_name": "METRICS_COLLECTOR",
-                "hostnames": ["host1", "host2"]
-              }
-            }, {
-              "StackServiceComponents": {
-                "component_name": "METRICS_MONITOR",
-                "hostnames": ["host1", "host2"]
-              }
-            }
-          ]
-        },
-        {
-          "StackServices": {
-            "service_name": "HDFS"
-          },
-          "components": [
-            {
-              "StackServiceComponents": {
-                "component_name": "DATANODE",
-                "hostnames": ["host1"]
-              }
-            }
-          ]
-        }
-      ],
-      "configurations": configurations
-    }
-    # only 1 partition, enough disk space, no warnings
-    res = self.stackAdvisor.validateAmsSiteConfigurations(properties, recommendedDefaults, configurations, services, hosts)
-    expected = [{'config-name': 'timeline.metrics.service.operation.mode',
-                    'config-type': 'ams-site',
-                    'level': 'ERROR',
-                    'message': "Correct value should be 'distributed' for clusters with more then 1 Metrics collector",
-                    'type': 'configuration'}]
-    self.assertEquals(res, expected)
-
-
-    services = {
-      "services":  [
-        {
-          "StackServices": {
-            "service_name": "AMBARI_METRICS"
-          },
-          "components": [
-            {
-              "StackServiceComponents": {
-                "component_name": "METRICS_COLLECTOR",
-                "hostnames": ["host1"]
-              }
-            }, {
-              "StackServiceComponents": {
-                "component_name": "METRICS_MONITOR",
-                "hostnames": ["host1"]
-              }
-            }
-          ]
-        },
-        {
-          "StackServices": {
-            "service_name": "HDFS"
-          },
-          "components": [
-            {
-              "StackServiceComponents": {
-                "component_name": "DATANODE",
-                "hostnames": ["host1"]
-              }
-            }
-          ]
-        }
-      ],
-      "configurations": configurations
-    }
-    res = self.stackAdvisor.validateAmsSiteConfigurations(properties, recommendedDefaults, configurations, services, hosts)
-    expected = []
-    self.assertEquals(res, expected)
-
-  def test_validateAmsHbaseSiteConfigurations(self):
-    configurations = {
-      "hdfs-site": {
-        "properties": {
-          'dfs.datanode.data.dir': "/hadoop/data"
-        }
-      },
-      "core-site": {
-        "properties": {
-          "fs.defaultFS": "hdfs://c6401.ambari.apache.org:8020"
-        }
-      },
-      "ams-site": {
-        "properties": {
-          "timeline.metrics.service.operation.mode": "embedded"
-        }
-      }
-    }
-
-    recommendedDefaults = {
-      'hbase.rootdir': 'file:///var/lib/ambari-metrics-collector/hbase',
-      'hbase.tmp.dir': '/var/lib/ambari-metrics-collector/hbase',
-      'hbase.cluster.distributed': 'false'
-    }
-    properties = {
-      'hbase.rootdir': 'file:///var/lib/ambari-metrics-collector/hbase',
-      'hbase.tmp.dir' : '/var/lib/ambari-metrics-collector/hbase',
-      'hbase.cluster.distributed': 'false'
-    }
-    host = {
-      "href" : "/api/v1/hosts/host1",
-      "Hosts" : {
-        "cpu_count" : 1,
-        "host_name" : "host1",
-        "os_arch" : "x86_64",
-        "os_type" : "centos6",
-        "ph_cpu_count" : 1,
-        "public_host_name" : "host1",
-        "rack_info" : "/default-rack",
-        "total_mem" : 2097152,
-        "disk_info": [
-          {
-            "available": str(15<<30), # 15 GB
-            "type": "ext4",
-            "mountpoint": "/"
-          }
-        ]
-      }
-    }
-
-    hosts = {
-      "items" : [
-        host
-      ]
-    }
-
-    services = {
-      "services":  [
-        {
-          "StackServices": {
-            "service_name": "AMBARI_METRICS"
-          },
-          "components": [
-            {
-              "StackServiceComponents": {
-                "component_name": "METRICS_COLLECTOR",
-                "hostnames": ["host1"]
-              }
-            }, {
-              "StackServiceComponents": {
-                "component_name": "METRICS_MONITOR",
-                "hostnames": ["host1"]
-              }
-            }
-          ]
-        },
-        {
-          "StackServices": {
-            "service_name": "HDFS"
-          },
-          "components": [
-            {
-              "StackServiceComponents": {
-                "component_name": "DATANODE",
-                "hostnames": ["host1"]
-              }
-            }
-          ]
-        }
-      ],
-      "configurations": configurations
-    }
-
-    # only 1 partition, enough disk space, no warnings
-    res = self.stackAdvisor.validateAmsHbaseSiteConfigurations(properties, recommendedDefaults, configurations, services, hosts)
-    expected = []
-    self.assertEquals(res, expected)
-
-
-    # 1 partition, no enough disk space
-    host['Hosts']['disk_info'] = [
-      {
-        "available" : '1',
-        "type" : "ext4",
-        "mountpoint" : "/"
-      }
-    ]
-    res = self.stackAdvisor.validateAmsHbaseSiteConfigurations(properties, recommendedDefaults, configurations, services, hosts)
-    expected = [
-      {'config-name': 'hbase.rootdir',
-       'config-type': 'ams-hbase-site',
-       'level': 'WARN',
-       'message': 'Ambari Metrics disk space requirements not met. '
-                  '\nRecommended disk space for partition / is 10G',
-       'type': 'configuration'
-      }
-    ]
-    self.assertEquals(res, expected)
-
-    # 2 partitions
-    host['Hosts']['disk_info'] = [
-      {
-        "available": str(15<<30), # 15 GB
-        "type" : "ext4",
-        "mountpoint" : "/grid/0"
-      },
-      {
-        "available" : str(15<<30), # 15 GB
-        "type" : "ext4",
-        "mountpoint" : "/"
-      }
-    ]
-    recommendedDefaults = {
-      'hbase.rootdir': 'file:///grid/0/var/lib/ambari-metrics-collector/hbase',
-      'hbase.tmp.dir': '/var/lib/ambari-metrics-collector/hbase',
-      'hbase.cluster.distributed': 'false'
-    }
-    properties = {
-      'hbase.rootdir': 'file:///grid/0/var/lib/ambari-metrics-collector/hbase',
-      'hbase.tmp.dir' : '/var/lib/ambari-metrics-collector/hbase',
-      'hbase.cluster.distributed': 'false'
-    }
-    res = self.stackAdvisor.validateAmsHbaseSiteConfigurations(properties, recommendedDefaults, configurations, services, hosts)
-    expected = []
-    self.assertEquals(res, expected)
-
-    # dfs.dir & hbase.rootdir crosscheck + root partition + hbase.rootdir == hbase.tmp.dir warnings
-    properties = {
-      'hbase.rootdir': 'file:///var/lib/ambari-metrics-collector/hbase',
-      'hbase.tmp.dir' : '/var/lib/ambari-metrics-collector/hbase',
-      'hbase.cluster.distributed': 'false'
-    }
-
-    res = self.stackAdvisor.validateAmsHbaseSiteConfigurations(properties, recommendedDefaults, configurations, services, hosts)
-    expected = [
-      {
-        'config-name': 'hbase.rootdir',
-        'config-type': 'ams-hbase-site',
-        'level': 'WARN',
-        'message': 'It is not recommended to use root partition for hbase.rootdir',
-        'type': 'configuration'
-      },
-      {
-        'config-name': 'hbase.tmp.dir',
-        'config-type': 'ams-hbase-site',
-        'level': 'WARN',
-        'message': 'Consider not using / partition for storing metrics temporary data. '
-                   '/ partition is already used as hbase.rootdir to store metrics data',
-        'type': 'configuration'
-      },
-      {
-        'config-name': 'hbase.rootdir',
-        'config-type': 'ams-hbase-site',
-        'level': 'WARN',
-        'message': 'Consider not using / partition for storing metrics data. '
-                   '/ is already used by datanode to store HDFS data',
-        'type': 'configuration'
-      }
-    ]
-    self.assertEquals(res, expected)
-
-    # incorrect hbase.rootdir in distributed mode
-    properties = {
-      'hbase.rootdir': 'file:///grid/0/var/lib/ambari-metrics-collector/hbase',
-      'hbase.tmp.dir' : '/var/lib/ambari-metrics-collector/hbase',
-      'hbase.cluster.distributed': 'false'
-    }
-    configurations['ams-site']['properties']['timeline.metrics.service.operation.mode'] = 'distributed'
-    res = self.stackAdvisor.validateAmsHbaseSiteConfigurations(properties, recommendedDefaults, configurations, services, hosts)
-    expected = [
-      {
-        'config-name': 'hbase.rootdir',
-        'config-type': 'ams-hbase-site',
-        'level': 'WARN',
-        'message': 'In distributed mode hbase.rootdir should point to HDFS.',
-        'type': 'configuration'
-      },
-      {
-        'config-name': 'hbase.cluster.distributed',
-        'config-type': 'ams-hbase-site',
-        'level': 'ERROR',
-        'message': 'hbase.cluster.distributed property should be set to true for distributed mode',
-        'type': 'configuration'
-      }
-    ]
-    self.assertEquals(res, expected)
 
   def test_validateStormSiteConfigurations(self):
     configurations = {
@@ -3212,11 +3138,11 @@ class TestHDP206StackAdvisor(TestCase):
     self.assertEquals(self.stack_advisor_impl.round_to_n(4097), 4096)
 
   def test_getMountPointForDir(self):
-    self.assertEquals(self.stack_advisor_impl.getMountPointForDir("/var/log", ["/"]), "/")
-    self.assertEquals(self.stack_advisor_impl.getMountPointForDir("/var/log", ["/var", "/"]), "/var")
-    self.assertEquals(self.stack_advisor_impl.getMountPointForDir("file:///var/log", ["/var", "/"]), "/var")
-    self.assertEquals(self.stack_advisor_impl.getMountPointForDir("hdfs:///hdfs_path", ["/var", "/"]), None)
-    self.assertEquals(self.stack_advisor_impl.getMountPointForDir("relative/path", ["/var", "/"]), None)
+    self.assertEquals(self.stackAdvisor.getMountPointForDir("/var/log", ["/"]), "/")
+    self.assertEquals(self.stackAdvisor.getMountPointForDir("/var/log", ["/var", "/"]), "/var")
+    self.assertEquals(self.stackAdvisor.getMountPointForDir("file:///var/log", ["/var", "/"]), "/var")
+    self.assertEquals(self.stackAdvisor.getMountPointForDir("hdfs:///hdfs_path", ["/var", "/"]), None)
+    self.assertEquals(self.stackAdvisor.getMountPointForDir("relative/path", ["/var", "/"]), None)
 
   def test_parseCardinality(self):
     self.assertEquals(self.stackAdvisor.parseCardinality("ALL", 5), (5, 5))

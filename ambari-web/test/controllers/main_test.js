@@ -17,44 +17,9 @@
  */
 
 var App = require('app');
-var testHelpers = require('test/helpers');
 
 describe('App.MainController', function () {
   var mainController = App.MainController.create();
-
-  describe('#getServerVersionSuccessCallback', function () {
-
-    var controller = App.MainController.create(),
-      cases = [
-        {
-          osFamily: 'redhat5',
-          expected: false
-        },
-        {
-          osFamily: 'redhat6',
-          expected: true
-        },
-        {
-          osFamily: 'suse11',
-          expected: false
-        }
-      ],
-      title = 'App.isManagedMySQLForHiveEnabled should be {0} for {1}';
-
-    cases.forEach(function (item) {
-      it(title.format(item.expected, item.osFamily), function () {
-        controller.getServerVersionSuccessCallback({
-          'RootServiceComponents': {
-            'component_version': '',
-            'properties': {
-              'server.os_family': item.osFamily
-            }
-          }
-        });
-        expect(App.get('isManagedMySQLForHiveEnabled')).to.equal(item.expected);
-      });
-    });
-  });
 
   App.TestAliases.testAsComputedAlias(mainController, 'isClusterDataLoaded', 'App.router.clusterController.isLoaded', 'boolean');
 
@@ -66,15 +31,28 @@ describe('App.MainController', function () {
       sinon.stub(App.router, 'get').returns({
         loadClusterData: function() {
           initialize = true;
+        },
+        startSubscriptions: Em.K
+      });
+      sinon.stub(App.StompClient, 'connect').returns({
+        done: function() {
+          return {
+            fail: Em.K
+          }
         }
       });
     });
     afterEach(function () {
       App.router.get.restore();
+      App.StompClient.connect.restore();
     });
     it ('Should return true', function() {
       mainController.initialize();
       expect(initialize).to.be.true;
+    });
+    it ('App.StompClient.connect should be called', function() {
+      mainController.initialize();
+      expect(App.StompClient.connect.calledOnce).to.be.true;
     });
   });
 
@@ -110,38 +88,6 @@ describe('App.MainController', function () {
     });
   });
 
-  describe('#checkServerClientVersion', function() {
-    beforeEach(function () {
-      sinon.stub(mainController, 'getServerVersion').returns({
-        done: function(func) {
-          if (func) {
-            func();
-          }
-        }
-      });
-    });
-    afterEach(function () {
-      mainController.getServerVersion.restore();
-    });
-    it ('Should resolve promise', function() {
-      var deffer = mainController.checkServerClientVersion();
-      deffer.then(function(val){
-        expect(val).to.be.undefined;
-      });
-    });
-  });
-
-  describe('#getServerVersion', function() {
-
-    it ('Should send data', function() {
-      mainController.getServerVersion();
-      var args = testHelpers.findAjaxRequest('name', 'ambari.service');
-      expect(args[0]).to.exists;
-      expect(args[0].sender).to.be.eql(mainController);
-      expect(args[0].data.fields).to.be.equal('?fields=RootServiceComponents/component_version,RootServiceComponents/properties/server.os_family&minimal_response=true');
-    });
-  });
-
   describe('#updateTitle', function() {
     beforeEach(function () {
       sinon.stub(App.router, 'get').withArgs('clusterController.clusterName').returns('c1')
@@ -161,6 +107,27 @@ describe('App.MainController', function () {
       expect($('title').text()).to.be.equal('Ambari - c1');
       $('body').remove('#title-id');
     });
+  });
+
+  describe('#startPolling', function() {
+    var mock,
+        updateController = Em.Object.create({
+          isWorking: false
+        });
+    beforeEach(function() {
+      mock = sinon.stub(App.router, 'get');
+      mock.withArgs('applicationController.isExistingClusterDataLoaded').returns(true);
+      mock.withArgs('updateController').returns(updateController);
+      mainController.startPolling();
+    });
+    afterEach(function() {
+      App.router.get.restore();
+    });
+
+    it('updateController should be working', function() {
+      expect(updateController.get('isWorking')).to.be.true;
+    });
+
   });
 
 });

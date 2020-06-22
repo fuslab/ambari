@@ -17,10 +17,15 @@
  */
 package org.apache.ambari.server.state.kerberos;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.ambari.server.collections.Predicate;
 import org.apache.ambari.server.collections.PredicateUtils;
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang.StringUtils;
 
 import com.google.common.base.Optional;
 
@@ -72,7 +77,6 @@ public class KerberosIdentityDescriptor extends AbstractKerberosDescriptor {
   static final String KEY_KEYTAB = Type.KEYTAB.getDescriptorName();
   static final String KEY_WHEN = "when";
 
-
   /**
    * The path to the Kerberos Identity definitions this {@link KerberosIdentityDescriptor} references
    */
@@ -94,6 +98,8 @@ public class KerberosIdentityDescriptor extends AbstractKerberosDescriptor {
    * then this {@link KerberosIdentityDescriptor} will be ignored when processing identities.
    */
   private Predicate when = null;
+
+  private String path = null;
 
   /**
    * Creates a new KerberosIdentityDescriptor
@@ -143,7 +149,7 @@ public class KerberosIdentityDescriptor extends AbstractKerberosDescriptor {
 
       item = data.get(KEY_WHEN);
       if (item instanceof Map) {
-        setWhen(PredicateUtils.fromMap((Map<String, Object>) item));
+        setWhen(PredicateUtils.fromMap((Map<?, ?>) item));
       }
     }
   }
@@ -155,6 +161,47 @@ public class KerberosIdentityDescriptor extends AbstractKerberosDescriptor {
    */
   public String getReference() {
     return reference;
+  }
+
+  /**
+   * Gets the absolute path to the referenced Kerberos identity definition
+   *
+   * @return the path to the referenced Kerberos identity definition or <code>null</code> if not set
+   */
+  public String getReferenceAbsolutePath() {
+    String absolutePath;
+    if(StringUtils.isEmpty(reference)) {
+      absolutePath = getName();
+    }
+    else {
+      absolutePath = reference;
+    }
+
+    if(!StringUtils.isEmpty(absolutePath) && !absolutePath.startsWith("/")) {
+      String path = getPath();
+      if(path == null) {
+        path = "";
+      }
+
+      if(absolutePath.startsWith("..")) {
+        AbstractKerberosDescriptor parent = getParent();
+        if(parent != null) {
+          parent = parent.getParent();
+
+          if(parent != null) {
+            absolutePath = absolutePath.replace("..", parent.getPath());
+          }
+        }
+      }
+      else if(absolutePath.startsWith(".")) {
+        AbstractKerberosDescriptor parent = getParent();
+        if (parent != null) {
+          absolutePath = absolutePath.replace(".", parent.getPath());
+        }
+      }
+    }
+
+    return absolutePath;
   }
 
   /**
@@ -333,6 +380,83 @@ public class KerberosIdentityDescriptor extends AbstractKerberosDescriptor {
     }
   }
 
+
+  /**
+   * @return true if the given identity has the same principal or keytab as me
+   */
+  public boolean isShared(KerberosIdentityDescriptor that) {
+    return hasSamePrincipal(that) || hasSameKeytab(that);
+  }
+
+  private boolean hasSameKeytab(KerberosIdentityDescriptor that) {
+    try {
+      return this.getKeytabDescriptor().getFile().equals(that.getKeytabDescriptor().getFile());
+    } catch (NullPointerException e) {
+      return false;
+    }
+  }
+
+  private boolean hasSamePrincipal(KerberosIdentityDescriptor that) {
+    try {
+      return this.getPrincipalDescriptor().getValue().equals(that.getPrincipalDescriptor().getValue());
+    } catch (NullPointerException e) {
+      return false;
+    }
+  }
+
+  /**
+   * Determines whether this {@link KerberosIdentityDescriptor} indicates it is a refrence to some
+   * other {@link KerberosIdentityDescriptor}.
+   * <p>
+   * A KerberosIdentityDescriptor is a reference if it's <code>reference</code> attibute is set
+   * or if (for backwards compatibility), its name indicates a path. For exmaple:
+   * <ul>
+   * <li><code>SERVICE/COMPONENT/identitiy_name</code></li>
+   * <li><code>/identity_name</code></li>
+   * <li><code>./identity_name</code></li>
+   * </ul>
+   *
+   * @return true if this {@link KerberosIdentityDescriptor} indicates a reference; otherwise false
+   */
+  public boolean isReference() {
+    String name = getName();
+    return !StringUtils.isEmpty(reference) ||
+        (!StringUtils.isEmpty(name) && (name.startsWith("/") || name.startsWith("./")));
+  }
+
+  /**
+   * Calculate the path to this identity descriptor for logging purposes.
+   * Examples:
+   * /
+   * /SERVICE
+   * /SERVICE/COMPONENT
+   * /SERVICE/COMPONENT/identity_name
+   * <p>
+   * This implementation calculates and caches the path if the path has not been previously set.
+   *
+   * @return a path
+   */
+  @Override
+  public String getPath() {
+    if (path == null) {
+      path = super.getPath();
+    }
+
+    return path;
+  }
+
+  /**
+   * Explicitly set the path to this {@link KerberosIdentityDescriptor}.
+   * <p>
+   * This is useful when creating detached identity descriptors while dereferencing identity references
+   * so that the path information is not lost.
+   *
+   * @param path a path
+   */
+  void setPath(String path) {
+    this.path = path;
+  }
+
   @Override
   public int hashCode() {
     return super.hashCode() +
@@ -382,5 +506,64 @@ public class KerberosIdentityDescriptor extends AbstractKerberosDescriptor {
     } else {
       return false;
     }
+  }
+
+  /**
+   * Find all of the {@link KerberosIdentityDescriptor}s that reference this {@link KerberosIdentityDescriptor}
+   *
+   * @return a list of {@link KerberosIdentityDescriptor}s
+   */
+  public List<KerberosIdentityDescriptor> findReferences() {
+    AbstractKerberosDescriptor root = getRoot();
+    if(root instanceof AbstractKerberosDescriptorContainer) {
+      return findIdentityReferences((AbstractKerberosDescriptorContainer)root, getPath());
+    }
+    else {
+      return null;
+    }
+  }
+
+  /**
+   * Given a root, recursively traverse the tree of {@link AbstractKerberosDescriptorContainer}s looking for
+   * {@link KerberosIdentityDescriptor}s that declare the given path as the referenced Kerberos identity.
+   *
+   * @param root the starting point
+   * @param path the path to the referenced {@link KerberosIdentityDescriptor} in the {@link KerberosDescriptor}
+   * @return a list of {@link KerberosIdentityDescriptor}s
+   */
+  private List<KerberosIdentityDescriptor> findIdentityReferences(AbstractKerberosDescriptorContainer root, String path) {
+    if (root == null) {
+      return null;
+    }
+
+    List<KerberosIdentityDescriptor> references = new ArrayList<>();
+
+    // Process the KerberosIdentityDescriptors found in this node.
+    List<KerberosIdentityDescriptor> identityDescriptors = root.getIdentities();
+    if (identityDescriptors != null) {
+      for (KerberosIdentityDescriptor identityDescriptor : identityDescriptors) {
+        if (identityDescriptor.isReference()) {
+          String reference = identityDescriptor.getReferenceAbsolutePath();
+
+          if (!StringUtils.isEmpty(reference) && path.equals(reference)) {
+            references.add(identityDescriptor);
+          }
+        }
+      }
+    }
+
+    // Process the children of the node
+    Collection<? extends AbstractKerberosDescriptorContainer> children = root.getChildContainers();
+    if(!CollectionUtils.isEmpty(children)) {
+      for (AbstractKerberosDescriptorContainer child : children) {
+        Collection<KerberosIdentityDescriptor> childReferences = findIdentityReferences(child, path);
+        if (!CollectionUtils.isEmpty(childReferences)) {
+          // If references were found in the current child, add them to this node's list of references.
+          references.addAll(childReferences);
+        }
+      }
+    }
+
+    return references;
   }
 }

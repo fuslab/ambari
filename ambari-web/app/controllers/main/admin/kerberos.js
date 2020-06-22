@@ -215,13 +215,13 @@ App.MainAdminKerberosController = App.KerberosWizardStep4Controller.extend({
    * @return {$.ajax}
    */
   restartAllServices: function () {
-    if (!App.router.get('backgroundOperationsController.allOperationsCount')) {
+    if (!App.router.get('backgroundOperationsController.runningOperationsCount')) {
       if (this.get('needsRestartAfterRegenerate')) {
         this.set('needsRestartAfterRegenerate', false);
         App.router.get('mainServiceController').restartAllServices();
       }
     }
-  }.observes('controllers.backgroundOperationsController.allOperationsCount'),
+  }.observes('controllers.backgroundOperationsController.runningOperationsCount'),
 
   /**
    * performs cluster check before kerbefos security
@@ -360,6 +360,7 @@ App.MainAdminKerberosController = App.KerberosWizardStep4Controller.extend({
   setStepConfigs: function (properties) {
     this.get('stepConfigs').clear();
     this._super(properties);
+    this.set('selectedService', this.get('stepConfigs')[0]);
     this.get('stepConfigs').forEach(function (serviceConfig) {
       serviceConfig.set('initConfigsLength', serviceConfig.get('configs.length'));
     });
@@ -561,7 +562,8 @@ App.MainAdminKerberosController = App.KerberosWizardStep4Controller.extend({
             artifact_data: kerberosDescriptor
           }
         },
-        success: '_updateConfigs'
+        success: '_updateConfigs',
+        error: 'createKerberosDescriptor'
       });
     };
     this.updateKerberosDescriptor(kerberosDescriptor, configs);
@@ -571,6 +573,21 @@ App.MainAdminKerberosController = App.KerberosWizardStep4Controller.extend({
       });
     } else {
       this.restartServicesAfterRegenerate(false, callback);
+    }
+  },
+
+  createKerberosDescriptor: function (requestData, ajaxOptions, error, opt, params) {
+    if (requestData && requestData.status === 404) {
+      const {artifactName, data} = params;
+      App.ajax.send({
+        name: 'admin.kerberos.cluster.artifact.create',
+        sender: self,
+        data: {
+          artifactName,
+          data
+        },
+        success: '_updateConfigs'
+      });
     }
   },
 
@@ -638,6 +655,15 @@ App.MainAdminKerberosController = App.KerberosWizardStep4Controller.extend({
     }).always(function() {
       self.set('isRecommendedLoaded', true);
     });
+  },
+
+  showDownloadCsv: function () {
+    var hasUpgradePrivilege = App.isAuthorized('CLUSTER.UPGRADE_DOWNGRADE_STACK');
+    return hasUpgradePrivilege;
+  }.property(),
+
+  downloadCSV: function() {
+    App.router.get('kerberosWizardStep5Controller').getCSVData(false);
   }
 
 });

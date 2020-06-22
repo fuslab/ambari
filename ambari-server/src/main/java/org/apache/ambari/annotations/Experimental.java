@@ -41,8 +41,7 @@ public @interface Experimental {
   ExperimentalFeature feature();
 
   /**
-   * Any notes to why the annotation is used or any other action that may be
-   * useful.
+   * Any notes to why the annotation is used or any other action that may be useful.
    */
   String comment() default "";
 }

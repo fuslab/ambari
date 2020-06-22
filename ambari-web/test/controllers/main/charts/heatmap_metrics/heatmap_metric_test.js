@@ -26,24 +26,6 @@ describe('MainChartHeatmapMetric', function () {
     mainChartHeatmapMetric = App.MainChartHeatmapMetric.create({});
   });
 
-  describe('#formatLegendNumber', function () {
-    var tests = [
-      {m:'undefined to undefined',i:undefined,e:undefined},
-      {m:'0 to 0',i:0,e:0},
-      {m:'1 to 1',i:1,e:1},
-      {m:'1.23 to 1.2',i:1.23,e:1.2}
-    ];
-    tests.forEach(function(test) {
-      it(test.m + ' ', function () {
-        expect(mainChartHeatmapMetric.formatLegendNumber(test.i)).to.equal(test.e);
-      });
-    });
-    it('NaN to NaN', function () {
-      expect(isNaN(mainChartHeatmapMetric.formatLegendNumber(NaN))).to.equal(true);
-    });
-  });
-
-
   describe('#slotDefinitions', function () {
     beforeEach(function () {
       sinon.stub(mainChartHeatmapMetric, 'generateSlot', Em.K);
@@ -62,14 +44,14 @@ describe('MainChartHeatmapMetric', function () {
         this.slotDefinitions = mainChartHeatmapMetric.get('slotDefinitions');
       });
 
-      it('3 slotDefinitions', function () {
-        expect(this.slotDefinitions.length).to.equal(3);
+      it('4 slotDefinitions', function () {
+        expect(this.slotDefinitions.length).to.equal(4);
       });
       it('generateSlot is called 1 time', function () {
         expect(mainChartHeatmapMetric.generateSlot.callCount).to.be.equal(1);
       });
       it('generateSlot is called with correct arguments', function () {
-        expect(mainChartHeatmapMetric.generateSlot.getCall(0).args).to.eql([0, 100, '', {r: 0, g: 204, b: 0}]);
+        expect(mainChartHeatmapMetric.generateSlot.getCall(0).args).to.eql([0, 100, '', '#1EB475']);
       });
 
     });
@@ -83,16 +65,16 @@ describe('MainChartHeatmapMetric', function () {
       });
 
       it('4 slotDefinitions', function () {
-        expect(this.slotDefinitions.length).to.equal(4);
+        expect(this.slotDefinitions.length).to.equal(5);
       });
       it('generateSlot is called 2 times', function () {
         expect(mainChartHeatmapMetric.generateSlot.callCount).to.be.equal(2);
       });
       it('generateSlot 1st call has valid arguments', function () {
-        expect(mainChartHeatmapMetric.generateSlot.getCall(0).args).to.eql([0, 50, '', {r: 0, g: 204, b: 0}]);
+        expect(mainChartHeatmapMetric.generateSlot.getCall(0).args).to.eql([0, 50, '', '#1EB475']);
       });
       it('generateSlot 2nd call has valid arguments', function () {
-        expect(mainChartHeatmapMetric.generateSlot.getCall(1).args).to.eql([50, 100, '', {r: 159, g: 238, b: 0}]);
+        expect(mainChartHeatmapMetric.generateSlot.getCall(1).args).to.eql([50, 100, '', '#1FB418']);
       });
 
     });
@@ -101,68 +83,24 @@ describe('MainChartHeatmapMetric', function () {
   describe('#generateSlot()', function () {
 
     beforeEach(function () {
-      sinon.stub(mainChartHeatmapMetric, 'formatLegendNumber').returns('val');
-      sinon.stub(date, 'timingFormat').returns('time');
+      sinon.stub(mainChartHeatmapMetric, 'formatLegendLabel').returns('label');
+      sinon.stub(mainChartHeatmapMetric, 'convertNumber').returns('number');
     });
 
     afterEach(function () {
-      mainChartHeatmapMetric.formatLegendNumber.restore();
-      date.timingFormat.restore();
+      mainChartHeatmapMetric.formatLegendLabel.restore();
+      mainChartHeatmapMetric.convertNumber.restore();
     });
 
-    describe('label suffix is empty', function () {
-
-      beforeEach(function () {
-        this.result = mainChartHeatmapMetric.generateSlot(0, 1, '', {r: 0, g: 0, b: 0});
-      });
-
-      it('generateSlot result is valid', function () {
-        expect(this.result).to.eql(Em.Object.create({
-          "from": "val",
-          "to": "val",
-          "label": "val - val",
-          "cssStyle": "background-color:rgb(0,0,0)"
-        }));
-      });
-
-      it('formatLegendNumber 1st call with valid arguments', function () {
-        expect(mainChartHeatmapMetric.formatLegendNumber.getCall(0).args).to.eql([0]);
-      });
-
-      it('formatLegendNumber 2nd call with valid arguments', function () {
-        expect(mainChartHeatmapMetric.formatLegendNumber.getCall(1).args).to.eql([1]);
-      });
+    it('generateSlot result is valid', function () {
+      expect(mainChartHeatmapMetric.generateSlot(0, 1, '', '#1FB418')).to.eql(Em.Object.create({
+        hasBoundaries: true,
+        "from": "number",
+        "to": "number",
+        "label": "label - label",
+        "cssStyle": "background-color:#1FB418"
+      }));
     });
-
-    describe('label suffix is "ms"', function () {
-
-      beforeEach(function () {
-        this.result = mainChartHeatmapMetric.generateSlot(0, 1, 'ms', {r: 0, g: 0, b: 0});
-      });
-
-      it('generateSlot result is valid', function () {
-        expect(this.result).to.eql(Em.Object.create({
-          "from": "val",
-          "to": "val",
-          "label": "time - time",
-          "cssStyle": "background-color:rgb(0,0,0)"
-        }));
-      });
-      it('formatLegendNumber 1st call with valid arguments', function () {
-        expect(mainChartHeatmapMetric.formatLegendNumber.getCall(0).args).to.eql([0]);
-      });
-      it('formatLegendNumber 2nd call with valid arguments', function () {
-        expect(mainChartHeatmapMetric.formatLegendNumber.getCall(1).args).to.eql([1]);
-      });
-      it('timingFormat 1st call with valid arguments', function () {
-        expect(date.timingFormat.getCall(0).args).to.eql(['val', 'zeroValid']);
-      });
-      it('timingFormat 2nd call with valid arguments', function () {
-        expect(date.timingFormat.getCall(1).args).to.eql(['val', 'zeroValid']);
-      });
-
-    });
-
   });
 
   describe('#getHatchStyle()', function () {
@@ -170,21 +108,21 @@ describe('MainChartHeatmapMetric', function () {
       {
         title: 'unknown browser',
         data: {},
-        result: 'background-color:rgb(135, 206, 250)'
+        result: 'background-color:#666'
       },
       {
         title: 'webkit browser',
         data: {
           webkit: true
         },
-        result: 'background-image:-webkit-repeating-linear-gradient(-45deg, #FF1E10, #FF1E10 3px, #ff6c00 3px, #ff6c00 6px)'
+        result: 'background-image:-webkit-repeating-linear-gradient(-45deg, #666, #666 6px, #fff 6px, #fff 7px)'
       },
       {
         title: 'mozilla browser',
         data: {
           mozilla: true
         },
-        result: 'background-image:repeating-linear-gradient(-45deg, #FF1E10, #FF1E10 3px, #ff6c00 3px, #ff6c00 6px)'
+        result: 'background-image:repeating-linear-gradient(-45deg, #666, #666 6px, #fff 6px, #fff 7px)'
       },
       {
         title: 'IE version 9',
@@ -192,7 +130,7 @@ describe('MainChartHeatmapMetric', function () {
           msie: true,
           version: '9.0'
         },
-        result: 'background-color:rgb(135, 206, 250)'
+        result: 'background-color:#666'
       },
       {
         title: 'IE version 10',
@@ -200,7 +138,7 @@ describe('MainChartHeatmapMetric', function () {
           msie: true,
           version: '10.0'
         },
-        result: 'background-image:repeating-linear-gradient(-45deg, #FF1E10, #FF1E10 3px, #ff6c00 3px, #ff6c00 6px)'
+        result: 'background-image:repeating-linear-gradient(-45deg, #666, #666 6px, #fff 6px, #fff 7px)'
       }
     ];
 
@@ -253,101 +191,107 @@ describe('MainChartHeatmapMetric', function () {
   });
 
   describe('#calculateSlot()', function () {
+
+    beforeEach(function() {
+      sinon.stub(mainChartHeatmapMetric, 'get').withArgs('slotDefinitions').returns([
+        Em.Object.create({
+          from: 0,
+          to: 2,
+          hasBoundaries: true
+        }),
+        Em.Object.create({
+          from: 2,
+          to: 10,
+          hasBoundaries: true
+        }),
+        Em.Object.create({
+          invalidData: true,
+          index: 5
+        }),
+        Em.Object.create({
+          notAvailable: true,
+          index: 6
+        }),
+        Em.Object.create({
+          notApplicable: true,
+          index: 7
+        })
+      ]);
+    });
+
+    afterEach(function() {
+      mainChartHeatmapMetric.get.restore();
+    });
+
+    it('not applicable metric', function () {
+      expect(mainChartHeatmapMetric.calculateSlot({}, 'host1')).to.be.equal(7);
+    });
+
+    it('not available data metric', function () {
+      expect(mainChartHeatmapMetric.calculateSlot({'host1': undefined}, 'host1')).to.be.equal(6);
+    });
+
+    it('invalid data metric', function () {
+      expect(mainChartHeatmapMetric.calculateSlot({'host1': 'NaN'}, 'host1')).to.be.equal(5);
+    });
+
+    it('metric should be in a minimal slot', function () {
+      expect(mainChartHeatmapMetric.calculateSlot({'host1': '1'}, 'host1')).to.be.equal(0);
+    });
+
+    it('metric should be in a maximal slot', function () {
+      expect(mainChartHeatmapMetric.calculateSlot({'host1': '11'}, 'host1')).to.be.equal(1);
+    });
+  });
+
+  describe('#formatLegendLabel', function() {
+    beforeEach(function () {
+      sinon.stub(date, 'timingFormat').returns('30 secs');
+    });
+
+    afterEach(function () {
+      date.timingFormat.restore();
+    });
+
+
     var testCases = [
       {
-        title: 'hostToValueMap is empty',
-        data: {
-          hostToValueMap: {},
-          hostName: 'host1',
-          slotDefinitions: []
-        },
-        result: -1
+        num: 100.1,
+        units: '',
+        expected: '100'
       },
       {
-        title: 'host value is NaN',
-        data: {
-          hostToValueMap: {'host1': NaN},
-          hostName: 'host1',
-          slotDefinitions: []
-        },
-        result: -2
+        num: 98.94,
+        units: 'MB',
+        expected: '98.9MB'
       },
       {
-        title: 'host value correct but slotDefinitions does not contain host value',
-        data: {
-          hostToValueMap: {'host1': 1},
-          hostName: 'host1',
-          slotDefinitions: [{}, {}]
-        },
-        result: -1
+        num: 8.123,
+        units: '%',
+        expected: '8.12%'
       },
       {
-        title: 'host value -1',
-        data: {
-          hostToValueMap: {'host1': -1},
-          hostName: 'host1',
-          slotDefinitions: [
-            {
-              from: 0,
-              to: 10
-            },
-            {},
-            {}
-          ]
-        },
-        result: 0
-      },
-      {
-        title: 'host value 11',
-        data: {
-          hostToValueMap: {'host1': 11},
-          hostName: 'host1',
-          slotDefinitions: [
-            {
-              from: 0,
-              to: 10
-            },
-            {},
-            {}
-          ]
-        },
-        result: 0
-      },
-      {
-        title: 'host value 5',
-        data: {
-          hostToValueMap: {'host1': 5},
-          hostName: 'host1',
-          slotDefinitions: [
-            {},
-            {
-              from: 0,
-              to: 10
-            },
-            {},
-            {}
-          ]
-        },
-        result: 1
+        num: 30000,
+        units: 'ms',
+        expected: '30 secs'
       }
     ];
 
-    testCases.forEach(function (test) {
-      describe(test.title, function () {
-
-        beforeEach(function () {
-          sinon.stub(mainChartHeatmapMetric, 'get').withArgs('slotDefinitions').returns(test.data.slotDefinitions);
-        });
-
-        afterEach(function () {
-          mainChartHeatmapMetric.get.restore();
-        });
-
-        it('calculateSlot result is valid', function () {
-          expect(mainChartHeatmapMetric.calculateSlot(test.data.hostToValueMap, test.data.hostName)).to.equal(test.result);
-        });
-
+    testCases.forEach(function(test) {
+      it('should return label = ' + test.expected, function() {
+        expect(mainChartHeatmapMetric.formatLegendLabel(test.num, test.units)).to.be.equal(test.expected);
       });
+    });
+  });
+
+  describe('#convertNumber', function() {
+
+    it('MB units', function() {
+      expect(mainChartHeatmapMetric.convertNumber(1, 'MB')).to.be.equal(1024 * 1024);
+    });
+
+    it('no units', function() {
+      expect(mainChartHeatmapMetric.convertNumber(1, '')).to.be.equal(1);
     });
   });
 

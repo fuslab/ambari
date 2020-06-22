@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,13 +28,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
-import com.google.inject.Singleton;
-
 import org.apache.ambari.server.state.ServiceInfo;
 import org.apache.ambari.server.state.stack.UpgradePack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.ClassUtils;
+
+import com.google.inject.Singleton;
 
 /**
  * The {@link UpgradeCheckRegistry} contains the ordered list of all pre-upgrade
@@ -43,13 +43,13 @@ import org.springframework.util.ClassUtils;
  */
 @Singleton
 public class UpgradeCheckRegistry {
-  private static Logger LOG = LoggerFactory.getLogger(UpgradeCheckRegistry.class);
+  private static final Logger LOG = LoggerFactory.getLogger(UpgradeCheckRegistry.class);
 
   /**
    * The list of upgrade checks to run through.
    */
-  private Set<AbstractCheckDescriptor> m_upgradeChecks = new TreeSet<AbstractCheckDescriptor>(
-      new PreUpgradeCheckComparator());
+  private Set<AbstractCheckDescriptor> m_upgradeChecks = new TreeSet<>(
+    new PreUpgradeCheckComparator());
 
   /**
    * Register an upgrade check.
@@ -67,12 +67,12 @@ public class UpgradeCheckRegistry {
    * @return
    */
   public List<AbstractCheckDescriptor> getUpgradeChecks() {
-    return new ArrayList<AbstractCheckDescriptor>(m_upgradeChecks);
+    return new ArrayList<>(m_upgradeChecks);
   }
 
   public List<AbstractCheckDescriptor> getServiceLevelUpgradeChecks(UpgradePack upgradePack, Map<String, ServiceInfo> services) {
     List<String> prerequisiteChecks = upgradePack.getPrerequisiteChecks();
-    List<String> missingChecks = new ArrayList<String>();
+    List<String> missingChecks = new ArrayList<>();
     for (String prerequisiteCheck : prerequisiteChecks) {
       if (!isRegistered(prerequisiteCheck)) {
         missingChecks.add(prerequisiteCheck);
@@ -84,7 +84,7 @@ public class UpgradeCheckRegistry {
       return checks;
     }
 
-    List<URL> urls = new ArrayList<URL>();
+    List<URL> urls = new ArrayList<>();
     for (ServiceInfo service : services.values()) {
       File dir = service.getChecksFolder();
       File[] jars = dir.listFiles(new FilenameFilter() {
@@ -97,7 +97,7 @@ public class UpgradeCheckRegistry {
         try {
           URL url = jar.toURI().toURL();
           urls.add(url);
-          LOG.debug("Adding service check jar to classpath: {}", url.toString());
+          LOG.debug("Adding service check jar to classpath: {}", url);
         }
         catch (Exception e) {
           LOG.error("Failed to add service check jar to classpath: {}", jar.getAbsolutePath(), e);
@@ -142,7 +142,7 @@ public class UpgradeCheckRegistry {
    */
   public List<AbstractCheckDescriptor> getFilteredUpgradeChecks(UpgradePack upgradePack){
     List<String> prerequisiteChecks = upgradePack.getPrerequisiteChecks();
-    List<AbstractCheckDescriptor> resultCheckDescriptor = new ArrayList<AbstractCheckDescriptor>();
+    List<AbstractCheckDescriptor> resultCheckDescriptor = new ArrayList<>();
     for (AbstractCheckDescriptor descriptor: m_upgradeChecks){
       if (descriptor.isRequired(upgradePack.getType())) {
         resultCheckDescriptor.add(descriptor);

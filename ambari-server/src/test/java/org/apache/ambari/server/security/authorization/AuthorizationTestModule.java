@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,7 @@ package org.apache.ambari.server.security.authorization;
 
 import java.util.Properties;
 
+import org.apache.ambari.server.configuration.AmbariServerConfigurationKey;
 import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.controller.ControllerModule;
 
@@ -35,7 +36,7 @@ public class AuthorizationTestModule extends AbstractModule {
     properties.setProperty(Configuration.OS_VERSION.getKey(),"centos5");
     properties.setProperty(Configuration.SHARED_RESOURCES_DIR.getKey(), "src/test/resources/");
     //make ambari detect active configuration
-    properties.setProperty(Configuration.LDAP_GROUP_BASE.getKey(), "ou=groups,dc=ambari,dc=apache,dc=org");
+    properties.setProperty(AmbariServerConfigurationKey.GROUP_BASE.key(), "ou=groups,dc=ambari,dc=apache,dc=org");
 
     try {
       install(new ControllerModule(properties));

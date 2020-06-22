@@ -18,6 +18,8 @@
 
 package org.apache.ambari.server.security.authentication.kerberos;
 
+import javax.inject.Inject;
+
 import org.apache.ambari.server.security.authentication.AmbariProxiedUserDetailsImpl;
 import org.apache.ambari.server.security.authentication.tproxy.TrustedProxyAuthenticationDetails;
 import org.apache.commons.lang.StringUtils;
@@ -49,6 +51,7 @@ public class AmbariKerberosAuthenticationProvider implements AuthenticationProvi
   private AmbariProxiedUserDetailsService proxiedUserDetailsService;
   private KerberosTicketValidator ticketValidator;
 
+  @Inject
   public AmbariKerberosAuthenticationProvider(AmbariAuthToLocalUserDetailsService authToLocalUserDetailsService,
                                               AmbariProxiedUserDetailsService proxiedUserDetailsService,
                                               KerberosTicketValidator ticketValidator) {
@@ -81,8 +84,8 @@ public class AmbariKerberosAuthenticationProvider implements AuthenticationProvi
           String localProxyUserName = authToLocalUserDetailsService.translatePrincipalName(ticketValidation.username());
 
           userDetails = new AmbariProxiedUserDetailsImpl(
-            proxiedUserDetailsService.loadProxiedUser(proxiedUserName, localProxyUserName, trustedProxyAuthenticationDetails),
-            new AmbariProxyUserKerberosDetailsImpl(ticketValidation.username(), localProxyUserName));
+              proxiedUserDetailsService.loadProxiedUser(proxiedUserName, localProxyUserName, trustedProxyAuthenticationDetails),
+              new AmbariProxyUserKerberosDetailsImpl(ticketValidation.username(), localProxyUserName));
         } else {
           // This is not a trusted proxy request... handle normally
           userDetails = authToLocalUserDetailsService.loadUserByUsername(ticketValidation.username());

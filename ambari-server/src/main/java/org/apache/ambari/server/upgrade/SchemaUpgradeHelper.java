@@ -36,7 +36,10 @@ import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.audit.AuditLoggerModule;
 import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.controller.ControllerModule;
+import org.apache.ambari.server.events.publishers.AmbariEventPublisher;
+import org.apache.ambari.server.ldap.LdapModule;
 import org.apache.ambari.server.orm.DBAccessor;
+import org.apache.ambari.server.orm.GuiceJpaInitializer;
 import org.apache.ambari.server.utils.EventBusSynchronizer;
 import org.apache.ambari.server.utils.VersionUtils;
 import org.slf4j.Logger;
@@ -102,20 +105,18 @@ public class SchemaUpgradeHelper {
       throw new RuntimeException("Unable to read database version", e);
 
     } finally {
-      {
-        if (rs != null) {
-          try {
-            rs.close();
-          } catch (SQLException e) {
-            throw new RuntimeException("Cannot close result set");
-          }
+      if (rs != null) {
+        try {
+          rs.close();
+        } catch (SQLException e) {
+          throw new RuntimeException("Cannot close result set");
         }
-        if (statement != null) {
-          try {
-            statement.close();
-          } catch (SQLException e) {
-            throw new RuntimeException("Cannot close statement");
-          }
+      }
+      if (statement != null) {
+        try {
+          statement.close();
+        } catch (SQLException e) {
+          throw new RuntimeException("Cannot close statement");
         }
       }
     }
@@ -181,16 +182,17 @@ public class SchemaUpgradeHelper {
     protected void configure() {
       super.configure();
       // Add binding to each newly created catalog
-      Multibinder<UpgradeCatalog> catalogBinder =
-        Multibinder.newSetBinder(binder(), UpgradeCatalog.class);
-      catalogBinder.addBinding().to(UpgradeCatalog2402.class);
-      catalogBinder.addBinding().to(UpgradeCatalog242.class);
-      catalogBinder.addBinding().to(UpgradeCatalog250.class);
+      Multibinder<UpgradeCatalog> catalogBinder = Multibinder.newSetBinder(binder(), UpgradeCatalog.class);
       catalogBinder.addBinding().to(UpgradeCatalog251.class);
       catalogBinder.addBinding().to(UpgradeCatalog252.class);
       catalogBinder.addBinding().to(UpgradeCatalog260.class);
       catalogBinder.addBinding().to(UpgradeCatalog261.class);
       catalogBinder.addBinding().to(UpgradeCatalog262.class);
+      catalogBinder.addBinding().to(UpgradeCatalog270.class);
+      catalogBinder.addBinding().to(UpgradeCatalog271.class);
+      catalogBinder.addBinding().to(UpgradeCatalog272.class);
+      catalogBinder.addBinding().to(UpgradeCatalog273.class);
+      catalogBinder.addBinding().to(UpgradeCatalog274.class);
       catalogBinder.addBinding().to(UpdateAlertScriptPaths.class);
       catalogBinder.addBinding().to(FinalUpgradeCatalog.class);
 
@@ -334,11 +336,11 @@ public class SchemaUpgradeHelper {
   }
 
   /**
-   * Returns minimal source version of available {@link UpgradeCatalog}
+   * Returns minimal version of available {@link UpgradeCatalog}
    *
-   * @return string representation of minimal source version of {@link UpgradeCatalog}
+   * @return string representation of minimal version of {@link UpgradeCatalog}
    */
-  private String getMinimalUpgradeCatalogSourceVersion(){
+  private String getMinimalUpgradeCatalogVersion(){
     List<UpgradeCatalog> candidateCatalogs = new ArrayList<>(allUpgradeCatalogs);
     Collections.sort(candidateCatalogs, new AbstractUpgradeCatalog.VersionComparator());
 
@@ -346,13 +348,13 @@ public class SchemaUpgradeHelper {
       return null;
     }
 
-    return candidateCatalogs.iterator().next().getSourceVersion();
+    return candidateCatalogs.iterator().next().getTargetVersion();
   }
 
   /**
    * Checks if source version meets minimal requirements for upgrade
    *
-   * @param minUpgradeVersion min allowed version for the upgrade, could be obtained via {@link #getMinimalUpgradeCatalogSourceVersion()}
+   * @param minUpgradeVersion min allowed version for the upgrade, could be obtained via {@link #getMinimalUpgradeCatalogVersion()}
    * @param sourceVersion current version of the Database, which need to be upgraded
    *
    * @return  true if upgrade is allowed or false if not
@@ -405,7 +407,12 @@ public class SchemaUpgradeHelper {
         System.exit(1);
       }
 
-      Injector injector = Guice.createInjector(new UpgradeHelperModule(), new AuditLoggerModule());
+      Injector injector = Guice.createInjector(new UpgradeHelperModule(), new AuditLoggerModule(), new LdapModule());
+
+      // Startup the JPA infrastructure, but do not indicate it is initialized since the underlying
+      // database schema may not be updated to meet the expectations of the Entity instances.
+      GuiceJpaInitializer jpaInitializer = injector.getInstance(GuiceJpaInitializer.class);
+
       SchemaUpgradeHelper schemaUpgradeHelper = injector.getInstance(SchemaUpgradeHelper.class);
 
       //Fail if MySQL database has tables with MyISAM engine
@@ -423,13 +430,13 @@ public class SchemaUpgradeHelper {
       UpgradeCatalog targetUpgradeCatalog = AbstractUpgradeCatalog
         .getUpgradeCatalog(targetVersion);
 
-      LOG.debug("Target upgrade catalog. " + targetUpgradeCatalog);
+      LOG.debug("Target upgrade catalog. {}", targetUpgradeCatalog);
 
       // Read source version from DB
       String sourceVersion = schemaUpgradeHelper.readSourceVersion();
       LOG.info("Upgrading schema from source version = " + sourceVersion);
 
-      String minimalRequiredUpgradeVersion = schemaUpgradeHelper.getMinimalUpgradeCatalogSourceVersion();
+      String minimalRequiredUpgradeVersion = schemaUpgradeHelper.getMinimalUpgradeCatalogVersion();
 
       if (!schemaUpgradeHelper.verifyUpgradePath(minimalRequiredUpgradeVersion, sourceVersion)){
         throw new AmbariException(String.format("Database version does not meet minimal upgrade requirements. Expected version should be not less than %s, current version is %s",
@@ -444,7 +451,9 @@ public class SchemaUpgradeHelper {
 
       schemaUpgradeHelper.executeUpgrade(upgradeCatalogs);
 
-      schemaUpgradeHelper.startPersistenceService();
+      // The DDL is expected to be updated, now send the JPA initialized event so Entity
+      // implementations can be created.
+      jpaInitializer.setInitialized(injector.getInstance(AmbariEventPublisher.class));
 
       schemaUpgradeHelper.executePreDMLUpdates(upgradeCatalogs);
 
@@ -460,6 +469,9 @@ public class SchemaUpgradeHelper {
       schemaUpgradeHelper.cleanUpRCATables();
 
       schemaUpgradeHelper.stopPersistenceService();
+
+      // Signal all threads that we are ready to exit...
+      System.exit(0);
     } catch (Throwable e) {
       if (e instanceof AmbariException) {
         LOG.error("Exception occurred during upgrade, failed", e);

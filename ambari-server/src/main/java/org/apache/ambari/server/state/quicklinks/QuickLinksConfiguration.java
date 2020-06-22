@@ -18,14 +18,14 @@
 
 package org.apache.ambari.server.state.quicklinks;
 
-import org.codehaus.jackson.annotate.JsonIgnoreProperties;
-import org.codehaus.jackson.annotate.JsonProperty;
-import org.codehaus.jackson.map.annotate.JsonSerialize;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.codehaus.jackson.annotate.JsonIgnoreProperties;
+import org.codehaus.jackson.annotate.JsonProperty;
+import org.codehaus.jackson.map.annotate.JsonSerialize;
 
 @JsonSerialize(include= JsonSerialize.Inclusion.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -69,7 +69,7 @@ public class QuickLinksConfiguration{
   }
 
   private List<Link> mergeLinks(List<Link> parentLinks, List<Link> childLinks) {
-    Map<String, Link> mergedLinks = new HashMap<String, Link>();
+    Map<String, Link> mergedLinks = new HashMap<>();
 
     for (Link parentLink : parentLinks) {
       mergedLinks.put(parentLink.getName(), parentLink);
@@ -86,6 +86,6 @@ public class QuickLinksConfiguration{
         }
       }
     }
-    return new ArrayList<Link>(mergedLinks.values());
+    return new ArrayList<>(mergedLinks.values());
   }
 }

@@ -50,7 +50,7 @@ public class ServicePresenceCheckTest {
    *
    */
   @Before
-  public void setup() throws Exception {
+  public void setup() {
     m_check.clustersProvider = new Provider<Clusters>() {
 
       @Override
@@ -71,7 +71,8 @@ public class ServicePresenceCheckTest {
 
     Map<String, String> checkProperties = new HashMap<>();
     checkProperties.put(ServicePresenceCheck.NO_UPGRADE_SUPPORT_SERVICES_PROPERTY_NAME,"MyServiceOne, MyServiceTwo");
-    checkProperties.put(ServicePresenceCheck.REMOVED_SERVICES_PROPERTY_NAME,"OldServiceOne, OldServiceTwo");
+    checkProperties.put(ServicePresenceCheck.REMOVED_SERVICES_PROPERTY_NAME,"RemovedServiceOne, RemovedServiceTwo");
+    checkProperties.put(ServicePresenceCheck.REPLACED_SERVICES_PROPERTY_NAME,"OldServiceOne, OldServiceTwo");
     checkProperties.put(ServicePresenceCheck.NEW_SERVICES_PROPERTY_NAME,"NewServiceOne, NewServiceTwo");
 
     PrerequisiteCheckConfig prerequisiteCheckConfig = Mockito.mock(PrerequisiteCheckConfig.class);
@@ -112,6 +113,34 @@ public class ServicePresenceCheckTest {
   }
 
   @Test
+  public void testPerformHasReplacedServices() throws Exception {
+    final Cluster cluster = Mockito.mock(Cluster.class);
+    Mockito.when(cluster.getClusterId()).thenReturn(1L);
+    Mockito.when(m_clusters.getCluster("cluster")).thenReturn(cluster);
+
+    Map<String, Service> services = new HashMap<>();
+    services.put("ATLAS", Mockito.mock(Service.class));
+    services.put("OLDSERVICE", Mockito.mock(Service.class));
+    Mockito.when(cluster.getServices()).thenReturn(services);
+
+    Map<String, String> checkProperties = new HashMap<>();
+    checkProperties.put(ServicePresenceCheck.REPLACED_SERVICES_PROPERTY_NAME, "Atlas, OldService");
+    checkProperties.put(ServicePresenceCheck.NEW_SERVICES_PROPERTY_NAME, "Atlas2, NewService");
+
+    PrerequisiteCheckConfig prerequisiteCheckConfig = Mockito.mock(PrerequisiteCheckConfig.class);
+    Mockito.when(
+        prerequisiteCheckConfig.getCheckProperties(m_check.getClass().getName())).thenReturn(
+            checkProperties);
+
+    PrerequisiteCheck check = new PrerequisiteCheck(null, null);
+    PrereqCheckRequest request = new PrereqCheckRequest("cluster");
+    request.setPrerequisiteCheckConfig(prerequisiteCheckConfig);
+
+    m_check.perform(check, request);
+    Assert.assertEquals(PrereqCheckStatus.FAIL, check.getStatus());
+  }
+
+  @Test
   public void testPerformHasRemovedServices() throws Exception {
     final Cluster cluster = Mockito.mock(Cluster.class);
     Mockito.when(cluster.getClusterId()).thenReturn(1L);
@@ -123,8 +152,7 @@ public class ServicePresenceCheckTest {
     Mockito.when(cluster.getServices()).thenReturn(services);
 
     Map<String, String> checkProperties = new HashMap<>();
-    checkProperties.put(ServicePresenceCheck.REMOVED_SERVICES_PROPERTY_NAME,"Atlas, OldService");
-    checkProperties.put(ServicePresenceCheck.NEW_SERVICES_PROPERTY_NAME,"Atlas2, NewService");
+    checkProperties.put(ServicePresenceCheck.REMOVED_SERVICES_PROPERTY_NAME, "OldService");
 
     PrerequisiteCheckConfig prerequisiteCheckConfig = Mockito.mock(PrerequisiteCheckConfig.class);
     Mockito.when(prerequisiteCheckConfig.getCheckProperties(
@@ -146,12 +174,14 @@ public class ServicePresenceCheckTest {
 
     Map<String, Service> services = new HashMap<>();
     services.put("ATLAS", Mockito.mock(Service.class));
+    services.put("REMOVEDSERVICE", Mockito.mock(Service.class));
     Mockito.when(cluster.getServices()).thenReturn(services);
 
     Map<String, String> checkProperties = new HashMap<>();
     checkProperties.put(ServicePresenceCheck.NO_UPGRADE_SUPPORT_SERVICES_PROPERTY_NAME,"MyServiceOne, MyServiceTwo");
-    checkProperties.put(ServicePresenceCheck.REMOVED_SERVICES_PROPERTY_NAME,"Atlas, OldService");
+    checkProperties.put(ServicePresenceCheck.REPLACED_SERVICES_PROPERTY_NAME, "Atlas, OldService");
     checkProperties.put(ServicePresenceCheck.NEW_SERVICES_PROPERTY_NAME,"Atlas2, NewService");
+    checkProperties.put(ServicePresenceCheck.REMOVED_SERVICES_PROPERTY_NAME, "RemovedService");
 
     PrerequisiteCheckConfig prerequisiteCheckConfig = Mockito.mock(PrerequisiteCheckConfig.class);
     Mockito.when(prerequisiteCheckConfig.getCheckProperties(
@@ -177,7 +207,7 @@ public class ServicePresenceCheckTest {
 
     Map<String, String> checkProperties = new HashMap<>();
     checkProperties.put(ServicePresenceCheck.NO_UPGRADE_SUPPORT_SERVICES_PROPERTY_NAME,"Atlas, MyService");
-    checkProperties.put(ServicePresenceCheck.REMOVED_SERVICES_PROPERTY_NAME,"OldService");
+    checkProperties.put(ServicePresenceCheck.REPLACED_SERVICES_PROPERTY_NAME, "OldService");
     checkProperties.put(ServicePresenceCheck.NEW_SERVICES_PROPERTY_NAME,"NewService");
 
     PrerequisiteCheckConfig prerequisiteCheckConfig = Mockito.mock(PrerequisiteCheckConfig.class);
@@ -207,7 +237,7 @@ public class ServicePresenceCheckTest {
 
     Map<String, String> checkProperties = new HashMap<>();
     checkProperties.put(ServicePresenceCheck.NO_UPGRADE_SUPPORT_SERVICES_PROPERTY_NAME,"Atlas, HDFS");
-    checkProperties.put(ServicePresenceCheck.REMOVED_SERVICES_PROPERTY_NAME,"Storm, Ranger");
+    checkProperties.put(ServicePresenceCheck.REPLACED_SERVICES_PROPERTY_NAME, "Storm, Ranger");
     checkProperties.put(ServicePresenceCheck.NEW_SERVICES_PROPERTY_NAME,"Storm2, Ranger2");
 
     PrerequisiteCheckConfig prerequisiteCheckConfig = Mockito.mock(PrerequisiteCheckConfig.class);

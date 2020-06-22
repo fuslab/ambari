@@ -19,8 +19,8 @@
 package org.apache.ambari.logfeeder.output;
 
 import org.apache.ambari.logfeeder.common.LogFeederConstants;
-import org.apache.ambari.logfeeder.input.Input;
-import org.apache.ambari.logfeeder.input.cache.LRUCache;
+import org.apache.ambari.logfeeder.plugin.input.cache.LRUCache;
+import org.apache.ambari.logfeeder.plugin.input.Input;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,7 +41,7 @@ public class OutputLineFilter {
   public Boolean apply(Map<String, Object> lineMap, Input input) {
     boolean isLogFilteredOut = false;
     LRUCache inputLruCache = input.getCache();
-    if (inputLruCache != null && "service".equals(input.getConfigs().get(LogFeederConstants.ROW_TYPE))) {
+    if (inputLruCache != null && "service".equals(input.getInputDescriptor().getRowtype())) {
       String logMessage = (String) lineMap.get(input.getCacheKeyField());
       Long timestamp = null;
       if (lineMap.containsKey((LogFeederConstants.IN_MEMORY_TIMESTAMP))) {

@@ -18,18 +18,18 @@
 
 <div class="top-wrap top-wrap-header">
   <div class="log-tail-popup-info">
-    <span class="text-bold">{{t common.file}}: </span>
+    <strong>{{t common.file}}: </strong>
     <span class="muted">{{view.content.filePath}}</span>
     <div class="pull-right action-bar">
       <a href="#" {{action toggleCopy target="view"}}>
-        <i class="icon-copy"></i>
+        <i class="glyphicon glyphicon-copy"></i>
         {{t common.copy}}
       </a>
       <a href="#" {{action openInNewTab target="view"}}>
         <i class="icon-external-link"></i>
         {{t common.open}}
       </a>
-      <a class="open-in-log-search" {{bindAttr href="view.logSearchUrl"}} target="_blank">
+      <a class="open-in-log-search" {{bindAttr href="view.logSearchUrl"}} target="_blank" rel="noopener noreferrer">
         <i class="icon-external-link"></i>
         {{t popup.logTail.openInLogSearch}}
       </a>
@@ -37,10 +37,10 @@
   </div>
   <div class="clearfix"></div>
 </div>
-<div class="modal-content">
-  <div {{bindAttr class="view.isCopyActive::hidden"}}>
-    <div class="clipboard-wrap">
-      {{view Em.TextArea valueBinding="view.copyContent" classNames="copy-textarea"}}
+<div>
+  <div {{bindAttr class=":task-detail-info view.isCopyActive::hidden"}}>
+    <div class="clipboard-wrap task-detail-log-info">
+      {{view App.NotScrollableTextArea class="task-detail-log-clipboard copy-textarea" valueBinding="view.copyContent"}}
     </div>
   </div>
   <div {{bindAttr class="view.isCopyActive:hidden"}}>

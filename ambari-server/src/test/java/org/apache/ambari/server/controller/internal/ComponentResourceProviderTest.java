@@ -24,6 +24,7 @@ import static org.easymock.EasyMock.capture;
 import static org.easymock.EasyMock.createMock;
 import static org.easymock.EasyMock.createNiceMock;
 import static org.easymock.EasyMock.createStrictMock;
+import static org.easymock.EasyMock.eq;
 import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.expectLastCall;
 import static org.easymock.EasyMock.replay;
@@ -33,6 +34,7 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -46,9 +48,12 @@ import java.util.Set;
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.ObjectNotFoundException;
 import org.apache.ambari.server.ServiceComponentNotFoundException;
+import org.apache.ambari.server.agent.stomp.MetadataHolder;
+import org.apache.ambari.server.agent.stomp.TopologyHolder;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
 import org.apache.ambari.server.controller.AmbariManagementController;
 import org.apache.ambari.server.controller.AmbariManagementControllerImpl;
+import org.apache.ambari.server.controller.AmbariManagementControllerImplTest;
 import org.apache.ambari.server.controller.KerberosHelper;
 import org.apache.ambari.server.controller.MaintenanceStateHelper;
 import org.apache.ambari.server.controller.RequestStatusResponse;
@@ -75,6 +80,7 @@ import org.apache.ambari.server.state.ServiceComponentFactory;
 import org.apache.ambari.server.state.ServiceComponentHost;
 import org.apache.ambari.server.state.StackId;
 import org.apache.ambari.server.state.State;
+import org.apache.ambari.server.topology.STOMPComponentsDeleteHandler;
 import org.easymock.Capture;
 import org.easymock.EasyMock;
 import org.junit.Assert;
@@ -83,8 +89,8 @@ import org.junit.Test;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-import com.google.gson.Gson;
 import com.google.inject.Injector;
+import com.google.inject.Provider;
 
 /**
  * Tests for the component resource provider.
@@ -168,9 +174,9 @@ public class ComponentResourceProviderTest {
     Map<String, Object> properties = new LinkedHashMap<>();
 
     // add properties to the request map
-    properties.put(ComponentResourceProvider.COMPONENT_CLUSTER_NAME_PROPERTY_ID, "Cluster100");
-    properties.put(ComponentResourceProvider.COMPONENT_SERVICE_NAME_PROPERTY_ID, "Service100");
-    properties.put(ComponentResourceProvider.COMPONENT_COMPONENT_NAME_PROPERTY_ID, "Component100");
+    properties.put(ComponentResourceProvider.CLUSTER_NAME, "Cluster100");
+    properties.put(ComponentResourceProvider.SERVICE_NAME, "Service100");
+    properties.put(ComponentResourceProvider.COMPONENT_NAME, "Component100");
 
     propertySet.add(properties);
 
@@ -217,6 +223,7 @@ public class ComponentResourceProviderTest {
     Map <String, Integer> serviceComponentStateCountMap = new HashMap<>();
     serviceComponentStateCountMap.put("startedCount", 1);
     serviceComponentStateCountMap.put("installedCount", 0);
+    serviceComponentStateCountMap.put("installedAndMaintenanceOffCount", 0);
     serviceComponentStateCountMap.put("installFailedCount", 0);
     serviceComponentStateCountMap.put("initCount", 0);
     serviceComponentStateCountMap.put("unknownCount", 1);
@@ -274,24 +281,25 @@ public class ComponentResourceProviderTest {
 
     Set<String> propertyIds = new HashSet<>();
 
-    propertyIds.add(ComponentResourceProvider.COMPONENT_CLUSTER_NAME_PROPERTY_ID);
-    propertyIds.add(ComponentResourceProvider.COMPONENT_COMPONENT_NAME_PROPERTY_ID);
-    propertyIds.add(ComponentResourceProvider.COMPONENT_CATEGORY_PROPERTY_ID);
-    propertyIds.add(ComponentResourceProvider.COMPONENT_TOTAL_COUNT_PROPERTY_ID);
-    propertyIds.add(ComponentResourceProvider.COMPONENT_STARTED_COUNT_PROPERTY_ID);
-    propertyIds.add(ComponentResourceProvider.COMPONENT_INSTALLED_COUNT_PROPERTY_ID);
-    propertyIds.add(ComponentResourceProvider.COMPONENT_INSTALL_FAILED_COUNT_PROPERTY_ID);
-    propertyIds.add(ComponentResourceProvider.COMPONENT_INIT_COUNT_PROPERTY_ID);
-    propertyIds.add(ComponentResourceProvider.COMPONENT_UNKNOWN_COUNT_PROPERTY_ID);
-    propertyIds.add(ComponentResourceProvider.COMPONENT_RECOVERY_ENABLED_ID);
-    propertyIds.add(ComponentResourceProvider.COMPONENT_DESIRED_VERSION);
-    propertyIds.add(ComponentResourceProvider.COMPONENT_REPOSITORY_STATE);
+    propertyIds.add(ComponentResourceProvider.CLUSTER_NAME);
+    propertyIds.add(ComponentResourceProvider.COMPONENT_NAME);
+    propertyIds.add(ComponentResourceProvider.CATEGORY);
+    propertyIds.add(ComponentResourceProvider.TOTAL_COUNT);
+    propertyIds.add(ComponentResourceProvider.STARTED_COUNT);
+    propertyIds.add(ComponentResourceProvider.INSTALLED_COUNT);
+    propertyIds.add(ComponentResourceProvider.INSTALLED_AND_MAINTENANCE_OFF_COUNT);
+    propertyIds.add(ComponentResourceProvider.INSTALL_FAILED_COUNT);
+    propertyIds.add(ComponentResourceProvider.INIT_COUNT);
+    propertyIds.add(ComponentResourceProvider.UNKNOWN_COUNT);
+    propertyIds.add(ComponentResourceProvider.RECOVERY_ENABLED);
+    propertyIds.add(ComponentResourceProvider.DESIRED_VERSION);
+    propertyIds.add(ComponentResourceProvider.REPOSITORY_STATE);
 
     Predicate predicate = new PredicateBuilder()
-      .property(ComponentResourceProvider.COMPONENT_CLUSTER_NAME_PROPERTY_ID)
+      .property(ComponentResourceProvider.CLUSTER_NAME)
       .equals("Cluster100")
       .and()
-      .property(ComponentResourceProvider.COMPONENT_CATEGORY_PROPERTY_ID)
+      .property(ComponentResourceProvider.CATEGORY)
       .equals("MASTER").toPredicate();
 
     Request request = PropertyHelper.getReadRequest(propertyIds);
@@ -300,34 +308,36 @@ public class ComponentResourceProviderTest {
     Assert.assertEquals(2, resources.size());
     for (Resource resource : resources) {
       String clusterName = (String) resource.getPropertyValue(
-          ComponentResourceProvider.COMPONENT_CLUSTER_NAME_PROPERTY_ID);
+          ComponentResourceProvider.CLUSTER_NAME);
       Assert.assertEquals("Cluster100", clusterName);
       Assert.assertEquals("MASTER", resource.getPropertyValue(
-          ComponentResourceProvider.COMPONENT_CATEGORY_PROPERTY_ID));
+          ComponentResourceProvider.CATEGORY));
       Assert.assertEquals(2, resource.getPropertyValue(
-        ComponentResourceProvider.COMPONENT_TOTAL_COUNT_PROPERTY_ID));
+        ComponentResourceProvider.TOTAL_COUNT));
       Assert.assertEquals(1, resource.getPropertyValue(
-        ComponentResourceProvider.COMPONENT_STARTED_COUNT_PROPERTY_ID));
+        ComponentResourceProvider.STARTED_COUNT));
       Assert.assertEquals(0, resource.getPropertyValue(
-        ComponentResourceProvider.COMPONENT_INSTALLED_COUNT_PROPERTY_ID));
+        ComponentResourceProvider.INSTALLED_COUNT));
       Assert.assertEquals(0, resource.getPropertyValue(
-          ComponentResourceProvider.COMPONENT_INSTALL_FAILED_COUNT_PROPERTY_ID));
+        ComponentResourceProvider.INSTALLED_AND_MAINTENANCE_OFF_COUNT));
       Assert.assertEquals(0, resource.getPropertyValue(
-          ComponentResourceProvider.COMPONENT_INIT_COUNT_PROPERTY_ID));
+          ComponentResourceProvider.INSTALL_FAILED_COUNT));
+      Assert.assertEquals(0, resource.getPropertyValue(
+          ComponentResourceProvider.INIT_COUNT));
       Assert.assertEquals(1, resource.getPropertyValue(
-          ComponentResourceProvider.COMPONENT_UNKNOWN_COUNT_PROPERTY_ID));
+          ComponentResourceProvider.UNKNOWN_COUNT));
       Assert.assertEquals(String.valueOf(true), resource.getPropertyValue(
-        ComponentResourceProvider.COMPONENT_RECOVERY_ENABLED_ID));
+        ComponentResourceProvider.RECOVERY_ENABLED));
 
       if (resource.getPropertyValue(
-          ComponentResourceProvider.COMPONENT_COMPONENT_NAME_PROPERTY_ID).equals("Component102")) {
-        Assert.assertNotNull(resource.getPropertyValue(ComponentResourceProvider.COMPONENT_REPOSITORY_STATE));
-        Assert.assertNotNull(resource.getPropertyValue(ComponentResourceProvider.COMPONENT_DESIRED_VERSION));
-        Assert.assertEquals(RepositoryVersionState.CURRENT, resource.getPropertyValue(ComponentResourceProvider.COMPONENT_REPOSITORY_STATE));
-        Assert.assertEquals("1.1", resource.getPropertyValue(ComponentResourceProvider.COMPONENT_DESIRED_VERSION));
+          ComponentResourceProvider.COMPONENT_NAME).equals("Component102")) {
+        Assert.assertNotNull(resource.getPropertyValue(ComponentResourceProvider.REPOSITORY_STATE));
+        Assert.assertNotNull(resource.getPropertyValue(ComponentResourceProvider.DESIRED_VERSION));
+        Assert.assertEquals(RepositoryVersionState.CURRENT, resource.getPropertyValue(ComponentResourceProvider.REPOSITORY_STATE));
+        Assert.assertEquals("1.1", resource.getPropertyValue(ComponentResourceProvider.DESIRED_VERSION));
       } else {
-        Assert.assertNull(resource.getPropertyValue(ComponentResourceProvider.COMPONENT_REPOSITORY_STATE));
-        Assert.assertNull(resource.getPropertyValue(ComponentResourceProvider.COMPONENT_DESIRED_VERSION));
+        Assert.assertNull(resource.getPropertyValue(ComponentResourceProvider.REPOSITORY_STATE));
+        Assert.assertNull(resource.getPropertyValue(ComponentResourceProvider.DESIRED_VERSION));
       }
     }
 
@@ -379,6 +389,7 @@ public class ComponentResourceProviderTest {
     Map <String, Integer> serviceComponentStateCountMap = new HashMap<>();
     serviceComponentStateCountMap.put("startedCount", 0);
     serviceComponentStateCountMap.put("installedCount", 1);
+    serviceComponentStateCountMap.put("installedAndMaintenanceOffCount", 0);
     serviceComponentStateCountMap.put("installFailedCount", 0);
     serviceComponentStateCountMap.put("initCount", 0);
     serviceComponentStateCountMap.put("unknownCount", 0);
@@ -388,7 +399,7 @@ public class ComponentResourceProviderTest {
     expect(managementController.getClusters()).andReturn(clusters).anyTimes();
     expect(managementController.getAmbariMetaInfo()).andReturn(ambariMetaInfo).anyTimes();
     expect(managementController.getEffectiveMaintenanceState(
-        capture(EasyMock.<ServiceComponentHost>newCapture()))).andReturn(MaintenanceState.OFF).anyTimes();
+        capture(EasyMock.newCapture()))).andReturn(MaintenanceState.OFF).anyTimes();
 
     expect(clusters.getCluster("Cluster100")).andReturn(cluster).anyTimes();
 
@@ -467,15 +478,15 @@ public class ComponentResourceProviderTest {
 
     Map<String, Object> properties = new LinkedHashMap<>();
 
-    properties.put(ComponentResourceProvider.COMPONENT_RECOVERY_ENABLED_ID, String.valueOf(true) /* recovery enabled */);
-    properties.put(ComponentResourceProvider.COMPONENT_STATE_PROPERTY_ID, "STARTED");
-    properties.put(ComponentResourceProvider.COMPONENT_CLUSTER_NAME_PROPERTY_ID, "Cluster100");
+    properties.put(ComponentResourceProvider.RECOVERY_ENABLED, String.valueOf(true) /* recovery enabled */);
+    properties.put(ComponentResourceProvider.STATE, "STARTED");
+    properties.put(ComponentResourceProvider.CLUSTER_NAME, "Cluster100");
 
     // create the request
     Request request = PropertyHelper.getUpdateRequest(properties, mapRequestProps);
 
     // update the cluster named Cluster100
-    Predicate predicate = new PredicateBuilder().property(ComponentResourceProvider.COMPONENT_CLUSTER_NAME_PROPERTY_ID).
+    Predicate predicate = new PredicateBuilder().property(ComponentResourceProvider.CLUSTER_NAME).
         equals("Cluster100").toPredicate();
     provider.updateResources(request, predicate);
 
@@ -538,7 +549,7 @@ public class ComponentResourceProviderTest {
     expect(serviceComponentHost.getDesiredState()).andReturn(hostComponentState);
 
 
-    service.deleteServiceComponent("Component100");
+    service.deleteServiceComponent(eq("Component100"), anyObject(DeleteHostComponentStatusMetaData.class));
     expectLastCall().once();
     // replay
 
@@ -547,7 +558,7 @@ public class ComponentResourceProviderTest {
 
     SecurityContextHolder.getContext().setAuthentication(authentication);
 
-    ResourceProvider provider = new ComponentResourceProvider(managementController,
+    ResourceProvider provider = getComponentProvider(managementController,
         maintenanceStateHelper);
 
     AbstractResourceProviderTest.TestObserver observer = new AbstractResourceProviderTest.TestObserver();
@@ -556,19 +567,52 @@ public class ComponentResourceProviderTest {
 
 
     Predicate predicate = new PredicateBuilder()
-                .property(ComponentResourceProvider.COMPONENT_CLUSTER_NAME_PROPERTY_ID)
+                .property(ComponentResourceProvider.CLUSTER_NAME)
                 .equals("Cluster100")
                 .and()
-                .property(ComponentResourceProvider.COMPONENT_SERVICE_NAME_PROPERTY_ID)
+                .property(ComponentResourceProvider.SERVICE_NAME)
                 .equals("Service100")
                 .and()
-                .property(ComponentResourceProvider.COMPONENT_COMPONENT_NAME_PROPERTY_ID)
+                .property(ComponentResourceProvider.COMPONENT_NAME)
                 .equals("Component100").toPredicate();
 
     provider.deleteResources(new RequestImpl(null, null, null, null), predicate);
 
     // verify
     verify(managementController, service);
+  }
+  public static ComponentResourceProvider getComponentProvider(
+      AmbariManagementController managementController,
+      MaintenanceStateHelper maintenanceStateHelper)
+      throws NoSuchFieldException, IllegalAccessException {
+    ComponentResourceProvider provider = new ComponentResourceProvider(managementController,
+        maintenanceStateHelper);
+
+    Field STOMPComponentsDeleteHandlerField = ComponentResourceProvider.class.getDeclaredField("STOMPComponentsDeleteHandler");
+    STOMPComponentsDeleteHandlerField.setAccessible(true);
+    STOMPComponentsDeleteHandler STOMPComponentsDeleteHandler = new STOMPComponentsDeleteHandler();
+    STOMPComponentsDeleteHandlerField.set(provider, STOMPComponentsDeleteHandler);
+
+    Field topologyHolderProviderField = STOMPComponentsDeleteHandler.class.getDeclaredField("m_topologyHolder");
+    topologyHolderProviderField.setAccessible(true);
+    Provider<TopologyHolder> m_topologyHolder = createMock(Provider.class);
+    topologyHolderProviderField.set(STOMPComponentsDeleteHandler, m_topologyHolder);
+
+    TopologyHolder topologyHolder = createNiceMock(TopologyHolder.class);
+
+    expect(m_topologyHolder.get()).andReturn(topologyHolder).anyTimes();
+
+    Field metadataHolderProviderField = STOMPComponentsDeleteHandler.class.getDeclaredField("metadataHolder");
+    metadataHolderProviderField.setAccessible(true);
+    Provider<MetadataHolder> m_metadataHolder = createMock(Provider.class);
+    metadataHolderProviderField.set(STOMPComponentsDeleteHandler, m_metadataHolder);
+
+    MetadataHolder metadataHolder = createNiceMock(MetadataHolder.class);
+
+    expect(m_metadataHolder.get()).andReturn(metadataHolder).anyTimes();
+
+    replay(m_metadataHolder, metadataHolder, m_topologyHolder, topologyHolder);
+    return provider;
   }
 
   @Test
@@ -610,10 +654,10 @@ public class ComponentResourceProviderTest {
     ((ObservableResourceProvider)provider).addObserver(observer);
 
     Predicate predicate1 = new PredicateBuilder()
-                .property(ComponentResourceProvider.COMPONENT_SERVICE_NAME_PROPERTY_ID)
+                .property(ComponentResourceProvider.SERVICE_NAME)
                 .equals("Service100")
                 .and()
-                .property(ComponentResourceProvider.COMPONENT_COMPONENT_NAME_PROPERTY_ID)
+                .property(ComponentResourceProvider.COMPONENT_NAME)
                 .equals("Component100").toPredicate();
 
     try {
@@ -624,10 +668,10 @@ public class ComponentResourceProviderTest {
     }
 
     Predicate predicate2 = new PredicateBuilder()
-                .property(ComponentResourceProvider.COMPONENT_CLUSTER_NAME_PROPERTY_ID)
+                .property(ComponentResourceProvider.CLUSTER_NAME)
                 .equals("Cluster100")
                 .and()
-                .property(ComponentResourceProvider.COMPONENT_SERVICE_NAME_PROPERTY_ID)
+                .property(ComponentResourceProvider.SERVICE_NAME)
                 .equals("Service100")
                 .and().toPredicate();
 
@@ -691,6 +735,7 @@ public class ComponentResourceProviderTest {
     Map <String, Integer> serviceComponentStateCountMap = new HashMap<>();
     serviceComponentStateCountMap.put("startedCount", 0);
     serviceComponentStateCountMap.put("installedCount", 1);
+    serviceComponentStateCountMap.put("installedAndMaintenanceOffCount", 0);
     serviceComponentStateCountMap.put("installFailedCount", 0);
     serviceComponentStateCountMap.put("initCount", 0);
     serviceComponentStateCountMap.put("unknownCount", 0);
@@ -701,7 +746,7 @@ public class ComponentResourceProviderTest {
     expect(managementController.getClusters()).andReturn(clusters).anyTimes();
     expect(managementController.getAmbariMetaInfo()).andReturn(ambariMetaInfo).anyTimes();
     expect(managementController.getEffectiveMaintenanceState(
-        capture(EasyMock.<ServiceComponentHost>newCapture()))).andReturn(MaintenanceState.OFF).anyTimes();
+        capture(EasyMock.newCapture()))).andReturn(MaintenanceState.OFF).anyTimes();
 
     expect(clusters.getCluster("Cluster100")).andReturn(cluster).anyTimes();
 
@@ -762,13 +807,13 @@ public class ComponentResourceProviderTest {
 
     Map<String, Object> properties = new LinkedHashMap<>();
 
-    properties.put(ComponentResourceProvider.COMPONENT_RECOVERY_ENABLED_ID, String.valueOf(true) /* recovery enabled */);
+    properties.put(ComponentResourceProvider.RECOVERY_ENABLED, String.valueOf(true) /* recovery enabled */);
 
     // create the request
     Request request = PropertyHelper.getUpdateRequest(properties, mapRequestProps);
 
     // update the cluster named Cluster100
-    Predicate predicate = new PredicateBuilder().property(ComponentResourceProvider.COMPONENT_CLUSTER_NAME_PROPERTY_ID).
+    Predicate predicate = new PredicateBuilder().property(ComponentResourceProvider.CLUSTER_NAME).
         equals("Cluster100").toPredicate();
     provider.updateResources(request, predicate);
 
@@ -951,10 +996,8 @@ public class ComponentResourceProviderTest {
 
     // expectations
     // constructor init
-    injector.injectMembers(capture(controllerCapture));
-    expect(injector.getInstance(Gson.class)).andReturn(null);
-    expect(injector.getInstance(MaintenanceStateHelper.class)).andReturn(maintHelper);
-    expect(injector.getInstance(KerberosHelper.class)).andReturn(createNiceMock(KerberosHelper.class));
+    AmbariManagementControllerImplTest.constructorInit(injector, controllerCapture, null, maintHelper,
+        createNiceMock(KerberosHelper.class), null, null);
 
     // getComponents
     expect(clusters.getCluster("cluster1")).andReturn(cluster);

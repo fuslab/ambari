@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,13 @@
 
 package org.apache.ambari.server.api.services;
 
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+
 import java.util.HashMap;
-import static org.junit.Assert.*;
+
+import org.junit.Test;
 
 /**
  * RequestBody unit tests.
@@ -47,7 +51,7 @@ public class RequestBodyTest {
   public void testAddGetPropertySets() {
     RequestBody body = new RequestBody();
     assertEquals(0, body.getNamedPropertySets().size());
-    NamedPropertySet ps = new NamedPropertySet("foo", new HashMap<String, Object>());
+    NamedPropertySet ps = new NamedPropertySet("foo", new HashMap<>());
     body.addPropertySet(ps);
     assertEquals(1, body.getNamedPropertySets().size());
     assertSame(ps, body.getNamedPropertySets().iterator().next());

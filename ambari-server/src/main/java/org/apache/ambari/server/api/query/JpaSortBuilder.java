@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -56,7 +56,7 @@ public class JpaSortBuilder<T> {
    * Builds the list of sort orders based on the supplied request and JPA
    * predicate visitor.
    *
-   * @param sortRequests
+   * @param sortRequest
    *          the Ambari sort request properties to turn into a JPA sort
    *          request. If {@code null} or the {@link SortRequestProperty} list
    *          is null, an empty list is returned.
@@ -74,7 +74,7 @@ public class JpaSortBuilder<T> {
 
     CriteriaBuilder builder = visitor.getCriteriaBuilder();
     List<SortRequestProperty> sortProperties = sortRequest.getProperties();
-    List<Order> sortOrders = new ArrayList<Order>(sortProperties.size());
+    List<Order> sortOrders = new ArrayList<>(sortProperties.size());
 
     for (SortRequestProperty sort : sortProperties) {
       String propertyId = sort.getPropertyId();

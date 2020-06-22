@@ -37,8 +37,8 @@ App.Host = DS.Model.extend({
   ip: DS.attr('string'),
   rack: DS.attr('string'),
   healthStatus: DS.attr('string'),
+  state: DS.attr('string'),
   lastHeartBeatTime: DS.attr('number'),
-  rawLastHeartBeatTime: DS.attr('number'),
   hasJcePolicy: DS.attr('string'),
   osType: DS.attr("string"),
   diskInfo: DS.attr('object'),
@@ -49,7 +49,6 @@ App.Host = DS.Model.extend({
   memFree:DS.attr('number'),
   cpuSystem:DS.attr('number'),
   cpuUser:DS.attr('number'),
-  criticalWarningAlertsCount: DS.attr('number'),
   alertsSummary: DS.attr('object'),
   passiveState: DS.attr('string'),
   index: DS.attr('number'),
@@ -61,6 +60,13 @@ App.Host = DS.Model.extend({
    * Is host checked at the main Hosts page
    */
   selected:DS.attr('boolean'),
+
+  isActive: Em.computed.equal('passiveState', 'OFF'),
+
+  criticalWarningAlertsCount: function() {
+    const alertsSummary = this.get('alertsSummary');
+    return alertsSummary ? (alertsSummary.CRITICAL || 0) + (alertsSummary.WARNING || 0) : 0;
+  }.property('alertsSummary.CRITICAL', 'alertsSummary.WARNING'),
 
   currentVersion: function () {
     var current = this.get('stackVersions').findProperty('isCurrent');
@@ -180,8 +186,8 @@ App.Host = DS.Model.extend({
    * @returns {bool}
    */
   isNotHeartBeating : function() {
-    return (App.get('testMode')) ? false : (this.get('healthStatus') === "UNKNOWN");
-  }.property('lastHeartBeatTime'),
+    return this.get('state') === "HEARTBEAT_LOST";
+  }.property('state'),
 
   /**
    * Average load
@@ -210,7 +216,7 @@ App.Host = DS.Model.extend({
       'ALERT': 'health-status-DEAD-ORANGE'
     };
     return statusMap[this.get('healthStatus')] || 'health-status-DEAD-YELLOW';
-  }.property('healthStatus'),
+  }.property('healthStatus', 'passiveState'),
 
   healthIconClass: Em.computed.getByKey('healthIconClassMap', 'healthClass', ''),
 

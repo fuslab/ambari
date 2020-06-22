@@ -21,8 +21,29 @@
 -->
 <configuration>
   <property>
+    <name>logsearch.http.port</name>
+    <value>61888</value>
+    <description>Default port for Log Search UI (HTTP)</description>
+    <display-name>Log Search UI Http Port</display-name>
+    <on-ambari-upgrade add="true"/>
+  </property>
+  <property>
+    <name>logsearch.https.port</name>
+    <value>61888</value>
+    <description>Default port for Log Search UI (HTTPS)</description>
+    <display-name>Log Search UI Https Port</display-name>
+    <on-ambari-upgrade add="true"/>
+  </property>
+  <property>
+    <name>logsearch.protocol</name>
+    <value>http</value>
+    <description>Protocol (http or https)</description>
+    <display-name>Log Search UI Protocol</display-name>
+    <on-ambari-upgrade add="true"/>
+  </property>
+  <property>
     <name>logsearch.collection.service.logs.numshards</name>
-    <value>5</value>
+    <value>4</value>
     <display-name>Log Search Solr Service Logs Shards</display-name>
     <description>Number of shards for Service Logs collection</description>
     <value-attributes>
@@ -36,7 +57,7 @@
   </property>
   <property>
     <name>logsearch.collection.service.logs.replication.factor</name>
-    <value>1</value>
+    <value>2</value>
     <display-name>Log Search Solr Service Logs Replication Factor</display-name>
     <description>Replication factor for Service Logs Solr collection</description>
     <value-attributes>
@@ -50,7 +71,7 @@
   </property>
   <property>
     <name>logsearch.collection.audit.logs.numshards</name>
-    <value>5</value>
+    <value>4</value>
     <display-name>Log Search Solr Audit Logs Shards</display-name>
     <description>Number of shards for Audit Logs collection</description>
     <value-attributes>
@@ -64,7 +85,7 @@
   </property>
   <property>
     <name>logsearch.collection.audit.logs.replication.factor</name>
-    <value>1</value>
+    <value>2</value>
     <display-name>Log Search Solr Audit Logs Replication Factor</display-name>
     <description>Replication factor for Audit Logs Solr collection</description>
     <value-attributes>
@@ -98,6 +119,13 @@
     <on-ambari-upgrade add="true"/>
   </property>
   <property>
+    <name>logsearch.web.service_logs.component.labels</name>
+    <value>hst_agent:HST Agent,hst_server:HST Server,activity_analyser:Activity Analyzer,ams_hbase_master:AMS HBase Master,ams_hbase_regionserver:AMS HBase RegionServer,ams_collector:AMS Metrics Collector,ams_monitor:AMS Metric Monitor,ams_grafana:AMS Grafana,ranger_kms:Ranger KMS,mapred_historyserver:MapReduce History Server,zookeeper:ZooKeeper Server,logsearch_app:Log Search Server,logsearch_feeder:Log Feeder,logsearch_perf:Log Search Performance,zeppelin:Zeppelin Notebook,spark2_jobhistory_server:Spark History Server,spark2_thriftserver:Spark Thrift Server,livy2_server:Spark Livy Server,ranger_dbpatch:Ranger DB Patch,ambari_config_changes:Ambari Config Change,ambari_eclipselink:Ambari EclipseLink,ambari_server_check_database:Ambari Check DB,storm_drpc:Storm DRPC,storm_ui:Storm UI,oozie_app:Oozie Server,kafka_logcleaner:Kafka Log Cleaner,kafka_server:Kafka Server,kafka_statechange:Kafka State Change,hbase_master:HBase Master,hbase_regionserver:HBase RegionServer,hbase_phoenix_server:HBase Phoenix Query Server,atlas_app:Atlas Metadata Server,yarn_nodemanager:YARN NodeManager,yarn_resourcemanager:YARN ResourceManager,yarn_timelineserver:YARN Timeline Server,yarn_historyserver:YARN History Server,yarn_jobsummary:YARN Job Summary,knox_cli:Knox CLI,knox_ldap:Knox LDAP,hive_server:HiveServer2,hive_server_interactive:HiveServer2 Interactive,hdfs_datanode:HDFS DataNode,hdfs_namenode:HDFS NameNode,hdfs_journalnode:HDFS JournalNode,hdfs_secondary_namenode:HDFS Secondary NameNode,hdfs_zkfc:HDFS ZKFailoverController,hdfs_nfs3:HDFS NFSGateway</value>
+    <display-name>Log Search Component Names</display-name>
+    <description>Component name mapping for the Log Search UI (mycomponent1:My Label1,mycomponent2:My Label2), by default _ are replaced with spaces and first letters and latters after undersocre transformed to uppercase latters </description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+  <property>
     <name>logsearch.service.logs.split.interval.mins</name>
     <value>15</value>
     <display-name>Log Search Service Logs split interval</display-name>
@@ -110,6 +138,18 @@
     <display-name>Log Search Audit Logs split interval</display-name>
     <description>Will switch the shard after the interval specified. Valid values are none and greater than 1
     </description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+  <property>
+    <name>logsearch.solr.implicit.routing</name>
+    <value>false</value>
+    <description>
+      Use implicit routing for Solr Collections.
+    </description>
+    <display-name>Log Search Solr implicit routing</display-name>
+    <value-attributes>
+      <type>boolean</type>
+    </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
   <property>
@@ -127,16 +167,6 @@
     <value>ranger_audits</value>
     <display-name>Log Search Solr Ranger Audit Logs Collection</display-name>
     <description>Name for the ranger audit logs collection</description>
-    <on-ambari-upgrade add="true"/>
-  </property>
-  <property>
-    <name>logsearch.logfeeder.include.default.level</name>
-    <value>FATAL,ERROR,WARN</value>
-    <description>Include default Log Feeder Log Levels for Log Search. Used for bootstrapping the configuration only. (levels: FATAL,ERROR,WARN,INFO,DEBUG,TRACE)</description>
-    <display-name>Log Feeder Log Levels</display-name>
-    <value-attributes>
-      <editable-only-at-install>true</editable-only-at-install>
-    </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
   <property>

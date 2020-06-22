@@ -18,16 +18,16 @@
 
 package org.apache.ambari.server.security.authorization.internal;
 
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
-
 import java.math.BigInteger;
 import java.security.SecureRandom;
 
-@Singleton
+import com.google.inject.Inject;
+import com.google.inject.Singleton;
+
 /**
  * Generates single token for internal authentication
  */
+@Singleton
 public class InternalTokenStorage {
   private final SecureRandom random;
   private final String token;

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -166,18 +166,21 @@ public enum State {
             || startState == State.UNINSTALLING) {
           return true;
         }
+        break;
       case INIT:
         if (startState == State.UNINSTALLED
             || startState == State.INIT
             || startState == State.WIPING_OUT) {
           return true;
         }
+        break;
       case DISABLED:
         if (startState == State.INSTALLED
             || startState == State.INSTALL_FAILED
             || startState == State.UNKNOWN) {
           return true;
         }
+        break;
     }
     return false;
   }

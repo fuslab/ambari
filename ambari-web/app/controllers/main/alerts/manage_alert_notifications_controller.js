@@ -149,15 +149,35 @@ App.ManageAlertNotificationsController = Em.Controller.extend({
       value: '',
       defaultValue: ''
     },
+    scriptDispatchProperty: {
+      label: Em.I18n.t('alerts.actions.manage_alert_notifications_popup.scriptDispatchProperty'),
+      value: '',
+      defaultValue: ''
+    },
+    scriptFileName: {
+      label: Em.I18n.t('alerts.actions.manage_alert_notifications_popup.scriptFileName'),
+      value: '',
+      defaultValue: ''
+    },
     customProperties: Em.A([])
   }),
+
+  /**
+   * List of available options for Enable or Disable
+   * used in settings of SelectedAlertNotification
+   * @type {Object}
+   */
+  enableOrDisable: {
+    enable: "enable",
+    disable: "disable"
+  },
 
   /**
    * List of available Notification types
    * used in Type combobox
    * @type {Array}
    */
-  methods: ['EMAIL', 'SNMP', 'Custom SNMP'],
+  methods: ['EMAIL', 'SNMP', 'Custom SNMP', 'Alert Script'],
 
   /**
    * List of available value for Severity Filter
@@ -201,22 +221,23 @@ App.ManageAlertNotificationsController = Em.Controller.extend({
   newCustomProperty: {name: '', value: ''},
 
   /**
+   * @type {string[]}
+   */
+  customPropertyNames: Em.computed.mapBy('inputFields.customProperties', 'name'),
+
+  /**
    * Check if custom property name exists in the <code>inputFields.customProperties</code>
    *
    * @type {boolean}
    */
-  isNewCustomPropertyExists: function () {
-    return this.get('inputFields.customProperties').mapProperty('name').contains(this.get('newCustomProperty.name'));
-  }.property('newCustomProperty.name'),
+  isNewCustomPropertyExists: Em.computed.existsInByKey('newCustomProperty.name', 'customPropertyNames'),
 
   /**
    * Check if custom property name exists in the <code>ignoredCustomProperties</code>
    *
    * @type {boolean}
    */
-  isNewCustomPropertyIgnored: function () {
-    return this.get('ignoredCustomProperties').contains(this.get('newCustomProperty.name'));
-  }.property('newCustomProperty.name'),
+  isNewCustomPropertyIgnored: Em.computed.existsInByKey('newCustomProperty.name', 'ignoredCustomProperties'),
 
   /**
    * Check if custom property name is valid according to the <code>validator.isValidConfigKey</code>
@@ -272,7 +293,9 @@ App.ManageAlertNotificationsController = Em.Controller.extend({
     'mail.smtp.from',
     'mail.smtp.host',
     'mail.smtp.port',
-    'mail.smtp.starttls.enable'
+    'mail.smtp.starttls.enable',
+    'ambari.dispatch-property.script',
+    'ambari.dispatch-property.script.filename'
   ],
 
   validationMap: {
@@ -321,6 +344,12 @@ App.ManageAlertNotificationsController = Em.Controller.extend({
         errorKey: 'hostError',
         validator: 'hostsValidation'
       }
+    ],
+    AlertScript:[
+     {
+       errorKey: 'scriptFileNameError',
+       validator: 'scriptFileNameValidation',
+     }
     ]
   },
 
@@ -329,15 +358,12 @@ App.ManageAlertNotificationsController = Em.Controller.extend({
    * @method loadAlertNotifications
    */
   loadAlertNotifications: function () {
-    var self = this;
     this.set('isLoaded', false);
-    App.router.get('updateController').updateAlertGroups(function () {
-      App.ajax.send({
-        name: 'alerts.notifications',
-        sender: self,
-        success: 'getAlertNotificationsSuccessCallback',
-        error: 'getAlertNotificationsErrorCallback'
-      });
+    return App.ajax.send({
+      name: 'alerts.notifications',
+      sender: this,
+      success: 'getAlertNotificationsSuccessCallback',
+      error: 'getAlertNotificationsErrorCallback'
     });
   },
 
@@ -372,6 +398,7 @@ App.ManageAlertNotificationsController = Em.Controller.extend({
       inputFields.set(key + '.value', inputFields.get(key + '.defaultValue'));
     });
     inputFields.set('severityFilter.value', ['OK', 'WARNING', 'CRITICAL', 'UNKNOWN']);
+    inputFields.set('customProperties',Em.A([]));
     this.showCreateEditPopup(false);
   },
 
@@ -393,33 +420,35 @@ App.ManageAlertNotificationsController = Em.Controller.extend({
     var inputFields = this.get('inputFields');
     var selectedAlertNotification = this.get('selectedAlertNotification');
     var methodValue = this.getNotificationTypeText(selectedAlertNotification.get('type'));
+      var properties = selectedAlertNotification.get('properties');
     inputFields.set('name.value', (addCopyToName ? 'Copy of ' : '') + selectedAlertNotification.get('name'));
     inputFields.set('groups.value', selectedAlertNotification.get('groups').toArray());
-    inputFields.set('email.value', selectedAlertNotification.get('properties')['ambari.dispatch.recipients'] ?
-      selectedAlertNotification.get('properties')['ambari.dispatch.recipients'].join(', ') : '');
-    inputFields.set('SMTPServer.value', selectedAlertNotification.get('properties')['mail.smtp.host']);
-    inputFields.set('SMTPPort.value', selectedAlertNotification.get('properties')['mail.smtp.port']);
-    inputFields.set('SMTPUseAuthentication.value', selectedAlertNotification.get('properties')['mail.smtp.auth'] !== "false");
-    inputFields.set('SMTPUsername.value', selectedAlertNotification.get('properties')['ambari.dispatch.credential.username']);
-    inputFields.set('SMTPPassword.value', selectedAlertNotification.get('properties')['ambari.dispatch.credential.password']);
-    inputFields.set('retypeSMTPPassword.value', selectedAlertNotification.get('properties')['ambari.dispatch.credential.password']);
-    inputFields.set('SMTPSTARTTLS.value', selectedAlertNotification.get('properties')['mail.smtp.starttls.enable'] !== "false");
-    inputFields.set('emailFrom.value', selectedAlertNotification.get('properties')['mail.smtp.from']);
-    inputFields.set('version.value', selectedAlertNotification.get('properties')['ambari.dispatch.snmp.version']);
-    inputFields.set('OIDs.value', selectedAlertNotification.get('properties')['ambari.dispatch.snmp.oids.trap']);
-    inputFields.set('community.value', selectedAlertNotification.get('properties')['ambari.dispatch.snmp.community']);
-    inputFields.set('host.value', selectedAlertNotification.get('properties')['ambari.dispatch.recipients'] ?
-      selectedAlertNotification.get('properties')['ambari.dispatch.recipients'].join(', ') : '');
-    inputFields.set('port.value', selectedAlertNotification.get('properties')['ambari.dispatch.snmp.port']);
+    inputFields.set('email.value', properties['ambari.dispatch.recipients'] ?
+      properties['ambari.dispatch.recipients'].join(', ') : '');
+    inputFields.set('SMTPServer.value', properties['mail.smtp.host']);
+    inputFields.set('SMTPPort.value', properties['mail.smtp.port']);
+    inputFields.set('SMTPUseAuthentication.value', properties['mail.smtp.auth'] !== "false");
+    inputFields.set('SMTPUsername.value', properties['ambari.dispatch.credential.username']);
+    inputFields.set('SMTPPassword.value', properties['ambari.dispatch.credential.password']);
+    inputFields.set('retypeSMTPPassword.value', properties['ambari.dispatch.credential.password']);
+    inputFields.set('SMTPSTARTTLS.value', properties['mail.smtp.starttls.enable'] !== "false");
+    inputFields.set('emailFrom.value', properties['mail.smtp.from']);
+    inputFields.set('version.value', properties['ambari.dispatch.snmp.version']);
+    inputFields.set('OIDs.value', properties['ambari.dispatch.snmp.oids.trap']);
+    inputFields.set('community.value', properties['ambari.dispatch.snmp.community']);
+    inputFields.set('host.value', properties['ambari.dispatch.recipients'] ?
+      properties['ambari.dispatch.recipients'].join(', ') : '');
+    inputFields.set('port.value', properties['ambari.dispatch.snmp.port']);
     inputFields.set('severityFilter.value', selectedAlertNotification.get('alertStates'));
     inputFields.set('global.value', selectedAlertNotification.get('global'));
     inputFields.set('allGroups.value', selectedAlertNotification.get('global') ? 'all' : 'custom');
+    inputFields.set('scriptDispatchProperty.value', properties['ambari.dispatch-property.script'] || '');
+    inputFields.set('scriptFileName.value', properties['ambari.dispatch-property.script.filename'] || '');
     // not allow to edit global field
     inputFields.set('global.disabled', true);
     inputFields.set('description.value', selectedAlertNotification.get('description'));
     inputFields.set('method.value', methodValue);
     inputFields.get('customProperties').clear();
-    var properties = selectedAlertNotification.get('properties');
     var ignoredCustomProperties = this.get('ignoredCustomProperties');
     Em.keys(properties).forEach(function (k) {
       if (ignoredCustomProperties.contains(k)) return;
@@ -458,6 +487,7 @@ App.ManageAlertNotificationsController = Em.Controller.extend({
           this.smtpUsernameValidation();
           this.smtpPasswordValidation();
           this.retypePasswordValidation();
+          this.scriptFileNameValidation();
         },
 
         isEmailMethodSelected: Em.computed.equal('controller.inputFields.method.value', 'EMAIL'),
@@ -465,6 +495,8 @@ App.ManageAlertNotificationsController = Em.Controller.extend({
         isSNMPMethodSelected: Em.computed.equal('controller.inputFields.method.value', 'SNMP'),
 
         isCustomSNMPMethodSelected: Em.computed.equal('controller.inputFields.method.value', 'Custom SNMP'),
+
+        isAlertScriptMethodSelected: Em.computed.equal('controller.inputFields.method.value', 'Alert Script'),
 
         methodObserver: function () {
           var currentMethod = this.get('controller.inputFields.method.value'),
@@ -492,34 +524,18 @@ App.ManageAlertNotificationsController = Em.Controller.extend({
           if (newName && !this.get('currentName')) {
             this.set('currentName', newName);
           }
-          if (isEdit) {
-            // edit current alert notification
-            if (!newName) {
-              this.set('nameError', true);
-              errorMessage = Em.I18n.t('alerts.actions.manage_alert_notifications_popup.error.name.empty');
-            } else if (newName && newName !== this.get('currentName') && self.get('alertNotifications').mapProperty('name').contains(newName)) {
-              this.set('nameError', true);
-              errorMessage = Em.I18n.t('alerts.actions.manage_alert_notifications_popup.error.name.existed');
-            } else if (newName && !validator.isValidAlertNotificationName(newName)){
-              this.set('nameError', true);
-              errorMessage = Em.I18n.t('form.validator.alertNotificationName');
-            } else {
-              this.set('nameError', false);
-            }
+          var nameExistsCondition = isEdit ? newName && newName !== this.get('currentName') : !!newName;
+          if (!newName) {
+            this.set('nameError', true);
+            errorMessage = Em.I18n.t('alerts.actions.manage_alert_notifications_popup.error.name.empty');
+          } else if (nameExistsCondition && self.get('alertNotifications').mapProperty('name').contains(newName)) {
+            this.set('nameError', true);
+            errorMessage = Em.I18n.t('alerts.actions.manage_alert_notifications_popup.error.name.existed');
+          } else if (newName && !validator.isValidAlertNotificationName(newName)){
+            this.set('nameError', true);
+            errorMessage = Em.I18n.t('form.validator.alertNotificationName');
           } else {
-            // add new alert notification
-            if (!newName) {
-              this.set('nameError', true);
-              errorMessage = Em.I18n.t('alerts.actions.manage_alert_notifications_popup.error.name.empty');
-            } else if (newName && self.get('alertNotifications').mapProperty('name').contains(newName)) {
-              this.set('nameError', true);
-              errorMessage = Em.I18n.t('alerts.actions.manage_alert_notifications_popup.error.name.existed');
-            } else if (newName && !validator.isValidAlertNotificationName(newName)){
-              this.set('nameError', true);
-              errorMessage = Em.I18n.t('form.validator.alertNotificationName');
-            } else {
-              this.set('nameError', false);
-            }
+            this.set('nameError', false);
           }
           this.set('controller.inputFields.name.errorMsg', errorMessage);
         }.observes('controller.inputFields.name.value'),
@@ -561,7 +577,7 @@ App.ManageAlertNotificationsController = Em.Controller.extend({
         hostsValidation: function() {
           var inputValue = this.get('controller.inputFields.host.value').trim(),
             hostError = false;
-          if (!this.get('isEmailMethodSelected')) {
+          if (!this.get('isEmailMethodSelected') && !this.get('isAlertScriptMethodSelected')) {
             var array = inputValue.split(',');
             hostError = array.some(function(hostname) {
               return hostname && !validator.isHostname(hostname.trim());
@@ -625,7 +641,19 @@ App.ManageAlertNotificationsController = Em.Controller.extend({
           }
         }.observes('controller.inputFields.retypeSMTPPassword.value', 'controller.inputFields.SMTPPassword.value'),
 
-        someErrorExists: Em.computed.or('nameError', 'emailToError', 'emailFromError', 'smtpPortError', 'hostError', 'portError', 'smtpUsernameError', 'smtpPasswordError', 'passwordError'),
+
+        scriptFileNameValidation:function(){
+          var scriptFileNameValue = this.get('controller.inputFields.scriptFileName.value').trim();
+          if(!Em.isBlank(scriptFileNameValue) && !validator.isValidFileName(scriptFileNameValue)){
+             this.set('scriptFileNameError',true);
+             this.set('controller.inputFields.scriptFileName.errorMsg',Em.I18n.t('alerts.actions.manage_alert_notifications_popup.error.scriptFileName.invalid'));
+          }else{
+             this.set('scriptFileNameError',false);
+             this.set('controller.inputFields.scriptFileName.errorMsg',null);
+          }
+        }.observes('controller.inputFields.scriptFileName.value'),
+
+        someErrorExists: Em.computed.or('nameError', 'emailToError', 'emailFromError', 'smtpPortError', 'hostError', 'portError', 'smtpUsernameError', 'smtpPasswordError', 'passwordError','scriptFileNameError'),
 
         setParentErrors: function () {
           this.set('parentView.hasErrors', this.get('someErrorExists'));
@@ -646,7 +674,7 @@ App.ManageAlertNotificationsController = Em.Controller.extend({
          * @method selectAllGroups
          */
         selectAllGroups: function () {
-          if (this.get('controller.inputFields.allGroups.value') == 'custom') {
+          if (this.get('controller.inputFields.allGroups.value') === 'custom') {
             this.set('groupSelect.selection', this.get('groupSelect.content').slice());
           }
         },
@@ -656,7 +684,7 @@ App.ManageAlertNotificationsController = Em.Controller.extend({
          * @method clearAllGroups
          */
         clearAllGroups: function () {
-          if (this.get('controller.inputFields.allGroups.value') == 'custom') {
+          if (this.get('controller.inputFields.allGroups.value') === 'custom') {
             this.set('groupSelect.selection', []);
           }
         },
@@ -727,6 +755,10 @@ App.ManageAlertNotificationsController = Em.Controller.extend({
         } else {
           self.createAlertNotification(apiObject);
         }
+      },
+      hide: function () {
+        self.set('createEditPopup', null);
+        return this._super(...arguments);
       }
     });
     this.set('createEditPopup', createEditPopup);
@@ -757,7 +789,7 @@ App.ManageAlertNotificationsController = Em.Controller.extend({
       properties['ambari.dispatch.snmp.community'] = inputFields.get('community.value');
       properties['ambari.dispatch.recipients'] = inputFields.get('host.value').replace(/\s/g, '').split(',');
       properties['ambari.dispatch.snmp.port'] = inputFields.get('port.value');
-    } else {
+    } else if(inputFields.get('method.value') === 'Custom SNMP') {
       properties['ambari.dispatch.snmp.version'] = inputFields.get('version.value');
       properties['ambari.dispatch.snmp.oids.trap'] = inputFields.get('OIDs.value');
       properties['ambari.dispatch.snmp.oids.subject'] = inputFields.get('OIDs.value');
@@ -765,6 +797,14 @@ App.ManageAlertNotificationsController = Em.Controller.extend({
       properties['ambari.dispatch.snmp.community'] = inputFields.get('community.value');
       properties['ambari.dispatch.recipients'] = inputFields.get('host.value').replace(/\s/g, '').split(',');
       properties['ambari.dispatch.snmp.port'] = inputFields.get('port.value');
+    }else if (inputFields.get('method.value') === 'Alert Script') {
+      var scriptDispatchProperty = inputFields.get('scriptDispatchProperty.value').trim();
+      if( scriptDispatchProperty != '')
+          properties['ambari.dispatch-property.script'] = scriptDispatchProperty;
+
+      var scriptFileName = inputFields.get('scriptFileName.value').trim();
+      if( scriptFileName != '')
+          properties['ambari.dispatch-property.script.filename'] = scriptFileName;
     }
     inputFields.get('customProperties').forEach(function (customProperty) {
       properties[customProperty.name] = customProperty.value;
@@ -787,20 +827,24 @@ App.ManageAlertNotificationsController = Em.Controller.extend({
 
   getNotificationType: function(text) {
     var notificationType = text;
-    if(notificationType == "Custom SNMP") {
+    if(notificationType === "Custom SNMP") {
       notificationType = "SNMP";
-    } else if(notificationType == "SNMP") {
+    } else if(notificationType === "SNMP") {
       notificationType = "AMBARI_SNMP";
+    } else if(notificationType === "Alert Script"){
+      notificationType = "ALERT_SCRIPT";
     }
     return notificationType;
   },
 
   getNotificationTypeText: function(notificationType) {
     var notificationTypeText = notificationType;
-    if(notificationType == "SNMP") {
+    if(notificationType === "SNMP") {
       notificationTypeText = "Custom SNMP";
-    } else if(notificationType == "AMBARI_SNMP") {
+    } else if(notificationType === "AMBARI_SNMP") {
       notificationTypeText = "SNMP";
+    } else if(notificationType === "ALERT_SCRIPT"){
+      notificationTypeText = "Alert Script";
     }
     return notificationTypeText;
   },
@@ -919,6 +963,39 @@ App.ManageAlertNotificationsController = Em.Controller.extend({
   duplicateAlertNotification: function () {
     this.fillEditCreateInputs(true);
     this.showCreateEditPopup();
+  },
+
+  /**
+   * Enable or Disable Notification button handler
+   * @method enableOrDisableAlertNotification
+   */
+  enableOrDisableAlertNotification: function (e) {
+    return App.ajax.send({
+      name: 'alerts.update_alert_notification',
+      sender: this,
+      data: {
+        data: {
+          AlertTarget: {
+            enabled: e.context !== "disable"
+          }
+        },
+        id: this.get('selectedAlertNotification.id')
+      },
+      success: 'enableOrDisableAlertNotificationSuccessCallback',
+      error: 'saveErrorCallback'
+    });
+  },
+
+  /**
+   * Success callback for <code>enableOrDisableAlertNotification</code>
+   * @method enableOrDisableAlertNotificationSuccessCallback
+   */
+  enableOrDisableAlertNotificationSuccessCallback: function () {
+    this.loadAlertNotifications();
+    var createEditPopup = this.get('createEditPopup');
+    if (createEditPopup) {
+      createEditPopup.hide();
+    }
   },
 
   /**

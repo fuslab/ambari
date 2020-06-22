@@ -21,7 +21,6 @@
   <target-stack>HDP-2.6</target-stack>
   <type>NON_ROLLING</type>
   <prerequisite-checks>
-    <check>org.apache.ambari.server.checks.KafkaPropertiesCheck</check>
     <check>org.apache.ambari.server.checks.LZOCheck</check>
     <configuration>
       <!-- Configuration properties for all pre-reqs including required pre-reqs -->
@@ -148,15 +147,7 @@
         <component>DRUID_SUPERSET</component>
       </service>
 
-      <service name="RANGER">
-        <component>RANGER_USERSYNC</component>
-        <component>RANGER_ADMIN</component>
-        <component>RANGER_TAGSYNC</component>
-      </service>
 
-      <service name="RANGER_KMS">
-        <component>RANGER_KMS_SERVER</component>
-      </service>
     </group>
 
     <group xsi:type="cluster" name="Backups" title="Perform Backups">
@@ -235,6 +226,16 @@
         <component>NFS_GATEWAY</component>
       </service>
 
+      <service name="RANGER">
+        <component>RANGER_USERSYNC</component>
+        <component>RANGER_ADMIN</component>
+        <component>RANGER_TAGSYNC</component>
+      </service>
+
+      <service name="RANGER_KMS">
+        <component>RANGER_KMS_SERVER</component>
+      </service>
+
       <service name="ZOOKEEPER">
         <component>ZOOKEEPER_SERVER</component>
       </service>
@@ -261,7 +262,7 @@
 
       <execute-stage service="RANGER" component="RANGER_ADMIN" title="Restore Ranger Database">
         <task xsi:type="manual">
-          <message>Before continuing, please restore the Ranger Admin database and Ranger Audit database on the following host(s): {{hosts.all}}.</message>
+          <message>Before continuing, please restore the Ranger Admin database on the following host(s): {{hosts.all}}.</message>
         </task>
       </execute-stage>
 
@@ -306,8 +307,20 @@
         <task xsi:type="configure" id="hdfs_namenode_prevent_gc_heuristics"/>
       </execute-stage>
 
+      <execute-stage service="HDFS" component="NAMENODE" title="Remove temporary HDFS HA properties">
+        <task xsi:type="configure" id="hdfs_remove_initial_ha_properties"/>
+      </execute-stage>
+
+      <execute-stage service="HDFS" component="NAMENODE" title="Enable USER variable for hadoop-env">
+        <task xsi:type="configure" id="hdfs_fix_user_variable"/>
+      </execute-stage>
+
       <execute-stage service="HDFS" component="HDFS_CLIENT" title="Set User-Agent">
         <task xsi:type="configure" id="hdfs_user_agent" />
+      </execute-stage>
+
+      <execute-stage service="HDFS" component="HDFS_CLIENT" title="Set properties for GCS">
+        <task xsi:type="configure" id="gcs_properties" />
       </execute-stage>
 
       <!-- HIVE -->
@@ -346,12 +359,12 @@
         <task xsi:type="configure" id="hdp_2_6_maint_ranger_storm_plugin_cluster_name"/>
       </execute-stage>
 
-      <execute-stage service="STORM" component="NIMBUS" title="Apply config changes for Storm AutoCreds">
-        <task xsi:type="configure" id="storm_nimbus_autocred_config"/>
-      </execute-stage>
-
       <execute-stage service="STORM" component="NIMBUS" title="Removing jmxetric from childopts">
         <task xsi:type="configure" id="storm_remove_jmxetric" supports-patch="true"/>
+      </execute-stage>
+
+      <execute-stage service="STORM" component="NIMBUS" title="Updating UI filter package">
+        <task xsi:type="configure" id="storm_update_ui_filter_package" supports-patch="true"/>
       </execute-stage>
 
       <!-- YARN -->
@@ -424,10 +437,6 @@
         <task xsi:type="configure" id="hdp_2_6_0_0_spark2_thriftserver"/>
       </execute-stage>
 
-      <execute-stage service="SPARK2" component="LIVY2_SERVER" title="Set config changes for livy2 server">
-        <task xsi:type="configure" id="hdp_2_6_6_0_set_server_access_control"/>
-      </execute-stage>
-
       <!-- RANGER -->
       <execute-stage service="RANGER" component="RANGER_USERSYNC" title="Enabling Nested Group Sync for Ranger">
         <task xsi:type="server_action" class="org.apache.ambari.server.serveraction.upgrades.RangerUsersyncConfigCalculation">
@@ -455,23 +464,6 @@
       <condition xsi:type="security" type="kerberos"/>
       <execute-stage title="Update the user-specified Kerberos descriptor">
         <task xsi:type="server_action" class="org.apache.ambari.server.serveraction.upgrades.UpgradeUserKerberosDescriptor"/>
-      </execute-stage>
-    </group>
-
-    <!--
-    Invoke "hdp-select set all" to change any components we may have missed
-    that are installed on the hosts but not known by Ambari.
-    -->
-    <group xsi:type="cluster" name="ALL_HOST_OPS" title="Set Version On All Hosts">
-      <scope>COMPLETE</scope>
-      <skippable>true</skippable>
-      <supports-auto-skip-failure>false</supports-auto-skip-failure>
-
-      <execute-stage title="Update stack to {{version}}">
-        <task xsi:type="execute">
-          <script>scripts/ru_set_all.py</script>
-          <function>actionexecute</function>
-        </task>
       </execute-stage>
     </group>
 
@@ -986,7 +978,7 @@
     <service name="HDFS">
       <component name="NAMENODE">
         <upgrade>
-          <task xsi:type="restart-task"/>
+          <task xsi:type="restart-task" timeout-config="upgrade.parameter.nn-restart.timeout"/>
         </upgrade>
       </component>
 

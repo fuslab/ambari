@@ -28,8 +28,9 @@ module.exports = function(config) {
       'karma-sinon',
       'karma-phantomjs-launcher',
       'karma-coverage',
-      'karma-ember-precompile-brunch',
-      'karma-commonjs-require'
+      'karma-ember-precompiler-brunch',
+      'karma-commonjs-require',
+      'karma-babel-preprocessor'
     ],
 
     // frameworks to use
@@ -47,7 +48,7 @@ module.exports = function(config) {
 
       'node_modules/karma-commonjs-require/node_modules/commonjs-require-definition/require.js',
       'vendor/scripts/console-helper.js',
-      'vendor/scripts/jquery-1.7.2.min.js',
+      'vendor/scripts/jquery-1.9.1.js',
       'vendor/scripts/handlebars-1.0.0.beta.6.js',
       'vendor/scripts/ember-latest.js',
       'vendor/scripts/ember-data-latest.js',
@@ -80,7 +81,7 @@ module.exports = function(config) {
       'vendor/scripts/jquery.flexibleArea.js',
       'vendor/scripts/FileSaver.js',
       'vendor/scripts/Blob.js',
-      'vendor/scripts/moment.js',
+      'vendor/scripts/moment.min.js',
       'vendor/scripts/moment-timezone-with-data-2010-2020.js',
       'vendor/**/*.js',
       'app/templates/**/*.hbs',
@@ -96,8 +97,8 @@ module.exports = function(config) {
       'app/assets/test/tests.js'
     ],
 
-    emberPrecompileBrunchPreprocessor: {
-      jqueryPath: 'vendor/scripts/jquery-1.7.2.min.js',
+    emberPrecompilerBrunchPreprocessor: {
+      jqueryPath: 'vendor/scripts/jquery-1.9.1.js',
       emberPath: 'vendor/scripts/ember-latest.js',
       handlebarsPath: 'vendor/scripts/handlebars-1.0.0.beta.6.js'
     },
@@ -114,8 +115,20 @@ module.exports = function(config) {
     preprocessors: {
       '!(vendor|node_modules|test)/**/!(karma_setup|tests).js': 'coverage',
       'app/templates/**/*.hbs': ['ember-precompiler-brunch', 'common-require'],
-      'app!(assets)/**/!(karma_setup|tests).js': ['common-require'],
+      'app!(assets)/**/!(karma_setup|tests).js': ['common-require', 'babel'],
       'test/**/*.js': ['common-require']
+    },
+
+    babelPreprocessor: {
+      options: {
+        presets: ['es2015']
+      },
+      filename: function (file) {
+        return file.originalPath.replace(/\.js$/, '.js');
+      },
+      sourceFileName: function (file) {
+        return file.originalPath;
+      }
     },
 
     // list of files to exclude

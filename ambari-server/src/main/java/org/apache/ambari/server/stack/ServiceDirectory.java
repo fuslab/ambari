@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.ambari.server.AmbariException;
+import org.apache.ambari.server.api.services.AmbariMetaInfo;
 import org.apache.ambari.server.state.ServiceInfo;
 import org.apache.ambari.server.state.stack.ServiceMetainfoXml;
 import org.apache.ambari.server.state.stack.StackRoleCommandOrder;
@@ -39,7 +40,7 @@ public abstract class ServiceDirectory extends StackDefinitionDirectory {
   /**
    * metrics file
    */
-  private Map<String, File> metricsFileMap = new HashMap<String, File>();
+  private Map<String, File> metricsFileMap = new HashMap<>();
 
   /**
    * advisor file
@@ -74,7 +75,7 @@ public abstract class ServiceDirectory extends StackDefinitionDirectory {
   /**
    * widgets descriptor file
    */
-  private Map<String, File> widgetsDescriptorFileMap = new HashMap<String, File>();
+  private Map<String, File> widgetsDescriptorFileMap = new HashMap<>();
 
   /**
    * package directory path
@@ -109,12 +110,12 @@ public abstract class ServiceDirectory extends StackDefinitionDirectory {
   /**
    * package directory name
    */
-  protected static final String PACKAGE_FOLDER_NAME = "package";
+  public static final String PACKAGE_FOLDER_NAME = "package";
 
   /**
    * upgrades directory name
    */
-  protected static final String UPGRADES_FOLDER_NAME = "upgrades";
+  public static final String UPGRADES_FOLDER_NAME = "upgrades";
 
   /**
    * checks directory name
@@ -278,7 +279,7 @@ public abstract class ServiceDirectory extends StackDefinitionDirectory {
     File af = new File(directory, StackDirectory.SERVICE_ALERT_FILE_NAME);
     alertsFile = af.exists() ? af : null;
 
-    File kdf = new File(directory, StackDirectory.KERBEROS_DESCRIPTOR_FILE_NAME);
+    File kdf = new File(directory, AmbariMetaInfo.KERBEROS_DESCRIPTOR_FILE_NAME);
     kerberosDescriptorFile = kdf.exists() ? kdf : null;
 
     File rco = new File(directory, StackDirectory.RCO_FILE_NAME);
@@ -446,7 +447,7 @@ public abstract class ServiceDirectory extends StackDefinitionDirectory {
       roleCommandOrder = new StackRoleCommandOrder(result);
 
       if (LOG.isDebugEnabled() && rcoFile != null) {
-        LOG.debug("Role Command Order for " + rcoFile.getAbsolutePath());
+        LOG.debug("Role Command Order for {}", rcoFile.getAbsolutePath());
         roleCommandOrder.printRoleCommandOrder(LOG);
       }
     } catch (IOException e) {

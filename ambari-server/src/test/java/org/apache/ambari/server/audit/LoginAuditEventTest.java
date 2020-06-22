@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,9 @@
 package org.apache.ambari.server.audit;
 
 
+import static org.hamcrest.core.IsEqual.equalTo;
+import static org.junit.Assert.assertThat;
+
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -28,9 +31,6 @@ import org.apache.ambari.server.audit.event.LoginAuditEvent;
 import org.junit.Test;
 
 import nl.jqno.equalsverifier.EqualsVerifier;
-
-import static org.hamcrest.core.IsEqual.equalTo;
-import static org.junit.Assert.assertThat;
 
 public class LoginAuditEventTest {
 
@@ -55,7 +55,7 @@ public class LoginAuditEventTest {
     // When
     String actualAuditMessage = evnt.getAuditMessage();
 
-    String roleMessage = System.lineSeparator() + "    a: r1, r2, r3" + System.lineSeparator();
+    String roleMessage =  "a: r1, r2, r3";
 
     // Then
     String expectedAuditMessage = String.format("User(%s), RemoteIp(%s), Operation(User login), Roles(%s), Status(Success)",
@@ -74,13 +74,14 @@ public class LoginAuditEventTest {
     // When
     actualAuditMessage = evnt.getAuditMessage();
 
-    roleMessage = System.lineSeparator() + "    a: r1, r2, r3" + System.lineSeparator();
+    roleMessage = "a: r1, r2, r3";
 
     // Then
     expectedAuditMessage = String.format("User(%s), RemoteIp(%s), ProxyUser(%s), Operation(User login), Roles(%s), Status(Success)",
       testUserName, testRemoteIp, testProxyUserName, roleMessage);
 
     assertThat(actualAuditMessage, equalTo(expectedAuditMessage));
+
   }
 
   @Test
@@ -90,6 +91,7 @@ public class LoginAuditEventTest {
     String testRemoteIp = "127.0.0.1";
     String testProxyUserName = "PROXYUSER1";
     String reason = "Bad credentials";
+    Integer consecutiveFailures = 1;
 
     Map<String, List<String>> roles = new HashMap<>();
     roles.put("a", Arrays.asList("r1", "r2", "r3"));
@@ -98,39 +100,96 @@ public class LoginAuditEventTest {
       .withTimestamp(System.currentTimeMillis())
       .withRemoteIp(testRemoteIp)
       .withUserName(testUserName)
-      .withRoles(roles)
       .withProxyUserName(null)
+      .withRoles(roles)
       .withReasonOfFailure(reason)
+      .withConsecutiveFailures(consecutiveFailures)
       .build();
 
     // When
     String actualAuditMessage = evnt.getAuditMessage();
 
-    String roleMessage = System.lineSeparator() + "    a: r1, r2, r3" + System.lineSeparator();
+    String roleMessage =  "a: r1, r2, r3" ;
 
     // Then
-    String expectedAuditMessage = String.format("User(%s), RemoteIp(%s), Operation(User login), Roles(%s), Status(Failed), Reason(%s)",
+    String expectedAuditMessage = String.format("User(%s), RemoteIp(%s), Operation(User login), Roles(%s), Status(Failed), Reason(%s), Consecutive failures(%d)",
+      testUserName, testRemoteIp, roleMessage, reason, consecutiveFailures);
+
+    assertThat(actualAuditMessage, equalTo(expectedAuditMessage));
+
+    evnt = LoginAuditEvent.builder()
+        .withTimestamp(System.currentTimeMillis())
+        .withRemoteIp(testRemoteIp)
+        .withUserName(testUserName)
+        .withProxyUserName(testProxyUserName)
+        .withRoles(roles)
+        .withReasonOfFailure(reason)
+        .withConsecutiveFailures(consecutiveFailures)
+        .build();
+
+    // When
+    actualAuditMessage = evnt.getAuditMessage();
+
+    roleMessage = "a: r1, r2, r3" ;
+
+    // Then
+    expectedAuditMessage = String.format("User(%s), RemoteIp(%s), ProxyUser(%s), Operation(User login), Roles(%s), Status(Failed), Reason(%s), Consecutive failures(%d)",
+        testUserName, testRemoteIp, testProxyUserName, roleMessage, reason, consecutiveFailures);
+
+    assertThat(actualAuditMessage, equalTo(expectedAuditMessage));
+  }
+
+  @Test
+  public void testFailedAuditMessageUnknownUser() throws Exception {
+    // Given
+    String testUserName = "USER1";
+    String testRemoteIp = "127.0.0.1";
+    String reason = "Bad credentials";
+
+    String testProxyUserName = "PROXYUSER1";
+
+    Map<String, List<String>> roles = new HashMap<>();
+    roles.put("a", Arrays.asList("r1", "r2", "r3"));
+
+    LoginAuditEvent evnt = LoginAuditEvent.builder()
+      .withTimestamp(System.currentTimeMillis())
+      .withRemoteIp(testRemoteIp)
+      .withUserName(testUserName)
+      .withProxyUserName(null)
+      .withRoles(roles)
+      .withReasonOfFailure(reason)
+      .withConsecutiveFailures(null)
+      .build();
+
+    // When
+    String actualAuditMessage = evnt.getAuditMessage();
+
+    String roleMessage = "a: r1, r2, r3" ;
+
+    // Then
+    String expectedAuditMessage = String.format("User(%s), RemoteIp(%s), Operation(User login), Roles(%s), Status(Failed), Reason(%s), Consecutive failures(UNKNOWN USER)",
       testUserName, testRemoteIp, roleMessage, reason);
 
     assertThat(actualAuditMessage, equalTo(expectedAuditMessage));
 
     evnt = LoginAuditEvent.builder()
-      .withTimestamp(System.currentTimeMillis())
-      .withRemoteIp(testRemoteIp)
-      .withUserName(testUserName)
-      .withProxyUserName(testProxyUserName)
-      .withRoles(roles)
-      .withReasonOfFailure(reason)
-      .build();
+        .withTimestamp(System.currentTimeMillis())
+        .withRemoteIp(testRemoteIp)
+        .withUserName(testUserName)
+        .withProxyUserName(testProxyUserName)
+        .withRoles(roles)
+        .withReasonOfFailure(reason)
+        .withConsecutiveFailures(null)
+        .build();
 
     // When
     actualAuditMessage = evnt.getAuditMessage();
 
-    roleMessage = System.lineSeparator() + "    a: r1, r2, r3" + System.lineSeparator();
+    roleMessage =  "a: r1, r2, r3";
 
     // Then
-    expectedAuditMessage = String.format("User(%s), RemoteIp(%s), ProxyUser(%s), Operation(User login), Roles(%s), Status(Failed), Reason(%s)",
-      testUserName, testRemoteIp, testProxyUserName, roleMessage, reason);
+    expectedAuditMessage = String.format("User(%s), RemoteIp(%s), ProxyUser(%s), Operation(User login), Roles(%s), Status(Failed), Reason(%s), Consecutive failures(UNKNOWN USER)",
+        testUserName, testRemoteIp, testProxyUserName, roleMessage, reason);
 
     assertThat(actualAuditMessage, equalTo(expectedAuditMessage));
   }

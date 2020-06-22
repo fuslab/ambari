@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,20 +17,19 @@
  */
 package org.apache.ambari.server.controller.metrics;
 
-import org.apache.ambari.server.controller.utilities.PropertyHelper;
-import org.apache.hadoop.metrics2.sink.timeline.TimelineMetric;
+import static org.apache.ambari.server.controller.utilities.PropertyHelper.AGGREGATE_FUNCTION_IDENTIFIERS;
 
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-import static org.apache.ambari.server.controller.utilities.PropertyHelper.AGGREGATE_FUNCTION_IDENTIFIERS;
+import org.apache.hadoop.metrics2.sink.timeline.TimelineMetric;
 
 public class MetricsDataTransferMethodFactory {
   private static final Set<String> PERCENTAGE_METRIC;
 
   static {
-    Set<String> percentMetrics = new HashSet<String>();
+    Set<String> percentMetrics = new HashSet<>();
     percentMetrics.add("cpu_wio");
     percentMetrics.add("cpu_idle");
     percentMetrics.add("cpu_nice");
@@ -38,10 +37,12 @@ public class MetricsDataTransferMethodFactory {
     percentMetrics.add("cpu_system");
     percentMetrics.add("cpu_user");
 
-    Set<String> metricsWithAggregateFunctionIds = new HashSet<String>();
+    Set<String> metricsWithAggregateFunctionIds = new HashSet<>();
     for (String metric : percentMetrics) {
       for (String aggregateFunctionId : AGGREGATE_FUNCTION_IDENTIFIERS) {
-        metricsWithAggregateFunctionIds.add(metric + aggregateFunctionId);
+        if (!"._sum".equals(aggregateFunctionId)) {
+          metricsWithAggregateFunctionIds.add(metric + aggregateFunctionId);
+        }
       }
     }
 

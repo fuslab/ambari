@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,10 +29,9 @@ import javax.xml.bind.annotation.XmlType;
 import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.Config;
 import org.apache.ambari.server.state.UpgradeContext;
-import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang.StringUtils;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 
 /**
  * The {@link ConfigurationCondition} class is used to represent a condition on
@@ -120,7 +119,7 @@ public final class ConfigurationCondition extends Condition {
    */
   @Override
   public String toString() {
-    return Objects.toStringHelper(this).add("type", type).add("property", property).add("value",
+    return MoreObjects.toStringHelper(this).add("type", type).add("property", property).add("value",
         value).add("comparison", comparisonType).omitNullValues().toString();
   }
 

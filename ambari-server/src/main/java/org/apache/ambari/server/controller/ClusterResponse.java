@@ -23,10 +23,13 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import org.apache.ambari.server.controller.internal.ClusterResourceProvider;
 import org.apache.ambari.server.state.ClusterHealthReport;
 import org.apache.ambari.server.state.DesiredConfig;
 import org.apache.ambari.server.state.SecurityType;
 import org.apache.ambari.server.state.State;
+
+import io.swagger.annotations.ApiModelProperty;
 
 public class ClusterResponse {
 
@@ -70,6 +73,7 @@ public class ClusterResponse {
   /**
    * @return the clusterId
    */
+  @ApiModelProperty(name = ClusterResourceProvider.CLUSTER_ID)
   public long getClusterId() {
     return clusterId;
   }
@@ -77,6 +81,7 @@ public class ClusterResponse {
   /**
    * @return the clusterName
    */
+  @ApiModelProperty(name = ClusterResourceProvider.CLUSTER_NAME)
   public String getClusterName() {
     return clusterName;
   }
@@ -87,6 +92,7 @@ public class ClusterResponse {
    *
    * @return either {@code INIT} or {@code INSTALLED}, never {@code null}.
    */
+  @ApiModelProperty(name = ClusterResourceProvider.PROVISIONING_STATE)
   public State getProvisioningState() {
     return provisioningState;
   }
@@ -98,6 +104,7 @@ public class ClusterResponse {
    *
    * @return the cluster's security type
    */
+  @ApiModelProperty(name = ClusterResourceProvider.SECURITY_TYPE)
   public SecurityType getSecurityType() {
     return securityType;
   }
@@ -149,6 +156,7 @@ public class ClusterResponse {
   /**
    * @return the desiredStackVersion
    */
+  @ApiModelProperty(name = ClusterResourceProvider.VERSION)
   public String getDesiredStackVersion() {
     return desiredStackVersion;
   }
@@ -160,6 +168,7 @@ public class ClusterResponse {
   /**
    * @return the desired configs
    */
+  @ApiModelProperty(name = ClusterResourceProvider.DESIRED_CONFIGS)
   public Map<String, DesiredConfig> getDesiredConfigs() {
     return desiredConfigs;
   }
@@ -167,6 +176,7 @@ public class ClusterResponse {
   /**
    * @return total number of hosts in the cluster
    */
+  @ApiModelProperty(name = ClusterResourceProvider.TOTAL_HOSTS)
   public int getTotalHosts() {
     return totalHosts;
   }
@@ -174,10 +184,12 @@ public class ClusterResponse {
   /**
    * @return cluster health report
    */
+  @ApiModelProperty(name = ClusterResourceProvider.HEALTH_REPORT)
   public ClusterHealthReport getClusterHealthReport() {
     return clusterHealthReport;
   }
 
+  @ApiModelProperty(name = ClusterResourceProvider.DESIRED_SERVICE_CONFIG_VERSIONS)
   public Map<String, Collection<ServiceConfigVersionResponse>> getDesiredServiceConfigVersions() {
     return desiredServiceConfigVersions;
   }
@@ -187,10 +199,17 @@ public class ClusterResponse {
   }
 
   public void setCredentialStoreServiceProperties(Map<String, String> credentialServiceProperties) {
-    credentialStoreServiceProperties = credentialServiceProperties;
+    this.credentialStoreServiceProperties = credentialServiceProperties;
   }
 
+  @ApiModelProperty(name = ClusterResourceProvider.CREDENTIAL_STORE_PROPERTIES)
   public Map<String, String> getCredentialStoreServiceProperties() {
     return credentialStoreServiceProperties;
+  }
+
+  public interface ClusterResponseWrapper extends ApiModel {
+    @ApiModelProperty(name = ClusterResourceProvider.RESPONSE_KEY)
+    @SuppressWarnings("unused")
+    ClusterResponse getClusterResponse();
   }
 }

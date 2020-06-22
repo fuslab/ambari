@@ -24,29 +24,39 @@ App.WizardStep1View = Em.View.extend({
   templateName: require('templates/wizard/step1'),
 
   didInsertElement: function () {
-    $("[rel=skip-validation-tooltip]").tooltip({ placement: 'right'});
-    $("[rel=use-redhat-tooltip]").tooltip({ placement: 'right'});
-    $('.add-os-button,.redhat-label').tooltip();
-    if (this.get('controller.selectedStack.showAvailable')) {
-      // first time load
-      if (this.get('controller.selectedStack.useRedhatSatellite')) {
-        // restore `use local repo` on page refresh
-        this.get('controller').useLocalRepo();
-      }
-    } else {
-      var selected = this.get('controller.content.stacks') && this.get('controller.content.stacks').findProperty('showAvailable');
-      if (!selected) {
-        // network disconnection
-        Em.trySet(this, 'controller.selectedStack.useLocalRepo', true);
-        Em.trySet(this, 'controller.selectedStack.usePublicRepo', false);
-      }
+    if (this.get('controller.isLoadingComplete') && this.get('state') === 'inDOM') {
+      Em.run.next(() => {
+        $("[rel=skip-validation-tooltip]").tooltip({ placement: 'right'});
+        $("[rel=use-redhat-tooltip]").tooltip({ placement: 'right'});
+        $('.add-os-button,.redhat-label').tooltip();
+        this.$().on('mouseover', '.version-contents-body .table-hover > tbody > tr', function () {
+          App.tooltip($(this).find('.action .icon'), {placement: 'bottom'});
+          App.tooltip($(this).find('.icon-undo'), {placement: 'bottom'});
+        });
+        if (this.get('controller.selectedStack.showAvailable')) {
+          // first time load
+          if (this.get('controller.selectedStack.useRedhatSatellite')) {
+            // restore `use local repo` on page refresh
+            this.get('controller').useLocalRepo();
+          }
+        } else {
+          var selected = this.get('controller.content.stacks') && this.get('controller.content.stacks').findProperty('showAvailable');
+          if (!selected) {
+            // network disconnection
+            Em.trySet(this, 'controller.selectedStack.useLocalRepo', true);
+            Em.trySet(this, 'controller.selectedStack.usePublicRepo', false);
+          }
+        }
+      });
     }
-  },
+  }.observes('controller.isLoadingComplete'),
 
   willDestroyElement: function () {
     $("[rel=skip-validation-tooltip]").tooltip('destroy');
     $("[rel=use-redhat-tooltip]").tooltip('destroy');
     $('.add-os-button,.redhat-label').tooltip('destroy');
+    $('.icon-undo').tooltip('destroy');
+    $('.action .icon').tooltip('destroy');
   },
 
   /**
@@ -63,6 +73,49 @@ App.WizardStep1View = Em.View.extend({
       secondary: false
     });
   },
+
+  removeOS() {
+    $('.action .icon').tooltip('destroy');
+    return this.get('controller').removeOS(...arguments);
+  },
+
+  editableRepoView: Em.View.extend({
+    templateName: require('templates/wizard/step1/editable_repo'),
+    classNames: ['editable-repo'],
+    /**
+     * @type {boolean}
+     */
+    isEditing: false,
+
+    /**
+     * @type {?App.Repository}
+     */
+    repository: null,
+
+    /**
+     * @type {boolean}
+     */
+    showEditIcon: Em.computed.and('controller.selectedStack.useRedhatSatellite', '!isEditing'),
+
+    /**
+     * @type {boolean}
+     */
+    showRevertIcon: function() {
+      return this.get('isEditing') && (this.get('repository.repoId') !== this.get('repository.originalRepoId'));
+    }.property('isEditing', 'repository.repoId'),
+
+    didInsertElement: function() {
+      this.set('isEditing', false);
+    }.observes('controller.selectedStack.useRedhatSatellite'),
+
+    revertToOriginal: function() {
+      this.set('repository.repoId', this.get('repository.originalRepoId'))
+    },
+
+    editRepoId: function() {
+      this.set('isEditing', true);
+    }
+  }),
 
   /**
    * Disable submit button flag
@@ -92,18 +145,15 @@ App.WizardStep1View = Em.View.extend({
   },
 
   /**
-   * Checkbox for use Public repo
+   * Radio button for use Public repo
    *
-   * @type {Ember.Checkbox}
+   * @type {App.RadioButtonView}
    */
-  usePublicRepoRadioButton: Em.Checkbox.extend({
-    tagName: 'input',
-    attributeBindings: [ 'type', 'checked' ],
-    classNames: [''],
+  usePublicRepoRadioButton: App.RadioButtonView.extend({
+    labelTranslate: 'installer.step1.selectUseRepoOptions.public',
     checked: Em.computed.alias('controller.selectedStack.usePublicRepo'),
-    type: 'radio',
 
-    click: function () {
+    change: function () {
       this.get('controller').usePublicRepo();
     }
   }),
@@ -111,16 +161,13 @@ App.WizardStep1View = Em.View.extend({
   /**
    * Checkbox for use Public repo
    *
-   * @type {Ember.Checkbox}
+   * @type {App.RadioButtonView}
    */
-  useLocalRepoRadioButton: Em.Checkbox.extend({
-    tagName: 'input',
-    attributeBindings: [ 'type', 'checked' ],
-    classNames: [''],
+  useLocalRepoRadioButton: App.RadioButtonView.extend({
+    labelTranslate: 'installer.step1.selectUseRepoOptions.local',
     checked: Em.computed.alias('controller.selectedStack.useLocalRepo'),
-    type: 'radio',
 
-    click: function () {
+    change: function () {
       this.get('controller').useLocalRepo();
     }
   }),
@@ -184,7 +231,7 @@ App.WizardStep1View = Em.View.extend({
    * Verify if some invalid repo-urls exist
    * @type {bool}
    */
-  invalidUrlExist: Em.computed.someBy('allRepositories', 'validation', App.Repository.validation.INVALID),
+  invalidUrlExist: Em.computed.someBy('allRepositories', 'validation', 'INVALID'),
 
   /**
    * If all repo links are unchecked
@@ -216,43 +263,43 @@ App.WizardStep1View = Em.View.extend({
 
   popoverView: Em.View.extend({
     tagName: 'i',
-    classNameBindings: ['repository.validation'],
-    attributeBindings: ['repository.errorTitle:title', 'repository.errorContent:data-content'],
+    classNameBindings: ['repository.validationClassName'],
+    attributeBindings: ['repository.errorTitle:data-original-title', 'repository.errorContent:data-content'],
     didInsertElement: function () {
-      App.popover($(this.get('element')), {'trigger': 'hover'});
+      App.popover($(this.get('element')), {
+        template: '<div class="popover"><div class="arrow"></div><div class="popover-inner"><h3 class="popover-title"></h3><div class="popover-content"></div></div></div>',
+        trigger: 'hover'
+      });
     }
   }),
 
   /**
-   * @type {Em.Checkbox}
+   * @type {App.CheckboxView}
    */
-  redhatCheckBoxView: Em.Checkbox.extend({
-    attributeBindings: [ 'type', 'checked' ],
+  redhatCheckBoxView: App.CheckboxView.extend({
     checkedBinding: 'controller.selectedStack.useRedhatSatellite',
-    classNames: ['checkbox'],
     disabledBinding: 'controller.selectedStack.usePublicRepo',
     click: function () {
-      // click triggered before value is toggled, so if-statement is inverted
-      if (!this.get('controller.selectedStack.useRedhatSatellite')) {
-        App.ModalPopup.show({
-          header: Em.I18n.t('common.important'),
-          secondary: false,
-          bodyClass: Ember.View.extend({
-            template: Ember.Handlebars.compile(Em.I18n.t('installer.step1.advancedRepo.useRedhatSatellite.warning'))
-          })
-        });
+      if (!this.get('disabled')) {
+        if (this.get('controller.selectedStack.useRedhatSatellite')) {
+          this.toggleProperty('controller.selectedStack.useRedhatSatellite');
+        } else {
+          App.showConfirmationPopup(
+            () => this.toggleProperty('controller.selectedStack.useRedhatSatellite'),
+            Em.I18n.t('installer.step1.advancedRepo.useRedhatSatellite.warning'),
+            Em.K,
+            Em.I18n.t('installer.step1.advancedRepo.useRedhatSatellite.message')
+          );
+        }
       }
+      return false;
     }
   }),
 
   repositoryTextField: Ember.TextField.extend({
     repository: null,
     placeholderBinding: "repository.placeholder",
-    valueBinding: "repository.baseUrl",
-    disabled: function() {
-      var isRedhat = this.get('parentView').isRedhat(this.get('repository'));
-      return this.get('controller.selectedStack.useRedhatSatellite') && !isRedhat;
-    }.property('controller.selectedStack.useRedhatSatellite')
+    valueBinding: "repository.baseUrl"
   }),
 
   /**
@@ -270,7 +317,7 @@ App.WizardStep1View = Em.View.extend({
       if (repository.get('lastBaseUrl') !== repository.get('baseUrl')) {
         repository.setProperties({
           lastBaseUrl: repository.get('baseUrl'),
-          validation: App.Repository.validation.PENDING
+          validation: 'PENDING'
         });
       }
     }, this);

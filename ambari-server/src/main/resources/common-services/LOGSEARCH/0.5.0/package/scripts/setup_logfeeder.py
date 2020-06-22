@@ -21,6 +21,7 @@ from resource_management.libraries.functions.default import default
 from resource_management.core.resources.system import Directory, File
 from resource_management.libraries.functions.format import format
 from resource_management.core.source import InlineTemplate, Template
+from resource_management.libraries.functions.generate_logfeeder_input_config import generate_logfeeder_input_config
 from resource_management.libraries.resources.properties_file import PropertiesFile
 from resource_management.libraries.functions.security_commons import update_credential_provider_path, HADOOP_CREDENTIAL_PROVIDER_PROPERTY_NAME
 
@@ -40,7 +41,7 @@ def setup_logfeeder():
             recursive_ownership=True
             )
 
-  File(params.logfeeder_log,
+  File(format("{logfeeder_log_dir}/{logfeeder_log}"),
        mode=0644,
        content=''
        )
@@ -99,6 +100,10 @@ def setup_logfeeder():
        encoding="utf-8"
        )
 
+  File(format("{logsearch_logfeeder_conf}/global.config.json"),
+       content=Template("global.config.json.j2")
+       )
+
   File(format("{logsearch_logfeeder_conf}/input.config-ambari.json"),
        content=InlineTemplate(params.logfeeder_ambari_config_content),
        encoding="utf-8"
@@ -108,17 +113,11 @@ def setup_logfeeder():
        content=InlineTemplate(params.logfeeder_output_config_content),
        encoding="utf-8"
        )
-
-  for file_name in params.logfeeder_default_config_file_names:
-    File(format("{logsearch_logfeeder_conf}/" + file_name),
-         content=Template(file_name + ".j2")
+  if params.logfeeder_kafka_output_enabled:
+    File(format("{logsearch_logfeeder_conf}/kafka-output.json"),
+         content=InlineTemplate(params.logfeeder_kafka_output_config_content),
+         encoding="utf-8"
          )
-
-  File(format("{logsearch_logfeeder_conf}/input.config-logfeeder-custom.json"), action='delete')
-  for service, pattern_content in params.logfeeder_metadata.iteritems():
-    File(format("{logsearch_logfeeder_conf}/input.config-" + service.replace('-logsearch-conf', '') + ".json"),
-      content=InlineTemplate(pattern_content, extra_imports=[default])
-    )
 
   if params.logfeeder_system_log_enabled:
     File(format("{logsearch_logfeeder_conf}/input.config-system_messages.json"),
@@ -128,6 +127,7 @@ def setup_logfeeder():
          content=params.logfeeder_secure_log_content
          )
 
+  generate_logfeeder_input_config('logsearch', Template("input.config-logsearch.json.j2", extra_imports=[default]))
 
   if params.logsearch_solr_kerberos_enabled:
     File(format("{logfeeder_jaas_file}"),

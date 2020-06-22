@@ -215,11 +215,11 @@ class TestMpacks(TestCase):
     os_path_exists_mock.assert_has_calls(os_path_exists_calls)
 
   @patch("os.path.exists")
-  @patch("ambari_server.setupMpacks.extract_archive")
+  @patch("ambari_server.setupMpacks.untar_archive")
   @patch("ambari_server.setupMpacks.get_archive_root_dir")
   @patch("ambari_server.setupMpacks.download_mpack")
   @patch("ambari_server.setupMpacks.get_ambari_properties")
-  def test_install_mpack_with_malformed_mpack(self, get_ambari_properties_mock, download_mpack_mock, get_archive_root_dir_mock, extract_archive_mock, os_path_exists_mock):
+  def test_install_mpack_with_malformed_mpack(self, get_ambari_properties_mock, download_mpack_mock, get_archive_root_dir_mock, untar_archive_mock, os_path_exists_mock):
     options = self._create_empty_options_mock()
     options.mpack_path = "/path/to/mpack.tar.gz"
     download_mpack_mock.return_value = "/tmp/mpack.tar.gz"
@@ -237,7 +237,7 @@ class TestMpacks(TestCase):
 
     get_archive_root_dir_mock.return_value = "mpack"
     os_path_exists_mock.side_effect = [True, True, False, False]
-    extract_archive_mock.return_value = None
+    untar_archive_mock.return_value = None
     fail = False
     try:
       install_mpack(options)
@@ -248,7 +248,7 @@ class TestMpacks(TestCase):
 
     get_archive_root_dir_mock.return_value = "mpack"
     os_path_exists_mock.side_effect = [True, True, False, True, False]
-    extract_archive_mock.return_value = None
+    untar_archive_mock.return_value = None
     fail = False
     try:
       install_mpack(options)
@@ -429,7 +429,7 @@ class TestMpacks(TestCase):
     download_mpack_mock.return_value = "/tmp/myextension.tar.gz"
     expand_mpack_mock.return_value = "mpacks/myextension-ambari-mpack-1.0.0.0"
     get_ambari_version_mock.return_value = "2.4.0.0"
-
+    
     os_path_exists_mock.side_effect = [True, True, True, True, False, True, False, False, False,
                                        False, True, True, False, False, False]
     get_ambari_properties_mock.return_value = configs
@@ -770,7 +770,7 @@ class TestMpacks(TestCase):
     run_os_command_mock.assert_has_calls(run_os_command_calls)
     os_mkdir_mock.assert_has_calls(os_mkdir_calls)
     create_symlink_mock.assert_has_calls(create_symlink_calls)
-    self.assertEqual(18, create_symlink_mock.call_count)
+    self.assertEqual(18, create_symlink_mock.call_count) 
     create_symlink_using_path_mock.assert_has_calls(create_symlink_using_path_calls)
     self.assertEqual(1, create_symlink_using_path_mock.call_count)
     _uninstall_mpack_mock.assert_has_calls([call("mystack-ambari-mpack", "1.0.0.0")])

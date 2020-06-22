@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,11 @@
 
 package org.apache.ambari.server.api.resources;
 
-import org.apache.ambari.server.controller.spi.Resource;
-
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
+
+import org.apache.ambari.server.controller.spi.Resource;
 
 /**
  * Simple concrete resource definition.

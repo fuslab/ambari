@@ -1,6 +1,13 @@
 package org.apache.ambari.server.controller.internal;
 
-import com.google.inject.assistedinject.Assisted;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import javax.inject.Inject;
+
 import org.apache.ambari.server.controller.AmbariManagementController;
 import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
 import org.apache.ambari.server.controller.spi.NoSuchResourceException;
@@ -19,12 +26,9 @@ import org.apache.ambari.server.topology.KerberosDescriptorFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.inject.Inject;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
+import com.google.inject.assistedinject.Assisted;
 
 /**
  * Licensed to the Apache Software Foundation (ASF) under one
@@ -53,6 +57,20 @@ public class KerberosDescriptorResourceProvider extends AbstractControllerResour
   private static final String KERBEROS_DESCRIPTOR_TEXT_PROPERTY_ID =
       PropertyHelper.getPropertyId("KerberosDescriptors", "kerberos_descriptor_text");
 
+  /**
+   * The key property ids for a KerberosDescriptor resource.
+   */
+  private static Map<Resource.Type, String> keyPropertyIds = ImmutableMap.<Resource.Type, String>builder()
+      .put(Resource.Type.KerberosDescriptor, KERBEROS_DESCRIPTOR_NAME_PROPERTY_ID)
+      .build();
+
+  /**
+   * The property ids for a KerberosDescriptor resource.
+   */
+  private static Set<String> propertyIds = Sets.newHashSet(
+      KERBEROS_DESCRIPTOR_NAME_PROPERTY_ID,
+      KERBEROS_DESCRIPTOR_TEXT_PROPERTY_ID);
+
   private KerberosDescriptorDAO kerberosDescriptorDAO;
 
   private KerberosDescriptorFactory kerberosDescriptorFactory;
@@ -61,10 +79,8 @@ public class KerberosDescriptorResourceProvider extends AbstractControllerResour
   @Inject
   KerberosDescriptorResourceProvider(KerberosDescriptorDAO kerberosDescriptorDAO,
                                      KerberosDescriptorFactory kerberosDescriptorFactory,
-                                     @Assisted Set<String> propertyIds,
-                                     @Assisted Map<Resource.Type, String> keyPropertyIds,
                                      @Assisted AmbariManagementController managementController) {
-    super(propertyIds, keyPropertyIds, managementController);
+    super(Resource.Type.KerberosDescriptor, propertyIds, keyPropertyIds, managementController);
     this.kerberosDescriptorDAO = kerberosDescriptorDAO;
     this.kerberosDescriptorFactory = kerberosDescriptorFactory;
   }
@@ -104,7 +120,7 @@ public class KerberosDescriptorResourceProvider extends AbstractControllerResour
 
         if (name != null) {
           KerberosDescriptorEntity entity = kerberosDescriptorDAO.findByName(name);
-          results = entity == null ? Collections.<KerberosDescriptorEntity>emptyList() :
+          results = entity == null ? Collections.emptyList() :
               Collections.singletonList(entity);
         }
       }
@@ -115,7 +131,7 @@ public class KerberosDescriptorResourceProvider extends AbstractControllerResour
       results = kerberosDescriptorDAO.findAll();
     }
 
-    Set<Resource> resources = new HashSet<Resource>();
+    Set<Resource> resources = new HashSet<>();
     Set<String> requestPropertyIds = getRequestPropertyIds(request, predicate);
     for (KerberosDescriptorEntity entity : results) {
       Resource resource = new ResourceImpl(Resource.Type.KerberosDescriptor);

@@ -18,6 +18,9 @@
 
 package org.apache.ambari.server.state.kerberos;
 
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -69,7 +72,7 @@ public abstract class AbstractKerberosDescriptor {
    * @return a Map of date representing this AbstractKerberosDescriptor implementation
    */
   public Map<String, Object> toMap() {
-    TreeMap<String, Object> dataMap = new TreeMap<String, Object>();
+    TreeMap<String, Object> dataMap = new TreeMap<>();
     String name = getName();
 
     if (name != null) {
@@ -217,6 +220,18 @@ public abstract class AbstractKerberosDescriptor {
     return root;
   }
 
+  public static <T> Collection<T> nullToEmpty(Collection<T> collection) {
+    return collection == null ? Collections.emptyList() : collection;
+  }
+
+  public static <T> List<T> nullToEmpty(List<T> list) {
+    return list == null ? Collections.emptyList() : list;
+  }
+
+  public static <K, V> Map<K, V> nullToEmpty(Map<K, V> collection) {
+    return collection == null ? Collections.emptyMap() : collection;
+  }
+
   @Override
   public int hashCode() {
     return 37 *
@@ -244,6 +259,31 @@ public abstract class AbstractKerberosDescriptor {
   }
 
   /**
+   * Calculate the path to this identity descriptor for logging purposes.
+   * Examples:
+   * <ul>
+   * <li>/</li>
+   * <li>/SERVICE</li>
+   * <li>/SERVICE/COMPONENT</li>
+   * <li>/SERVICE/COMPONENT/identity_name</li>
+   * </ul>
+   *
+   * @return a path
+   */
+  public String getPath() {
+    //
+    StringBuilder path = new StringBuilder();
+    AbstractKerberosDescriptor current = this;
+    while (current != null && (current.getName() != null)) {
+      path.insert(0, current.getName());
+      path.insert(0, '/');
+      current = current.getParent();
+    }
+
+    return path.toString();
+  }
+
+  /**
    * An enumeration of the different Kerberos (sub)descriptors for internal use.
    */
   public enum Type {
@@ -258,7 +298,7 @@ public abstract class AbstractKerberosDescriptor {
     private final String descriptorName;
     private final String descriptorPluralName;
 
-    private Type(String descriptorName, String descriptorPluralName) {
+    Type(String descriptorName, String descriptorPluralName) {
       this.descriptorName = descriptorName;
       this.descriptorPluralName = descriptorPluralName;
     }

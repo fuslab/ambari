@@ -126,11 +126,38 @@ App.MainAdminStackVersionsView = Em.View.extend({
    * @type {Em.Array}
    */
   repoVersions: App.RepositoryVersion.find(),
-  
+
+  hasMaintRepoVersion: Em.computed.someBy('repoVersions', 'isMaint', true),
+
+  hasPatchRepoVersion: Em.computed.someBy('repoVersions', 'isPatch', true),
+
+  hasServiceRepoVersion: Em.computed.someBy('repoVersions', 'isService', true),
+
+  hasSpecialTypeRepoVersion: Em.computed.or('hasMaintRepoVersion', 'hasPatchRepoVersion', 'hasServiceRepoVersion'),
+
   /**
    * @type {Em.Array}
    */
   stackVersions: App.StackVersion.find(),
+  
+  /**
+   * @type {?Em.Object}
+   */
+  stackVersionError: function() {
+    const errorStack = this.get('repoVersions')
+    .filterProperty('isVisible')
+    .filterProperty('status', 'OUT_OF_SYNC')
+    .findProperty('isStandard');
+    if (errorStack) {
+      return Em.Object.create({
+        repoId: errorStack.get('id'),
+        title: Em.I18n.t('admin.stackVersions.version.errors.outOfSync.title'),
+        description: Em.I18n.t('admin.stackVersions.version.errors.outOfSync.desc'),
+        stack: errorStack.get('displayNameFull')
+      })
+    }
+    return null;
+  }.property('repoVersions.@each.status'),
 
   /**
    * filter versions by category
@@ -143,7 +170,7 @@ App.MainAdminStackVersionsView = Em.View.extend({
     if (filter && filter.get('value')) {
       versions = versions.filter(function (version) {
         var status = version.get('status');
-        var isUpgrading = App.router.get('mainAdminStackAndUpgradeController.upgradeVersion') === version.get('displayName');
+        var isUpgrading = this.isVersionUpgrading(version);
         if (status === 'INSTALLED' && ['UPGRADE_READY', 'INSTALLED', 'UPGRADING'].contains(filter.get('value'))) {
           if (filter.get('value') === 'UPGRADING') {
             return isUpgrading;
@@ -174,14 +201,25 @@ App.MainAdminStackVersionsView = Em.View.extend({
   },
 
   /**
+   * is version in upgrading or downgrading state
+   * @param version
+   */
+  isVersionUpgrading: function(version) {
+    var upgradeController = App.router.get('mainAdminStackAndUpgradeController');
+    return upgradeController.get('upgradeVersion') === version.get('displayName') ||
+           upgradeController.get('fromVersion') === version.get('repositoryVersion');
+  },
+
+  /**
    * route to versions in Admin View
    * @return {App.ModalPopup}
    */
   goToVersions: function () {
+    var self = this;
     return App.showConfirmationPopup(function () {
       App.ajax.send({
         name: 'ambari.service.load_server_version',
-        sender: this
+        sender: self
       }).then(function(data) {
         var components = Em.get(data,'components');
         if (Em.isArray(components)) {
@@ -191,7 +229,7 @@ App.MainAdminStackVersionsView = Em.View.extend({
               }
             }),
             sortedMappedVersions = mappedVersions.sort(),
-            latestVersion = sortedMappedVersions[sortedMappedVersions.length-1];
+            latestVersion = sortedMappedVersions[sortedMappedVersions.length-1].replace(/[^\d.-]/g, '');
             window.location.replace(App.appURLRoot + 'views/ADMIN_VIEW/' + latestVersion + '/INSTANCE/#/stackVersions');
         }
       });

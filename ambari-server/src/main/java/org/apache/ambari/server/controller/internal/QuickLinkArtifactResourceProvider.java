@@ -18,6 +18,14 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.controller.AmbariManagementController;
 import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
@@ -36,16 +44,12 @@ import org.apache.ambari.server.state.StackInfo;
 import org.apache.ambari.server.state.quicklinks.Link;
 import org.apache.ambari.server.state.quicklinks.QuickLinks;
 import org.apache.ambari.server.state.quicklinksprofile.QuickLinkVisibilityController;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class QuickLinkArtifactResourceProvider extends AbstractControllerResourceProvider {
+
+  private static final Logger LOG = LoggerFactory.getLogger(QuickLinkArtifactResourceProvider.class);
 
   public static final String STACK_NAME_PROPERTY_ID = PropertyHelper.getPropertyId("QuickLinkInfo", "stack_name");
   public static final String STACK_VERSION_PROPERTY_ID = PropertyHelper.getPropertyId("QuickLinkInfo", "stack_version");
@@ -57,17 +61,17 @@ public class QuickLinkArtifactResourceProvider extends AbstractControllerResourc
   /**
    * primary key fields
    */
-  public static Set<String> pkPropertyIds = new HashSet<String>();
+  public static Set<String> pkPropertyIds = new HashSet<>();
   /**
    * map of resource type to fk field
    */
   public static Map<Resource.Type, String> keyPropertyIds =
-    new HashMap<Resource.Type, String>();
+    new HashMap<>();
 
   /**
    * resource properties
    */
-  public static Set<String> propertyIds = new HashSet<String>();
+  public static Set<String> propertyIds = new HashSet<>();
 
   static {
     keyPropertyIds.put(Resource.Type.QuickLink, QUICKLINK_FILE_NAME_PROPERTY_ID);
@@ -92,7 +96,7 @@ public class QuickLinkArtifactResourceProvider extends AbstractControllerResourc
    * @param managementController the management controller
    */
   protected QuickLinkArtifactResourceProvider(AmbariManagementController managementController) {
-    super(propertyIds, keyPropertyIds, managementController);
+    super(Resource.Type.QuickLink, propertyIds, keyPropertyIds, managementController);
   }
 
   @Override
@@ -105,7 +109,7 @@ public class QuickLinkArtifactResourceProvider extends AbstractControllerResourc
   public Set<Resource> getResources(Request request, Predicate predicate) throws SystemException, UnsupportedPropertyException, NoSuchResourceException,
       NoSuchParentResourceException {
 
-    Set<Resource> resources = new LinkedHashSet<Resource>();
+    Set<Resource> resources = new LinkedHashSet<>();
 
     resources.addAll(getQuickLinks(request, predicate));
     // add other artifacts types here
@@ -133,7 +137,7 @@ public class QuickLinkArtifactResourceProvider extends AbstractControllerResourc
   private Set<Resource> getQuickLinks(Request request, Predicate predicate) throws NoSuchParentResourceException,
     NoSuchResourceException, UnsupportedPropertyException, SystemException {
 
-    Set<Resource> resources = new LinkedHashSet<Resource>();
+    Set<Resource> resources = new LinkedHashSet<>();
     for (Map<String, Object> properties : getPropertyMaps(predicate)) {
       String quickLinksFileName = (String) properties.get(QUICKLINK_FILE_NAME_PROPERTY_ID);
       String stackName = (String) properties.get(STACK_NAME_PROPERTY_ID);
@@ -148,7 +152,7 @@ public class QuickLinkArtifactResourceProvider extends AbstractControllerResourc
           "Parent stack resource doesn't exist: stackName='%s', stackVersion='%s'", stackName, stackVersion));
       }
 
-      List<ServiceInfo> serviceInfoList = new ArrayList<ServiceInfo>();
+      List<ServiceInfo> serviceInfoList = new ArrayList<>();
 
       if (stackService == null) {
         serviceInfoList.addAll(stackInfo.getServices());
@@ -163,7 +167,7 @@ public class QuickLinkArtifactResourceProvider extends AbstractControllerResourc
       }
 
       for (ServiceInfo serviceInfo : serviceInfoList) {
-        List<QuickLinksConfigurationInfo> serviceQuickLinks = new ArrayList<QuickLinksConfigurationInfo>();
+        List<QuickLinksConfigurationInfo> serviceQuickLinks = new ArrayList<>();
         if (quickLinksFileName != null) {
           LOG.debug("Getting quick links from service {}, quick links = {}", serviceInfo.getName(), serviceInfo.getQuickLinksConfigurationsMap());
           serviceQuickLinks.add(serviceInfo.getQuickLinksConfigurationsMap().get(quickLinksFileName));
@@ -177,9 +181,9 @@ public class QuickLinkArtifactResourceProvider extends AbstractControllerResourc
           }
         }
 
-        setVisibility(serviceInfo.getName(), serviceQuickLinks);
+        setVisibilityAndOverrides(serviceInfo.getName(), serviceQuickLinks);
 
-        List<Resource> serviceResources = new ArrayList<Resource>();
+        List<Resource> serviceResources = new ArrayList<>();
         for (QuickLinksConfigurationInfo quickLinksConfigurationInfo : serviceQuickLinks) {
           Resource resource = new ResourceImpl(Resource.Type.QuickLink);
           Set<String> requestedIds = getRequestPropertyIds(request, predicate);
@@ -204,13 +208,14 @@ public class QuickLinkArtifactResourceProvider extends AbstractControllerResourc
    * @param serviceName the name of the service
    * @param serviceQuickLinks the links
    */
-  private void setVisibility(String serviceName, List<QuickLinksConfigurationInfo> serviceQuickLinks) {
+  private void setVisibilityAndOverrides(String serviceName, List<QuickLinksConfigurationInfo> serviceQuickLinks) {
     QuickLinkVisibilityController visibilityController = getManagementController().getQuicklinkVisibilityController();
 
     for(QuickLinksConfigurationInfo configurationInfo: serviceQuickLinks) {
       for (QuickLinks links: configurationInfo.getQuickLinksConfigurationMap().values()) {
         for(Link link: links.getQuickLinksConfiguration().getLinks()) {
           link.setVisible(visibilityController.isVisible(serviceName, link));
+          visibilityController.getUrlOverride(serviceName, link).ifPresent(link::setUrl);
         }
       }
     }

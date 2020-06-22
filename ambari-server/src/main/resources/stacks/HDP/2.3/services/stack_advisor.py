@@ -25,8 +25,12 @@ import math
 import socket
 
 # Local Imports
-from resource_management.core.logger import Logger
 
+try:
+  from stack_advisor_hdp22 import *
+except ImportError:
+  #Ignore ImportError
+  print("stack_advisor_hdp22 not found")
 
 DB_TYPE_DEFAULT_PORT_MAP = {"MYSQL":"3306", "ORACLE":"1521", "POSTGRES":"5432", "MSSQL":"1433", "SQLA":"2638"}
 
@@ -34,32 +38,7 @@ class HDP23StackAdvisor(HDP22StackAdvisor):
 
   def __init__(self):
     super(HDP23StackAdvisor, self).__init__()
-    Logger.initialize_logger()
-
-  def getComponentLayoutValidations(self, services, hosts):
-    parentItems = super(HDP23StackAdvisor, self).getComponentLayoutValidations(services, hosts)
-
-    servicesList = [service["StackServices"]["service_name"] for service in services["services"]]
-    componentsListList = [service["components"] for service in services["services"]]
-    componentsList = [item["StackServiceComponents"] for sublist in componentsListList for item in sublist]
-    childItems = []
-
-    if "SPARK" in servicesList:
-      if "SPARK_THRIFTSERVER" in servicesList:
-        if not "HIVE_SERVER" in servicesList:
-          message = "SPARK_THRIFTSERVER requires HIVE services to be selected."
-          childItems.append( {"type": 'host-component', "level": 'ERROR', "message": message, "component-name": 'SPARK_THRIFTSERVER'} )
-
-      hmsHosts = self.__getHosts(componentsList, "HIVE_METASTORE") if "HIVE" in servicesList else []
-      sparkTsHosts = self.__getHosts(componentsList, "SPARK_THRIFTSERVER") if "SPARK" in servicesList else []
-
-      # if Spark Thrift Server is deployed but no Hive Server is deployed
-      if len(sparkTsHosts) > 0 and len(hmsHosts) == 0:
-        message = "SPARK_THRIFTSERVER requires HIVE_METASTORE to be selected/deployed."
-        childItems.append( { "type": 'host-component', "level": 'ERROR', "message": message, "component-name": 'SPARK_THRIFTSERVER' } )
-
-    parentItems.extend(childItems)
-    return parentItems
+    self.initialize_logger("HDP23StackAdvisor")
 
   def __getHosts(self, componentsList, componentName):
     host_lists = [component["hostnames"] for component in componentsList if
@@ -337,10 +316,6 @@ class HDP23StackAdvisor(HDP22StackAdvisor):
 
     servicesList = [service["StackServices"]["service_name"] for service in services["services"]]
     kafka_broker = getServicesSiteProperties(services, "kafka-broker")
-    kafka_env = getServicesSiteProperties(services, "kafka-env")
-
-    if not kafka_env: #Kafka check not required
-      return
 
     security_enabled = self.isSecurityEnabled(services)
 
@@ -349,7 +324,8 @@ class HDP23StackAdvisor(HDP22StackAdvisor):
     putKafkaBrokerAttributes = self.putPropertyAttribute(configurations, "kafka-broker")
 
     if security_enabled:
-      kafka_user = kafka_env.get('kafka_user')
+      kafka_env = getServicesSiteProperties(services, "kafka-env")
+      kafka_user = kafka_env.get('kafka_user') if kafka_env is not None else None
 
       if kafka_user is not None:
         kafka_super_users = kafka_broker.get('super.users') if kafka_broker is not None else None
@@ -392,10 +368,10 @@ class HDP23StackAdvisor(HDP22StackAdvisor):
       ranger_kafka_plugin_enabled = services["configurations"]["ranger-env"]["properties"]["ranger-kafka-plugin-enabled"]
       putKafkaRangerPluginProperty("ranger-kafka-plugin-enabled", ranger_kafka_plugin_enabled)
 
-    # Determine if the Ranger/Kafka Plugin is enabled
-    ranger_plugin_enabled = "RANGER" in servicesList
+
+    ranger_plugin_enabled = False
     # Only if the RANGER service is installed....
-    if ranger_plugin_enabled:
+    if "RANGER" in servicesList:
       # If ranger-kafka-plugin-properties/ranger-kafka-plugin-enabled,
       # determine if the Ranger/Kafka plug-in enabled enabled or not
       if 'ranger-kafka-plugin-properties' in configurations and \
@@ -465,13 +441,14 @@ class HDP23StackAdvisor(HDP22StackAdvisor):
     servicesList = [service["StackServices"]["service_name"] for service in services["services"]]
     putRangerKmsDbksProperty = self.putProperty(configurations, "dbks-site", services)
     putRangerKmsProperty = self.putProperty(configurations, "kms-properties", services)
-    kmsEnvProperties = getSiteProperties(services['configurations'], 'kms-env')
+    kmsEnvProperties = self.getSiteProperties(services['configurations'], 'kms-env')
     putCoreSiteProperty = self.putProperty(configurations, "core-site", services)
     putCoreSitePropertyAttribute = self.putPropertyAttribute(configurations, "core-site")
     putRangerKmsAuditProperty = self.putProperty(configurations, "ranger-kms-audit", services)
     security_enabled = self.isSecurityEnabled(services)
     putRangerKmsSiteProperty = self.putProperty(configurations, "kms-site", services)
     putRangerKmsSitePropertyAttribute = self.putPropertyAttribute(configurations, "kms-site")
+    putRangerKmsEnvProperty = self.putProperty(configurations, "kms-env", services)
 
     if 'kms-properties' in services['configurations'] and ('DB_FLAVOR' in services['configurations']['kms-properties']['properties']):
 
@@ -499,9 +476,27 @@ class HDP23StackAdvisor(HDP22StackAdvisor):
         for key in rangerKmsDbProperties:
           putRangerKmsDbksProperty(key, rangerKmsDbProperties.get(key))
 
+    if 'kms-properties' in services['configurations'] and ('DB_FLAVOR' in services['configurations']['kms-properties']['properties']) \
+      and ('db_host' in services['configurations']['kms-properties']['properties']):
+
+      rangerKmsDbFlavor = services['configurations']["kms-properties"]["properties"]["DB_FLAVOR"]
+      rangerKmsDbHost =   services['configurations']["kms-properties"]["properties"]["db_host"]
+
+      ranger_kms_db_privelege_url_dict = {
+        'MYSQL': {'ranger_kms_privelege_user_jdbc_url': 'jdbc:mysql://' + self.getDBConnectionHostPort(rangerKmsDbFlavor, rangerKmsDbHost)},
+        'ORACLE': {'ranger_kms_privelege_user_jdbc_url': 'jdbc:oracle:thin:@' + self.getOracleDBConnectionHostPort(rangerKmsDbFlavor, rangerKmsDbHost, None)},
+        'POSTGRES': {'ranger_kms_privelege_user_jdbc_url': 'jdbc:postgresql://' + self.getDBConnectionHostPort(rangerKmsDbFlavor, rangerKmsDbHost) + '/postgres'},
+        'MSSQL': {'ranger_kms_privelege_user_jdbc_url': 'jdbc:sqlserver://' + self.getDBConnectionHostPort(rangerKmsDbFlavor, rangerKmsDbHost) + ';'},
+        'SQLA': {'ranger_kms_privelege_user_jdbc_url': 'jdbc:sqlanywhere:host=' + self.getDBConnectionHostPort(rangerKmsDbFlavor, rangerKmsDbHost) + ';'}
+      }
+
+      rangerKmsPrivelegeDbProperties = ranger_kms_db_privelege_url_dict.get(rangerKmsDbFlavor, ranger_kms_db_privelege_url_dict['MYSQL'])
+      for key in rangerKmsPrivelegeDbProperties:
+        putRangerKmsEnvProperty(key, rangerKmsPrivelegeDbProperties.get(key))
+
     if kmsEnvProperties and self.checkSiteProperties(kmsEnvProperties, 'kms_user') and 'KERBEROS' in servicesList:
       kmsUser = kmsEnvProperties['kms_user']
-      kmsUserOld = getOldValue(self, services, 'kms-env', 'kms_user')
+      kmsUserOld = self.getOldValue(services, 'kms-env', 'kms_user')
       self.put_proxyuser_value(kmsUser, '*', is_groups=True, services=services, configurations=configurations, put_function=putCoreSiteProperty)
       if kmsUserOld is not None and kmsUser != kmsUserOld:
         putCoreSitePropertyAttribute("hadoop.proxyuser.{0}.groups".format(kmsUserOld), 'delete', 'true')
@@ -559,7 +554,7 @@ class HDP23StackAdvisor(HDP22StackAdvisor):
       if service in servicesList:
         if config_type in services['configurations'] and property_name in services['configurations'][config_type]['properties']:
           service_user = services['configurations'][config_type]['properties'][property_name]
-          service_old_user = getOldValue(self, services, config_type, property_name)
+          service_old_user = self.getOldValue(services, config_type, property_name)
 
           if 'groups' in proxy_category:
             putRangerKmsSiteProperty('hadoop.kms.proxyuser.{0}.groups'.format(service_user), '*')
@@ -1072,7 +1067,7 @@ class HDP23StackAdvisor(HDP22StackAdvisor):
       "HIVE": {"hiveserver2-site": self.validateHiveServer2Configurations,
                "hive-site": self.validateHiveConfigurations},
       "HBASE": {"hbase-site": self.validateHBASEConfigurations},
-      "KAKFA": {"kafka-broker": self.validateKAFKAConfigurations},
+      "KAFKA": {"kafka-broker": self.validateKAFKAConfigurations},
       "RANGER": {"admin-properties": self.validateRangerAdminConfigurations,
                  "ranger-env": self.validateRangerConfigurationsEnv}
     }
@@ -1086,7 +1081,7 @@ class HDP23StackAdvisor(HDP22StackAdvisor):
     # other config (core-site). That's why we are using another heuristics here
     hdfs_site = properties
     validationItems = [] #Adding Ranger Plugin logic here
-    ranger_plugin_properties = getSiteProperties(configurations, "ranger-hdfs-plugin-properties")
+    ranger_plugin_properties = self.getSiteProperties(configurations, "ranger-hdfs-plugin-properties")
     ranger_plugin_enabled = ranger_plugin_properties['ranger-hdfs-plugin-enabled'] if ranger_plugin_properties else 'No'
     servicesList = [service["StackServices"]["service_name"] for service in services["services"]]
     if ("RANGER" in servicesList) and (ranger_plugin_enabled.lower() == 'Yes'.lower()):
@@ -1104,7 +1099,7 @@ class HDP23StackAdvisor(HDP22StackAdvisor):
   def validateHiveConfigurations(self, properties, recommendedDefaults, configurations, services, hosts):
     parentValidationProblems = super(HDP23StackAdvisor, self).validateHiveConfigurations(properties, recommendedDefaults, configurations, services, hosts)
     hive_site = properties
-    hive_env_properties = getSiteProperties(configurations, "hive-env")
+    hive_env_properties = self.getSiteProperties(configurations, "hive-env")
     validationItems = []
     sqla_db_used = "hive_database" in hive_env_properties and \
                    hive_env_properties['hive_database'] == 'Existing SQL Anywhere Database'
@@ -1127,12 +1122,12 @@ class HDP23StackAdvisor(HDP22StackAdvisor):
     return configurationValidationProblems
 
   def validateHiveServer2Configurations(self, properties, recommendedDefaults, configurations, services, hosts):
-    super(HDP23StackAdvisor, self).validateHiveServer2Configurations(properties, recommendedDefaults, configurations, services, hosts)
+    parentValidationProblems = super(HDP23StackAdvisor, self).validateHiveServer2Configurations(properties, recommendedDefaults, configurations, services, hosts)
     hive_server2 = properties
     validationItems = []
     #Adding Ranger Plugin logic here
-    ranger_plugin_properties = getSiteProperties(configurations, "ranger-hive-plugin-properties")
-    hive_env_properties = getSiteProperties(configurations, "hive-env")
+    ranger_plugin_properties = self.getSiteProperties(configurations, "ranger-hive-plugin-properties")
+    hive_env_properties = self.getSiteProperties(configurations, "hive-env")
     ranger_plugin_enabled = 'hive_security_authorization' in hive_env_properties and hive_env_properties['hive_security_authorization'].lower() == 'ranger'
     servicesList = [service["StackServices"]["service_name"] for service in services["services"]]
     ##Add stack validations only if Ranger is enabled.
@@ -1192,15 +1187,18 @@ class HDP23StackAdvisor(HDP22StackAdvisor):
                                   "item": self.getWarnItem(
                                   "If Ranger Hive Plugin is disabled."\
                                   " {0} needs to be set to {1}".format(prop_name,prop_val))})
-    return self.toConfigurationValidationProblems(validationItems, "hiveserver2-site")
+
+    validationProblems = self.toConfigurationValidationProblems(validationItems, "hiveserver2-site")
+    validationProblems.extend(parentValidationProblems)
+    return validationProblems
 
   def validateHBASEConfigurations(self, properties, recommendedDefaults, configurations, services, hosts):
-    super(HDP23StackAdvisor, self).validateHBASEConfigurations(properties, recommendedDefaults, configurations, services, hosts)
+    parentValidationProblems = super(HDP23StackAdvisor, self).validateHBASEConfigurations(properties, recommendedDefaults, configurations, services, hosts)
     hbase_site = properties
     validationItems = []
 
     #Adding Ranger Plugin logic here
-    ranger_plugin_properties = getSiteProperties(configurations, "ranger-hbase-plugin-properties")
+    ranger_plugin_properties = self.getSiteProperties(configurations, "ranger-hbase-plugin-properties")
     ranger_plugin_enabled = ranger_plugin_properties['ranger-hbase-plugin-enabled'] if ranger_plugin_properties else 'No'
     prop_name = 'hbase.security.authorization'
     prop_val = "true"
@@ -1231,24 +1229,37 @@ class HDP23StackAdvisor(HDP22StackAdvisor):
                                 "If Ranger HBase Plugin is enabled."\
                                 " {0} needs to contain {1} instead of {2}".format(prop_name,prop_val,exclude_val))})
 
-    return self.toConfigurationValidationProblems(validationItems, "hbase-site")
+    validationProblems = self.toConfigurationValidationProblems(validationItems, "hbase-site")
+    validationProblems.extend(parentValidationProblems)
+    return validationProblems
 
   def validateKAFKAConfigurations(self, properties, recommendedDefaults, configurations, services, hosts):
     kafka_broker = properties
     validationItems = []
+    servicesList = [service["StackServices"]["service_name"] for service in services["services"]]
 
     #Adding Ranger Plugin logic here
-    ranger_plugin_properties = getSiteProperties(configurations, "ranger-kafka-plugin-properties")
-    ranger_plugin_enabled = ranger_plugin_properties['ranger-kafka-plugin-enabled']
+    ranger_plugin_properties = self.getSiteProperties(configurations, "ranger-kafka-plugin-properties")
+    ranger_plugin_enabled = ranger_plugin_properties['ranger-kafka-plugin-enabled'] if ranger_plugin_properties else 'No'
     prop_name = 'authorizer.class.name'
     prop_val = "org.apache.ranger.authorization.kafka.authorizer.RangerKafkaAuthorizer"
-    servicesList = [service["StackServices"]["service_name"] for service in services["services"]]
     if ("RANGER" in servicesList) and (ranger_plugin_enabled.lower() == 'Yes'.lower()):
       if kafka_broker[prop_name] != prop_val:
         validationItems.append({"config-name": prop_name,
                                 "item": self.getWarnItem(
                                 "If Ranger Kafka Plugin is enabled."\
                                 "{0} needs to be set to {1}".format(prop_name,prop_val))})
+
+    if 'KERBEROS' in servicesList and 'security.inter.broker.protocol' in properties:
+      interBrokerValue = properties['security.inter.broker.protocol']
+      prop_name = 'listeners'
+      prop_value =  properties[prop_name]
+      if interBrokerValue and interBrokerValue not in prop_value:
+        validationItems.append({"config-name": "listeners",
+                                "item": self.getWarnItem("If kerberos is enabled "\
+                                "{0}  need to contain {1} as one of "\
+                                "the protocol".format(prop_name, interBrokerValue))})
+
 
     return self.toConfigurationValidationProblems(validationItems, "kafka-broker")
 

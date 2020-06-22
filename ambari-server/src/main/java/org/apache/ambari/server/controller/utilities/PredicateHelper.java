@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,15 +17,15 @@
  */
 package org.apache.ambari.server.controller.utilities;
 
+import java.util.Collections;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.internal.PropertyPredicateVisitor;
 import org.apache.ambari.server.controller.predicate.BasePredicate;
 import org.apache.ambari.server.controller.predicate.PredicateVisitor;
 import org.apache.ambari.server.controller.predicate.PredicateVisitorAcceptor;
 import org.apache.ambari.server.controller.spi.Predicate;
-
-import java.util.Collections;
-import java.util.Map;
-import java.util.Set;
 
 /**
  *

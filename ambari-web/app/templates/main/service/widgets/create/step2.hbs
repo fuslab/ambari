@@ -16,7 +16,7 @@
 * limitations under the License.
 }}
 
-<div class="step2">
+<div class="step2 wizard-content col-md-9">
 
   {{#if view.templateType.isNumber}}
     {{template "templates/main/service/widgets/create/step2_number"}}
@@ -29,28 +29,35 @@
   {{#if view.templateType.isTemplate}}
     {{template "templates/main/service/widgets/create/step2_template"}}
   {{/if}}
-
-  <div>
-    <form class="form-horizontal">
-      {{#each property in widgetPropertiesViews}}
-        <div {{bindAttr class=":control-group property.name property.isValid::error"}}>
-          <label class="control-label">{{property.label}}
-            {{#if property.isRequired }}
-              <i class="icon-asterisk"></i>
-            {{/if}}
-          </label>
-          <div class="controls">
-            {{view property.viewClass propertyBinding="property"}}
-          </div>
-        </div>
-      {{/each}}
-    </form>
+  {{#if widgetPropertiesViews.length}}
+  <div class="panel panel-default">
+    <div class="panel-body">
+        <form class="form-horizontal">
+          {{#each property in widgetPropertiesViews}}
+            <div {{bindAttr class="property.name property.isValid::error"}}>
+              <div class="form-group row">
+                <div class="col-md-2">
+                  <label class="control-label">{{property.label}}
+                    {{#if property.isRequired }}
+                      <i class="glyphicon glyphicon-asterisk"></i>
+                    {{/if}}
+                  </label>
+                </div>
+                <div class="col-md-3">
+                  {{view property.viewClass propertyBinding="property"}}
+                </div>
+              </div>
+            </div>
+          {{/each}}
+        </form>
+    </div>
   </div>
-
-
+  {{/if}}
+</div>
+<div class="wizard-footer col-md-12">
   <div class="btn-area">
     {{#unless isEditWidget}}
-      <button id="add-widget-step2-back" class="btn" {{action back}}>&larr; {{t common.back}}</button>
+      <button id="add-widget-step2-back" class="btn btn-default" {{action back}}>&larr; {{t common.back}}</button>
     {{/unless}}
     <button id="add-widget-step2-next" class="btn btn-success pull-right" {{bindAttr disabled="isSubmitDisabled"}} {{action "next" target="controller"}}>{{t common.next}} &rarr;</button>
   </div>

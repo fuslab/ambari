@@ -43,12 +43,14 @@ import org.apache.ambari.server.RoleCommand;
 import org.apache.ambari.server.actionmanager.HostRoleCommand;
 import org.apache.ambari.server.actionmanager.HostRoleCommandFactory;
 import org.apache.ambari.server.actionmanager.HostRoleStatus;
+import org.apache.ambari.server.agent.stomp.HostLevelParamsHolder;
 import org.apache.ambari.server.controller.AmbariManagementController;
 import org.apache.ambari.server.controller.AmbariServer;
 import org.apache.ambari.server.controller.ClusterRequest;
 import org.apache.ambari.server.controller.ConfigGroupRequest;
 import org.apache.ambari.server.controller.ConfigurationRequest;
 import org.apache.ambari.server.controller.RequestStatusResponse;
+import org.apache.ambari.server.controller.RootComponent;
 import org.apache.ambari.server.controller.ServiceComponentHostRequest;
 import org.apache.ambari.server.controller.ServiceComponentRequest;
 import org.apache.ambari.server.controller.ServiceRequest;
@@ -122,6 +124,9 @@ public class AmbariContext {
    */
   @Inject
   private Provider<ConfigHelper> configHelper;
+
+  @Inject
+  HostLevelParamsHolder hostLevelParamsHolder;
 
   private static AmbariManagementController controller;
   private static ClusterController clusterController;
@@ -389,7 +394,7 @@ public class AmbariContext {
 
     try {
       getHostResourceProvider().createHosts(new RequestImpl(null, Collections.singleton(properties), null, null));
-    } catch (AmbariException e) {
+    } catch (AmbariException | AuthorizationException e) {
       LOG.error("Unable to create host component resource for host {}", hostName, e);
       throw new RuntimeException(String.format("Unable to create host resource for host '%s': %s",
           hostName, e.toString()), e);
@@ -402,7 +407,7 @@ public class AmbariContext {
       for (String component : entry.getValue()) {
         //todo: handle this in a generic manner.  These checks are all over the code
         try {
-          if (cluster.getService(service) != null && !component.equals("AMBARI_SERVER")) {
+          if (cluster.getService(service) != null && !component.equals(RootComponent.AMBARI_SERVER.name())) {
             requests.add(new ServiceComponentHostRequest(clusterName, service, component, hostName, null));
           }
         } catch(AmbariException se) {
@@ -414,10 +419,11 @@ public class AmbariContext {
       RetryHelper.executeWithRetry(new Callable<Object>() {
         @Override
         public Object call() throws Exception {
-          getController().createHostComponents(requests);
+          getController().createHostComponents(requests, true);
           return null;
         }
       });
+      hostLevelParamsHolder.updateData(hostLevelParamsHolder.getCurrentData(host.getHostId()));
     } catch (AmbariException e) {
       LOG.error("Unable to create host component resource for host {}", hostName, e);
       throw new RuntimeException(String.format("Unable to create host component resource for host '%s': %s",
@@ -448,7 +454,7 @@ public class AmbariContext {
   }
 
   public void registerHostWithConfigGroup(final String hostName, final ClusterTopology topology, final String groupName) {
-    final String qualifiedGroupName = getConfigurationGroupName(topology.getBlueprint().getName(), groupName);
+    String qualifiedGroupName = getConfigurationGroupName(topology.getBlueprint().getName(), groupName);
 
     Lock configGroupLock = configGroupCreateLock.get(qualifiedGroupName);
 
@@ -476,7 +482,7 @@ public class AmbariContext {
   public RequestStatusResponse installHost(String hostName, String clusterName, Collection<String> skipInstallForComponents, Collection<String> dontSkipInstallForComponents, boolean skipFailure) {
     try {
       return getHostResourceProvider().install(clusterName, hostName, skipInstallForComponents,
-        dontSkipInstallForComponents, skipFailure);
+        dontSkipInstallForComponents, skipFailure, true);
     } catch (Exception e) {
       LOG.error("INSTALL Host request submission failed:", e);
       throw new RuntimeException("INSTALL Host request submission failed: " + e, e);
@@ -485,7 +491,7 @@ public class AmbariContext {
 
   public RequestStatusResponse startHost(String hostName, String clusterName, Collection<String> installOnlyComponents, boolean skipFailure) {
     try {
-      return getHostComponentResourceProvider().start(clusterName, hostName, installOnlyComponents, skipFailure);
+      return getHostComponentResourceProvider().start(clusterName, hostName, installOnlyComponents, skipFailure, true);
     } catch (Exception e) {
       LOG.error("START Host request submission failed:", e);
       throw new RuntimeException("START Host request submission failed: " + e, e);
@@ -527,13 +533,22 @@ public class AmbariContext {
       RetryHelper.executeWithRetry(new Callable<Object>() {
         @Override
         public Object call() throws Exception {
-          getController().updateClusters(Collections.singleton(clusterRequest), null);
+          getController().updateClusters(Collections.singleton(clusterRequest), null, false);
           return null;
         }
       });
     } catch (AmbariException e) {
       LOG.error("Failed to set configurations on cluster: ", e);
       throw new RuntimeException("Failed to set configurations on cluster: " + e, e);
+    }
+  }
+
+  public void notifyAgentsAboutConfigsChanges(String clusterName) {
+    try {
+      configHelper.get().updateAgentConfigs(Collections.singleton(clusterName));
+    } catch (AmbariException e) {
+      LOG.error("Failed to set send agent updates: ", e);
+      throw new RuntimeException("Failed to set send agent updates: " + e, e);
     }
   }
 
@@ -731,7 +746,12 @@ public class AmbariContext {
     // iterate over topo host group configs which were defined in
     for (Map.Entry<String, Map<String, String>> entry : userProvidedGroupProperties.entrySet()) {
       String type = entry.getKey();
-      String service = stack.getServiceForConfigType(type);
+      List<String> services = stack.getServicesForConfigType(type);
+      String service = services.stream()
+        .filter(each -> topology.getBlueprint().getServices().contains(each))
+        .findFirst()
+        .orElseThrow(() -> new IllegalArgumentException("Specified configuration type is not associated with any service: " + type));
+
       Config config = configFactory.createReadOnly(type, groupName, entry.getValue(), null);
       //todo: attributes
       Map<String, Config> serviceConfigs = groupConfigs.get(service);

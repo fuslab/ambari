@@ -36,32 +36,34 @@
     <table>
       <tr>
         <td>{{t common.restart}}</td>
-        <td>{{view Ember.TextField valueBinding="view.batchSize" class="span1"}}</td>
-        <td>{{view.batchSizeMessage}}</td>
+        <td>{{view Ember.TextField valueBinding="view.batchSize" class="form-control input-sm"}}</td>
+        <td><span>{{view.batchSizeMessage}}</span></td>
       </tr>
       <tr>
         <td>{{t rollingrestart.dialog.msg.timegap.prefix}}</td>
-        <td>{{view Ember.TextField valueBinding="view.interBatchWaitTimeSeconds" class="span1"}}</td>
+        <td>{{view Ember.TextField valueBinding="view.interBatchWaitTimeSeconds" class="form-control input-sm"}}</td>
         <td>{{t rollingrestart.dialog.msg.timegap.suffix}}</td>
       </tr>
       <tr>
         <td>{{t rollingrestart.dialog.msg.toleration.prefix}}</td>
-        <td>{{view Ember.TextField valueBinding="view.tolerateSize" class="span1"}}</td>
+        <td>{{view Ember.TextField valueBinding="view.tolerateSize" class="form-control input-sm"}}</td>
         <td>{{t rollingrestart.dialog.msg.toleration.suffix}}</td>
       </tr>
       <tr>
         <td>&nbsp;</td>
         <td colspan="2">
-          {{view Ember.Checkbox checkedBinding="view.staleConfigsOnly"}}
-          {{view.staleConfigsOnlyMessage}}
+          {{view App.CheckboxView
+             labelBinding="view.staleConfigsOnlyMessage"
+             checkedBinding="view.staleConfigsOnly"}}
         </td>
       </tr>
       <tr>
         <td>&nbsp;</td>
         <td colspan="2">
           {{#unless view.isServiceInMM}}
-            {{view Ember.Checkbox checkedBinding="view.turnOnMm"}}
-            {{view.turnOnMmMsg}}
+            {{view App.CheckboxView
+              labelBinding="view.turnOnMmMsg"
+              checkedBinding="view.turnOnMm"}}
           {{/unless}}
         </td>
       </tr>
@@ -71,7 +73,7 @@
     {{view App.SpinnerView}}
   {{/if}}
   {{#if view.errors}}
-    <div class="alert alert-error">
+    <div class="alert alert-danger">
       <ul>
       {{#each error in view.errors}}
         <li>{{error}}</li>
@@ -80,7 +82,7 @@
     </div>
   {{/if}}
   {{#if view.warnings}}
-    <div class="alert alert-warn">
+    <div class="alert alert-warning">
       <ul>
       {{#each warning in view.warnings}}
         <li>{{warning}}</li>

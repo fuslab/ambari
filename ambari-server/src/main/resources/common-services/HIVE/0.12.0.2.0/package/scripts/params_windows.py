@@ -18,14 +18,15 @@ limitations under the License.
 
 """
 
-from resource_management import *
+from resource_management.libraries.functions.version import format_stack_version
+from resource_management.libraries.script.script import Script
 from status_params import *
 
 # server configurations
 config = Script.get_config()
 
 # This is expected to be of the form #.#.#.#
-stack_version_unformatted = config['hostLevelParams']['stack_version']
+stack_version_unformatted = config['clusterLevelParams']['stack_version']
 stack_version_formatted = format_stack_version(stack_version_unformatted)
 
 stack_root = None

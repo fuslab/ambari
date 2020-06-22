@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,11 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+
 import org.apache.ambari.server.controller.predicate.AlwaysPredicate;
 import org.apache.ambari.server.controller.predicate.AndPredicate;
 import org.apache.ambari.server.controller.predicate.ArrayPredicate;
@@ -30,11 +35,6 @@ import org.apache.ambari.server.controller.predicate.UnaryPredicate;
 import org.apache.ambari.server.controller.spi.Predicate;
 import org.apache.ambari.server.controller.spi.ResourceProvider;
 import org.apache.ambari.server.controller.utilities.PredicateHelper;
-
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
 
 /**
  * A predicate visitor used to simplify by doing the following ...
@@ -107,7 +107,7 @@ public class SimplifyingPredicateVisitor implements PredicateVisitor {
 
   @Override
   public void acceptArrayPredicate(ArrayPredicate arrayPredicate) {
-    List<Predicate> predicateList = new LinkedList<Predicate>();
+    List<Predicate> predicateList = new LinkedList<>();
     boolean hasOrs = false;
 
     Predicate[] predicates = arrayPredicate.getPredicates();
@@ -123,7 +123,7 @@ public class SimplifyingPredicateVisitor implements PredicateVisitor {
     // distribute so that A && ( B || C ) becomes ( A && B ) || ( A && C )
     if (hasOrs && arrayPredicate instanceof AndPredicate) {
       int size = predicateList.size();
-      List<Predicate> andPredicateList = new LinkedList<Predicate>();
+      List<Predicate> andPredicateList = new LinkedList<>();
 
       for (int i = 0; i < size; ++i) {
         for (int j = i + 1; j < size; ++j) {
@@ -161,7 +161,7 @@ public class SimplifyingPredicateVisitor implements PredicateVisitor {
   }
 
   private static List<Predicate> distributeOr(OrPredicate orPredicate, Predicate other) {
-    List<Predicate> andPredicateList = new LinkedList<Predicate>();
+    List<Predicate> andPredicateList = new LinkedList<>();
     OrPredicate otherOr = null;
 
     if (other instanceof OrPredicate) {

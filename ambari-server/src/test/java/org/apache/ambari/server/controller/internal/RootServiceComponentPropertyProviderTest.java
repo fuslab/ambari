@@ -18,44 +18,44 @@
 
 package org.apache.ambari.server.controller.internal;
 
-import org.apache.ambari.server.controller.RootServiceResponseFactory;
-import org.apache.ambari.server.controller.spi.Request;
-import org.apache.ambari.server.controller.spi.Resource;
-import org.apache.ambari.server.controller.spi.TemporalInfo;
-import org.apache.ambari.server.controller.utilities.PropertyHelper;
-import org.junit.Assert;
-import org.junit.Test;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.ambari.server.controller.RootComponent;
+import org.apache.ambari.server.controller.RootService;
+import org.apache.ambari.server.controller.spi.Request;
+import org.apache.ambari.server.controller.spi.Resource;
+import org.apache.ambari.server.controller.utilities.PropertyHelper;
+import org.junit.Assert;
+import org.junit.Test;
+
 public class RootServiceComponentPropertyProviderTest {
   @Test
   public void testPopulateResources_AmbariServer_None() throws Exception {
-    testPopulateResources(RootServiceResponseFactory.Components.AMBARI_SERVER.name(), false, false, false, false);
+    testPopulateResources(RootComponent.AMBARI_SERVER.name(), false, false, false, false);
   }
 
   @Test
   public void testPopulateResources_AmbariServer_CiphersAndJCEPolicy() throws Exception {
-    testPopulateResources(RootServiceResponseFactory.Components.AMBARI_SERVER.name(), true, true, true, true);
+    testPopulateResources(RootComponent.AMBARI_SERVER.name(), true, true, true, true);
   }
 
   @Test
   public void testPopulateResources_AmbariServer_JCEPolicy() throws Exception {
-    testPopulateResources(RootServiceResponseFactory.Components.AMBARI_SERVER.name(), false, true, false, true);
+    testPopulateResources(RootComponent.AMBARI_SERVER.name(), false, true, false, true);
   }
 
   @Test
   public void testPopulateResources_AmbariServer_Ciphers() throws Exception {
-    testPopulateResources(RootServiceResponseFactory.Components.AMBARI_SERVER.name(), true, false, true, false);
+    testPopulateResources(RootComponent.AMBARI_SERVER.name(), true, false, true, false);
   }
 
   @Test
   public void testPopulateResources_AmbariAgent_CiphersAndJCEPolicy() throws Exception {
-    testPopulateResources(RootServiceResponseFactory.Components.AMBARI_AGENT.name(), true, true, false, false);
+    testPopulateResources(RootComponent.AMBARI_AGENT.name(), true, true, false, false);
   }
 
   public void testPopulateResources(String componentName,
@@ -65,9 +65,9 @@ public class RootServiceComponentPropertyProviderTest {
     Resource resource = new ResourceImpl(Resource.Type.RootService);
 
     resource.setProperty(RootServiceComponentResourceProvider.COMPONENT_NAME_PROPERTY_ID, componentName);
-    resource.setProperty(RootServiceComponentResourceProvider.SERVICE_NAME_PROPERTY_ID, RootServiceResponseFactory.Services.AMBARI.name());
+    resource.setProperty(RootServiceComponentResourceProvider.SERVICE_NAME_PROPERTY_ID, RootService.AMBARI.name());
 
-    HashSet<String> requestIds = new HashSet<String>();
+    HashSet<String> requestIds = new HashSet<>();
 
     if (requestCiphers) {
       requestIds.add(RootServiceComponentPropertyProvider.CIPHER_PROPERTIES_PROPERTY_ID);
@@ -77,7 +77,7 @@ public class RootServiceComponentPropertyProviderTest {
       requestIds.add(RootServiceComponentPropertyProvider.JCE_POLICY_PROPERTY_ID);
     }
 
-    Request request = PropertyHelper.getReadRequest(requestIds, new HashMap<String, TemporalInfo>());
+    Request request = PropertyHelper.getReadRequest(requestIds, new HashMap<>());
 
     Set<Resource> resources = propertyProvider.populateResources(Collections.singleton(resource), request, null);
     Assert.assertEquals(1, resources.size());

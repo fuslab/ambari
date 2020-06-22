@@ -139,9 +139,15 @@ class Master(Script):
     self.chown_zeppelin_pid_dir(env)
 
     # write out zeppelin-site.xml
+    my_map = {}
+    for key, value in params.config['configurations']['zeppelin-config'].iteritems():
+      my_map[key]=value
+    my_map['zeppelin.server.kerberos.keytab']=params.zeppelin_kerberos_keytab
+    my_map['zeppelin.server.kerberos.principal']=params.zeppelin_kerberos_principal
+
     XmlConfig("zeppelin-site.xml",
               conf_dir=params.conf_dir,
-              configurations=params.config['configurations']['zeppelin-config'],
+              configurations=my_map,
               owner=params.zeppelin_user,
               group=params.zeppelin_group
               )
@@ -166,7 +172,7 @@ class Master(Script):
       XmlConfig("hbase-site.xml",
               conf_dir=params.external_dependency_conf,
               configurations=params.config['configurations']['hbase-site'],
-              configuration_attributes=params.config['configuration_attributes']['hbase-site'],
+              configuration_attributes=params.config['configurationAttributes']['hbase-site'],
               owner=params.zeppelin_user,
               group=params.zeppelin_group,
               mode=0644)
@@ -174,7 +180,7 @@ class Master(Script):
       XmlConfig("hdfs-site.xml",
                 conf_dir=params.external_dependency_conf,
                 configurations=params.config['configurations']['hdfs-site'],
-                configuration_attributes=params.config['configuration_attributes']['hdfs-site'],
+                configuration_attributes=params.config['configurationAttributes']['hdfs-site'],
                 owner=params.zeppelin_user,
                 group=params.zeppelin_group,
                 mode=0644)
@@ -182,7 +188,7 @@ class Master(Script):
       XmlConfig("core-site.xml",
                 conf_dir=params.external_dependency_conf,
                 configurations=params.config['configurations']['core-site'],
-                configuration_attributes=params.config['configuration_attributes']['core-site'],
+                configuration_attributes=params.config['configurationAttributes']['core-site'],
                 owner=params.zeppelin_user,
                 group=params.zeppelin_group,
                 mode=0644)
@@ -569,10 +575,14 @@ class Master(Script):
           interpreter['properties']['spark2.proxy.user.property'] = 'hive.server2.proxy.user'
           interpreter['properties']['spark2.url'] = 'jdbc:hive2://' + \
               params.spark2_thrift_server_hosts + ':' + params.spark2_hive_thrift_port + '/'
-          if params.hive_principal:
-            interpreter['properties']['spark2.url'] += ';principal=' + params.hive_principal
-          if params.hive_transport_mode:
-            interpreter['properties']['spark2.url'] += ';transportMode=' + params.hive_transport_mode
+          if params.spark2_hive_principal:
+            interpreter['properties']['spark2.url'] += ';principal=' + params.spark2_hive_principal
+          if params.spark2_transport_mode:
+            interpreter['properties']['spark2.url'] += ';transportMode=' + params.spark2_transport_mode
+          if params.spark2_http_path:
+            interpreter['properties']['spark2.url'] += ';httpPath=' + params.spark2_http_path
+          if params.spark2_ssl:
+            interpreter['properties']['spark2.url'] += ';ssl=true'
           if 'spark2.splitQueries' not in interpreter['properties']:
             interpreter['properties']['spark2.splitQueries'] = "true"
 

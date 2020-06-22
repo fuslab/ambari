@@ -18,52 +18,44 @@
 
 var App = require('app');
 
+var PreCondition = Ember.Object.extend({
+  displayText: null,
+  checked: false,
+  visibilityCriteria: function() { return true; },
+
+  hidden: function() {
+    return !this.get('visibilityCriteria')();
+  }.property('visibilityCriteria'),
+
+  satisfied: function() {
+    return this.get('checked') || this.get('hidden');
+  }.property('checked', 'hidden')
+});
+
 App.KerberosWizardStep1Controller = Em.Controller.extend({
   name: "kerberosWizardStep1Controller",
 
   selectedItem: Em.I18n.t('admin.kerberos.wizard.step1.option.kdc'),
 
-  isSubmitDisabled: Em.computed.someBy('selectedOption.preConditions', 'checked', false),
-
-  ipaOption: Em.Object.create({
-    displayName: Em.I18n.t('admin.kerberos.wizard.step1.option.ipa'),
-    value: Em.I18n.t('admin.kerberos.wizard.step1.option.ipa'),
-    preConditions: [
-      Em.Object.create({
-        displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.ipa.condition.1'),
-        checked: false
-      }),
-      Em.Object.create({
-        displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.ipa.condition.2'),
-        checked: false
-      }),
-      Em.Object.create({
-        displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.ipa.condition.3'),
-        checked: false
-      }),
-      Em.Object.create({
-        displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.ipa.condition.4'),
-        checked: false
-      })
-    ]
-  }),
+  isSubmitDisabled: Em.computed.someBy('selectedOption.preConditions', 'satisfied', false),
 
   options: Em.A([
     Em.Object.create({
       displayName: Em.I18n.t('admin.kerberos.wizard.step1.option.kdc'),
       value: Em.I18n.t('admin.kerberos.wizard.step1.option.kdc'),
       preConditions: [
-        Em.Object.create({
-          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.kdc.condition.1'),
-          checked: false
+        PreCondition.create({
+          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.kdc.condition.1')
         }),
-        Em.Object.create({
-          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.kdc.condition.2'),
-          checked: false
+        PreCondition.create({
+          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.kdc.condition.2')
         }),
-        Em.Object.create({
-          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.kdc.condition.3'),
-          checked: false
+        PreCondition.create({
+          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.kdc.condition.3')
+        }),
+        PreCondition.create({
+          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.kdc.condition.4'),
+          visibilityCriteria: function() { return App.Service.find().someProperty('serviceName', 'ONEFS') }
         })
       ]
     }),
@@ -71,29 +63,38 @@ App.KerberosWizardStep1Controller = Em.Controller.extend({
       displayName: Em.I18n.t('admin.kerberos.wizard.step1.option.ad'),
       value: Em.I18n.t('admin.kerberos.wizard.step1.option.ad'),
       preConditions: [
-        Em.Object.create({
-          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.ad.condition.1'),
-          checked: false
+        PreCondition.create({
+          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.ad.condition.1')
         }),
-        Em.Object.create({
-          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.ad.condition.2'),
-          checked: false
+        PreCondition.create({
+          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.ad.condition.2')
         }),
-        Em.Object.create({
-          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.ad.condition.3'),
-          checked: false
+        PreCondition.create({
+          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.ad.condition.3')
         }),
-        Em.Object.create({
-          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.ad.condition.4'),
-          checked: false
+        PreCondition.create({
+          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.ad.condition.4')
         }),
-        Em.Object.create({
-          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.ad.condition.5'),
-          checked: false
+        PreCondition.create({
+          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.ad.condition.5')
+        })
+      ]
+    }),
+    Em.Object.create({
+      displayName: Em.I18n.t('admin.kerberos.wizard.step1.option.ipa'),
+      value: Em.I18n.t('admin.kerberos.wizard.step1.option.ipa'),
+      preConditions: [
+        PreCondition.create({
+          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.ipa.condition.1')
         }),
-        Em.Object.create({
-          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.ad.condition.6'),
-          checked: false
+        PreCondition.create({
+          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.ipa.condition.2')
+        }),
+        PreCondition.create({
+          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.ipa.condition.3')
+        }),
+        PreCondition.create({
+          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.ipa.condition.4')
         })
       ]
     }),
@@ -101,25 +102,20 @@ App.KerberosWizardStep1Controller = Em.Controller.extend({
       displayName: Em.I18n.t('admin.kerberos.wizard.step1.option.manual'),
       value: Em.I18n.t('admin.kerberos.wizard.step1.option.manual'),
       preConditions: [
-        Em.Object.create({
-          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.manual.condition.1'),
-          checked: false
+        PreCondition.create({
+          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.manual.condition.1')
         }),
-        Em.Object.create({
-          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.manual.condition.2'),
-          checked: false
+        PreCondition.create({
+          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.manual.condition.2')
         }),
-        Em.Object.create({
-          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.manual.condition.3'),
-          checked: false
+        PreCondition.create({
+          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.manual.condition.3')
         }),
-        Em.Object.create({
-          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.manual.condition.4'),
-          checked: false
+        PreCondition.create({
+          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.manual.condition.4')
         }),
-        Em.Object.create({
-          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.manual.condition.5'),
-          checked: false
+        PreCondition.create({
+          displayText: Em.I18n.t('admin.kerberos.wizard.step1.option.manual.condition.5')
         })
       ]
     })
@@ -139,12 +135,6 @@ App.KerberosWizardStep1Controller = Em.Controller.extend({
 
 
   loadStep: function () {
-    if (App.get('supports.enableIpa')) {
-      var ipaOption = this.get('ipaOption');
-      var options = this.get('options');
-
-      options.pushObject(ipaOption);
-    }
   },
 
   submit: function () {

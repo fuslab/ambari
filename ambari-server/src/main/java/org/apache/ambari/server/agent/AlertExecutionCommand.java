@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -33,18 +33,21 @@ public class AlertExecutionCommand extends AgentCommand {
    * The name of the cluster.
    */
   @SerializedName("clusterName")
+  @com.fasterxml.jackson.annotation.JsonProperty("clusterName")
   private final String m_clusterName;
 
   /**
    * The agent hostname.
    */
   @SerializedName("hostName")
+  @com.fasterxml.jackson.annotation.JsonProperty("hostName")
   private final String m_hostName;
 
   /**
    * The definition to run.
    */
   @SerializedName("alertDefinition")
+  @com.fasterxml.jackson.annotation.JsonProperty("alertDefinition")
   private final AlertDefinition m_definition;
 
   /**

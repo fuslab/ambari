@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,14 +18,18 @@
 
 package org.apache.ambari.server.api.resources;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 import org.apache.ambari.server.api.services.Request;
-import org.apache.ambari.server.controller.utilities.ClusterControllerHelper;
+import org.apache.ambari.server.api.util.TreeNode;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.spi.Schema;
-import org.apache.ambari.server.api.util.TreeNode;
+import org.apache.ambari.server.controller.utilities.ClusterControllerHelper;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
-
-import java.util.*;
 
 /**
  * Host_Component resource definition.
@@ -52,7 +56,7 @@ public class HostComponentResourceDefinition extends BaseResourceDefinition {
 
   @Override
   public Set<SubResourceDefinition> getSubResourceDefinitions() {
-    Set<SubResourceDefinition> setSubResources = new HashSet<SubResourceDefinition>();
+    Set<SubResourceDefinition> setSubResources = new HashSet<>();
 
     setSubResources.add(new SubResourceDefinition(Resource.Type.Component,
         Collections.singleton(Resource.Type.Service), false));
@@ -64,7 +68,7 @@ public class HostComponentResourceDefinition extends BaseResourceDefinition {
 
   @Override
   public List<PostProcessor> getPostProcessors() {
-    List<PostProcessor> listProcessors = new ArrayList<PostProcessor>();
+    List<PostProcessor> listProcessors = new ArrayList<>();
     listProcessors.add(new HostComponentHrefProcessor());
     listProcessors.add(new HostComponentHostProcessor());
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -39,13 +39,12 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
-
 /**
  * @{link DatabaseMetricsSource} collects database metrics which is generated through Eclipselink PerformanceMonitor,
  * and publishes to configured Metric Sink.
  **/
 public class DatabaseMetricsSource extends AbstractMetricsSource {
-  private static Logger LOG = LoggerFactory.getLogger(DatabaseMetricsSource.class);
+  private static final Logger LOG = LoggerFactory.getLogger(DatabaseMetricsSource.class);
   private static String dbMonitorPrefix = "monitor.";
   private ExecutorService executor;
   private MetricsConfiguration configuration;
@@ -114,7 +113,7 @@ public class DatabaseMetricsSource extends AbstractMetricsSource {
             double value = metricsMap.get(metricName).doubleValue();
             metrics.add(new SingleMetric(metricName, value, currentTime));
 
-            /**
+            /*
              * Add computed (Timer/Counter) metric.
              * Example
              * Counter Metric : Counter.ReadAllQuery.HostRoleCommandEntity = 10000

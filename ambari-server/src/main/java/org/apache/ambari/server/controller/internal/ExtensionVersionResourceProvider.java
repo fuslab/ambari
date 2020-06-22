@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,16 +19,11 @@
 
 package org.apache.ambari.server.controller.internal;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import com.google.inject.Inject;
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.StaticallyInject;
 import org.apache.ambari.server.controller.AmbariManagementController;
@@ -44,6 +39,9 @@ import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
+
 /**
  * An extension version is like a stack version but it contains custom services.  Linking an extension
  * version to the current stack version allows the cluster to install the custom services contained in
@@ -58,13 +56,27 @@ public class ExtensionVersionResourceProvider extends ReadOnlyResourceProvider {
   public static final String EXTENSION_ERROR_SET      = PropertyHelper.getPropertyId("Versions", "extension-errors");
   public static final String EXTENSION_PARENT_PROPERTY_ID      = PropertyHelper.getPropertyId("Versions", "parent_extension_version");
 
-  private static Set<String> pkPropertyIds = new HashSet<String>(
-      Arrays.asList(new String[] { EXTENSION_NAME_PROPERTY_ID, EXTENSION_VERSION_PROPERTY_ID }));
+  /**
+   * The key property ids for a ExtensionVersion resource.
+   */
+  private static Map<Resource.Type, String> keyPropertyIds = ImmutableMap.<Resource.Type, String>builder()
+      .put(Type.Extension, EXTENSION_NAME_PROPERTY_ID)
+      .put(Type.ExtensionVersion, EXTENSION_VERSION_PROPERTY_ID)
+      .build();
 
-  protected ExtensionVersionResourceProvider(Set<String> propertyIds,
-      Map<Type, String> keyPropertyIds,
+  /**
+   * The property ids for a ExtensionVersion resource.
+   */
+  private static Set<String> propertyIds = Sets.newHashSet(
+      EXTENSION_VERSION_PROPERTY_ID,
+      EXTENSION_NAME_PROPERTY_ID,
+      EXTENSION_VALID_PROPERTY_ID,
+      EXTENSION_ERROR_SET,
+      EXTENSION_PARENT_PROPERTY_ID);
+
+  protected ExtensionVersionResourceProvider(
       AmbariManagementController managementController) {
-    super(propertyIds, keyPropertyIds, managementController);
+    super(Type.ExtensionVersion, propertyIds, keyPropertyIds, managementController);
   }
 
   @Override
@@ -72,10 +84,10 @@ public class ExtensionVersionResourceProvider extends ReadOnlyResourceProvider {
       throws SystemException, UnsupportedPropertyException,
       NoSuchResourceException, NoSuchParentResourceException {
 
-    final Set<ExtensionVersionRequest> requests = new HashSet<ExtensionVersionRequest>();
+    final Set<ExtensionVersionRequest> requests = new HashSet<>();
 
     if (predicate == null) {
-      requests.add(getRequest(Collections.<String, Object>emptyMap()));
+      requests.add(getRequest(Collections.emptyMap()));
     } else {
       for (Map<String, Object> propertyMap : getPropertyMaps(predicate)) {
         requests.add(getRequest(propertyMap));
@@ -91,7 +103,7 @@ public class ExtensionVersionResourceProvider extends ReadOnlyResourceProvider {
       }
     });
 
-    Set<Resource> resources = new HashSet<Resource>();
+    Set<Resource> resources = new HashSet<>();
 
     for (ExtensionVersionResponse response : responses) {
       Resource resource = new ResourceImpl(Resource.Type.ExtensionVersion);
@@ -125,7 +137,7 @@ public class ExtensionVersionResourceProvider extends ReadOnlyResourceProvider {
 
   @Override
   protected Set<String> getPKPropertyIds() {
-    return pkPropertyIds;
+    return new HashSet<>(keyPropertyIds.values());
   }
 
 }

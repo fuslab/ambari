@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,11 @@
 
 package org.apache.ambari.server.controller.logging;
 
-import org.codehaus.jackson.annotate.JsonIgnoreProperties;
-import org.codehaus.jackson.annotate.JsonProperty;
-
 import java.util.HashMap;
 import java.util.Map;
+
+import org.codehaus.jackson.annotate.JsonIgnoreProperties;
+import org.codehaus.jackson.annotate.JsonProperty;
 
 /**
  * This class represents a single entry from a LogSearch query.
@@ -35,7 +35,7 @@ import java.util.Map;
 public class LogLineResult {
 
   private final Map<String, String> mapOfLogLineProperties =
-    new HashMap<String, String>();
+    new HashMap<>();
 
   private String clusterName;
 

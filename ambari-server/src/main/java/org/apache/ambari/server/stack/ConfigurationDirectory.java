@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,19 @@
 
 package org.apache.ambari.server.stack;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.xml.bind.JAXBException;
+import javax.xml.bind.UnmarshalException;
+import javax.xml.namespace.QName;
+
 import org.apache.ambari.server.state.ConfigHelper;
 import org.apache.ambari.server.state.PropertyInfo;
 import org.apache.ambari.server.state.stack.ConfigurationXml;
@@ -27,17 +40,6 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.xml.namespace.QName;
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.UnmarshalException;
 import org.xml.sax.SAXParseException;
 
 /**
@@ -53,7 +55,7 @@ public class ConfigurationDirectory extends StackDefinitionDirectory {
    * Map of configuration type to configuration module.
    * One entry for each configuration file in this configuration directory.
    */
-  private Map<String, ConfigurationModule> configurationModules = new HashMap<String, ConfigurationModule>();
+  private Map<String, ConfigurationModule> configurationModules = new HashMap<>();
 
   /**
    * Logger instance
@@ -135,7 +137,7 @@ public class ConfigurationDirectory extends StackDefinitionDirectory {
    * @return  collection of properties
    */
   private Collection<PropertyInfo> parseProperties(ConfigurationXml configuration, String fileName) {
-  List<PropertyInfo> props = new ArrayList<PropertyInfo>();
+  List<PropertyInfo> props = new ArrayList<>();
   for (PropertyInfo pi : configuration.getProperties()) {
     pi.setFilename(fileName);
     if(pi.getPropertyTypes().contains(PropertyInfo.PropertyType.VALUE_FROM_PROPERTY_FILE)) {
@@ -146,24 +148,30 @@ public class ConfigurationDirectory extends StackDefinitionDirectory {
         File propertyFile = new File(propertyFilePath);
         if (propertyFile.exists() && propertyFile.isFile()) {
           try {
-            String propertyValue = FileUtils.readFileToString(propertyFile);
+            String propertyValue =
+                    FileUtils.readFileToString(propertyFile, Charset.defaultCharset());
+            boolean valid = true;
             switch (propertyFileType.toLowerCase()) {
               case "xml" :
                 if (!XmlUtils.isValidXml(propertyValue)) {
+                  valid = false;
                   LOG.error("Failed to load value from property file. Property file {} is not a valid XML file", propertyFilePath);
-                  break;
                 }
-                pi.setValue(propertyValue);
                 break;
               case "json":
-                if(!JsonUtils.isValidJson(propertyValue)) {
+                if (!JsonUtils.isValidJson(propertyValue)) {
+                  valid = false;
                   LOG.error("Failed to load value from property file. Property file {} is not a valid JSON file", propertyFilePath);
-                  break;
                 }
-              case "text":
-              default:
-                pi.setValue(propertyValue);
                 break;
+              case "text":
+                // fallthrough
+              default:
+                // no validity check
+                break;
+            }
+            if (valid) {
+              pi.setValue(propertyValue);
             }
           } catch (IOException e) {
             LOG.error("Failed to load value from property file {}. Error Message {}", propertyFilePath, e.getMessage());
@@ -187,7 +195,7 @@ public class ConfigurationDirectory extends StackDefinitionDirectory {
    * @return  collection of attributes for the configuration type
    */
   private Map<String, String> parseAttributes(ConfigurationXml configuration) {
-    Map<String, String> attributes = new HashMap<String, String>();
+    Map<String, String> attributes = new HashMap<>();
     for (Map.Entry<QName, String> attribute : configuration.getAttributes().entrySet()) {
       attributes.put(attribute.getKey().getLocalPart(), attribute.getValue());
     }

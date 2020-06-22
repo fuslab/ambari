@@ -836,11 +836,13 @@ describe('App.WizardController', function () {
           if (type === 'dataIsLoaded') {
             return true;
           }
-          return Em.Object.create({
-            hdfsUser: {
-              name: 'user'
-            }
-          });
+          return Em.A([
+            Em.Object.create({
+              name: 'hdfs_user',
+              filename: 'hadoop-env.xml',
+              value: 'cstm-hdfs'
+            })
+          ]);
         }
       });
     });
@@ -1055,7 +1057,6 @@ describe('App.WizardController', function () {
       sinon.stub(c, 'setDBProperty', Em.K);
       sinon.stub(c, 'setDBProperties', Em.K);
       sinon.stub(c, 'getDBProperty').withArgs('fileNamesToUpdate').returns([]);
-      sinon.stub(c, 'setPersistentProperty', Em.K);
       sinon.stub(App.config, 'shouldSupportFinal').returns(true);
     });
 
@@ -1063,7 +1064,6 @@ describe('App.WizardController', function () {
       c.setDBProperty.restore();
       c.setDBProperties.restore();
       c.getDBProperty.restore();
-      c.setPersistentProperty.restore();
       App.config.shouldSupportFinal.restore();
     });
 
@@ -1710,6 +1710,87 @@ describe('App.WizardController', function () {
 
     it("Em.run.next should be called", function () {
       expect(Em.run.next.calledOnce).to.be.true;
+    });
+  });
+
+  describe('#applyStoredConfigs', function() {
+
+    it('should return null when storedConfigs null', function() {
+      expect(c.applyStoredConfigs([], null)).to.be.null;
+    });
+
+    it('should merged configs when storedConfigs has items', function() {
+      var storedConfigs = [
+        {
+          id: 1,
+          value: 'foo',
+          isFinal: false
+        },
+        {
+          id: 2,
+          value: 'foo2',
+          isFinal: true,
+          isUserProperty: true
+        }
+      ];
+      var configs = [
+        {
+          id: 1,
+          value: '',
+          isFinal: true
+        }
+      ];
+      expect(c.applyStoredConfigs(configs, storedConfigs)).to.be.eql([
+        {
+          id: 1,
+          value: 'foo',
+          isFinal: false,
+          savedValue: null
+        },
+        {
+          id: 2,
+          value: 'foo2',
+          isFinal: true,
+          isUserProperty: true
+        }
+      ]);
+    });
+  });
+  
+  describe('#setStackServiceSelectedByDefault', function() {
+   
+    it('regular service should be selected', function() {
+      var service = {
+        StackServices: {
+          selection: null,
+          service_name: 'S1'
+        }
+      };
+      c.setStackServiceSelectedByDefault(service);
+      expect(service.StackServices.is_selected).to.be.true;
+    });
+  
+    it('TECH_PREVIEW service should not be selected', function() {
+      var service = {
+        StackServices: {
+          selection: "TECH_PREVIEW",
+          service_name: 'S1'
+        }
+      };
+      c.setStackServiceSelectedByDefault(service);
+      expect(service.StackServices.is_selected).to.be.false;
+    });
+  
+    it('service_type service should not be selected', function() {
+      var service = {
+        StackServices: {
+          selection: null,
+          service_name: 'S1',
+          service_type: 'HCFS'
+        }
+      };
+      c.setStackServiceSelectedByDefault(service);
+      expect(service.StackServices.is_selected).to.be.false;
     });
   });
 

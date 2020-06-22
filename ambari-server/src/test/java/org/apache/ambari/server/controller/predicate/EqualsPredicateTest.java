@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,14 +17,15 @@
  */
 package org.apache.ambari.server.controller.predicate;
 
-import junit.framework.Assert;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.internal.ResourceImpl;
 import org.apache.ambari.server.controller.spi.Predicate;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.junit.Test;
 
-import java.util.Set;
+import junit.framework.Assert;
 
 /**
  * Equals predicate tests.
@@ -35,7 +36,7 @@ public class EqualsPredicateTest {
   public void testApply() {
     Resource resource = new ResourceImpl(Resource.Type.HostComponent);
     String propertyId = PropertyHelper.getPropertyId("category1", "foo");
-    Predicate predicate = new EqualsPredicate<String>(propertyId, "bar");
+    Predicate predicate = new EqualsPredicate<>(propertyId, "bar");
 
     resource.setProperty(propertyId, "monkey");
     Assert.assertFalse(predicate.evaluate(resource));
@@ -45,7 +46,7 @@ public class EqualsPredicateTest {
 
 
     propertyId = PropertyHelper.getPropertyId("category1", "fun");
-    predicate = new EqualsPredicate<String>(propertyId, "bar");
+    predicate = new EqualsPredicate<>(propertyId, "bar");
 
     Assert.assertFalse(predicate.evaluate(resource));
   }
@@ -66,7 +67,7 @@ public class EqualsPredicateTest {
   @Test
   public void testGetProperties() {
     String propertyId = PropertyHelper.getPropertyId("category1", "foo");
-    EqualsPredicate predicate = new EqualsPredicate<String>(propertyId, "bar");
+    EqualsPredicate predicate = new EqualsPredicate<>(propertyId, "bar");
 
     Set<String> ids = predicate.getPropertyIds();
 
@@ -78,7 +79,7 @@ public class EqualsPredicateTest {
   public void testApplyNumberValues() throws Exception {
     Resource resource = new ResourceImpl(Resource.Type.HostComponent);
     String propertyId = PropertyHelper.getPropertyId("propertyId1", "1");
-    Predicate predicate = new EqualsPredicate<String>(propertyId, "1");
+    Predicate predicate = new EqualsPredicate<>(propertyId, "1");
     resource.setProperty(propertyId, "1");
     Assert.assertTrue(predicate.evaluate(resource));
 

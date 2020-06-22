@@ -123,8 +123,8 @@
         <config-type>falcon-runtime.properties</config-type>
         <config-type>falcon-client.properties</config-type>
         <config-type>falcon-log4j.xml</config-type>
-        <config-type>application.properties</config-type>
         <config-type>falcon-atlas-application.properties</config-type>
+        <config-type>application.properties</config-type>
       </configuration-dependencies>
 
       <!-- Make a new config version when these config types are changed. -->
@@ -138,6 +138,14 @@
           <default>true</default>
         </quickLinksConfiguration>
       </quickLinksConfigurations>
+
+      <themes>
+        <theme>
+          <fileName>directories.json</fileName>
+          <default>true</default>
+        </theme>
+      </themes>
+
     </service>
   </services>
 </metainfo>

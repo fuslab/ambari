@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,11 +19,12 @@
 package org.apache.ambari.server.api.predicate.operators;
 
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
+
 import org.apache.ambari.server.controller.predicate.EqualsPredicate;
 import org.apache.ambari.server.controller.predicate.OrPredicate;
 import org.junit.Test;
-
-import static org.junit.Assert.*;
 
 /**
  * IN operator test.
@@ -39,9 +40,9 @@ public class InOperatorTest {
   public void testToPredicate() throws Exception {
     String prop = "prop";
     String val = "one,2,three";
-    EqualsPredicate p1 = new EqualsPredicate<String>(prop, "one");
-    EqualsPredicate p2 = new EqualsPredicate<String>(prop, "2");
-    EqualsPredicate p3 = new EqualsPredicate<String>(prop, "three");
+    EqualsPredicate p1 = new EqualsPredicate<>(prop, "one");
+    EqualsPredicate p2 = new EqualsPredicate<>(prop, "2");
+    EqualsPredicate p3 = new EqualsPredicate<>(prop, "three");
     OrPredicate orPredicate = new OrPredicate(p1, p2, p3);
 
     assertEquals(orPredicate, new InOperator().toPredicate(prop, val));

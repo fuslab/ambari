@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,13 +17,14 @@
  */
 package org.apache.ambari.server.controller.predicate;
 
-import junit.framework.Assert;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.internal.ResourceImpl;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.junit.Test;
 
-import java.util.Set;
+import junit.framework.Assert;
 
 /**
  *
@@ -37,9 +38,9 @@ public class AndPredicateTest {
     String propertyId2 = PropertyHelper.getPropertyId("category1", "property2");
     String propertyId3 = PropertyHelper.getPropertyId("category1", "property3");
 
-    EqualsPredicate predicate1 = new EqualsPredicate<String>(propertyId1, "v1");
-    EqualsPredicate predicate2 = new EqualsPredicate<String>(propertyId2, "v2");
-    EqualsPredicate predicate3 = new EqualsPredicate<String>(propertyId3, "v3");
+    EqualsPredicate predicate1 = new EqualsPredicate<>(propertyId1, "v1");
+    EqualsPredicate predicate2 = new EqualsPredicate<>(propertyId2, "v2");
+    EqualsPredicate predicate3 = new EqualsPredicate<>(propertyId3, "v3");
 
     AndPredicate andPredicate = new AndPredicate(predicate1, predicate2, predicate3);
 
@@ -58,9 +59,9 @@ public class AndPredicateTest {
     String propertyId2 = PropertyHelper.getPropertyId("category1", "property2");
     String propertyId3 = PropertyHelper.getPropertyId("category1", "property3");
 
-    EqualsPredicate predicate1 = new EqualsPredicate<String>(propertyId1, "v1");
-    EqualsPredicate predicate2 = new EqualsPredicate<String>(propertyId2, "v2");
-    EqualsPredicate predicate3 = new EqualsPredicate<String>(propertyId3, "v3");
+    EqualsPredicate predicate1 = new EqualsPredicate<>(propertyId1, "v1");
+    EqualsPredicate predicate2 = new EqualsPredicate<>(propertyId2, "v2");
+    EqualsPredicate predicate3 = new EqualsPredicate<>(propertyId3, "v3");
 
     AndPredicate andPredicate = new AndPredicate(predicate1, predicate2, predicate3);
 

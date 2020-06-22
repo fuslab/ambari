@@ -15,12 +15,13 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 -->
-<metainfo>
+<metainfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <schemaVersion>2.0</schemaVersion>
   <services>
     <service>
       <name>HDFS</name>
       <displayName>HDFS</displayName>
+      <serviceType>HDFS</serviceType> <!-- This tag is used only for main fileSystem service. It sets filesystem schema for ambari -->
       <comment>Apache Hadoop Distributed File System</comment>
       <version>2.1.0.2.0</version>
 
@@ -32,6 +33,47 @@
           <cardinality>1-2</cardinality>
           <versionAdvertised>true</versionAdvertised>
           <reassignAllowed>true</reassignAllowed>
+          <dependencies>
+            <dependency>
+              <name>HDFS/ZKFC</name>
+              <scope>cluster</scope>
+              <auto-deploy>
+                <enabled>false</enabled>
+              </auto-deploy>
+              <conditions>
+                <condition xsi:type="propertyExists">
+                  <configType>hdfs-site</configType>
+                  <property>dfs.nameservices</property>
+                </condition>
+              </conditions>
+            </dependency>
+            <dependency>
+              <name>ZOOKEEPER/ZOOKEEPER_SERVER</name>
+              <scope>cluster</scope>
+              <auto-deploy>
+                <enabled>false</enabled>
+              </auto-deploy>
+              <conditions>
+                <condition xsi:type="propertyExists">
+                  <configType>hdfs-site</configType>
+                  <property>dfs.nameservices</property>
+                </condition>
+              </conditions>
+            </dependency>
+            <dependency>
+              <name>HDFS/JOURNALNODE</name>
+              <scope>cluster</scope>
+              <auto-deploy>
+                <enabled>false</enabled>
+              </auto-deploy>
+              <conditions>
+                <condition xsi:type="propertyExists">
+                  <configType>hdfs-site</configType>
+                  <property>dfs.nameservices</property>
+                </condition>
+              </conditions>
+            </dependency>
+          </dependencies>
           <commandScript>
             <script>scripts/namenode.py</script>
             <scriptType>PYTHON</scriptType>
@@ -58,6 +100,22 @@
             <customCommand>
               <name>REBALANCEHDFS</name>
               <background>true</background>
+              <commandScript>
+                <script>scripts/namenode.py</script>
+                <scriptType>PYTHON</scriptType>
+              </commandScript>
+            </customCommand>
+            <customCommand>
+              <name>BOOTSTRAP_STANDBY</name>
+              <hidden>true</hidden>
+              <commandScript>
+                <script>scripts/namenode.py</script>
+                <scriptType>PYTHON</scriptType>
+              </commandScript>
+            </customCommand>
+            <customCommand>
+              <name>FORMAT</name>
+              <hidden>true</hidden>
               <commandScript>
                 <script>scripts/namenode.py</script>
                 <scriptType>PYTHON</scriptType>
@@ -116,6 +174,7 @@
           <name>HDFS_CLIENT</name>
           <displayName>HDFS Client</displayName>
           <category>CLIENT</category>
+          <componentType>HCFS_CLIENT</componentType>
           <cardinality>1+</cardinality>
           <versionAdvertised>true</versionAdvertised>
           <commandScript>
@@ -193,6 +252,16 @@
               <primary>true</primary>
             </log>
           </logs>
+          <customCommands>
+            <customCommand>
+              <name>FORMAT</name>
+              <hidden>true</hidden>
+              <commandScript>
+                <script>scripts/zkfc_slave.py</script>
+                <scriptType>PYTHON</scriptType>
+              </commandScript>
+            </customCommand>
+          </customCommands>
         </component>
       </components>
 
@@ -207,7 +276,7 @@
         </osSpecific>
         
         <osSpecific>
-          <osFamily>amazon2015,redhat6,redhat7,suse11</osFamily>
+          <osFamily>amazonlinux2,redhat6,redhat7,suse11</osFamily>
           <packages>
             <package>
               <name>hadoop-client</name>
@@ -220,6 +289,9 @@
             </package>
             <package>
               <name>hadoop-libhdfs</name>
+            </package>
+            <package>
+              <name>libtirpc-devel</name>
             </package>
           </packages>
         </osSpecific>
@@ -274,10 +346,6 @@
         <timeout>300</timeout>
       </commandScript>
       
-      <requiredServices>
-        <service>ZOOKEEPER</service>
-      </requiredServices>
-
       <configuration-dependencies>
         <config-type>core-site</config-type>
         <config-type>hdfs-site</config-type>
@@ -292,6 +360,13 @@
         <config-type>ranger-hdfs-security</config-type>
       </configuration-dependencies>
       <restartRequiredAfterRackChange>true</restartRequiredAfterRackChange>
+
+      <themes>
+        <theme>
+          <fileName>directories.json</fileName>
+          <default>true</default>
+        </theme>
+      </themes>
     </service>
   </services>
 </metainfo>

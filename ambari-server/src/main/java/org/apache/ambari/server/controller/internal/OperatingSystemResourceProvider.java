@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -74,7 +74,7 @@ public class OperatingSystemResourceProvider extends ReadOnlyResourceProvider {
   };
 
   protected OperatingSystemResourceProvider(AmbariManagementController managementController) {
-    super(propertyIds, keyPropertyIds, managementController);
+    super(Resource.Type.OperatingSystem, propertyIds, keyPropertyIds, managementController);
   }
 
   @Override
@@ -82,10 +82,10 @@ public class OperatingSystemResourceProvider extends ReadOnlyResourceProvider {
       throws SystemException, UnsupportedPropertyException,
       NoSuchResourceException, NoSuchParentResourceException {
 
-    final Set<OperatingSystemRequest> requests = new HashSet<OperatingSystemRequest>();
+    final Set<OperatingSystemRequest> requests = new HashSet<>();
 
     if (predicate == null) {
-      requests.add(getRequest(Collections.<String, Object>emptyMap()));
+      requests.add(getRequest(Collections.emptyMap()));
     } else {
       for (Map<String, Object> propertyMap : getPropertyMaps(predicate)) {
         requests.add(getRequest(propertyMap));
@@ -101,7 +101,7 @@ public class OperatingSystemResourceProvider extends ReadOnlyResourceProvider {
       }
     });
 
-    Set<Resource> resources = new HashSet<Resource>();
+    Set<Resource> resources = new HashSet<>();
 
     for (OperatingSystemResponse response : responses) {
       Resource resource = new ResourceImpl(Resource.Type.OperatingSystem);

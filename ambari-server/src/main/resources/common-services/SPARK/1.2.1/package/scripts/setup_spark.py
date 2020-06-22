@@ -20,9 +20,8 @@ limitations under the License.
 
 import os
 
-from resource_management.core.resources import Directory
-from resource_management.core.resources import File
 from resource_management.core.source import InlineTemplate
+from resource_management.core.resources.system import Directory, File
 from resource_management.libraries.functions.version import format_stack_version
 from resource_management.libraries.functions.stack_features import check_stack_feature
 from resource_management.libraries.functions import lzo_utils

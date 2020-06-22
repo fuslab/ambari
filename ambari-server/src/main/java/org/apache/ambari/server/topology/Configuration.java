@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Configuration for a topology entity such as a blueprint, hostgroup or cluster.
@@ -115,20 +116,20 @@ public class Configuration {
    */
   public Map<String, Map<String, String>> getFullProperties(int depthLimit) {
     if (depthLimit == 0) {
-      HashMap<String, Map<String, String>> propertiesCopy = new HashMap<String, Map<String, String>>();
+      HashMap<String, Map<String, String>> propertiesCopy = new HashMap<>();
       for (Map.Entry<String, Map<String, String>> typeProperties : properties.entrySet()) {
-        propertiesCopy.put(typeProperties.getKey(), new HashMap<String, String>(typeProperties.getValue()));
+        propertiesCopy.put(typeProperties.getKey(), new HashMap<>(typeProperties.getValue()));
       }
       return propertiesCopy;
     }
 
     Map<String, Map<String, String>> mergedProperties = parentConfiguration == null ?
-        new HashMap<String, Map<String, String>>() :
-        new HashMap<String, Map<String, String>>(parentConfiguration.getFullProperties(--depthLimit));
+      new HashMap<>() :
+      new HashMap<>(parentConfiguration.getFullProperties(--depthLimit));
 
     for (Map.Entry<String, Map<String, String>> entry : properties.entrySet()) {
       String configType = entry.getKey();
-      Map<String, String> typeProps = new HashMap<String, String>(entry.getValue());
+      Map<String, String> typeProps = new HashMap<>(entry.getValue());
 
       if (mergedProperties.containsKey(configType)) {
         mergedProperties.get(configType).putAll(typeProps);
@@ -158,14 +159,14 @@ public class Configuration {
    */
   public Map<String, Map<String, Map<String, String>>> getFullAttributes() {
     Map<String, Map<String, Map<String, String>>> mergedAttributeMap = parentConfiguration == null ?
-        new HashMap<String, Map<String, Map<String, String>>>() :
-        new HashMap<String, Map<String, Map<String, String>>>(parentConfiguration.getFullAttributes());
+      new HashMap<>() :
+      new HashMap<>(parentConfiguration.getFullAttributes());
 
     for (Map.Entry<String, Map<String, Map<String, String>>> typeEntry : attributes.entrySet()) {
       String type = typeEntry.getKey();
-      Map<String, Map<String, String>> typeAttributes = new HashMap<String, Map<String, String>>();
+      Map<String, Map<String, String>> typeAttributes = new HashMap<>();
       for (Map.Entry<String, Map<String, String>> attributeEntry : typeEntry.getValue().entrySet()) {
-        typeAttributes.put(attributeEntry.getKey(), new HashMap<String, String>(attributeEntry.getValue()));
+        typeAttributes.put(attributeEntry.getKey(), new HashMap<>(attributeEntry.getValue()));
       }
 
       if (! mergedAttributeMap.containsKey(type)) {
@@ -245,7 +246,7 @@ public class Configuration {
     String previousValue = getPropertyValue(configType, propertyName);
     Map<String, String> typeProperties = properties.get(configType);
     if (typeProperties == null) {
-      typeProperties = new HashMap<String, String>();
+      typeProperties = new HashMap<>();
       properties.put(configType, typeProperties);
     }
     typeProperties.put(propertyName, value);
@@ -279,6 +280,42 @@ public class Configuration {
   }
 
   /**
+   * Moves the given properties from {@code sourceConfigType} to {@code targetConfigType}.
+   * If a property is already present in the target, it will be removed from the source, but not overwritten in the target.
+   *
+   * @param sourceConfigType the config type to move properties from
+   * @param targetConfigType the config type to move properties to
+   * @param propertiesToMove names of properties to be moved
+   * @return property names that were removed from the source
+   */
+  public Set<String> moveProperties(String sourceConfigType, String targetConfigType, Set<String> propertiesToMove) {
+    Set<String> moved = new HashSet<>();
+    for (String property : propertiesToMove) {
+      if (isPropertySet(sourceConfigType, property)) {
+        String value = removeProperty(sourceConfigType, property);
+        if (!isPropertySet(targetConfigType, property)) {
+          setProperty(targetConfigType, property, value);
+        }
+        moved.add(property);
+      }
+    }
+    return moved;
+  }
+
+  /**
+   * General convenience method to determine if a given property has been set in the cluster configuration
+   *
+   * @param configType the config type to check
+   * @param propertyName the property name to check
+   * @return true if the named property has been set
+   *         false if the named property has not been set
+   */
+  public boolean isPropertySet(String configType, String propertyName) {
+    return properties.containsKey(configType) && properties.get(configType).containsKey(propertyName) ||
+      parentConfiguration != null && parentConfiguration.isPropertySet(configType, propertyName);
+  }
+
+  /**
    * Set an attribute on the hierarchy.
    * The attribute will be set on this instance so it will override any value specified in
    * the parent hierarchy.
@@ -295,13 +332,13 @@ public class Configuration {
 
     Map<String, Map<String, String>> typeAttributes = attributes.get(configType);
     if (typeAttributes == null) {
-      typeAttributes = new HashMap<String, Map<String, String>>();
+      typeAttributes = new HashMap<>();
       attributes.put(configType, typeAttributes);
     }
 
     Map<String, String> attributes = typeAttributes.get(attributeName);
     if (attributes == null) {
-      attributes = new HashMap<String, String>();
+      attributes = new HashMap<>();
       typeAttributes.put(attributeName, attributes);
     }
 
@@ -315,15 +352,9 @@ public class Configuration {
    * @return collection of all represented configuration types
    */
   public Collection<String> getAllConfigTypes() {
-    Collection<String> allTypes = new HashSet<String>();
-    for (String type : getFullProperties().keySet()) {
-      allTypes.add(type);
-    }
-
-    for (String type : getFullAttributes().keySet()) {
-      allTypes.add(type);
-    }
-
+    Collection<String> allTypes = new HashSet<>();
+    allTypes.addAll(getFullProperties().keySet());
+    allTypes.addAll(getFullAttributes().keySet());
     return allTypes;
   }
 

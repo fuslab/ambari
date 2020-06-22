@@ -31,28 +31,28 @@ App.MainAlertDefinitionActionsController = Em.ArrayController.extend({
     if (App.supports.createAlerts) {
       content.push({
         title: Em.I18n.t('alerts.actions.create'),
-        icon: 'icon-plus',
+        icon: 'glyphicon glyphicon-plus',
         action: 'createNewAlertDefinition',
         showDivider: true
       });
     }
     content.push({
       title: Em.I18n.t('alerts.actions.manageGroups'),
-      icon: 'icon-th-large',
+      icon: 'glyphicon glyphicon-th-large',
       action: 'manageAlertGroups',
       showDivider: false
     });
     if (App.isAuthorized('CLUSTER.MANAGE_ALERT_NOTIFICATIONS')) {
       content.push({
         title: Em.I18n.t('alerts.actions.manageNotifications'),
-        icon: 'icon-envelope-alt',
+        icon: 'glyphicon glyphicon-envelope',
         action: 'manageNotifications',
         showDivider: false
       });
     }
     content.push({
       title: Em.I18n.t('alerts.actions.manageSettings'),
-      icon: 'icon-cogs',
+      icon: 'glyphicon glyphicon-cog',
       action: 'manageSettings',
       showDivider: false
     });
@@ -99,7 +99,8 @@ App.MainAlertDefinitionActionsController = Em.ArrayController.extend({
         controllerBinding: 'App.router.manageAlertGroupsController'
       }),
 
-      classNames: ['sixty-percent-width-modal', 'manage-alert-group-popup'],
+      classNames: ['common-modal-wrapper', 'manage-alert-group-popup'],
+      modalDialogClasses: ['modal-lg'],
       primary: Em.I18n.t('common.save'),
 
       onPrimary: function () {
@@ -164,12 +165,7 @@ App.MainAlertDefinitionActionsController = Em.ArrayController.extend({
                   })
                 });
               }
-              App.router.get('updateController').updateAlertGroups(function () {
-                App.router.get('manageAlertGroupsController').toggleProperty('changeTrigger');
-                App.router.get('updateController').updateAlertDefinitions(function() {
-                  App.router.get('updateController').updateAlertNotifications(Em.K);
-                });
-              });
+              App.router.get('updateController').updateAlertNotifications(Em.K);
             }
           } else {
             runNextQuery();
@@ -202,7 +198,8 @@ App.MainAlertDefinitionActionsController = Em.ArrayController.extend({
         controllerBinding: 'App.router.manageAlertNotificationsController'
       }),
 
-      classNames: ['sixty-percent-width-modal', 'manage-configuration-group-popup'],
+      classNames: ['common-modal-wrapper', 'manage-configuration-group-popup'],
+      modalDialogClasses: ['modal-lg'],
 
       secondary: null,
 

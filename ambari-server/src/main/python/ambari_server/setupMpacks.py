@@ -27,7 +27,7 @@ import logging
 from ambari_server.serverClassPath import ServerClassPath
 
 from ambari_commons.exceptions import FatalException
-from ambari_commons.inet_utils import download_file, download_file_anyway
+from ambari_commons.inet_utils import download_file_anyway
 from ambari_commons.logging_utils import print_info_msg, print_error_msg, print_warning_msg
 from ambari_commons.os_utils import copy_file, run_os_command, change_owner, set_file_permissions
 from ambari_server.serverConfiguration import get_ambari_properties, get_ambari_version, get_stack_location, \
@@ -39,7 +39,8 @@ from ambari_server.userInput import get_YN_input
 from ambari_server.dbConfiguration import ensure_jdbc_driver_is_installed, LINUX_DBMS_KEYS_LIST
 
 from resource_management.core import sudo
-from resource_management.libraries.functions.tar_archive import extract_archive, get_archive_root_dir
+from resource_management.core.environment import Environment
+from resource_management.libraries.functions.tar_archive import untar_archive, get_archive_root_dir
 from resource_management.libraries.functions.version import compare_versions
 
 
@@ -157,7 +158,9 @@ def expand_mpack(archive_path):
   print_info_msg("Expand management pack at temp location {0}".format(tmp_root_dir))
   if os.path.exists(tmp_root_dir):
     sudo.rmtree(tmp_root_dir)
-  extract_archive(archive_path, tmpdir)
+
+  with Environment():
+    untar_archive(archive_path, tmpdir)
 
   if not os.path.exists(tmp_root_dir):
     print_error_msg("Malformed management pack. Failed to expand management pack!")
@@ -714,13 +717,14 @@ def _install_mpack(options, replay_mode=False, is_upgrade=False):
     _execute_hook(mpack_metadata, BEFORE_INSTALL_HOOK_NAME, tmp_root_dir)
 
   # Purge previously installed stacks and management packs
-  if options.purge and options.purge_list:
+  if not is_upgrade and options.purge and options.purge_list:
     purge_resources = options.purge_list.split(",")
     validate_purge(options, purge_resources, tmp_root_dir, mpack_metadata, replay_mode)
     purge_stacks_and_mpacks(purge_resources, replay_mode)
 
   adjust_ownership_list = []
   change_ownership_list = []
+
   # Get ambari mpack properties
   stack_location, extension_location, service_definitions_location, mpacks_staging_location, dashboard_location = get_mpack_properties()
   mpacks_cache_location = os.path.join(mpacks_staging_location, MPACKS_CACHE_DIRNAME)
@@ -818,6 +822,7 @@ def _install_mpack(options, replay_mode=False, is_upgrade=False):
   print_info_msg("Management pack {0}-{1} successfully installed! Please restart ambari-server.".format(mpack_name, mpack_version))
   return mpack_metadata, mpack_name, mpack_version, mpack_staging_dir, mpack_archive_path
 
+# TODO
 def _execute_hook(mpack_metadata, hook_name, base_dir):
   if "hooks" in mpack_metadata:
     hooks = mpack_metadata["hooks"]
@@ -826,23 +831,24 @@ def _execute_hook(mpack_metadata, hook_name, base_dir):
         hook_script = os.path.join(base_dir, hook.script)
         if os.path.exists(hook_script):
           print_info_msg("Executing {0} hook script : {1}".format(hook_name, hook_script))
-          command = []
           if hook.type == PYTHON_HOOK_TYPE:
             command = ["/usr/bin/ambari-python-wrap", hook_script]
           elif hook.type == SHELL_HOOK_TYPE:
             command = ["/bin/bash", hook_script]
           else:
-            raise FatalException("Malformed management pack. Unknown hook type for {0} hook script".format(hook_name))
+            raise FatalException(-1, "Malformed management pack. Unknown hook type for {0} hook script"
+                                 .format(hook_name))
           (returncode, stdoutdata, stderrdata) = run_os_command(command)
           if returncode != 0:
             msg = "Failed to execute {0} hook. Failed with error code {0}".format(hook_name, returncode)
             print_error_msg(msg)
             print_error_msg(stderrdata)
-            raise FatalException(msg)
+            raise FatalException(-1, msg)
           else:
             print_info_msg(stdoutdata)
         else:
-          raise FatalException("Malformed management pack. Missing {0} hook script {1}".format(hook_name, hook_script))
+          raise FatalException(-1, "Malformed management pack. Missing {0} hook script {1}"
+                               .format(hook_name, hook_script))
 
 def get_replay_log_file():
   """
@@ -933,9 +939,6 @@ def upgrade_mpack(options, replay_mode=False):
   """
   logger.info("Upgrade mpack.")
   mpack_path = options.mpack_path
-  if options.purge:
-    print_error_msg("Purge is not supported with upgrade_mpack action!")
-    raise FatalException(-1, "Purge is not supported with upgrade_mpack action!")
 
   if not mpack_path:
     print_error_msg("Management pack not specified!")
@@ -961,7 +964,7 @@ def upgrade_mpack(options, replay_mode=False):
 
   print_info_msg("Management pack {0}-{1} successfully upgraded!".format(mpack_name, mpack_version))
   if not replay_mode:
-    add_replay_log(UPGRADE_MPACK_ACTION, mpack_archive_path, options.purge, options.purge_list, options.force, options.verbose)
+    add_replay_log(UPGRADE_MPACK_ACTION, mpack_archive_path, False, [], options.force, options.verbose)
 
 def replay_mpack_logs():
   """

@@ -1,6 +1,4 @@
-package org.apache.ambari.server.controller.metrics.ganglia;
-
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,24 +15,23 @@ package org.apache.ambari.server.controller.metrics.ganglia;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-import org.apache.ambari.server.configuration.ComponentSSLConfiguration;
-import org.apache.ambari.server.controller.internal.URLStreamProvider;
-import org.apache.ambari.server.controller.utilities.StreamProvider;
+package org.apache.ambari.server.controller.metrics.ganglia;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.HttpURLConnection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.ambari.server.configuration.ComponentSSLConfiguration;
+import org.apache.ambari.server.controller.internal.URLStreamProvider;
+
 public class TestStreamProvider extends URLStreamProvider {
   // Allow for filename to be set at runtime
   protected String fileName;
   private String lastSpec;
-  protected Set<String> specs = new HashSet<String>();
+  protected Set<String> specs = new HashSet<>();
   private boolean isLastSpecUpdated;
 
   public TestStreamProvider(String fileName) {

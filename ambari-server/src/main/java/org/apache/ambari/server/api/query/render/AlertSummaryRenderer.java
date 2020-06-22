@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -87,8 +87,8 @@ public class AlertSummaryRenderer extends BaseRenderer implements Renderer {
       TreeNode<QueryInfo> queryTree, boolean isCollection) {
 
     QueryInfo queryInfo = queryTree.getObject();
-    TreeNode<Set<String>> resultTree = new TreeNodeImpl<Set<String>>(
-        null, queryInfo.getProperties(), queryTree.getName());
+    TreeNode<Set<String>> resultTree = new TreeNodeImpl<>(
+      null, queryInfo.getProperties(), queryTree.getName());
 
     copyPropertiesToResult(queryTree, resultTree);
 

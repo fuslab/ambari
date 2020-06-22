@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,17 +17,19 @@
  */
 package org.apache.ambari.server.controller.metrics.timeline.cache;
 
+import java.util.Map;
+import java.util.TreeMap;
+
+import org.apache.hadoop.metrics2.sink.timeline.TimelineMetric;
+import org.apache.hadoop.metrics2.sink.timeline.TimelineMetrics;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import net.sf.ehcache.pool.Size;
 import net.sf.ehcache.pool.SizeOfEngine;
 import net.sf.ehcache.pool.impl.DefaultSizeOfEngine;
 import net.sf.ehcache.pool.sizeof.ReflectionSizeOf;
 import net.sf.ehcache.pool.sizeof.SizeOf;
-import org.apache.hadoop.metrics2.sink.timeline.TimelineMetric;
-import org.apache.hadoop.metrics2.sink.timeline.TimelineMetrics;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import java.util.Map;
-import java.util.TreeMap;
 
 /**
  * Cache sizing engine that reduces reflective calls over the Object graph to
@@ -117,12 +119,11 @@ public class TimelineMetricsCacheSizeOfEngine implements SizeOfEngine {
           timelineMetricPrimitivesApproximation += reflectionSizeOf.sizeOf(metric.getAppId());
           timelineMetricPrimitivesApproximation += reflectionSizeOf.sizeOf(metric.getHostName());
           timelineMetricPrimitivesApproximation += reflectionSizeOf.sizeOf(metric.getInstanceId());
-          timelineMetricPrimitivesApproximation += reflectionSizeOf.sizeOf(metric.getTimestamp());
           timelineMetricPrimitivesApproximation += reflectionSizeOf.sizeOf(metric.getStartTime());
           timelineMetricPrimitivesApproximation += reflectionSizeOf.sizeOf(metric.getType());
           timelineMetricPrimitivesApproximation += 8; // Object overhead
 
-          LOG.debug("timelineMetricPrimitivesApproximation bytes = " + timelineMetricPrimitivesApproximation);
+          LOG.debug("timelineMetricPrimitivesApproximation bytes = {}", timelineMetricPrimitivesApproximation);
         }
         size += timelineMetricPrimitivesApproximation;
 
@@ -130,11 +131,11 @@ public class TimelineMetricsCacheSizeOfEngine implements SizeOfEngine {
         if (metricValues != null && !metricValues.isEmpty()) {
           // Numeric wrapper: 12 bytes + 8 bytes Data type + 4 bytes alignment = 48 (Long, Double)
           // Tree Map: 12 bytes for header + 20 bytes for 5 object fields : pointers + 1 byte for flag = 40
-         LOG.debug("Size of metric value: " + (sizeOfMapEntry + sizeOfMapEntryOverhead) * metricValues.size());
+          LOG.debug("Size of metric value: {}", (sizeOfMapEntry + sizeOfMapEntryOverhead) * metricValues.size());
           size += (sizeOfMapEntry + sizeOfMapEntryOverhead) * metricValues.size(); // Treemap size is O(1)
         }
       }
-      LOG.debug("Total Size of metric values in cache: " + size);
+      LOG.debug("Total Size of metric values in cache: {}", size);
     }
 
     return size;

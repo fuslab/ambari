@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -125,7 +125,7 @@ public class AlertSummaryGroupedRenderer extends AlertSummaryRenderer {
   @Override
   public Result finalizeResult(Result queryResult) {
     TreeNode<Resource> resultTree = queryResult.getResultTree();
-    Map<String, AlertDefinitionSummary> summaries = new HashMap<String, AlertDefinitionSummary>();
+    Map<String, AlertDefinitionSummary> summaries = new HashMap<>();
 
     // iterate over all returned flattened alerts and build the summary info
     for (TreeNode<Resource> node : resultTree.getChildren()) {
@@ -138,74 +138,12 @@ public class AlertSummaryGroupedRenderer extends AlertSummaryRenderer {
       MaintenanceState maintenanceState = (MaintenanceState) resource.getPropertyValue(AlertResourceProvider.ALERT_MAINTENANCE_STATE);
       String alertText = (String) resource.getPropertyValue(AlertResourceProvider.ALERT_TEXT);
 
-      // NPE sanity
-      if (null == state) {
-        state = AlertState.UNKNOWN;
-      }
-
-      // NPE sanity
-      long originalTimestamp = 0;
-      if (null != originalTimestampObject) {
-        originalTimestamp = originalTimestampObject.longValue();
-      }
-
-      // NPE sanity
-      boolean isMaintenanceModeEnabled = false;
-      if (null != maintenanceState && maintenanceState != MaintenanceState.OFF) {
-        isMaintenanceModeEnabled = true;
-      }
-
-      // create the group summary info if it doesn't exist yet
-      AlertDefinitionSummary groupSummaryInfo = summaries.get(definitionName);
-      if (null == groupSummaryInfo) {
-        groupSummaryInfo = new AlertDefinitionSummary();
-        groupSummaryInfo.Id = definitionId;
-        groupSummaryInfo.Name = definitionName;
-
-        summaries.put(definitionName, groupSummaryInfo);
-      }
-
-      // set and increment the correct values based on state
-      final AlertStateValues alertStateValues;
-      switch (state) {
-        case CRITICAL: {
-          alertStateValues = groupSummaryInfo.State.Critical;
-          break;
-        }
-        case OK: {
-          alertStateValues = groupSummaryInfo.State.Ok;
-          break;
-        }
-        case WARNING: {
-          alertStateValues = groupSummaryInfo.State.Warning;
-          break;
-        }
-        default:
-        case UNKNOWN: {
-          alertStateValues = groupSummaryInfo.State.Unknown;
-          break;
-        }
-      }
-
-      // update the maintenance count if in MM is enabled, otherwise the
-      // regular count
-      if (isMaintenanceModeEnabled) {
-        alertStateValues.MaintenanceCount++;
-      } else {
-        alertStateValues.Count++;
-      }
-
-      // check to see if this alerts time is sooner; if so, keep track of it
-      // and of its text
-      if (originalTimestamp > alertStateValues.Timestamp) {
-        alertStateValues.Timestamp = originalTimestamp;
-        alertStateValues.AlertText = alertText;
-      }
+      updateSummary(summaries, definitionId, definitionName, state, originalTimestampObject, maintenanceState, alertText);
     }
 
     Set<Entry<String, AlertDefinitionSummary>> entrySet = summaries.entrySet();
-    List<AlertDefinitionSummary> groupedResources = new ArrayList<AlertDefinitionSummary>(
-        entrySet.size());
+    List<AlertDefinitionSummary> groupedResources = new ArrayList<>(
+      entrySet.size());
 
     // iterate over all summary groups, adding them to the final list
     for (Entry<String, AlertDefinitionSummary> entry : entrySet) {
@@ -220,6 +158,86 @@ public class AlertSummaryGroupedRenderer extends AlertSummaryRenderer {
 
     resource.setProperty(ALERTS_SUMMARY_GROUP, groupedResources);
     return groupedSummary;
+  }
+
+  public static void updateSummary(Map<String, AlertDefinitionSummary> summaries, Long definitionId, String definitionName,
+                            AlertState state, Long originalTimestampObject, MaintenanceState maintenanceState,
+                            String alertText) {
+    // NPE sanity
+    if (null == state) {
+      state = AlertState.UNKNOWN;
+    }
+
+    // NPE sanity
+    long originalTimestamp = 0;
+    if (null != originalTimestampObject) {
+      originalTimestamp = originalTimestampObject.longValue();
+    }
+
+    // NPE sanity
+    boolean isMaintenanceModeEnabled = false;
+    if (null != maintenanceState && maintenanceState != MaintenanceState.OFF) {
+      isMaintenanceModeEnabled = true;
+    }
+
+    // create the group summary info if it doesn't exist yet
+    AlertDefinitionSummary groupSummaryInfo = summaries.get(definitionName);
+    if (null == groupSummaryInfo) {
+      groupSummaryInfo = new AlertDefinitionSummary();
+      groupSummaryInfo.Id = definitionId;
+      groupSummaryInfo.Name = definitionName;
+
+      summaries.put(definitionName, groupSummaryInfo);
+    }
+
+    // set and increment the correct values based on state
+    final AlertStateValues alertStateValues;
+    switch (state) {
+      case CRITICAL: {
+        alertStateValues = groupSummaryInfo.State.Critical;
+        break;
+      }
+      case OK: {
+        alertStateValues = groupSummaryInfo.State.Ok;
+        break;
+      }
+      case WARNING: {
+        alertStateValues = groupSummaryInfo.State.Warning;
+        break;
+      }
+      default:
+      case UNKNOWN: {
+        alertStateValues = groupSummaryInfo.State.Unknown;
+        break;
+      }
+    }
+
+    // update the maintenance count if in MM is enabled, otherwise the
+    // regular count
+    if (isMaintenanceModeEnabled) {
+      alertStateValues.MaintenanceCount++;
+    } else {
+      alertStateValues.Count++;
+    }
+
+    // check to see if this alerts time is sooner; if so, keep track of it
+    // and of its text
+    if (originalTimestamp > alertStateValues.Timestamp) {
+      alertStateValues.Timestamp = originalTimestamp;
+      alertStateValues.AlertText = alertText;
+    }
+  }
+
+  public static Map<String, AlertDefinitionSummary> generateEmptySummary(Long definitionId, String definitionName) {
+    Map<String, AlertDefinitionSummary> summaries = new HashMap<>();
+
+    AlertDefinitionSummary groupSummaryInfo = new AlertDefinitionSummary();
+    groupSummaryInfo.Id = definitionId;
+    groupSummaryInfo.Name = definitionName;
+
+    summaries.put(definitionName, groupSummaryInfo);
+
+    return summaries;
   }
 
   /**
@@ -245,12 +263,35 @@ public class AlertSummaryGroupedRenderer extends AlertSummaryRenderer {
    */
   public final static class AlertDefinitionSummary {
     @JsonProperty(value = "definition_id")
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "definition_id")
     public long Id;
 
     @JsonProperty(value = "definition_name")
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "definition_name")
     public String Name;
 
     @JsonProperty(value = "summary")
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "summary")
     public final AlertStateSummary State = new AlertStateSummary();
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+
+      AlertDefinitionSummary that = (AlertDefinitionSummary) o;
+
+      if (Id != that.Id) return false;
+      if (Name != null ? !Name.equals(that.Name) : that.Name != null) return false;
+      return State != null ? State.equals(that.State) : that.State == null;
+    }
+
+    @Override
+    public int hashCode() {
+      int result = (int) (Id ^ (Id >>> 32));
+      result = 31 * result + (Name != null ? Name.hashCode() : 0);
+      result = 31 * result + (State != null ? State.hashCode() : 0);
+      return result;
+    }
   }
 }

@@ -76,12 +76,12 @@ public class HostRequest implements Comparable<HostRequest> {
   private HostRoleStatus status = HostRoleStatus.PENDING;
   private String statusMessage;
 
-  private Map<TopologyTask, Map<String, Long>> logicalTaskMap = new HashMap<TopologyTask, Map<String, Long>>();
+  private Map<TopologyTask, Map<String, Long>> logicalTaskMap = new HashMap<>();
 
-  Map<Long, HostRoleCommand> logicalTasks = new HashMap<Long, HostRoleCommand>();
+  Map<Long, HostRoleCommand> logicalTasks = new HashMap<>();
 
   // logical task id -> physical tasks
-  private Map<Long, Long> physicalTasks = new HashMap<Long, Long>();
+  private Map<Long, Long> physicalTasks = new HashMap<>();
 
   private List<TopologyHostTask> topologyTasks = new ArrayList<>();
 
@@ -226,7 +226,7 @@ public class HostRequest implements Comparable<HostRequest> {
 
     InstallHostTask installTask = new InstallHostTask(topology, this, skipFailure);
     topologyTasks.add(installTask);
-    logicalTaskMap.put(installTask, new HashMap<String, Long>());
+    logicalTaskMap.put(installTask, new HashMap<>());
 
     boolean skipStartTaskCreate = topology.getProvisionAction().equals(INSTALL_ONLY);
     boolean skipInstallTaskCreate = topology.getProvisionAction().equals(START_ONLY);
@@ -235,7 +235,7 @@ public class HostRequest implements Comparable<HostRequest> {
     if (!skipStartTaskCreate) {
       startTask = new StartHostTask(topology, this, skipFailure);
       topologyTasks.add(startTask);
-      logicalTaskMap.put(startTask, new HashMap<String, Long>());
+      logicalTaskMap.put(startTask, new HashMap<>());
     } else {
       LOG.info("Skipping Start task creation since provision action = " + topology.getProvisionAction());
     }
@@ -291,14 +291,14 @@ public class HostRequest implements Comparable<HostRequest> {
     topologyTasks.add(new RegisterWithConfigGroupTask(topology, this));
     InstallHostTask installTask = new InstallHostTask(topology, this, skipFailure);
     topologyTasks.add(installTask);
-    logicalTaskMap.put(installTask, new HashMap<String, Long>());
+    logicalTaskMap.put(installTask, new HashMap<>());
 
     boolean skipStartTaskCreate = topology.getProvisionAction().equals(INSTALL_ONLY);
 
     if (!skipStartTaskCreate) {
       StartHostTask startTask = new StartHostTask(topology, this, skipFailure);
       topologyTasks.add(startTask);
-      logicalTaskMap.put(startTask, new HashMap<String, Long>());
+      logicalTaskMap.put(startTask, new HashMap<>());
     }
 
     AmbariContext ambariContext = topology.getAmbariContext();
@@ -384,7 +384,7 @@ public class HostRequest implements Comparable<HostRequest> {
   }
 
   public Map<String, Long> getLogicalTasksForTopologyTask(TopologyTask topologyTask) {
-    return new HashMap<String, Long>(logicalTaskMap.get(topologyTask));
+    return new HashMap<>(logicalTaskMap.get(topologyTask));
   }
 
   public HostRoleCommand getLogicalTask(long logicalTaskId) {
@@ -392,7 +392,7 @@ public class HostRequest implements Comparable<HostRequest> {
   }
 
   public Collection<HostRoleCommandEntity> getTaskEntities() {
-    Collection<HostRoleCommandEntity> taskEntities = new ArrayList<HostRoleCommandEntity>();
+    Collection<HostRoleCommandEntity> taskEntities = new ArrayList<>();
     for (HostRoleCommand task : logicalTasks.values()) {
       HostRoleCommandEntity entity = task.constructNewPersistenceEntity();
       // the above method doesn't set all of the fields for some unknown reason

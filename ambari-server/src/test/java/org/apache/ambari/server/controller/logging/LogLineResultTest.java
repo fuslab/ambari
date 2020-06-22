@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,16 +20,16 @@
 package org.apache.ambari.server.controller.logging;
 
 
+import static org.junit.Assert.assertEquals;
+
+import java.io.StringReader;
+
 import org.codehaus.jackson.map.AnnotationIntrospector;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.map.ObjectReader;
 import org.codehaus.jackson.map.annotate.JsonSerialize;
 import org.codehaus.jackson.map.introspect.JacksonAnnotationIntrospector;
 import org.junit.Test;
-
-import java.io.StringReader;
-
-import static org.junit.Assert.*;
 
 public class LogLineResultTest {
 

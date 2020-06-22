@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,14 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.createNiceMock;
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.AmbariManagementController;
 import org.apache.ambari.server.controller.spi.Request;
 import org.apache.ambari.server.controller.spi.Resource;
@@ -27,14 +35,6 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.springframework.security.core.context.SecurityContextHolder;
-
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-
-import static org.easymock.EasyMock.createMock;
-import static org.easymock.EasyMock.createNiceMock;
 
 /**
  * LdapSyncEventResourceProvider tests.
@@ -53,10 +53,10 @@ public class LdapSyncEventResourceProviderTest {
 
     LdapSyncEventResourceProvider provider = new TestLdapSyncEventResourceProvider(amc);
 
-    Set<Map<String, Object>> properties = new HashSet<Map<String, Object>>();
-    Map<String, Object> propertyMap = new HashMap<String, Object>();
+    Set<Map<String, Object>> properties = new HashSet<>();
+    Map<String, Object> propertyMap = new HashMap<>();
 
-    Set<Map<String, String>> specs = new HashSet<Map<String, String>>();
+    Set<Map<String, String>> specs = new HashSet<>();
 
     propertyMap.put(LdapSyncEventResourceProvider.EVENT_SPECS_PROPERTY_ID, specs);
     properties.add(propertyMap);
@@ -73,10 +73,10 @@ public class LdapSyncEventResourceProviderTest {
 
     LdapSyncEventResourceProvider provider = new TestLdapSyncEventResourceProvider(amc);
 
-    Set<Map<String, Object>> properties = new HashSet<Map<String, Object>>();
-    Map<String, Object> propertyMap = new HashMap<String, Object>();
+    Set<Map<String, Object>> properties = new HashSet<>();
+    Map<String, Object> propertyMap = new HashMap<>();
 
-    Set<Map<String, String>> specs = new HashSet<Map<String, String>>();
+    Set<Map<String, String>> specs = new HashSet<>();
 
     propertyMap.put(LdapSyncEventResourceProvider.EVENT_SPECS_PROPERTY_ID, specs);
     properties.add(propertyMap);
@@ -109,10 +109,10 @@ public class LdapSyncEventResourceProviderTest {
 
     LdapSyncEventResourceProvider provider = new TestLdapSyncEventResourceProvider(amc);
 
-    Set<Map<String, Object>> properties = new HashSet<Map<String, Object>>();
-    Map<String, Object> propertyMap = new HashMap<String, Object>();
+    Set<Map<String, Object>> properties = new HashSet<>();
+    Map<String, Object> propertyMap = new HashMap<>();
 
-    Set<Map<String, String>> specs = new HashSet<Map<String, String>>();
+    Set<Map<String, String>> specs = new HashSet<>();
 
     propertyMap.put(LdapSyncEventResourceProvider.EVENT_SPECS_PROPERTY_ID, specs);
     properties.add(propertyMap);

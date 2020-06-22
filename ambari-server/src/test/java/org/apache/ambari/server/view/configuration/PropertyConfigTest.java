@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,10 +18,10 @@
 
 package org.apache.ambari.server.view.configuration;
 
+import java.util.List;
+
 import org.junit.Assert;
 import org.junit.Test;
-
-import java.util.List;
 
 /**
  * PropertyConfig tests.

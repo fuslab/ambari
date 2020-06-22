@@ -19,34 +19,32 @@
 
 package org.apache.ambari.logfeeder.mapper;
 
-import java.util.Map;
-
+import org.apache.ambari.logfeeder.conf.LogFeederProps;
+import org.apache.ambari.logfeeder.plugin.filter.mapper.Mapper;
 import org.apache.ambari.logfeeder.util.LogFeederUtil;
+import org.apache.ambari.logsearch.config.api.model.inputconfig.MapFieldDescriptor;
+import org.apache.ambari.logsearch.config.api.model.inputconfig.MapFieldValueDescriptor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
+import java.util.Map;
+
 /**
  * Overrides the value for the field
  */
-public class MapperFieldValue extends Mapper {
+public class MapperFieldValue extends Mapper<LogFeederProps> {
   private static final Logger LOG = Logger.getLogger(MapperFieldValue.class);
   
   private String prevValue = null;
   private String newValue = null;
 
   @Override
-  public boolean init(String inputDesc, String fieldName, String mapClassCode, Object mapConfigs) {
+  public boolean init(String inputDesc, String fieldName, String mapClassCode, MapFieldDescriptor mapFieldDescriptor) {
     init(inputDesc, fieldName, mapClassCode);
-    if (!(mapConfigs instanceof Map)) {
-      LOG.fatal("Can't initialize object. mapConfigs class is not of type Map. " + mapConfigs.getClass().getName());
-      return false;
-    }
     
-    @SuppressWarnings("unchecked")
-    Map<String, Object> mapObjects = (Map<String, Object>) mapConfigs;
-    prevValue = (String) mapObjects.get("pre_value");
-    newValue = (String) mapObjects.get("post_value");
+    prevValue = ((MapFieldValueDescriptor)mapFieldDescriptor).getPreValue();
+    newValue = ((MapFieldValueDescriptor)mapFieldDescriptor).getPostValue();;
     if (StringUtils.isEmpty(newValue)) {
       LOG.fatal("Map field value is empty.");
       return false;
@@ -59,7 +57,7 @@ public class MapperFieldValue extends Mapper {
     if (newValue != null && prevValue != null) {
       if (prevValue.equalsIgnoreCase(value.toString())) {
         value = newValue;
-        jsonObj.put(fieldName, value);
+        jsonObj.put(getFieldName(), value);
       }
     } else {
       LogFeederUtil.logErrorMessageByInterval(this.getClass().getSimpleName() + ":apply",

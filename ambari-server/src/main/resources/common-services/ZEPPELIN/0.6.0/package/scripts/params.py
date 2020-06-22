@@ -82,7 +82,7 @@ if 'spark2-defaults' in config['configurations']:
 
 # New Cluster Stack Version that is defined during the RESTART of a Rolling Upgrade
 version = default("/commandParams/version", None)
-stack_name = default("/hostLevelParams/stack_name", None)
+stack_name = default("/clusterLevelParams/stack_name", None)
 
 # params from zeppelin-config
 zeppelin_port = str(config['configurations']['zeppelin-config']['zeppelin.server.port'])
@@ -115,8 +115,7 @@ log4j_properties_content = config['configurations']['zeppelin-log4j-properties']
 
 # detect configs
 master_configs = config['clusterHostInfo']
-java64_home = config['hostLevelParams']['java_home']
-ambari_host = str(master_configs['ambari_server_host'][0])
+java64_home = config['ambariLevelParams']['java_home']
 zeppelin_host = str(master_configs['zeppelin_master_hosts'][0])
 ui_ssl_enabled = config['configurations']['zeppelin-config']['zeppelin.ssl']
 
@@ -132,15 +131,15 @@ is_hive_installed = False
 hive_zookeeper_namespace = None
 hive_interactive_zookeeper_namespace = None
 
-if 'hive_server_host' in master_configs and len(master_configs['hive_server_host']) != 0:
+if 'hive_server_hosts' in master_configs and len(master_configs['hive_server_hosts']) != 0:
   is_hive_installed = True
   spark_hive_properties = {
-    'hive.metastore.uris': config['configurations']['hive-site']['hive.metastore.uris']
+    'hive.metastore.uris': default('/configurations/hive-site/hive.metastore.uris', '')
   }
-  hive_server_host = str(master_configs['hive_server_host'][0])
-  hive_metastore_host = str(master_configs['hive_metastore_host'][0])
+  hive_server_host = str(master_configs['hive_server_hosts'][0])
+  hive_metastore_host = str(master_configs['hive_metastore_hosts'][0])
   hive_metastore_port = str(
-    get_port_from_url(config['configurations']['hive-site']['hive.metastore.uris']))
+    get_port_from_url(default('/configurations/hive-site/hive.metastore.uris', '')))
   hive_server_port = str(config['configurations']['hive-site']['hive.server2.thrift.http.port'])
   hive_zookeeper_quorum = config['configurations']['hive-site']['hive.zookeeper.quorum']
   hive_zookeeper_namespace = config['configurations']['hive-site']['hive.server2.zookeeper.namespace']
@@ -202,7 +201,7 @@ else:
   zeppelin_interpreter_config_upgrade = False
 
 # e.g. 2.3
-stack_version_unformatted = config['hostLevelParams']['stack_version']
+stack_version_unformatted = config['clusterLevelParams']['stack_version']
 
 # e.g. 2.3.0.0
 stack_version_formatted = format_stack_version(stack_version_unformatted)
@@ -240,6 +239,7 @@ hadoop_conf_dir = conf_select.get_hadoop_conf_dir()
 hdfs_principal_name = config['configurations']['hadoop-env']['hdfs_principal_name']
 hdfs_site = config['configurations']['hdfs-site']
 default_fs = config['configurations']['core-site']['fs.defaultFS']
+dfs_type = default("/clusterLevelParams/dfs_type", "")
 
 # create partial functions with common arguments for every HdfsResource call
 # to create hdfs directory we need to call params.HdfsResource in code
@@ -254,5 +254,6 @@ HdfsResource = functools.partial(
   hadoop_conf_dir=hadoop_conf_dir,
   principal_name=hdfs_principal_name,
   hdfs_site=hdfs_site,
-  default_fs=default_fs
+  default_fs=default_fs,
+  dfs_type=dfs_type,
 )

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,28 +31,28 @@ public interface RequestStatus {
    *
    * @return the set of resources
    */
-  public Set<Resource> getAssociatedResources();
+  Set<Resource> getAssociatedResources();
 
   /**
    * Get the resource of type request for the asynchronous request.
    *
    * @return the request resource
    */
-  public Resource getRequestResource();
+  Resource getRequestResource();
 
   /**
    * Get the status of the operation initiated by the request.
    *
    * @return the status
    */
-  public Status getStatus();
+  Status getStatus();
 
   RequestStatusMetaData getStatusMetadata();
 
   /**
    * Request status.
    */
-  public enum Status {
+  enum Status {
     Accepted,
     InProgress,
     Complete

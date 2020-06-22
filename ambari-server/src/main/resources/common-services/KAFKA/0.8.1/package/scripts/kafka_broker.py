@@ -18,13 +18,14 @@ limitations under the License.
 """
 from resource_management import Script
 from resource_management.core.logger import Logger
-from resource_management.core.resources.system import Execute, File
+from resource_management.core.resources.system import Execute, File, Directory
 from resource_management.libraries.functions import stack_select
 from resource_management.libraries.functions import Direction
-from resource_management.libraries.functions import upgrade_summary
+from resource_management.libraries.functions.version import format_stack_version
 from resource_management.libraries.functions.format import format
 from resource_management.libraries.functions.check_process_status import check_process_status
 from resource_management.libraries.functions import StackFeature
+from resource_management.libraries.functions import upgrade_summary
 from resource_management.libraries.functions.stack_features import check_stack_feature
 from resource_management.libraries.functions.show_logs import show_logs
 from kafka import ensure_base_directories
@@ -46,6 +47,9 @@ class KafkaBroker(Script):
   def pre_upgrade_restart(self, env, upgrade_type=None):
     import params
     env.set_params(params)
+
+    # grab the current version of the component
+    pre_upgrade_version = stack_select.get_role_component_current_stack_version()
 
     if params.version and check_stack_feature(StackFeature.ROLLING_UPGRADE, params.version):
       stack_select.select_packages(params.version)
@@ -70,6 +74,12 @@ class KafkaBroker(Script):
     import params
     env.set_params(params)
     self.configure(env, upgrade_type=upgrade_type)
+
+    if params.kerberos_security_enabled:
+      if params.version and check_stack_feature(StackFeature.KAFKA_KERBEROS, params.version):
+        kafka_kinit_cmd = format("{kinit_path_local} -kt {kafka_keytab_path} {kafka_jaas_principal};")
+        Execute(kafka_kinit_cmd, user=params.kafka_user)
+
     if params.is_supported_kafka_ranger:
       setup_ranger_kafka() #Ranger Kafka Plugin related call 
     daemon_cmd = format('source {params.conf_dir}/kafka-env.sh ; {params.kafka_bin} start')
@@ -129,6 +139,10 @@ class KafkaBroker(Script):
   def get_user(self):
     import params
     return params.kafka_user
+
+  def get_pid_files(self):
+    import status_params
+    return [status_params.kafka_pid_file]
 
 if __name__ == "__main__":
   KafkaBroker().execute()

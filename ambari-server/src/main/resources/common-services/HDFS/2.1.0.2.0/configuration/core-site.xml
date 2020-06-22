@@ -186,8 +186,41 @@ DEFAULT
     <on-ambari-upgrade add="true"/>
   </property>
   <property>
+    <name>hadoop.proxyuser.*</name>
+    <value/>
+    <description>
+      This * property is not configured it's used just to define refresh commands for all properties
+      prefixed with hadoop.proxyuser.
+    </description>
+    <supported-refresh-commands>
+      <refresh-command componentName="NAMENODE" command="reloadproxyusers" />
+    </supported-refresh-commands>
+    <on-ambari-upgrade add="false"/>
+  </property>
+  <property>
     <name>fs.azure.user.agent.prefix</name>
     <value>User-Agent: APN/1.0 Hortonworks/1.0 HDP/{{version}}</value>
+    <on-ambari-upgrade add="false" />
+  </property>
+  <property>
+    <name>fs.gs.application.name.suffix</name>
+    <value> (GPN:Hortonworks; version 1.0) HDP/{{version}}</value>
+    <value-attributes>
+      <read-only>true</read-only>
+      <overridable>false</overridable>
+      <visible>false</visible>
+    </value-attributes>
+    <on-ambari-upgrade add="false" />
+  </property>
+  <property>
+    <name>fs.gs.path.encoding</name>
+    <value>uri-path</value>
+    <description>The path encoding codec to be used for GCS</description>
+    <on-ambari-upgrade add="false" />
+  </property>
+  <property>
+    <name>fs.gs.working.dir</name>
+    <value>/</value>
     <on-ambari-upgrade add="false" />
   </property>
   <property>

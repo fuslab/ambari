@@ -28,6 +28,16 @@
     <value-attributes>
       <type>user</type>
       <overridable>false</overridable>
+      <user-groups>
+        <property>
+          <type>cluster-env</type>
+          <name>user_group</name>
+        </property>
+        <property>
+          <type>spark2-env</type>
+          <name>spark_group</name>
+        </property>
+      </user-groups>
     </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
@@ -44,6 +54,7 @@
   </property>
   <property>
     <name>spark_log_dir</name>
+    <display-name>Spark Log directory</display-name>
     <value>/var/log/spark2</value>
     <description>Spark Log Dir</description>
     <value-attributes>
@@ -53,6 +64,7 @@
   </property>
   <property>
     <name>spark_pid_dir</name>
+    <display-name>Spark PID directory</display-name>
     <value>/var/run/spark2</value>
     <value-attributes>
       <type>directory</type>

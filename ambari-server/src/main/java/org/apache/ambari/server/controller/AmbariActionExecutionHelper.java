@@ -22,6 +22,7 @@ import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.AGENT_STA
 import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.AGENT_STACK_RETRY_ON_UNAVAILABILITY;
 import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.COMMAND_TIMEOUT;
 import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.COMPONENT_CATEGORY;
+import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.GPL_LICENSE_ACCEPTED;
 import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.SCRIPT;
 import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.SCRIPT_TYPE;
 
@@ -43,10 +44,7 @@ import org.apache.ambari.server.agent.ExecutionCommand.KeyNames;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
 import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.controller.internal.RequestResourceFilter;
-import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.ambari.server.customactions.ActionDefinition;
-import org.apache.ambari.server.orm.entities.OperatingSystemEntity;
-import org.apache.ambari.server.orm.entities.RepositoryVersionEntity;
 import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.Clusters;
 import org.apache.ambari.server.state.ComponentInfo;
@@ -58,6 +56,7 @@ import org.apache.ambari.server.state.StackId;
 import org.apache.ambari.server.state.stack.upgrade.RepositoryVersionHelper;
 import org.apache.ambari.server.state.svccomphost.ServiceComponentHostOpInProgressEvent;
 import org.apache.ambari.server.utils.SecretReference;
+import org.apache.ambari.server.utils.StageUtils;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -423,14 +422,15 @@ public class AmbariActionExecutionHelper {
 
       commandParams.put(SCRIPT, actionName + "." + ACTION_FILE_EXTENSION);
       commandParams.put(SCRIPT_TYPE, TYPE_PYTHON);
+      StageUtils.useAmbariJdkInCommandParams(commandParams, configs);
 
       ExecutionCommand execCmd = stage.getExecutionCommandWrapper(hostName,
         actionContext.getActionName()).getExecutionCommand();
 
       // !!! ensure that these are empty so that commands have the correct tags
       // applied when the execution is about to be scheduled to run
-      execCmd.setConfigurations(new TreeMap<String, Map<String, String>>());
-      execCmd.setConfigurationAttributes(new TreeMap<String, Map<String, Map<String, String>>>());
+      execCmd.setConfigurations(new TreeMap<>());
+      execCmd.setConfigurationAttributes(new TreeMap<>());
 
       // if the command should fetch brand new configuration tags before
       // execution, then we don't need to fetch them now
@@ -457,12 +457,12 @@ public class AmbariActionExecutionHelper {
         resourceFilter.getComponentName() : componentName);
 
       Map<String, String> hostLevelParams = execCmd.getHostLevelParams();
+      hostLevelParams.put(GPL_LICENSE_ACCEPTED, configs.getGplLicenseAccepted().toString());
       hostLevelParams.put(AGENT_STACK_RETRY_ON_UNAVAILABILITY, configs.isAgentStackRetryOnInstallEnabled());
       hostLevelParams.put(AGENT_STACK_RETRY_COUNT, configs.getAgentStackRetryOnInstallCount());
       for (Map.Entry<String, String> dbConnectorName : configs.getDatabaseConnectorNames().entrySet()) {
         hostLevelParams.put(dbConnectorName.getKey(), dbConnectorName.getValue());
       }
-
       for (Map.Entry<String, String> previousDBConnectorName : configs.getPreviousDatabaseConnectorNames().entrySet()) {
         hostLevelParams.put(previousDBConnectorName.getKey(), previousDBConnectorName.getValue());
       }
@@ -474,6 +474,7 @@ public class AmbariActionExecutionHelper {
       } else {
         repoVersionHelper.addRepoInfoToHostLevelParams(cluster, actionContext, null, hostLevelParams, hostName);
       }
+
 
       Map<String, String> roleParams = execCmd.getRoleParams();
       if (roleParams == null) {

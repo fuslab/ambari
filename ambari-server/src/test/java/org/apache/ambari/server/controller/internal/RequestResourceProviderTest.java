@@ -19,7 +19,9 @@
 package org.apache.ambari.server.controller.internal;
 
 
-import static org.apache.ambari.server.controller.internal.HostComponentResourceProvider.HOST_COMPONENT_STALE_CONFIGS_PROPERTY_ID;
+import static org.apache.ambari.server.controller.internal.HostComponentResourceProvider.STALE_CONFIGS;
+import static org.apache.ambari.server.security.TestAuthenticationFactory.createAdministrator;
+import static org.apache.ambari.server.security.TestAuthenticationFactory.createViewUser;
 import static org.easymock.EasyMock.anyObject;
 import static org.easymock.EasyMock.capture;
 import static org.easymock.EasyMock.eq;
@@ -41,6 +43,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
@@ -61,6 +64,7 @@ import org.apache.ambari.server.controller.ExecuteActionRequest;
 import org.apache.ambari.server.controller.RequestStatusResponse;
 import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
 import org.apache.ambari.server.controller.spi.Predicate;
+import org.apache.ambari.server.controller.spi.QueryResponse;
 import org.apache.ambari.server.controller.spi.Request;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.spi.ResourceProvider;
@@ -132,10 +136,10 @@ public class RequestResourceProviderTest {
 
     //todo: add assertions for topology manager interactions
     expect(topologyManager.getStageSummaries(EasyMock.<Long>anyObject())).andReturn(
-      Collections.<Long, HostRoleCommandStatusSummaryDTO>emptyMap()).anyTimes();
+      Collections.emptyMap()).anyTimes();
 
-    expect(topologyManager.getRequests(EasyMock.<Collection<Long>>anyObject())).andReturn(
-      Collections.<LogicalRequest>emptyList()).anyTimes();
+    expect(topologyManager.getRequests(EasyMock.anyObject())).andReturn(
+      Collections.emptyList()).anyTimes();
 
     replay(topologyManager);
 
@@ -178,14 +182,12 @@ public class RequestResourceProviderTest {
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
       type,
-      PropertyHelper.getPropertyIds(type),
-      PropertyHelper.getKeyPropertyIds(type),
       managementController);
 
     // add the property map to a set for the request.  add more maps for multiple creates
-    Set<Map<String, Object>> propertySet = new LinkedHashSet<Map<String, Object>>();
+    Set<Map<String, Object>> propertySet = new LinkedHashSet<>();
 
-    Map<String, Object> properties = new LinkedHashMap<String, Object>();
+    Map<String, Object> properties = new LinkedHashMap<>();
 
     // add properties to the request map
     properties.put(RequestResourceProvider.REQUEST_ID_PROPERTY_ID, "Request100");
@@ -210,7 +212,9 @@ public class RequestResourceProviderTest {
   public void testGetResourcesWithRequestInfo() throws Exception {
     Resource.Type type = Resource.Type.Request;
 
-    expect(requestDAO.findByPks(Collections.<Long> emptyList(), true)).andReturn(Collections.<RequestEntity>emptyList()).anyTimes();
+    expect(requestDAO.findByPks(Collections.emptyList(), true)).andReturn(Collections.emptyList()).anyTimes();
+
+    prepareGetAuthorizationExpectations();
 
     ActionManager actionManager = createNiceMock(ActionManager.class);
 
@@ -226,11 +230,9 @@ public class RequestResourceProviderTest {
     expect(managementController.getClusters()).andReturn(clusters).anyTimes();
     replay(managementController, clusters, cluster);
 
-    ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(type,
-      PropertyHelper.getPropertyIds(type), PropertyHelper.getKeyPropertyIds(type),
-      managementController);
+    ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(type, managementController);
 
-    Map<String, String> requestInfoProperties = new HashMap<String, String>();
+    Map<String, String> requestInfoProperties = new HashMap<>();
     Request request;
     Predicate predicate = new PredicateBuilder()
       .property(RequestResourceProvider.REQUEST_CLUSTER_NAME_PROPERTY_ID)
@@ -241,17 +243,17 @@ public class RequestResourceProviderTest {
       .equals(null)
       .toPredicate();
 
-    request = PropertyHelper.getReadRequest(new HashSet<String>(),
+    request = PropertyHelper.getReadRequest(new HashSet<>(),
       requestInfoProperties, null, null, null);
 
-    expect(requestDAO.findAllRequestIds(BaseRequest.DEFAULT_PAGE_SIZE, false, 1L)).andReturn(Collections.<Long> emptyList()).anyTimes();
+    expect(requestDAO.findAllRequestIds(BaseRequest.DEFAULT_PAGE_SIZE, false, 1L)).andReturn(Collections.emptyList()).anyTimes();
     replay(requestDAO);
 
     provider.getResources(request, predicate);
     verify(requestDAO);
 
     requestInfoProperties.put(BaseRequest.PAGE_SIZE_PROPERTY_KEY, "20");
-    request = PropertyHelper.getReadRequest(new HashSet<String>(),
+    request = PropertyHelper.getReadRequest(new HashSet<>(),
       requestInfoProperties, null, null, null);
     provider.getResources(request, predicate);
     verify(requestDAO);
@@ -259,14 +261,22 @@ public class RequestResourceProviderTest {
     reset(requestDAO);
 
     requestInfoProperties.put(BaseRequest.ASC_ORDER_PROPERTY_KEY, "true");
-    request = PropertyHelper.getReadRequest(new HashSet<String>(),
+    request = PropertyHelper.getReadRequest(new HashSet<>(),
       requestInfoProperties, null, null, null);
-    expect(requestDAO.findByPks(Collections.<Long> emptyList(), true)).andReturn(Collections.<RequestEntity>emptyList()).anyTimes();
-    expect(requestDAO.findAllRequestIds(BaseRequest.DEFAULT_PAGE_SIZE, true, 1L)).andReturn(Collections.<Long> emptyList()).anyTimes();
+    expect(requestDAO.findByPks(Collections.emptyList(), true)).andReturn(Collections.emptyList()).anyTimes();
+    expect(requestDAO.findAllRequestIds(BaseRequest.DEFAULT_PAGE_SIZE, true, 1L)).andReturn(Collections.emptyList()).anyTimes();
     replay(requestDAO);
 
     provider.getResources(request, predicate);
     verify(requestDAO);
+  }
+
+  private void prepareGetAuthorizationExpectations() {
+    prepareGetAuthorizationExpectations(true);
+  }
+
+  private void prepareGetAuthorizationExpectations(boolean allowedToAuthorize) {
+    SecurityContextHolder.getContext().setAuthentication(allowedToAuthorize ? createAdministrator() : createViewUser(1L));
   }
 
   @Test
@@ -315,16 +325,16 @@ public class RequestResourceProviderTest {
       put(1L, HostRoleCommandStatusSummaryDTO.create().inProgress(1));
     }}).anyTimes();
 
+    prepareGetAuthorizationExpectations();
+
     // replay
     replay(managementController, actionManager, requestDAO, hrcDAO, requestMock);
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
       type,
-      PropertyHelper.getPropertyIds(type),
-      PropertyHelper.getKeyPropertyIds(type),
       managementController);
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     propertyIds.add(RequestResourceProvider.REQUEST_ID_PROPERTY_ID);
     propertyIds.add(RequestResourceProvider.REQUEST_STATUS_PROPERTY_ID);
@@ -367,16 +377,16 @@ public class RequestResourceProviderTest {
       put(1L, HostRoleCommandStatusSummaryDTO.create().inProgress(1));
     }}).anyTimes();
 
+    prepareGetAuthorizationExpectations();
+
     // replay
     replay(managementController, actionManager, requestDAO, hrcDAO, requestMock);
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
       type,
-      PropertyHelper.getPropertyIds(type),
-      PropertyHelper.getKeyPropertyIds(type),
       managementController);
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     propertyIds.add(RequestResourceProvider.REQUEST_ID_PROPERTY_ID);
     propertyIds.add(RequestResourceProvider.REQUEST_STATUS_PROPERTY_ID);
@@ -420,16 +430,16 @@ public class RequestResourceProviderTest {
       put(1L, HostRoleCommandStatusSummaryDTO.create().inProgress(1));
     }}).anyTimes();
 
+    prepareGetAuthorizationExpectations();
+
     // replay
     replay(managementController, actionManager, requestMock, requestDAO, hrcDAO);
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
       type,
-      PropertyHelper.getPropertyIds(type),
-      PropertyHelper.getKeyPropertyIds(type),
       managementController);
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     propertyIds.add(RequestResourceProvider.REQUEST_ID_PROPERTY_ID);
     propertyIds.add(RequestResourceProvider.REQUEST_STATUS_PROPERTY_ID);
@@ -480,17 +490,16 @@ public class RequestResourceProviderTest {
       put(1L, HostRoleCommandStatusSummaryDTO.create().inProgress(1));
     }}).anyTimes();
 
+    prepareGetAuthorizationExpectations();
 
     // replay
     replay(managementController, actionManager, clusters, cluster, requestMock, requestDAO, hrcDAO);
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
       type,
-      PropertyHelper.getPropertyIds(type),
-      PropertyHelper.getKeyPropertyIds(type),
       managementController);
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     propertyIds.add(RequestResourceProvider.REQUEST_ID_PROPERTY_ID);
     propertyIds.add(RequestResourceProvider.REQUEST_STATUS_PROPERTY_ID);
@@ -548,16 +557,16 @@ public class RequestResourceProviderTest {
       put(1L, HostRoleCommandStatusSummaryDTO.create().inProgress(1));
     }}).anyTimes();
 
+    prepareGetAuthorizationExpectations();
+
     // replay
     replay(managementController, actionManager, requestMock, requestMock1, requestDAO, hrcDAO);
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
       type,
-      PropertyHelper.getPropertyIds(type),
-      PropertyHelper.getKeyPropertyIds(type),
       managementController);
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     propertyIds.add(RequestResourceProvider.REQUEST_ID_PROPERTY_ID);
 
@@ -602,16 +611,16 @@ public class RequestResourceProviderTest {
       put(1L, HostRoleCommandStatusSummaryDTO.create().completed(2));
     }}).anyTimes();
 
+    prepareGetAuthorizationExpectations();
+
     // replay
     replay(managementController, actionManager, requestMock0, requestMock1, requestDAO, hrcDAO);
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
       type,
-      PropertyHelper.getPropertyIds(type),
-      PropertyHelper.getKeyPropertyIds(type),
       managementController);
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     propertyIds.add(RequestResourceProvider.REQUEST_ID_PROPERTY_ID);
     propertyIds.add(RequestResourceProvider.REQUEST_STATUS_PROPERTY_ID);
@@ -656,7 +665,7 @@ public class RequestResourceProviderTest {
     expect(requestMock1.getRequestContext()).andReturn("this is a context").anyTimes();
     expect(requestMock1.getRequestId()).andReturn(101L).anyTimes();
 
-    Capture<Collection<Long>> requestIdsCapture = new Capture<Collection<Long>>();
+    Capture<Collection<Long>> requestIdsCapture = EasyMock.newCapture();
 
     // set expectations
     expect(managementController.getActionManager()).andReturn(actionManager).anyTimes();
@@ -673,16 +682,16 @@ public class RequestResourceProviderTest {
       put(1L, HostRoleCommandStatusSummaryDTO.create().inProgress(1).queued(1));
     }}).once();
 
+    prepareGetAuthorizationExpectations();
+
     // replay
     replay(managementController, actionManager, requestMock0, requestMock1, requestDAO, hrcDAO);
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
       type,
-      PropertyHelper.getPropertyIds(type),
-      PropertyHelper.getKeyPropertyIds(type),
       managementController);
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     propertyIds.add(RequestResourceProvider.REQUEST_ID_PROPERTY_ID);
     propertyIds.add(RequestResourceProvider.REQUEST_STATUS_PROPERTY_ID);
@@ -736,7 +745,7 @@ public class RequestResourceProviderTest {
     expect(requestMock1.getRequestContext()).andReturn("this is a context").anyTimes();
     expect(requestMock1.getRequestId()).andReturn(101L).anyTimes();
 
-    Capture<Collection<Long>> requestIdsCapture = new Capture<Collection<Long>>();
+    Capture<Collection<Long>> requestIdsCapture = EasyMock.newCapture();
 
     // set expectations
     expect(managementController.getActionManager()).andReturn(actionManager).anyTimes();
@@ -753,17 +762,16 @@ public class RequestResourceProviderTest {
       put(1L, HostRoleCommandStatusSummaryDTO.create().aborted(1).timedout(1));
     }}).once();
 
+    prepareGetAuthorizationExpectations();
 
     // replay
     replay(managementController, actionManager, requestMock0, requestMock1, requestDAO, hrcDAO);
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
       type,
-      PropertyHelper.getPropertyIds(type),
-      PropertyHelper.getKeyPropertyIds(type),
       managementController);
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     propertyIds.add(RequestResourceProvider.REQUEST_ID_PROPERTY_ID);
     propertyIds.add(RequestResourceProvider.REQUEST_STATUS_PROPERTY_ID);
@@ -803,6 +811,20 @@ public class RequestResourceProviderTest {
     verify(managementController, actionManager, requestMock0, requestMock1, requestDAO, hrcDAO);
   }
 
+  @Test(expected = AuthorizationException.class)
+  public void shouldThrowAuthorizationErrorInCaseTheAuthenticatedUserDoesNotHaveTheAppropriatePermissions() throws Exception {
+    // Given
+    prepareGetAuthorizationExpectations(false);
+    final ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(Resource.Type.Request, createMock(AmbariManagementController.class));
+    final Request request = PropertyHelper.getUpdateRequest(new LinkedHashMap<>(), null);
+    final Predicate predicate = new PredicateBuilder().property(RequestResourceProvider.REQUEST_ID_PROPERTY_ID).equals("100").toPredicate();
+
+    // When
+    provider.getResources(request, predicate);
+
+    // Then: see expected exception
+  }
+
   @Test
   public void testUpdateResources_CancelRequest() throws Exception {
     Resource.Type type = Resource.Type.Request;
@@ -813,10 +835,10 @@ public class RequestResourceProviderTest {
     Stage stage = createNiceMock(Stage.class);
     Clusters clusters = createNiceMock(Clusters.class);
 
-    List<HostRoleCommand> hostRoleCommands = new LinkedList<HostRoleCommand>();
+    List<HostRoleCommand> hostRoleCommands = new LinkedList<>();
     hostRoleCommands.add(hostRoleCommand);
 
-    Collection<Stage> stages = new HashSet<Stage>();
+    Collection<Stage> stages = new HashSet<>();
     stages.add(stage);
 
     org.apache.ambari.server.actionmanager.Request requestMock =
@@ -836,18 +858,18 @@ public class RequestResourceProviderTest {
 
     RequestStatusResponse response = createNiceMock(RequestStatusResponse.class);
 
+    prepareGetAuthorizationExpectations();
+
     // replay
     replay(managementController, actionManager, hostRoleCommand, clusters, requestMock, response, stage);
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
       type,
-      PropertyHelper.getPropertyIds(type),
-      PropertyHelper.getKeyPropertyIds(type),
       managementController);
 
     // TEST CASE: Check update request validation (abort reason not specified)
     // add the property map to a set for the request.
-    Map<String, Object> properties = new LinkedHashMap<String, Object>();
+    Map<String, Object> properties = new LinkedHashMap<>();
     // create the request
     Request request = PropertyHelper.getUpdateRequest(properties, null);
     Predicate predicate = new PredicateBuilder().property(RequestResourceProvider.REQUEST_ID_PROPERTY_ID).
@@ -927,8 +949,6 @@ public class RequestResourceProviderTest {
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
       type,
-      PropertyHelper.getPropertyIds(type),
-      PropertyHelper.getKeyPropertyIds(type),
       managementController);
 
     Predicate predicate = new PredicateBuilder().property(RequestResourceProvider.REQUEST_ID_PROPERTY_ID).
@@ -996,14 +1016,14 @@ public class RequestResourceProviderTest {
     SecurityContextHolder.getContext().setAuthentication(authentication);
 
     // add the property map to a set for the request.  add more maps for multiple creates
-    Set<Map<String, Object>> propertySet = new LinkedHashSet<Map<String, Object>>();
+    Set<Map<String, Object>> propertySet = new LinkedHashSet<>();
 
-    Map<String, Object> properties = new LinkedHashMap<String, Object>();
+    Map<String, Object> properties = new LinkedHashMap<>();
 
     properties.put(RequestResourceProvider.REQUEST_CLUSTER_NAME_PROPERTY_ID, "c1");
 
-    Set<Map<String, Object>> filterSet = new HashSet<Map<String, Object>>();
-    Map<String, Object> filterMap = new HashMap<String, Object>();
+    Set<Map<String, Object>> filterSet = new HashSet<>();
+    Map<String, Object> filterMap = new HashMap<>();
     filterMap.put(RequestResourceProvider.SERVICE_ID, "HDFS");
     filterSet.add(filterMap);
 
@@ -1011,7 +1031,7 @@ public class RequestResourceProviderTest {
 
     propertySet.add(properties);
 
-    Map<String, String> requestInfoProperties = new HashMap<String, String>();
+    Map<String, String> requestInfoProperties = new HashMap<>();
     requestInfoProperties.put(RequestResourceProvider.COMMAND_ID, "HDFS_SERVICE_CHECK");
 
 
@@ -1020,8 +1040,6 @@ public class RequestResourceProviderTest {
     Request request = PropertyHelper.getCreateRequest(propertySet, requestInfoProperties);
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
       type,
-      PropertyHelper.getPropertyIds(type),
-      PropertyHelper.getKeyPropertyIds(type),
       managementController);
 
     provider.createResources(request);
@@ -1092,14 +1110,14 @@ public class RequestResourceProviderTest {
     SecurityContextHolder.getContext().setAuthentication(authentication);
 
     // add the property map to a set for the request.  add more maps for multiple creates
-    Set<Map<String, Object>> propertySet = new LinkedHashSet<Map<String, Object>>();
+    Set<Map<String, Object>> propertySet = new LinkedHashSet<>();
 
-    Map<String, Object> properties = new LinkedHashMap<String, Object>();
+    Map<String, Object> properties = new LinkedHashMap<>();
 
     properties.put(RequestResourceProvider.REQUEST_CLUSTER_NAME_PROPERTY_ID, "c1");
 
-    Set<Map<String, Object>> filterSet = new HashSet<Map<String, Object>>();
-    Map<String, Object> filterMap = new HashMap<String, Object>();
+    Set<Map<String, Object>> filterSet = new HashSet<>();
+    Map<String, Object> filterMap = new HashMap<>();
     filterMap.put(RequestResourceProvider.SERVICE_ID, "HDFS");
     filterMap.put(RequestResourceProvider.HOSTS_ID, "host1,host2,host3");
     filterSet.add(filterMap);
@@ -1108,7 +1126,7 @@ public class RequestResourceProviderTest {
 
     propertySet.add(properties);
 
-    Map<String, String> requestInfoProperties = new HashMap<String, String>();
+    Map<String, String> requestInfoProperties = new HashMap<>();
 
     requestInfoProperties.put("parameters/param1", "value1");
     requestInfoProperties.put("parameters/param2", "value2");
@@ -1123,8 +1141,6 @@ public class RequestResourceProviderTest {
     Request request = PropertyHelper.getCreateRequest(propertySet, requestInfoProperties);
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
       type,
-      PropertyHelper.getPropertyIds(type),
-      PropertyHelper.getKeyPropertyIds(type),
       managementController);
 
     // Neither action nor commands are specified
@@ -1168,10 +1184,10 @@ public class RequestResourceProviderTest {
   public void testCreateResourcesForCommandWithHostPredicate() throws Exception {
     Resource.Type type = Resource.Type.Request;
 
-    Capture<ExecuteActionRequest> actionRequest = new Capture<ExecuteActionRequest>();
-    Capture<HashMap<String, String>> propertyMap = new Capture<HashMap<String, String>>();
-    Capture<Request> requestCapture = new Capture<>();
-    Capture<Predicate> predicateCapture = new Capture<>();
+    Capture<ExecuteActionRequest> actionRequest = EasyMock.newCapture();
+    Capture<HashMap<String, String>> propertyMap = EasyMock.newCapture();
+    Capture<Request> requestCapture = EasyMock.newCapture();
+    Capture<Predicate> predicateCapture = EasyMock.newCapture();
 
     AmbariManagementController managementController = createMock(AmbariManagementController.class);
     RequestStatusResponse response = createNiceMock(RequestStatusResponse.class);
@@ -1185,12 +1201,24 @@ public class RequestResourceProviderTest {
     ClusterControllerImpl controller = createNiceMock(ClusterControllerImpl.class);
     HostComponentProcessResourceProvider hostComponentProcessResourceProvider = createNiceMock(HostComponentProcessResourceProvider.class);
     PowerMock.mockStatic(ClusterControllerHelper.class);
+
     Resource resource = createNiceMock(Resource.class);
+    Collection<Resource> resources = Collections.singleton(resource);
+    Iterable<Resource> resourceIterable = new Iterable<Resource>() {
+      @Override
+      public Iterator<Resource> iterator() {
+        return resources.iterator();
+      }
+    };
 
     expect(ClusterControllerHelper.getClusterController()).andReturn(controller);
     expect(controller.ensureResourceProvider(Resource.Type.HostComponent)).andReturn(hostComponentProcessResourceProvider);
-    expect(hostComponentProcessResourceProvider.getResources(
-      capture(requestCapture), capture(predicateCapture))).andReturn(Collections.singleton(resource));
+    QueryResponse queryResponse = createNiceMock(QueryResponse.class);
+    expect(controller.getResources(eq(Resource.Type.HostComponent), capture(requestCapture),
+      capture(predicateCapture))).andReturn(queryResponse);
+    expect(controller.getIterable(eq(Resource.Type.HostComponent), eq(queryResponse),
+      (Request) anyObject(), (Predicate) anyObject(), eq(null), eq(null)))
+      .andReturn(resourceIterable);
 
     // replay
     replayAll();
@@ -1199,23 +1227,22 @@ public class RequestResourceProviderTest {
       TestAuthenticationFactory.createAdministrator());
 
     // add the property map to a set for the request.  add more maps for multiple creates
-    Set<Map<String, Object>> propertySet = new LinkedHashSet<Map<String, Object>>();
+    Set<Map<String, Object>> propertySet = new LinkedHashSet<>();
 
-    Map<String, Object> properties = new LinkedHashMap<String, Object>();
+    Map<String, Object> properties = new LinkedHashMap<>();
 
     properties.put(RequestResourceProvider.REQUEST_CLUSTER_NAME_PROPERTY_ID, "c1");
 
-    Set<Map<String, Object>> filterSet = new HashSet<Map<String, Object>>();
-    String predicateProperty = HOST_COMPONENT_STALE_CONFIGS_PROPERTY_ID + "=true";
-    Map<String, Object> filterMap = new HashMap<String, Object>();
+    Set<Map<String, Object>> filterSet = new HashSet<>();
+    String predicateProperty = STALE_CONFIGS + "=true";
+    Map<String, Object> filterMap = new HashMap<>();
     filterMap.put(RequestResourceProvider.HOSTS_PREDICATE, predicateProperty);
     filterSet.add(filterMap);
 
     properties.put(RequestResourceProvider.REQUEST_RESOURCE_FILTER_ID, filterSet);
-
     propertySet.add(properties);
 
-    Map<String, String> requestInfoProperties = new HashMap<String, String>();
+    Map<String, String> requestInfoProperties = new HashMap<>();
     requestInfoProperties.put(RequestResourceProvider.COMMAND_ID, "RESTART");
     requestInfoProperties.put(RequestResourceProvider.REQUEST_CONTEXT_ID, "Restart All with Stale Configs");
 
@@ -1223,8 +1250,6 @@ public class RequestResourceProviderTest {
     Request request = PropertyHelper.getCreateRequest(propertySet, requestInfoProperties);
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
       type,
-      PropertyHelper.getPropertyIds(type),
-      PropertyHelper.getKeyPropertyIds(type),
       managementController);
 
     provider.createResources(request);
@@ -1236,7 +1261,7 @@ public class RequestResourceProviderTest {
     String propertyIdToAssert = null;
     Object propertyValueToAssert = null;
     for (Map.Entry<String, Object> predicateEntry : predicateProperties.entrySet()) {
-      if (predicateEntry.getKey().equals(HOST_COMPONENT_STALE_CONFIGS_PROPERTY_ID)) {
+      if (predicateEntry.getKey().equals(STALE_CONFIGS)) {
         propertyIdToAssert = predicateEntry.getKey();
         propertyValueToAssert = predicateEntry.getValue();
       }
@@ -1300,9 +1325,9 @@ public class RequestResourceProviderTest {
     SecurityContextHolder.getContext().setAuthentication(authentication);
 
     // add the property map to a set for the request.  add more maps for multiple creates
-    Set<Map<String, Object>> propertySet = new LinkedHashSet<Map<String, Object>>();
+    Set<Map<String, Object>> propertySet = new LinkedHashSet<>();
 
-    Map<String, Object> properties = new LinkedHashMap<String, Object>();
+    Map<String, Object> properties = new LinkedHashMap<>();
 
     String c1 = "c1";
     String host_component = "HOST_COMPONENT";
@@ -1312,8 +1337,8 @@ public class RequestResourceProviderTest {
 
     properties.put(RequestResourceProvider.REQUEST_CLUSTER_NAME_PROPERTY_ID, c1);
 
-    Set<Map<String, Object>> filterSet = new HashSet<Map<String, Object>>();
-    Map<String, Object> filterMap = new HashMap<String, Object>();
+    Set<Map<String, Object>> filterSet = new HashSet<>();
+    Map<String, Object> filterMap = new HashMap<>();
     filterMap.put(RequestResourceProvider.SERVICE_ID, service_id);
     filterMap.put(RequestResourceProvider.HOSTS_ID, host_name);
     filterSet.add(filterMap);
@@ -1322,7 +1347,7 @@ public class RequestResourceProviderTest {
 
     propertySet.add(properties);
 
-    Map<String, String> requestInfoProperties = new HashMap<String, String>();
+    Map<String, String> requestInfoProperties = new HashMap<>();
     requestInfoProperties.put(RequestResourceProvider.COMMAND_ID, "RESTART");
 
     requestInfoProperties.put(RequestOperationLevel.OPERATION_LEVEL_ID,
@@ -1338,8 +1363,6 @@ public class RequestResourceProviderTest {
     Request request = PropertyHelper.getCreateRequest(propertySet, requestInfoProperties);
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
       type,
-      PropertyHelper.getPropertyIds(type),
-      PropertyHelper.getKeyPropertyIds(type),
       managementController);
 
     requestInfoProperties.put(RequestOperationLevel.OPERATION_CLUSTER_ID, c1);
@@ -1503,12 +1526,12 @@ public class RequestResourceProviderTest {
     replay(managementController, metaInfo, actionDefinition, response, cluster, clusters);
 
     // add the property map to a set for the request.  add more maps for multiple creates
-    Set<Map<String, Object>> propertySet = new LinkedHashSet<Map<String, Object>>();
+    Set<Map<String, Object>> propertySet = new LinkedHashSet<>();
 
-    Map<String, Object> properties = new LinkedHashMap<String, Object>();
+    Map<String, Object> properties = new LinkedHashMap<>();
 
-    Set<Map<String, Object>> filterSet = new HashSet<Map<String, Object>>();
-    Map<String, Object> filterMap = new HashMap<String, Object>();
+    Set<Map<String, Object>> filterSet = new HashSet<>();
+    Map<String, Object> filterMap = new HashMap<>();
     filterMap.put(RequestResourceProvider.HOSTS_ID, "h1,h2");
     filterSet.add(filterMap);
 
@@ -1516,7 +1539,7 @@ public class RequestResourceProviderTest {
     properties.put(RequestResourceProvider.REQUEST_CLUSTER_NAME_PROPERTY_ID, clusterName);
     propertySet.add(properties);
 
-    Map<String, String> requestInfoProperties = new HashMap<String, String>();
+    Map<String, String> requestInfoProperties = new HashMap<>();
     if(commandName != null) {
       requestInfoProperties.put(RequestResourceProvider.COMMAND_ID, commandName);
     }
@@ -1530,8 +1553,6 @@ public class RequestResourceProviderTest {
     Request request = PropertyHelper.getCreateRequest(propertySet, requestInfoProperties);
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
       type,
-      PropertyHelper.getPropertyIds(type),
-      PropertyHelper.getKeyPropertyIds(type),
       managementController);
     provider.createResources(request);
     ExecuteActionRequest capturedRequest = actionRequest.getValue();
@@ -1580,17 +1601,16 @@ public class RequestResourceProviderTest {
       put(1L, HostRoleCommandStatusSummaryDTO.create().inProgress(1));
     }}).anyTimes();
 
+    prepareGetAuthorizationExpectations();
 
     // replay
     replay(managementController, actionManager, clusters, requestMock, requestDAO, hrcDAO);
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
       type,
-      PropertyHelper.getPropertyIds(type),
-      PropertyHelper.getKeyPropertyIds(type),
       managementController);
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     propertyIds.add(RequestResourceProvider.REQUEST_ID_PROPERTY_ID);
     propertyIds.add(RequestResourceProvider.REQUEST_STATUS_PROPERTY_ID);
@@ -1633,18 +1653,18 @@ public class RequestResourceProviderTest {
     expect(clusters.getCluster(anyObject(String.class))).andReturn(null).anyTimes();
     expect(requestDAO.findByPks(capture(requestIdsCapture), eq(true))).andReturn(Collections.singletonList(requestMock));
     expect(hrcDAO.findAggregateCounts((Long) anyObject())).andReturn(
-      Collections.<Long, HostRoleCommandStatusSummaryDTO>emptyMap()).anyTimes();
+      Collections.emptyMap()).anyTimes();
+
+    prepareGetAuthorizationExpectations();
 
     // replay
     replay(managementController, actionManager, clusters, requestMock, requestDAO, hrcDAO);
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
       type,
-      PropertyHelper.getPropertyIds(type),
-      PropertyHelper.getKeyPropertyIds(type),
       managementController);
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     propertyIds.add(RequestResourceProvider.REQUEST_ID_PROPERTY_ID);
     propertyIds.add(RequestResourceProvider.REQUEST_STATUS_PROPERTY_ID);
@@ -1732,13 +1752,13 @@ public class RequestResourceProviderTest {
         : Optional.<String>absent();
       expect(logicalRequest.getFailureReason()).andReturn(failureReason).anyTimes();
 
+      prepareGetAuthorizationExpectations();
+
       replayAll();
 
       Resource.Type type = Resource.Type.Request;
       ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
         type,
-        PropertyHelper.getPropertyIds(type),
-        PropertyHelper.getKeyPropertyIds(type),
         managementController
       );
 

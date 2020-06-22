@@ -18,6 +18,11 @@
 
 package org.apache.ambari.server.view;
 
+import java.util.List;
+
+import javax.inject.Inject;
+import javax.inject.Singleton;
+
 import org.apache.ambari.server.orm.dao.PrivilegeDAO;
 import org.apache.ambari.server.orm.dao.ViewDAO;
 import org.apache.ambari.server.orm.dao.ViewInstanceDAO;
@@ -27,10 +32,6 @@ import org.apache.ambari.server.orm.entities.ViewEntity;
 import org.apache.ambari.server.orm.entities.ViewInstanceEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.inject.Inject;
-import javax.inject.Singleton;
-import java.util.List;
 
 @Singleton
 public class ViewInstanceOperationHandler {

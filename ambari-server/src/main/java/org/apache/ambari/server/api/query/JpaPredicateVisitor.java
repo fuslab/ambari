@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -63,11 +63,6 @@ public abstract class JpaPredicateVisitor<T> implements PredicateVisitor {
   final private CriteriaQuery<T> m_query;
 
   /**
-   * The entity class that the root of the query is built from.
-   */
-  final private Class<T> m_entityClass;
-
-  /**
    * The last calculated predicate.
    */
   private javax.persistence.criteria.Predicate m_lastPredicate = null;
@@ -79,7 +74,7 @@ public abstract class JpaPredicateVisitor<T> implements PredicateVisitor {
    * closed, the chain is completed and added to the prior chain's list.
    */
   private ArrayDeque<List<javax.persistence.criteria.Predicate>> m_queue =
-      new ArrayDeque<List<javax.persistence.criteria.Predicate>>();
+    new ArrayDeque<>();
 
   /**
    * Constructor.
@@ -92,7 +87,6 @@ public abstract class JpaPredicateVisitor<T> implements PredicateVisitor {
   public JpaPredicateVisitor(EntityManager entityManager, Class<T> entityClass) {
     m_entityManager = entityManager;
     m_builder = m_entityManager.getCriteriaBuilder();
-    m_entityClass = entityClass;
     m_query = m_builder.createQuery(entityClass);
     m_root = m_query.from(entityClass);
   }
@@ -178,7 +172,7 @@ public abstract class JpaPredicateVisitor<T> implements PredicateVisitor {
     }
 
     String operator = predicate.getOperator();
-    Comparable<?> value = predicate.getValue();
+    Comparable value = predicate.getValue();
 
     // convert string to enum for proper JPA comparisons
     if (lastSingularAttribute != null) {
@@ -225,7 +219,7 @@ public abstract class JpaPredicateVisitor<T> implements PredicateVisitor {
     }
 
     // create a new list for all of the predicates in this chain
-    List<javax.persistence.criteria.Predicate> predicateList = new ArrayList<javax.persistence.criteria.Predicate>();
+    List<javax.persistence.criteria.Predicate> predicateList = new ArrayList<>();
     m_queue.add(predicateList);
 
     // visit every child predicate so it can be added to the list

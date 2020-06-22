@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,12 @@
 
 package org.apache.ambari.server.customactions;
 
+import java.util.Set;
+
 import org.apache.ambari.server.actionmanager.ActionType;
 import org.apache.ambari.server.actionmanager.TargetHostType;
 import org.apache.ambari.server.controller.ActionResponse;
 import org.apache.ambari.server.security.authorization.RoleAuthorization;
-
-import java.util.Set;
 
 /**
  * The resource describing the definition of an action
@@ -36,7 +36,7 @@ public class ActionDefinition {
   private String targetComponent;
   private String description;
   private TargetHostType targetType;
-  private Short defaultTimeout;
+  private Integer defaultTimeout;
   private Set<RoleAuthorization> permissions;
 
   /**
@@ -54,7 +54,7 @@ public class ActionDefinition {
    */
   public ActionDefinition(String actionName, ActionType actionType, String inputs,
                           String targetService, String targetComponent, String description,
-                          TargetHostType targetType, Short defaultTimeout, Set<RoleAuthorization> permissions) {
+                          TargetHostType targetType, Integer defaultTimeout, Set<RoleAuthorization> permissions) {
     setActionName(actionName);
     setActionType(actionType);
     setInputs(inputs);
@@ -122,11 +122,11 @@ public class ActionDefinition {
     this.targetType = targetType;
   }
 
-  public Short getDefaultTimeout() {
+  public Integer getDefaultTimeout() {
     return defaultTimeout;
   }
 
-  public void setDefaultTimeout(Short defaultTimeout) {
+  public void setDefaultTimeout(Integer defaultTimeout) {
     this.defaultTimeout = defaultTimeout;
   }
 

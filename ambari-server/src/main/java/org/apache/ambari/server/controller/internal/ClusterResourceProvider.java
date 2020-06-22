@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,7 +17,6 @@
  */
 package org.apache.ambari.server.controller.internal;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -56,8 +55,11 @@ import org.apache.ambari.server.topology.SecurityConfiguration;
 import org.apache.ambari.server.topology.SecurityConfigurationFactory;
 import org.apache.ambari.server.topology.TopologyManager;
 import org.apache.ambari.server.topology.TopologyRequestFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.gson.Gson;
 
 
@@ -66,31 +68,46 @@ import com.google.gson.Gson;
  */
 public class ClusterResourceProvider extends AbstractControllerResourceProvider {
 
+  private static final Logger LOG = LoggerFactory.getLogger(ClusterResourceProvider.class);
+
   // ----- Property ID constants ---------------------------------------------
 
   // Clusters
-  public static final String CLUSTER_ID_PROPERTY_ID = PropertyHelper.getPropertyId("Clusters", "cluster_id");
-  public static final String CLUSTER_NAME_PROPERTY_ID = PropertyHelper.getPropertyId("Clusters", "cluster_name");
-  public static final String CLUSTER_VERSION_PROPERTY_ID = PropertyHelper.getPropertyId("Clusters", "version");
-  public static final String CLUSTER_PROVISIONING_STATE_PROPERTY_ID = PropertyHelper.getPropertyId("Clusters", "provisioning_state");
-  public static final String CLUSTER_SECURITY_TYPE_PROPERTY_ID = PropertyHelper.getPropertyId("Clusters", "security_type");
-  public static final String CLUSTER_DESIRED_CONFIGS_PROPERTY_ID = PropertyHelper.getPropertyId("Clusters", "desired_configs");
-  public static final String CLUSTER_DESIRED_SERVICE_CONFIG_VERSIONS_PROPERTY_ID = PropertyHelper.getPropertyId("Clusters", "desired_service_config_versions");
-  public static final String CLUSTER_TOTAL_HOSTS_PROPERTY_ID = PropertyHelper.getPropertyId("Clusters", "total_hosts");
-  public static final String CLUSTER_HEALTH_REPORT_PROPERTY_ID = PropertyHelper.getPropertyId("Clusters", "health_report");
-  public static final String CLUSTER_CREDENTIAL_STORE_PROPERTIES_PROPERTY_ID = PropertyHelper.getPropertyId("Clusters", "credential_store_properties");
-  public static final String BLUEPRINT_PROPERTY_ID = PropertyHelper.getPropertyId(null, "blueprint");
-  public static final String SECURITY_PROPERTY_ID = PropertyHelper.getPropertyId(null, "security");
-  public static final String CREDENTIALS_PROPERTY_ID = PropertyHelper.getPropertyId(null, "credentials");
-  public static final String QUICKLINKS_PROFILE_PROPERTY_ID = PropertyHelper.getPropertyId(null, "quicklinks_profile");
-  public static final String SESSION_ATTRIBUTES_PROPERTY_ID = "session_attributes";
+  public static final String RESPONSE_KEY = "Clusters";
+  public static final String ALL_PROPERTIES = RESPONSE_KEY + PropertyHelper.EXTERNAL_PATH_SEP + "*";
+  public static final String CLUSTER_ID = "cluster_id";
+  public static final String CLUSTER_NAME = "cluster_name";
+  public static final String VERSION = "version";
+  public static final String PROVISIONING_STATE = "provisioning_state";
+  public static final String SECURITY_TYPE = "security_type";
+  public static final String DESIRED_CONFIGS = "desired_configs";
+  public static final String DESIRED_SERVICE_CONFIG_VERSIONS = "desired_service_config_versions";
+  public static final String TOTAL_HOSTS = "total_hosts";
+  public static final String HEALTH_REPORT = "health_report";
+  public static final String CREDENTIAL_STORE_PROPERTIES = "credential_store_properties";
+  public static final String REPO_VERSION = "repository_version";
+  public static final String CLUSTER_ID_PROPERTY_ID = RESPONSE_KEY + PropertyHelper.EXTERNAL_PATH_SEP + CLUSTER_ID;
+  public static final String CLUSTER_NAME_PROPERTY_ID = RESPONSE_KEY + PropertyHelper.EXTERNAL_PATH_SEP + CLUSTER_NAME;
+  public static final String CLUSTER_VERSION_PROPERTY_ID = RESPONSE_KEY + PropertyHelper.EXTERNAL_PATH_SEP + VERSION;
+  public static final String CLUSTER_PROVISIONING_STATE_PROPERTY_ID = RESPONSE_KEY + PropertyHelper.EXTERNAL_PATH_SEP + PROVISIONING_STATE;
+  public static final String CLUSTER_SECURITY_TYPE_PROPERTY_ID = RESPONSE_KEY + PropertyHelper.EXTERNAL_PATH_SEP + SECURITY_TYPE;
+  public static final String CLUSTER_DESIRED_CONFIGS_PROPERTY_ID = RESPONSE_KEY + PropertyHelper.EXTERNAL_PATH_SEP + DESIRED_CONFIGS;
+  public static final String CLUSTER_DESIRED_SERVICE_CONFIG_VERSIONS_PROPERTY_ID = RESPONSE_KEY + PropertyHelper.EXTERNAL_PATH_SEP + DESIRED_SERVICE_CONFIG_VERSIONS;
+  public static final String CLUSTER_TOTAL_HOSTS_PROPERTY_ID = RESPONSE_KEY + PropertyHelper.EXTERNAL_PATH_SEP + TOTAL_HOSTS;
+  public static final String CLUSTER_HEALTH_REPORT_PROPERTY_ID = RESPONSE_KEY + PropertyHelper.EXTERNAL_PATH_SEP + HEALTH_REPORT;
+  public static final String CLUSTER_CREDENTIAL_STORE_PROPERTIES_PROPERTY_ID = RESPONSE_KEY + PropertyHelper.EXTERNAL_PATH_SEP + CREDENTIAL_STORE_PROPERTIES;
+  public static final String CLUSTER_STATE_PROPERTY_ID = PropertyHelper.getPropertyId("Clusters","state");
 
-  public static final String CLUSTER_REPO_VERSION = "Clusters/repository_version";
+  static final String BLUEPRINT = "blueprint";
+  private static final String SECURITY = "security";
+  static final String CREDENTIALS = "credentials";
+  private static final String QUICKLINKS_PROFILE = "quicklinks_profile";
+  private static final String SESSION_ATTRIBUTES = "session_attributes";
 
   /**
    * The session attributes property prefix.
    */
-  private static final String SESSION_ATTRIBUTES_PROPERTY_PREFIX = SESSION_ATTRIBUTES_PROPERTY_ID + "/";
+  private static final String SESSION_ATTRIBUTES_PROPERTY_PREFIX = SESSION_ATTRIBUTES + "/";
 
   /**
    * Request info property ID.  Allow internal getResources call to bypass permissions check.
@@ -113,23 +130,16 @@ public class ClusterResourceProvider extends AbstractControllerResourceProvider 
   private static SecurityConfigurationFactory securityConfigurationFactory;
 
   /**
-   * The cluster primary key properties.
-   */
-  private static Set<String> pkPropertyIds =
-      new HashSet<>(Arrays.asList(new String[]{CLUSTER_ID_PROPERTY_ID}));
-
-  /**
    * The key property ids for a cluster resource.
    */
-  private static Map<Resource.Type, String> keyPropertyIds = new HashMap<>();
-  static {
-    keyPropertyIds.put(Resource.Type.Cluster, CLUSTER_NAME_PROPERTY_ID);
-  }
+  protected static Map<Resource.Type, String> keyPropertyIds = ImmutableMap.<Resource.Type, String>builder()
+      .put(Resource.Type.Cluster, CLUSTER_NAME_PROPERTY_ID)
+      .build();
 
   /**
    * The property ids for a cluster resource.
    */
-  private static Set<String> propertyIds = new HashSet<>();
+  protected static Set<String> propertyIds = new HashSet<>();
 
   /**
    * Used to serialize to/from json.
@@ -148,12 +158,12 @@ public class ClusterResourceProvider extends AbstractControllerResourceProvider 
     propertyIds.add(CLUSTER_TOTAL_HOSTS_PROPERTY_ID);
     propertyIds.add(CLUSTER_HEALTH_REPORT_PROPERTY_ID);
     propertyIds.add(CLUSTER_CREDENTIAL_STORE_PROPERTIES_PROPERTY_ID);
-    propertyIds.add(BLUEPRINT_PROPERTY_ID);
-    propertyIds.add(SESSION_ATTRIBUTES_PROPERTY_ID);
-    propertyIds.add(SECURITY_PROPERTY_ID);
-    propertyIds.add(CREDENTIALS_PROPERTY_ID);
-    propertyIds.add(CLUSTER_REPO_VERSION);
-    propertyIds.add(QUICKLINKS_PROFILE_PROPERTY_ID);
+    propertyIds.add(BLUEPRINT);
+    propertyIds.add(SESSION_ATTRIBUTES);
+    propertyIds.add(SECURITY);
+    propertyIds.add(CREDENTIALS);
+    propertyIds.add(QUICKLINKS_PROFILE);
+    propertyIds.add(CLUSTER_STATE_PROPERTY_ID);
   }
 
 
@@ -165,7 +175,7 @@ public class ClusterResourceProvider extends AbstractControllerResourceProvider 
    * @param managementController  the management controller
    */
   ClusterResourceProvider(AmbariManagementController managementController) {
-    super(propertyIds, keyPropertyIds, managementController);
+    super(Resource.Type.Cluster, propertyIds, keyPropertyIds, managementController);
 
     setRequiredCreateAuthorizations(EnumSet.of(RoleAuthorization.AMBARI_ADD_DELETE_CLUSTERS));
     setRequiredDeleteAuthorizations(EnumSet.of(RoleAuthorization.AMBARI_ADD_DELETE_CLUSTERS));
@@ -177,7 +187,7 @@ public class ClusterResourceProvider extends AbstractControllerResourceProvider 
 
   @Override
   protected Set<String> getPKPropertyIds() {
-    return pkPropertyIds;
+    return new HashSet<>(Collections.singletonList(CLUSTER_ID_PROPERTY_ID));
   }
 
   /**
@@ -240,7 +250,7 @@ public class ClusterResourceProvider extends AbstractControllerResourceProvider 
     final Set<ClusterRequest> requests = new HashSet<>();
 
     if (predicate == null) {
-      requests.add(getRequest(Collections.<String, Object>emptyMap()));
+      requests.add(getRequest(Collections.emptyMap()));
     } else {
       for (Map<String, Object> propertyMap : getPropertyMaps(predicate)) {
         requests.add(getRequest(propertyMap));
@@ -259,33 +269,25 @@ public class ClusterResourceProvider extends AbstractControllerResourceProvider 
 
     Set<Resource> resources = new HashSet<>();
     if (LOG.isDebugEnabled()) {
-      LOG.debug("Found clusters matching getClusters request"
-          + ", clusterResponseCount=" + responses.size());
+      LOG.debug("Found clusters matching getClusters request, clusterResponseCount={}", responses.size());
     }
 
     // Allow internal call to bypass permissions check.
     for (ClusterResponse response : responses) {
-
-      String clusterName = response.getClusterName();
-
       Resource resource = new ResourceImpl(Resource.Type.Cluster);
       setResourceProperty(resource, CLUSTER_ID_PROPERTY_ID, response.getClusterId(), requestedIds);
-      setResourceProperty(resource, CLUSTER_NAME_PROPERTY_ID, clusterName, requestedIds);
-      setResourceProperty(resource, CLUSTER_PROVISIONING_STATE_PROPERTY_ID, response.getProvisioningState(), requestedIds);
-      setResourceProperty(resource, CLUSTER_SECURITY_TYPE_PROPERTY_ID, response.getSecurityType(), requestedIds);
+      setResourceProperty(resource, CLUSTER_NAME_PROPERTY_ID, response.getClusterName(), requestedIds);
+      setResourceProperty(resource, CLUSTER_PROVISIONING_STATE_PROPERTY_ID, response.getProvisioningState().name(), requestedIds);
+      setResourceProperty(resource, CLUSTER_SECURITY_TYPE_PROPERTY_ID, response.getSecurityType().name(), requestedIds);
       setResourceProperty(resource, CLUSTER_DESIRED_CONFIGS_PROPERTY_ID, response.getDesiredConfigs(), requestedIds);
-      setResourceProperty(resource, CLUSTER_DESIRED_SERVICE_CONFIG_VERSIONS_PROPERTY_ID,
-        response.getDesiredServiceConfigVersions(), requestedIds);
+      setResourceProperty(resource, CLUSTER_DESIRED_SERVICE_CONFIG_VERSIONS_PROPERTY_ID, response.getDesiredServiceConfigVersions(), requestedIds);
       setResourceProperty(resource, CLUSTER_TOTAL_HOSTS_PROPERTY_ID, response.getTotalHosts(), requestedIds);
       setResourceProperty(resource, CLUSTER_HEALTH_REPORT_PROPERTY_ID, response.getClusterHealthReport(), requestedIds);
       setResourceProperty(resource, CLUSTER_CREDENTIAL_STORE_PROPERTIES_PROPERTY_ID, response.getCredentialStoreServiceProperties(), requestedIds);
-
-      resource.setProperty(CLUSTER_VERSION_PROPERTY_ID,
-          response.getDesiredStackVersion());
+      setResourceProperty(resource, CLUSTER_VERSION_PROPERTY_ID, response.getDesiredStackVersion(), requestedIds);
 
       if (LOG.isDebugEnabled()) {
-        LOG.debug("Adding ClusterResponse to resource"
-            + ", clusterResponse=" + response.toString());
+        LOG.debug("Adding ClusterResponse to resource, clusterResponse={}", response);
       }
 
       resources.add(resource);
@@ -325,19 +327,19 @@ public class ClusterResourceProvider extends AbstractControllerResourceProvider 
           for (Collection<ServiceConfigVersionResponse> scvCollection : serviceConfigVersions.values()) {
             for (ServiceConfigVersionResponse serviceConfigVersionResponse : scvCollection) {
               Resource resource = new ResourceImpl(Resource.Type.ServiceConfigVersion);
-              resource.setProperty(ServiceConfigVersionResourceProvider.SERVICE_CONFIG_VERSION_SERVICE_NAME_PROPERTY_ID,
+              resource.setProperty(ServiceConfigVersionResourceProvider.SERVICE_NAME_PROPERTY_ID,
                 serviceConfigVersionResponse.getServiceName());
               resource.setProperty(ServiceConfigVersionResourceProvider.SERVICE_CONFIG_VERSION_PROPERTY_ID,
                 serviceConfigVersionResponse.getVersion());
               resource.setProperty(ServiceConfigVersionResourceProvider.SERVICE_CONFIG_VERSION_NOTE_PROPERTY_ID,
                 serviceConfigVersionResponse.getNote());
-              resource.setProperty(ServiceConfigVersionResourceProvider.SERVICE_CONFIG_VERSION_GROUP_ID_PROPERTY_ID,
+              resource.setProperty(ServiceConfigVersionResourceProvider.GROUP_ID_PROPERTY_ID,
                   serviceConfigVersionResponse.getGroupId());
-              resource.setProperty(ServiceConfigVersionResourceProvider.SERVICE_CONFIG_VERSION_GROUP_NAME_PROPERTY_ID,
+              resource.setProperty(ServiceConfigVersionResourceProvider.GROUP_NAME_PROPERTY_ID,
                   serviceConfigVersionResponse.getGroupName());
               if (serviceConfigVersionResponse.getConfigurations() != null) {
                 resource.setProperty(
-                  ServiceConfigVersionResourceProvider.SERVICE_CONFIG_VERSION_CONFIGURATIONS_PROPERTY_ID,
+                  ServiceConfigVersionResourceProvider.CONFIGURATIONS_PROPERTY_ID,
                   serviceConfigVersionResponse.getConfigurations());
               }
               associatedResources.add(resource);
@@ -401,9 +403,9 @@ public class ClusterResourceProvider extends AbstractControllerResourceProvider 
   private ClusterRequest getRequest(Map<String, Object> properties) {
     SecurityType securityType;
     String requestedSecurityType = (String) properties.get(CLUSTER_SECURITY_TYPE_PROPERTY_ID);
-    if(requestedSecurityType == null) {
+    if(requestedSecurityType == null)
       securityType = null;
-    } else {
+    else {
       try {
         securityType = SecurityType.valueOf(requestedSecurityType.toUpperCase());
       } catch (IllegalArgumentException e) {
@@ -420,14 +422,12 @@ public class ClusterResourceProvider extends AbstractControllerResourceProvider 
         null,
         getSessionAttributes(properties));
 
-    List<ConfigurationRequest> configRequests = getConfigurationRequests("Clusters", properties);
-
-    ServiceConfigVersionRequest serviceConfigVersionRequest = getServiceConfigVersionRequest("Clusters", properties);
-
+    List<ConfigurationRequest> configRequests = getConfigurationRequests(RESPONSE_KEY, properties);
     if (!configRequests.isEmpty()) {
       cr.setDesiredConfig(configRequests);
     }
 
+    ServiceConfigVersionRequest serviceConfigVersionRequest = getServiceConfigVersionRequest(RESPONSE_KEY, properties);
     if (serviceConfigVersionRequest != null) {
       cr.setServiceConfigVersionRequest(serviceConfigVersionRequest);
     }
@@ -461,7 +461,7 @@ public class ClusterResourceProvider extends AbstractControllerResourceProvider 
   /**
    * Helper method for creating rollback request
    */
-  protected ServiceConfigVersionRequest getServiceConfigVersionRequest(String parentCategory, Map<String, Object> properties) {
+  protected static ServiceConfigVersionRequest getServiceConfigVersionRequest(String parentCategory, Map<String, Object> properties) {
     ServiceConfigVersionRequest serviceConfigVersionRequest = null;
 
     for (Map.Entry<String, Object> entry : properties.entrySet()) {
@@ -472,11 +472,11 @@ public class ClusterResourceProvider extends AbstractControllerResourceProvider 
         serviceConfigVersionRequest =
             (serviceConfigVersionRequest ==null ) ? new ServiceConfigVersionRequest() : serviceConfigVersionRequest;
 
-        if (propName.equals("service_name")) {
+        if (propName.equals("service_name"))
           serviceConfigVersionRequest.setServiceName(entry.getValue().toString());
-        } else if (propName.equals("service_config_version")) {
+        else if (propName.equals("service_config_version"))
           serviceConfigVersionRequest.setVersion(Long.valueOf(entry.getValue().toString()));
-        } else if (propName.equals("service_config_version_note")) {
+        else if (propName.equals("service_config_version_note")) {
           serviceConfigVersionRequest.setNote(entry.getValue().toString());
         }
       }
@@ -516,7 +516,7 @@ public class ClusterResourceProvider extends AbstractControllerResourceProvider 
       NoSuchParentResourceException {
 
     LOG.info("Creating Cluster '" + properties.get(CLUSTER_NAME_PROPERTY_ID) +
-        "' based on blueprint '" + String.valueOf(properties.get(BLUEPRINT_PROPERTY_ID)) + "'.");
+        "' based on blueprint '" + String.valueOf(properties.get(BLUEPRINT)) + "'.");
 
     String rawRequestBody = requestInfoProperties.get(Request.REQUEST_INFO_BODY_PROPERTY);
     Map<String, Object> rawBodyMap = jsonSerializer.<Map<String, Object>>fromJson(rawRequestBody, Map.class);

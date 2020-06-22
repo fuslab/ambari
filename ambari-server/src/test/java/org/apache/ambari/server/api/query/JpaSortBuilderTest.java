@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -114,7 +114,7 @@ public class JpaSortBuilderTest {
     MockAlertHistoryredicateVisitor visitor = new MockAlertHistoryredicateVisitor();
     PredicateHelper.visit(predicate, visitor);
 
-    JpaSortBuilder<AlertHistoryEntity> sortBuilder = new JpaSortBuilder<AlertHistoryEntity>();
+    JpaSortBuilder<AlertHistoryEntity> sortBuilder = new JpaSortBuilder<>();
     List<Order> sortOrders = sortBuilder.buildSortOrders(sortRequest, visitor);
 
     Assert.assertEquals(sortOrders.size(), 1);
@@ -126,10 +126,6 @@ public class JpaSortBuilderTest {
     Assert.assertEquals(1, roots.size());
   }
 
-  /**
-   * The {@link HistoryPredicateVisitor} is used to convert an Ambari
-   * {@link Predicate} into a JPA {@link javax.persistence.criteria.Predicate}.
-   */
   private final class MockAlertHistoryredicateVisitor
       extends JpaPredicateVisitor<AlertHistoryEntity> {
 

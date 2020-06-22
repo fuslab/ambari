@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -74,6 +74,7 @@ import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.controller.utilities.PredicateBuilder;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.easymock.Capture;
+import org.easymock.EasyMock;
 import org.easymock.EasyMockSupport;
 import org.junit.Assert;
 import org.junit.Test;
@@ -88,13 +89,13 @@ public class QueryImplTest {
   public void testIsCollection__True() {
     ResourceDefinition resourceDefinition = createNiceMock(ResourceDefinition.class);
 
-    Map<Resource.Type, String> mapIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type, String> mapIds = new HashMap<>();
     mapIds.put(Resource.Type.Cluster, "cluster");
     mapIds.put(Resource.Type.Service, null);
 
     // expectations
     expect(resourceDefinition.getType()).andReturn(Resource.Type.Service).anyTimes();
-    expect(resourceDefinition.getSubResourceDefinitions()).andReturn(Collections.<SubResourceDefinition>emptySet()).anyTimes();
+    expect(resourceDefinition.getSubResourceDefinitions()).andReturn(Collections.emptySet()).anyTimes();
 
     replay(resourceDefinition);
 
@@ -109,13 +110,13 @@ public class QueryImplTest {
   public void testIsCollection__False() {
     ResourceDefinition resourceDefinition = createNiceMock(ResourceDefinition.class);
 
-    Map<Resource.Type, String> mapIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type, String> mapIds = new HashMap<>();
     mapIds.put(Resource.Type.Cluster, "cluster");
     mapIds.put(Resource.Type.Service, "service");
 
     // expectations
     expect(resourceDefinition.getType()).andReturn(Resource.Type.Service).anyTimes();
-    expect(resourceDefinition.getSubResourceDefinitions()).andReturn(Collections.<SubResourceDefinition>emptySet()).anyTimes();
+    expect(resourceDefinition.getSubResourceDefinitions()).andReturn(Collections.emptySet()).anyTimes();
 
     replay(resourceDefinition);
 
@@ -130,12 +131,12 @@ public class QueryImplTest {
   public void testExecute__Cluster_instance_noSpecifiedProps() throws Exception {
     ResourceDefinition resourceDefinition = createNiceMock(ResourceDefinition.class);
 
-    Map<Resource.Type, String> mapIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type, String> mapIds = new HashMap<>();
     mapIds.put(Resource.Type.Cluster, "cluster");
 
     // expectations
     expect(resourceDefinition.getType()).andReturn(Resource.Type.Cluster).anyTimes();
-    Set<SubResourceDefinition> setChildren = new HashSet<SubResourceDefinition>();
+    Set<SubResourceDefinition> setChildren = new HashSet<>();
     setChildren.add(new SubResourceDefinition(Resource.Type.Host));
 
     expect(resourceDefinition.getSubResourceDefinitions()).andReturn(setChildren).anyTimes();
@@ -163,7 +164,7 @@ public class QueryImplTest {
   public void testExecute__Stack_instance_noSpecifiedProps() throws Exception {
     ResourceDefinition resourceDefinition = new StackResourceDefinition();
 
-    Map<Resource.Type, String> mapIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type, String> mapIds = new HashMap<>();
     mapIds.put(Resource.Type.Stack, "HDP");
 
     //test
@@ -187,7 +188,7 @@ public class QueryImplTest {
   public void testGetJoinedResourceProperties() throws Exception {
     ResourceDefinition resourceDefinition = new StackResourceDefinition();
 
-    Map<Resource.Type, String> mapIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type, String> mapIds = new HashMap<>();
     mapIds.put(Resource.Type.Stack, "HDP");
 
     //test
@@ -199,7 +200,7 @@ public class QueryImplTest {
 
     instance.execute();
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
     propertyIds.add("versions/operating_systems/repositories/Repositories/repo_id");
     propertyIds.add("versions/operating_systems/OperatingSystems/os_type");
 
@@ -228,7 +229,7 @@ public class QueryImplTest {
   public void testExecute_subResourcePredicate() throws Exception {
     ResourceDefinition resourceDefinition = new StackResourceDefinition();
 
-    Map<Resource.Type, String> mapIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type, String> mapIds = new HashMap<>();
     mapIds.put(Resource.Type.Stack, "HDP");
 
     //test
@@ -271,7 +272,7 @@ public class QueryImplTest {
   public void testExecute_NoSuchResourceException() throws Exception {
     ResourceDefinition resourceDefinition = new ClusterResourceDefinition();
 
-    Map<Resource.Type, String> mapIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type, String> mapIds = new HashMap<>();
     mapIds.put(Resource.Type.Cluster, "c1");
 
     ClusterController clusterController = createNiceMock(ClusterController.class);
@@ -286,12 +287,12 @@ public class QueryImplTest {
         andReturn(queryResponse);
 
     // Always return an empty set of resources.
-    expect(queryResponse.getResources()).andReturn(Collections.<Resource>emptySet()).anyTimes();
+    expect(queryResponse.getResources()).andReturn(Collections.emptySet()).anyTimes();
 
     expect(schema.getKeyPropertyId(Resource.Type.Cluster)).andReturn("Clusters/cluster_name").anyTimes();
 
-    TreeNode<Set<String>> treeNode = new TreeNodeImpl<Set<String>>(null, Collections.EMPTY_SET, null);
-    expect(renderer.finalizeProperties(anyObject(TreeNode.class), anyBoolean())).andReturn(treeNode).anyTimes();
+    TreeNode<Set<String>> treeNode = new TreeNodeImpl<>(null, Collections.<String>emptySet(), null);
+    expect(renderer.finalizeProperties(EasyMock.anyObject(), anyBoolean())).andReturn(treeNode).anyTimes();
 
     replay(clusterController, queryResponse, schema, renderer);
 
@@ -313,7 +314,7 @@ public class QueryImplTest {
   public void testExecute_SubResourcePropertyPredicate() throws Exception {
     ResourceDefinition resourceDefinition = new ClusterResourceDefinition();
 
-    Map<Resource.Type, String> mapIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type, String> mapIds = new HashMap<>();
     mapIds.put(Resource.Type.Cluster, "c1");
     mapIds.put(Resource.Type.Host, "h1");
 
@@ -358,8 +359,8 @@ public class QueryImplTest {
 
     expect(clusterResource.getPropertyValue("Clusters/cluster_name")).andReturn("c1").anyTimes();
 
-    TreeNode<Set<String>> treeNode = new TreeNodeImpl<Set<String>>(null, Collections.EMPTY_SET, null);
-    expect(renderer.finalizeProperties(anyObject(TreeNode.class), anyBoolean())).andReturn(treeNode).anyTimes();
+    TreeNode<Set<String>> treeNode = new TreeNodeImpl<>(null, Collections.<String>emptySet(), null);
+    expect(renderer.finalizeProperties(EasyMock.anyObject(), anyBoolean())).andReturn(treeNode).anyTimes();
 
     expect(clusterController.getIterable(eq(Resource.Type.Cluster), anyObject(QueryResponse.class),
       anyObject(org.apache.ambari.server.controller.spi.Request.class), anyObject(Predicate.class),
@@ -407,21 +408,21 @@ public class QueryImplTest {
     expect(iterator.hasNext()).andReturn(false).anyTimes();
 
     // Always return an empty set of resources.
-    expect(queryResponse.getResources()).andReturn(Collections.<Resource>emptySet()).anyTimes();
+    expect(queryResponse.getResources()).andReturn(Collections.emptySet()).anyTimes();
 
     expect(schema.getKeyPropertyId(Resource.Type.Cluster)).andReturn("Clusters/cluster_name").anyTimes();
 
-    TreeNode<Set<String>> treeNode = new TreeNodeImpl<Set<String>>(null, Collections.<String>emptySet(), null);
-    expect(renderer.finalizeProperties(anyObject(TreeNode.class), anyBoolean())).andReturn(treeNode).anyTimes();
+    TreeNode<Set<String>> treeNode = new TreeNodeImpl<>(null, Collections.<String>emptySet(), null);
+    expect(renderer.finalizeProperties(EasyMock.anyObject(), anyBoolean())).andReturn(treeNode).anyTimes();
 
-    Capture<Result> resultCapture = new Capture<Result>();
+    Capture<Result> resultCapture = EasyMock.newCapture();
 
     expect(renderer.finalizeResult(capture(resultCapture))).andReturn(null);
 
     replay(clusterController, queryResponse, schema, renderer, iterable, iterator);
 
     //test
-    QueryImpl query = new TestQuery(new HashMap<Resource.Type, String>(), resourceDefinition, clusterController);
+    QueryImpl query = new TestQuery(new HashMap<>(), resourceDefinition, clusterController);
     query.setRenderer(renderer);
 
     query.execute();
@@ -436,7 +437,7 @@ public class QueryImplTest {
   public void testExecute__Stack_instance_specifiedSubResources() throws Exception {
     ResourceDefinition resourceDefinition = new StackResourceDefinition();
 
-    Map<Resource.Type, String> mapIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type, String> mapIds = new HashMap<>();
     mapIds.put(Resource.Type.Stack, "HDP");
 
     //test
@@ -500,7 +501,7 @@ public class QueryImplTest {
 
     ResourceDefinition resourceDefinition = new StackVersionResourceDefinition();
 
-    Map<Resource.Type, String> mapIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type, String> mapIds = new HashMap<>();
 
     //test
     QueryImpl instance = new TestQuery(mapIds, resourceDefinition);
@@ -543,7 +544,7 @@ public class QueryImplTest {
 
     ResourceDefinition resourceDefinition = new StackVersionResourceDefinition();
 
-    Map<Resource.Type, String> mapIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type, String> mapIds = new HashMap<>();
 
     QueryImpl instance = new TestQuery(mapIds, resourceDefinition);
     instance.addProperty("operating_systems/*", null);
@@ -609,11 +610,11 @@ public class QueryImplTest {
   public void testExecute__Host_collection_noSpecifiedProps() throws Exception {
     ResourceDefinition resourceDefinition = createNiceMock(ResourceDefinition.class);
 
-    Map<Resource.Type, String> mapIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type, String> mapIds = new HashMap<>();
 
     // expectations
     expect(resourceDefinition.getType()).andReturn(Resource.Type.Host).anyTimes();
-    Set<SubResourceDefinition> setChildren = new HashSet<SubResourceDefinition>();
+    Set<SubResourceDefinition> setChildren = new HashSet<>();
 
     expect(resourceDefinition.getSubResourceDefinitions()).andReturn(setChildren).anyTimes();
 
@@ -649,7 +650,7 @@ public class QueryImplTest {
   @Test
   public void testExecute__Host_collection_AlertsSummary() throws Exception {
     ResourceDefinition resourceDefinition = new HostResourceDefinition();
-    Map<Resource.Type, String> mapIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type, String> mapIds = new HashMap<>();
     final AtomicInteger pageCallCount = new AtomicInteger(0);
     ClusterControllerImpl clusterControllerImpl = new ClusterControllerImpl(new ClusterControllerImplTest.TestProviderModule()) {
       @Override
@@ -721,11 +722,11 @@ public class QueryImplTest {
   public void testExecute__collection_nullInternalPredicate_nullUserPredicate() throws Exception {
     ResourceDefinition resourceDefinition = createNiceMock(ResourceDefinition.class);
 
-    Map<Resource.Type, String> mapIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type, String> mapIds = new HashMap<>();
 
     // expectations
     expect(resourceDefinition.getType()).andReturn(Resource.Type.Cluster).anyTimes();
-    Set<SubResourceDefinition> setChildren = new HashSet<SubResourceDefinition>();
+    Set<SubResourceDefinition> setChildren = new HashSet<>();
     setChildren.add(new SubResourceDefinition(Resource.Type.Host));
 
     expect(resourceDefinition.getSubResourceDefinitions()).andReturn(setChildren).anyTimes();
@@ -752,12 +753,12 @@ public class QueryImplTest {
   public void testExecute__collection_nullInternalPredicate_nonNullUserPredicate() throws Exception {
     ResourceDefinition resourceDefinition = createNiceMock(ResourceDefinition.class);
 
-    Map<Resource.Type, String> mapIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type, String> mapIds = new HashMap<>();
     mapIds.put(Resource.Type.Cluster, "cluster");
 
     // expectations
     expect(resourceDefinition.getType()).andReturn(Resource.Type.Host).anyTimes();
-    Set<SubResourceDefinition> setChildren = new HashSet<SubResourceDefinition>();
+    Set<SubResourceDefinition> setChildren = new HashSet<>();
 
     expect(resourceDefinition.getSubResourceDefinitions()).andReturn(setChildren).anyTimes();
 
@@ -788,11 +789,11 @@ public class QueryImplTest {
   public void testExecute__collection_nonNullInternalPredicate_nonNullUserPredicate() throws Exception {
     ResourceDefinition resourceDefinition = createNiceMock(ResourceDefinition.class);
 
-    Map<Resource.Type, String> mapIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type, String> mapIds = new HashMap<>();
 
     // expectations
     expect(resourceDefinition.getType()).andReturn(Resource.Type.Host).anyTimes();
-    Set<SubResourceDefinition> setChildren = new HashSet<SubResourceDefinition>();
+    Set<SubResourceDefinition> setChildren = new HashSet<>();
 
     expect(resourceDefinition.getSubResourceDefinitions()).andReturn(setChildren).anyTimes();
 
@@ -823,11 +824,11 @@ public class QueryImplTest {
   public void testAddProperty__localProperty() throws Exception {
     ResourceDefinition resourceDefinition = createNiceMock(ResourceDefinition.class);
 
-    Map<Resource.Type, String> mapIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type, String> mapIds = new HashMap<>();
 
     // expectations
     expect(resourceDefinition.getType()).andReturn(Resource.Type.Host).anyTimes();
-    Set<SubResourceDefinition> setChildren = new HashSet<SubResourceDefinition>();
+    Set<SubResourceDefinition> setChildren = new HashSet<>();
 
     expect(resourceDefinition.getSubResourceDefinitions()).andReturn(setChildren).anyTimes();
 
@@ -870,11 +871,11 @@ public class QueryImplTest {
   public void testAddProperty__allCategoryProperties() throws Exception {
     ResourceDefinition resourceDefinition = createNiceMock(ResourceDefinition.class);
 
-    Map<Resource.Type, String> mapIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type, String> mapIds = new HashMap<>();
 
     // expectations
     expect(resourceDefinition.getType()).andReturn(Resource.Type.Host).anyTimes();
-    Set<SubResourceDefinition> setChildren = new HashSet<SubResourceDefinition>();
+    Set<SubResourceDefinition> setChildren = new HashSet<>();
 
     expect(resourceDefinition.getSubResourceDefinitions()).andReturn(setChildren).anyTimes();
 
@@ -958,14 +959,14 @@ public class QueryImplTest {
     expect(mockSubResourceDefinition.isCollection()).andReturn(false).atLeastOnce();
 
     expect(mockSchema.getKeyPropertyId(isA(Resource.Type.class))).andReturn("test-value").anyTimes();
-    expect(mockSchema.getKeyTypes()).andReturn(Collections.<Resource.Type>emptySet()).anyTimes();
+    expect(mockSchema.getKeyTypes()).andReturn(Collections.emptySet()).anyTimes();
 
     mockRenderer.init(isA(SchemaFactory.class));
     // the mock renderer should return false for requiresPropertyProviderInput, to
     // simulate the case of a renderer that does not need the property providers to execute
     // this method should be called twice: once each resource (1 resource, 1 sub-resource in this test)
     expect(mockRenderer.requiresPropertyProviderInput()).andReturn(false).times(2);
-    expect(mockRenderer.finalizeProperties(isA(TreeNode.class), eq(true))).andReturn(new TreeNodeImpl<Set<String>>(null, Collections.<String>emptySet(), "test-node"));
+    expect(mockRenderer.finalizeProperties(isA(TreeNode.class), eq(true))).andReturn(new TreeNodeImpl<>(null, Collections.<String>emptySet(), "test-node"));
     expect(mockRenderer.finalizeResult(isA(Result.class))).andReturn(null);
 
     // note: the expectations for the ClusterController mock are significant to this test.
@@ -983,7 +984,7 @@ public class QueryImplTest {
 
     expect(mockResource.getType()).andReturn(Resource.Type.Host).atLeastOnce();
 
-    Map<Resource.Type, String> mapIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type, String> mapIds = new HashMap<>();
 
     mockSupport.replayAll();
 
@@ -1037,13 +1038,13 @@ public class QueryImplTest {
     expect(mockSubResourceDefinition.isCollection()).andReturn(false).atLeastOnce();
 
     expect(mockSchema.getKeyPropertyId(isA(Resource.Type.class))).andReturn("test-value").anyTimes();
-    expect(mockSchema.getKeyTypes()).andReturn(Collections.<Resource.Type>emptySet()).anyTimes();
+    expect(mockSchema.getKeyTypes()).andReturn(Collections.emptySet()).anyTimes();
 
     mockRenderer.init(isA(SchemaFactory.class));
     // simulate the case of a renderer that requires the property providers to execute
     // this method should be called twice: once for each resource (1 resource, 1 sub-resource in this test)
     expect(mockRenderer.requiresPropertyProviderInput()).andReturn(true).times(2);
-    expect(mockRenderer.finalizeProperties(isA(TreeNode.class), eq(true))).andReturn(new TreeNodeImpl<Set<String>>(null, Collections.<String>emptySet(), "test-node"));
+    expect(mockRenderer.finalizeProperties(isA(TreeNode.class), eq(true))).andReturn(new TreeNodeImpl<>(null, Collections.<String>emptySet(), "test-node"));
     expect(mockRenderer.finalizeResult(isA(Result.class))).andReturn(null);
 
     // note: the expectations for the ClusterController mock are significant to this test.
@@ -1054,16 +1055,16 @@ public class QueryImplTest {
     expect(mockClusterController.getIterable(eq(Resource.Type.Host), isA(QueryResponse.class), isA(Request.class),(Predicate)eq(null), (PageRequest)eq(null), (SortRequest)eq(null))).andReturn(Collections.singleton(mockResource)).atLeastOnce();
     expect(mockClusterController.getIterable(eq(Resource.Type.Configuration), isA(QueryResponse.class), isA(Request.class),(Predicate)eq(null), (PageRequest)eq(null), (SortRequest)eq(null))).andReturn(Collections.singleton(mockResource)).atLeastOnce();
     // expect call to activate property providers for Host resource
-    expect(mockClusterController.populateResources(eq(Resource.Type.Host), eq(Collections.singleton(mockResource)), isA(Request.class), (Predicate)eq(null))).andReturn(Collections.<Resource>emptySet()).times(1);
+    expect(mockClusterController.populateResources(eq(Resource.Type.Host), eq(Collections.singleton(mockResource)), isA(Request.class), (Predicate)eq(null))).andReturn(Collections.emptySet()).times(1);
     // expect call to activate property providers for Configuration sub-resource
-    expect(mockClusterController.populateResources(eq(Resource.Type.Configuration), eq(Collections.singleton(mockResource)), isA(Request.class), (Predicate)eq(null))).andReturn(Collections.<Resource>emptySet()).times(1);
+    expect(mockClusterController.populateResources(eq(Resource.Type.Configuration), eq(Collections.singleton(mockResource)), isA(Request.class), (Predicate)eq(null))).andReturn(Collections.emptySet()).times(1);
 
     expect(mockQueryResponse.getResources()).andReturn(Collections.singleton(mockResource)).atLeastOnce();
     expect(mockSubQueryResponse.getResources()).andReturn(Collections.singleton(mockResource)).atLeastOnce();
 
     expect(mockResource.getType()).andReturn(Resource.Type.Host).atLeastOnce();
 
-    Map<Resource.Type, String> mapIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type, String> mapIds = new HashMap<>();
 
     mockSupport.replayAll();
 

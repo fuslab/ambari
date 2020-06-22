@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,20 +18,6 @@
 
 package org.apache.ambari.server.view;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParser;
-import com.google.gson.reflect.TypeToken;
-import org.apache.ambari.server.configuration.Configuration;
-import org.apache.ambari.server.orm.entities.RemoteAmbariClusterEntity;
-import org.apache.ambari.view.AmbariHttpException;
-import org.apache.ambari.view.AmbariStreamProvider;
-import org.apache.ambari.view.cluster.Cluster;
-import org.apache.commons.io.IOUtils;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
@@ -44,6 +30,21 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+
+import org.apache.ambari.server.configuration.Configuration;
+import org.apache.ambari.server.orm.entities.RemoteAmbariClusterEntity;
+import org.apache.ambari.view.AmbariHttpException;
+import org.apache.ambari.view.AmbariStreamProvider;
+import org.apache.ambari.view.cluster.Cluster;
+import org.apache.commons.io.IOUtils;
+
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
+import com.google.gson.reflect.TypeToken;
 
 /**
  * View associated  Remote cluster implementation.
@@ -192,7 +193,7 @@ public class RemoteAmbariCluster implements Cluster {
     String url = String.format("%s/services/%s/components/%s?" +
       "fields=host_components/HostRoles/host_name", this.clusterPath, serviceName, componentName);
 
-    List<String> hosts = new ArrayList<String>();
+    List<String> hosts = new ArrayList<>();
 
     try {
       JsonElement response = configurationCache.get(url);
@@ -222,7 +223,7 @@ public class RemoteAmbariCluster implements Cluster {
    * @return list of services Available on cluster
    */
   public Set<String> getServices() throws IOException, AmbariHttpException {
-    Set<String> services = new HashSet<String>();
+    Set<String> services = new HashSet<>();
     String path = this.clusterPath + "?fields=services/ServiceInfo/service_name";
     JsonElement config = configurationCache.getUnchecked(path);
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,15 +18,15 @@
 
 package org.apache.ambari.server.api.query;
 
-import org.apache.ambari.server.api.resources.ClusterResourceDefinition;
-import org.apache.ambari.server.api.resources.ResourceDefinition;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
 
 import java.util.HashSet;
 import java.util.Set;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertSame;
+import org.apache.ambari.server.api.resources.ClusterResourceDefinition;
+import org.apache.ambari.server.api.resources.ResourceDefinition;
+import org.junit.Test;
 
 /**
  * QueryInfo unit tests.
@@ -34,7 +34,7 @@ import static org.junit.Assert.assertSame;
 public class QueryInfoTest {
   @Test
   public void testGetProperties() {
-    Set<String> properties = new HashSet<String>();
+    Set<String> properties = new HashSet<>();
     QueryInfo info = new QueryInfo(new ClusterResourceDefinition(), properties);
 
     assertEquals(properties, info.getProperties());
@@ -43,7 +43,7 @@ public class QueryInfoTest {
   @Test
   public void testGetResource() {
     ResourceDefinition resource = new ClusterResourceDefinition();
-    QueryInfo info = new QueryInfo(resource, new HashSet<String>());
+    QueryInfo info = new QueryInfo(resource, new HashSet<>());
 
     assertSame(resource, info.getResource());
   }

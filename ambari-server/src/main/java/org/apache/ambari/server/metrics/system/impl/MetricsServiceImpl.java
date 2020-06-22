@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,6 +23,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.ambari.server.controller.AmbariManagementController;
+import org.apache.ambari.server.events.publishers.STOMPUpdatePublisher;
 import org.apache.ambari.server.metrics.system.MetricsService;
 import org.apache.ambari.server.metrics.system.MetricsSink;
 import org.apache.ambari.server.metrics.system.MetricsSource;
@@ -35,13 +36,15 @@ import com.google.inject.Singleton;
 
 @Singleton
 public class MetricsServiceImpl implements MetricsService {
-  private static Logger LOG = LoggerFactory.getLogger(MetricsServiceImpl.class);
+  private static final Logger LOG = LoggerFactory.getLogger(MetricsServiceImpl.class);
   private static Map<String, MetricsSource> sources = new HashMap<>();
   private static MetricsSink sink = null;
   private MetricsConfiguration configuration = null;
 
   @Inject
   AmbariManagementController amc;
+  @Inject
+  STOMPUpdatePublisher STOMPUpdatePublisher;
 
   @Override
   public void start() {
@@ -112,6 +115,10 @@ public class MetricsServiceImpl implements MetricsService {
         AbstractMetricsSource src = (AbstractMetricsSource) sourceClass.newInstance();
         src.init(MetricsConfiguration.getSubsetConfiguration(configuration, "source." + sourceName + "."), sink);
         sources.put(sourceName, src);
+        if (src instanceof StompEventsMetricsSource) {
+          STOMPUpdatePublisher.registerAPI(src);
+          STOMPUpdatePublisher.registerAgent(src);
+        }
         src.start();
       }
 

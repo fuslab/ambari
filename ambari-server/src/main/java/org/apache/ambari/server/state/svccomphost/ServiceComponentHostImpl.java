@@ -20,25 +20,34 @@ package org.apache.ambari.server.state.svccomphost;
 
 import java.text.MessageFormat;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.agent.AlertDefinitionCommand;
+import org.apache.ambari.server.agent.stomp.HostLevelParamsHolder;
+import org.apache.ambari.server.agent.stomp.TopologyHolder;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
+import org.apache.ambari.server.controller.AmbariManagementController;
+import org.apache.ambari.server.controller.ServiceComponentHostRequest;
 import org.apache.ambari.server.controller.ServiceComponentHostResponse;
+import org.apache.ambari.server.controller.internal.DeleteHostComponentStatusMetaData;
 import org.apache.ambari.server.events.AlertHashInvalidationEvent;
+import org.apache.ambari.server.events.HostComponentUpdate;
+import org.apache.ambari.server.events.HostComponentsUpdateEvent;
 import org.apache.ambari.server.events.MaintenanceModeEvent;
 import org.apache.ambari.server.events.ServiceComponentInstalledEvent;
 import org.apache.ambari.server.events.ServiceComponentUninstalledEvent;
+import org.apache.ambari.server.events.StaleConfigsUpdateEvent;
+import org.apache.ambari.server.events.TopologyUpdateEvent;
 import org.apache.ambari.server.events.publishers.AmbariEventPublisher;
+import org.apache.ambari.server.events.publishers.STOMPUpdatePublisher;
 import org.apache.ambari.server.orm.dao.HostComponentDesiredStateDAO;
 import org.apache.ambari.server.orm.dao.HostComponentStateDAO;
 import org.apache.ambari.server.orm.dao.HostDAO;
@@ -53,6 +62,7 @@ import org.apache.ambari.server.orm.entities.HostVersionEntity;
 import org.apache.ambari.server.orm.entities.RepositoryVersionEntity;
 import org.apache.ambari.server.orm.entities.ServiceComponentDesiredStateEntity;
 import org.apache.ambari.server.orm.entities.StackEntity;
+import org.apache.ambari.server.state.BlueprintProvisioningState;
 import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.Clusters;
 import org.apache.ambari.server.state.ComponentInfo;
@@ -64,7 +74,6 @@ import org.apache.ambari.server.state.HostConfig;
 import org.apache.ambari.server.state.HostState;
 import org.apache.ambari.server.state.MaintenanceState;
 import org.apache.ambari.server.state.RepositoryVersionState;
-import org.apache.ambari.server.state.SecurityState;
 import org.apache.ambari.server.state.ServiceComponent;
 import org.apache.ambari.server.state.ServiceComponentHost;
 import org.apache.ambari.server.state.ServiceComponentHostEvent;
@@ -74,7 +83,6 @@ import org.apache.ambari.server.state.StackInfo;
 import org.apache.ambari.server.state.State;
 import org.apache.ambari.server.state.UpgradeState;
 import org.apache.ambari.server.state.alert.AlertDefinitionHash;
-import org.apache.ambari.server.state.configgroup.ConfigGroup;
 import org.apache.ambari.server.state.fsm.InvalidStateTransitionException;
 import org.apache.ambari.server.state.fsm.SingleArcTransition;
 import org.apache.ambari.server.state.fsm.StateMachine;
@@ -86,6 +94,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Striped;
 import com.google.inject.Inject;
+import com.google.inject.Provider;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 import com.google.inject.persist.Transactional;
@@ -127,12 +136,27 @@ public class ServiceComponentHostImpl implements ServiceComponentHost {
   @Inject
   private RepositoryVersionHelper repositoryVersionHelper;
 
+  @Inject
+  STOMPUpdatePublisher STOMPUpdatePublisher;
+
+  @Inject
+  private Provider<TopologyHolder> m_topologyHolder;
+
+  @Inject
+  private Provider<HostLevelParamsHolder> m_hostLevelParamsHolder;
+
   /**
    * Used for creating commands to send to the agents when alert definitions are
    * added as the result of a service install.
    */
   @Inject
   private AlertDefinitionHash alertDefinitionHash;
+
+  /**
+   * Used for topology event creation updates
+   */
+  @Inject
+  private Provider<AmbariManagementController> controller;
 
   /**
    * Used to publish events relating to service CRUD operations.
@@ -148,7 +172,6 @@ public class ServiceComponentHostImpl implements ServiceComponentHost {
    * The desired component state entity id.
    */
   private final Long desiredStateEntityId;
-
   /**
    * Cache the generated id for host component state for fast lookups.
    */
@@ -157,6 +180,7 @@ public class ServiceComponentHostImpl implements ServiceComponentHost {
   private long lastOpStartTime;
   private long lastOpEndTime;
   private long lastOpLastUpdateTime;
+  private AtomicReference<MaintenanceState> maintenanceState = new AtomicReference<>();
 
   private ConcurrentMap<String, HostConfig> actualConfigs = new ConcurrentHashMap<>();
   private ImmutableList<Map<String, String>> processes = ImmutableList.of();
@@ -746,7 +770,8 @@ public class ServiceComponentHostImpl implements ServiceComponentHost {
 
   @AssistedInject
   public ServiceComponentHostImpl(@Assisted ServiceComponent serviceComponent,
-      @Assisted String hostName, Clusters clusters, StackDAO stackDAO, HostDAO hostDAO,
+      @Assisted String hostName, @Assisted ServiceComponentDesiredStateEntity serviceComponentDesiredStateEntity,
+      Clusters clusters, StackDAO stackDAO, HostDAO hostDAO,
       ServiceComponentDesiredStateDAO serviceComponentDesiredStateDAO,
       HostComponentStateDAO hostComponentStateDAO,
       HostComponentDesiredStateDAO hostComponentDesiredStateDAO,
@@ -806,12 +831,12 @@ public class ServiceComponentHostImpl implements ServiceComponentHost {
       desiredStateEntity.setAdminState(null);
     }
 
-    persistEntities(hostEntity, stateEntity, desiredStateEntity);
+    persistEntities(hostEntity, stateEntity, desiredStateEntity, serviceComponentDesiredStateEntity);
 
     // publish the service component installed event
     ServiceComponentInstalledEvent event = new ServiceComponentInstalledEvent(getClusterId(),
         stackId.getStackName(), stackId.getStackVersion(), getServiceName(),
-        getServiceComponentName(), getHostName(), isRecoveryEnabled());
+        getServiceComponentName(), getHostName(), isRecoveryEnabled(), serviceComponent.isMasterComponent());
 
     eventPublisher.publish(event);
 
@@ -819,6 +844,17 @@ public class ServiceComponentHostImpl implements ServiceComponentHost {
     hostComponentStateId = stateEntity.getId();
 
     resetLastOpInfo();
+  }
+  @AssistedInject
+  public ServiceComponentHostImpl(@Assisted ServiceComponent serviceComponent,
+      @Assisted String hostName,
+      Clusters clusters, StackDAO stackDAO, HostDAO hostDAO,
+      ServiceComponentDesiredStateDAO serviceComponentDesiredStateDAO,
+      HostComponentStateDAO hostComponentStateDAO,
+      HostComponentDesiredStateDAO hostComponentDesiredStateDAO,
+      AmbariEventPublisher eventPublisher) {
+      this(serviceComponent, hostName, null, clusters, stackDAO, hostDAO,
+          serviceComponentDesiredStateDAO, hostComponentStateDAO, hostComponentDesiredStateDAO, eventPublisher);
   }
 
   @AssistedInject
@@ -872,11 +908,16 @@ public class ServiceComponentHostImpl implements ServiceComponentHost {
   @Override
   @Transactional
   public void setState(State state) {
+    State oldState = getState();
     stateMachine.setCurrentState(state);
     HostComponentStateEntity stateEntity = getStateEntity();
     if (stateEntity != null) {
       stateEntity.setCurrentState(state);
       stateEntity = hostComponentStateDAO.merge(stateEntity);
+      if (!oldState.equals(state)) {
+        STOMPUpdatePublisher.publish(new HostComponentsUpdateEvent(Collections.singletonList(
+            HostComponentUpdate.createHostComponentStatusUpdate(stateEntity, oldState))));
+      }
     } else {
       LOG.warn("Setting a member on an entity object that may have been "
           + "previously deleted, serviceName = " + getServiceName() + ", " + "componentName = "
@@ -900,71 +941,25 @@ public class ServiceComponentHostImpl implements ServiceComponentHost {
 
   @Override
   @Transactional
-  public void setVersion(String version) {
+  public void setVersion(String version) throws AmbariException {
     HostComponentStateEntity stateEntity = getStateEntity();
     if (stateEntity != null) {
       stateEntity.setVersion(version);
       stateEntity = hostComponentStateDAO.merge(stateEntity);
+
+      ServiceComponentHostRequest serviceComponentHostRequest = new ServiceComponentHostRequest(
+          serviceComponent.getClusterName(), serviceComponent.getServiceName(),
+          serviceComponent.getName(), hostName, getDesiredState().name());
+
+      TopologyUpdateEvent updateEvent = controller.get().getAddedComponentsTopologyEvent(
+          Collections.singleton(serviceComponentHostRequest));
+
+      m_topologyHolder.get().updateData(updateEvent);
     } else {
       LOG.warn("Setting a member on an entity object that may have been "
           + "previously deleted, serviceName = " + getServiceName() + ", " + "componentName = "
           + getServiceComponentName() + ", " + "hostName = " + getHostName());
     }
-  }
-
-  @Override
-  public SecurityState getSecurityState() {
-    HostComponentStateEntity stateEntity = getStateEntity();
-    if (stateEntity != null) {
-      return stateEntity.getSecurityState();
-    } else {
-      LOG.warn("Trying to fetch a member from an entity object that may "
-          + "have been previously deleted, serviceName = " + getServiceName() + ", "
-          + "componentName = " + getServiceComponentName() + ", " + "hostName = " + getHostName());
-    }
-
-    return null;
-  }
-
-  @Override
-  @Transactional
-  public void setSecurityState(SecurityState securityState) {
-    HostComponentStateEntity stateEntity = getStateEntity();
-    if (stateEntity != null) {
-      stateEntity.setSecurityState(securityState);
-      stateEntity = hostComponentStateDAO.merge(stateEntity);
-    } else {
-      LOG.warn("Setting a member on an entity object that may have been "
-          + "previously deleted, serviceName = " + getServiceName() + ", " + "componentName = "
-          + getServiceComponentName() + ", " + "hostName = " + getHostName());
-    }
-  }
-
-  @Override
-  public SecurityState getDesiredSecurityState() {
-    HostComponentDesiredStateEntity desiredStateEntity = getDesiredStateEntity();
-    if (desiredStateEntity != null) {
-      return desiredStateEntity.getSecurityState();
-    } else {
-      LOG.warn("Trying to fetch a member from an entity object that may "
-          + "have been previously deleted, serviceName = " + getServiceName() + ", "
-          + "componentName = " + getServiceComponentName() + ", " + "hostName = " + getHostName());
-    }
-    return null;
-  }
-
-  @Override
-  public void setDesiredSecurityState(SecurityState securityState) throws AmbariException {
-    if(!securityState.isEndpoint()) {
-      throw new AmbariException("The security state must be an endpoint state");
-    }
-
-    LOG.debug("Set DesiredSecurityState on serviceName = {} componentName = {} hostName = {} to {}",
-        getServiceName(), getServiceComponentName(), getHostName(), securityState);
-
-    HostComponentDesiredStateEntity desiredStateEntity = getDesiredStateEntity();
-    desiredStateEntity.setSecurityState(securityState);
-    hostComponentDesiredStateDAO.merge(desiredStateEntity);
   }
 
   /**
@@ -1018,8 +1013,21 @@ public class ServiceComponentHostImpl implements ServiceComponentHost {
       try {
         stateMachine.doTransition(event.getType(), event);
         HostComponentStateEntity stateEntity = getStateEntity();
+        boolean statusUpdated = !stateEntity.getCurrentState().equals(stateMachine.getCurrentState());
         stateEntity.setCurrentState(stateMachine.getCurrentState());
         stateEntity = hostComponentStateDAO.merge(stateEntity);
+        if (statusUpdated) {
+          STOMPUpdatePublisher.publish(new HostComponentsUpdateEvent(Collections.singletonList(
+              HostComponentUpdate.createHostComponentStatusUpdate(stateEntity, oldState))));
+        }
+        if (event.getType().equals(ServiceComponentHostEventType.HOST_SVCCOMP_START)) {
+          HostComponentDesiredStateEntity desiredStateEntity = getDesiredStateEntity();
+          if (desiredStateEntity.getBlueprintProvisioningState() == BlueprintProvisioningState.IN_PROGRESS) {
+            desiredStateEntity.setBlueprintProvisioningState(BlueprintProvisioningState.FINISHED);
+            hostComponentDesiredStateDAO.merge(desiredStateEntity);
+            m_hostLevelParamsHolder.get().updateData(m_hostLevelParamsHolder.get().getCurrentData(getHost().getHostId()));
+          }
+        }
         // TODO Audit logs
       } catch (InvalidStateTransitionException e) {
         LOG.error("Can't handle ServiceComponentHostEvent event at"
@@ -1030,6 +1038,13 @@ public class ServiceComponentHostImpl implements ServiceComponentHost {
             + ", eventType=" + event.getType()
             + ", event=" + event);
         throw e;
+      } catch (AmbariException e) {
+        LOG.error("Can't update topology on hosts on ServiceComponentHostEvent event: "
+            + "serviceComponentName=" + getServiceComponentName()
+            + ", hostName=" + getHostName()
+            + ", currentState=" + oldState
+            + ", eventType=" + event.getType()
+            + ", event=" + event);
       }
     } finally {
       writeLock.unlock();
@@ -1237,6 +1252,43 @@ public class ServiceComponentHostImpl implements ServiceComponentHost {
       LOG.error("Could not determine stale config", e);
     }
 
+    try {
+      Cluster cluster = clusters.getCluster(clusterName);
+      ServiceComponent serviceComponent = cluster.getService(serviceName).getServiceComponent(serviceComponentName);
+      ServiceComponentHost sch = serviceComponent.getServiceComponentHost(hostName);
+      String refreshConfigsCommand = helper.getRefreshConfigsCommand(cluster,sch);
+      r.setReloadConfig(refreshConfigsCommand != null);
+    } catch (Exception e) {
+      LOG.error("Could not determine reload config flag", e);
+    }
+
+    return r;
+  }
+
+  @Override
+  public ServiceComponentHostResponse convertToResponseStatusOnly(Map<String, DesiredConfig> desiredConfigs,
+                                                                  boolean collectStaleConfigsStatus) {
+    String clusterName = serviceComponent.getClusterName();
+    String serviceName = serviceComponent.getServiceName();
+    String serviceComponentName = serviceComponent.getName();
+    String state = getState().toString();
+
+    ServiceComponentHostResponse r = new ServiceComponentHostResponse(clusterName, serviceName,
+        serviceComponentName, null, hostName, null, state, null,
+        null, null, null, null);
+
+    if (collectStaleConfigsStatus) {
+
+      try {
+        HostComponentDesiredStateEntity hostComponentDesiredStateEntity = getDesiredStateEntity();
+        r.setStaleConfig(helper.isStaleConfigs(this, desiredConfigs, hostComponentDesiredStateEntity));
+      } catch (Exception e) {
+        LOG.error("Could not determine stale config", e);
+      }
+    } else {
+      r.setStaleConfig(false);
+    }
+
     return r;
   }
 
@@ -1262,22 +1314,22 @@ public class ServiceComponentHostImpl implements ServiceComponentHost {
     .append(getVersion())
     .append(", state=")
     .append(getState())
-    .append(", securityState=")
-    .append(getSecurityState())
-    .append(", desiredSecurityState=")
-    .append(getDesiredSecurityState())
     .append(" }");
   }
 
   @Transactional
   void persistEntities(HostEntity hostEntity, HostComponentStateEntity stateEntity,
-      HostComponentDesiredStateEntity desiredStateEntity) {
-    ServiceComponentDesiredStateEntity serviceComponentDesiredStateEntity = serviceComponentDesiredStateDAO.findByName(
-        serviceComponent.getClusterId(), serviceComponent.getServiceName(),
-        serviceComponent.getName());
+                       HostComponentDesiredStateEntity desiredStateEntity,
+                       ServiceComponentDesiredStateEntity serviceComponentDesiredStateEntity) {
+
+    if (serviceComponentDesiredStateEntity == null) {
+      serviceComponentDesiredStateEntity = serviceComponentDesiredStateDAO.findByName(
+          serviceComponent.getClusterId(), serviceComponent.getServiceName(), serviceComponent.getName());
+    }
 
     desiredStateEntity.setServiceComponentDesiredStateEntity(serviceComponentDesiredStateEntity);
     desiredStateEntity.setHostEntity(hostEntity);
+    desiredStateEntity.setHostId(hostEntity.getHostId());
 
     stateEntity.setServiceComponentDesiredStateEntity(serviceComponentDesiredStateEntity);
     stateEntity.setHostEntity(hostEntity);
@@ -1302,10 +1354,11 @@ public class ServiceComponentHostImpl implements ServiceComponentHost {
   }
 
   @Override
-  public void delete() {
+  public void delete(DeleteHostComponentStatusMetaData deleteMetaData) {
     boolean fireRemovalEvent = false;
 
     writeLock.lock();
+    String version = getVersion();
     try {
       removeEntities();
       fireRemovalEvent = true;
@@ -1326,13 +1379,22 @@ public class ServiceComponentHostImpl implements ServiceComponentHost {
       String serviceName = getServiceName();
       String componentName = getServiceComponentName();
       String hostName = getHostName();
+      State lastComponentState = getState();
       boolean recoveryEnabled = isRecoveryEnabled();
+      boolean masterComponent = serviceComponent.isMasterComponent();
 
       ServiceComponentUninstalledEvent event = new ServiceComponentUninstalledEvent(
           clusterId, stackName, stackVersion, serviceName, componentName,
-          hostName, recoveryEnabled);
+          hostName, recoveryEnabled, masterComponent, host.getHostId());
 
       eventPublisher.publish(event);
+      deleteMetaData.addDeletedHostComponent(componentName,
+          serviceName,
+          hostName,
+          getHost().getHostId(),
+          Long.toString(clusterId),
+          version,
+          lastComponentState);
     }
   }
 
@@ -1352,47 +1414,6 @@ public class ServiceComponentHostImpl implements ServiceComponentHost {
       hostComponentDesiredStateDAO.remove(desiredStateEntity);
       hostComponentStateDAO.remove(stateEntity);
     }
-  }
-
-  @Override
-  public void updateActualConfigs(Map<String, Map<String, String>> configTags) {
-    Map<Long, ConfigGroup> configGroupMap;
-    String clusterName = getClusterName();
-    try {
-      Cluster cluster = clusters.getCluster(clusterName);
-      configGroupMap = cluster.getConfigGroups();
-    } catch (AmbariException e) {
-      LOG.warn("Unable to find cluster, " + clusterName);
-      return;
-    }
-
-    LOG.debug("Updating configuration tags for {}: {}", hostName, configTags);
-    final ConcurrentMap<String, HostConfig> newActualConfigs = new ConcurrentHashMap<>();
-
-    for (Entry<String, Map<String, String>> entry : configTags.entrySet()) {
-      String type = entry.getKey();
-      Map<String, String> values = new HashMap<>(entry.getValue());
-
-      String tag = values.get(ConfigHelper.CLUSTER_DEFAULT_TAG);
-      values.remove(ConfigHelper.CLUSTER_DEFAULT_TAG);
-
-      HostConfig hc = new HostConfig();
-      hc.setDefaultVersionTag(tag);
-      newActualConfigs.put(type, hc);
-
-      if (!values.isEmpty()) {
-        for (Entry<String, String> overrideEntry : values.entrySet()) {
-          Long groupId = Long.parseLong(overrideEntry.getKey());
-          hc.getConfigGroupOverrides().put(groupId, overrideEntry.getValue());
-          if (!configGroupMap.containsKey(groupId)) {
-            LOG.debug("Config group does not exist, id = {}", groupId);
-          }
-        }
-      }
-    }
-
-    // update internal stateful collection in an "atomic" manner
-    actualConfigs = newActualConfigs;
   }
 
   @Override
@@ -1418,7 +1439,7 @@ public class ServiceComponentHostImpl implements ServiceComponentHost {
     HostComponentDesiredStateEntity desiredStateEntity = getDesiredStateEntity();
     if (desiredStateEntity != null) {
       desiredStateEntity.setMaintenanceState(state);
-      hostComponentDesiredStateDAO.merge(desiredStateEntity);
+      maintenanceState.set(hostComponentDesiredStateDAO.merge(desiredStateEntity).getMaintenanceState());
 
       // broadcast the maintenance mode change
       MaintenanceModeEvent event = new MaintenanceModeEvent(state, this);
@@ -1432,7 +1453,10 @@ public class ServiceComponentHostImpl implements ServiceComponentHost {
 
   @Override
   public MaintenanceState getMaintenanceState() {
-    return getDesiredStateEntity().getMaintenanceState();
+    if (maintenanceState.get() == null) {
+      maintenanceState.set(getDesiredStateEntity().getMaintenanceState());
+    }
+    return maintenanceState.get();
   }
 
   @Override
@@ -1458,6 +1482,14 @@ public class ServiceComponentHostImpl implements ServiceComponentHost {
   @Override
   @Transactional
   public void setRestartRequired(boolean restartRequired) {
+    if (setRestartRequiredWithoutEventPublishing(restartRequired)) {
+      eventPublisher.publish(new StaleConfigsUpdateEvent(this, restartRequired));
+    }
+  }
+
+  @Override
+  @Transactional
+  public boolean setRestartRequiredWithoutEventPublishing(boolean restartRequired) {
     LOG.debug("Set RestartRequired on serviceName = {} componentName = {} hostName = {} to {}",
         getServiceName(), getServiceComponentName(), getHostName(), restartRequired);
 
@@ -1465,11 +1497,13 @@ public class ServiceComponentHostImpl implements ServiceComponentHost {
     if (desiredStateEntity != null) {
       desiredStateEntity.setRestartRequired(restartRequired);
       hostComponentDesiredStateDAO.merge(desiredStateEntity);
+      return true;
     } else {
       LOG.warn("Setting a member on an entity object that may have been "
           + "previously deleted, serviceName = " + getServiceName() + ", " + "componentName = "
           + getServiceComponentName() + ", hostName = " + getHostName());
     }
+    return false;
   }
 
   @Transactional
@@ -1491,7 +1525,7 @@ public class ServiceComponentHostImpl implements ServiceComponentHost {
         stackEntity,
         version,
         stackId.getStackName() + "-" + version,
-        repositoryVersionHelper.serializeOperatingSystems(stackInfo.getRepositories()));
+        repositoryVersionHelper.createRepoOsEntities(stackInfo.getRepositories()));
   }
 
   /**

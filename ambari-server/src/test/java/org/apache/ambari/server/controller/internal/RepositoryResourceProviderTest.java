@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -59,15 +59,15 @@ public class RepositoryResourceProviderTest {
     AmbariManagementController managementController = EasyMock.createMock(AmbariManagementController.class);
 
     RepositoryResponse rr = new RepositoryResponse(VAL_BASE_URL, VAL_OS,
-        VAL_REPO_ID, VAL_REPO_NAME, VAL_DISTRIBUTION, VAL_COMPONENT_NAME, null, null, null, null,
-        Collections.<RepoTag>emptySet());
+        VAL_REPO_ID, VAL_REPO_NAME, VAL_DISTRIBUTION, VAL_COMPONENT_NAME, null, null,
+      Collections.<RepoTag>emptySet(), Collections.emptyList());
     rr.setStackName(VAL_STACK_NAME);
     rr.setStackVersion(VAL_STACK_VERSION);
     Set<RepositoryResponse> allResponse = new HashSet<>();
     allResponse.add(rr);
 
     // set expectations
-    expect(managementController.getRepositories(EasyMock.<Set<RepositoryRequest>>anyObject())).andReturn(allResponse).times(2);
+    expect(managementController.getRepositories(EasyMock.anyObject())).andReturn(allResponse).times(2);
 
     // replay
     replay(managementController);
@@ -172,13 +172,14 @@ public class RepositoryResourceProviderTest {
     AmbariManagementController managementController = EasyMock.createMock(AmbariManagementController.class);
 
     RepositoryResponse rr = new RepositoryResponse(VAL_BASE_URL, VAL_OS,
-        VAL_REPO_ID, VAL_REPO_NAME, null, null, null, null ,null, null, Collections.<RepoTag>emptySet());
+      VAL_REPO_ID, VAL_REPO_NAME, null, null, null, null ,
+      Collections.<RepoTag>emptySet(), Collections.emptyList());
     Set<RepositoryResponse> allResponse = new HashSet<>();
     allResponse.add(rr);
 
     // set expectations
-    expect(managementController.getRepositories(EasyMock.<Set<RepositoryRequest>>anyObject())).andReturn(allResponse).times(1);
-    managementController.updateRepositories(EasyMock.<Set<RepositoryRequest>>anyObject());
+    expect(managementController.getRepositories(EasyMock.anyObject())).andReturn(allResponse).times(1);
+    managementController.verifyRepositories(EasyMock.<Set<RepositoryRequest>>anyObject());
 
     // replay
     replay(managementController);

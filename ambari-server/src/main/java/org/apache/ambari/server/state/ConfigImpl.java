@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.ReadWriteLock;
 
@@ -54,7 +55,7 @@ public class ConfigImpl implements Config {
   private final static Logger LOG = LoggerFactory.getLogger(ConfigImpl.class);
 
   /**
-   * A label for {@link #hostLock} to use with the {@link LockFactory}.
+   * A label for {@link #propertyLock} to use with the {@link LockFactory}.
    */
   private static final String PROPERTY_LOCK_LABEL = "configurationPropertyLock";
 
@@ -97,9 +98,6 @@ public class ConfigImpl implements Config {
 
   private final AmbariEventPublisher eventPublisher;
 
-  /**
-   * Temporary constructor to used for testing purposes
-   */
   @AssistedInject
   ConfigImpl(@Assisted Cluster cluster, @Assisted("type") String type,
       @Assisted("tag") @Nullable String tag,
@@ -113,7 +111,7 @@ public class ConfigImpl implements Config {
 
 
   @AssistedInject
-  ConfigImpl(@Assisted StackId stackId, @Assisted Cluster cluster, @Assisted("type") String type,
+  ConfigImpl(@Assisted @Nullable StackId stackId, @Assisted Cluster cluster, @Assisted("type") String type,
       @Assisted("tag") @Nullable String tag,
       @Assisted Map<String, String> properties,
       @Assisted @Nullable Map<String, Map<String, String>> propertiesAttributes,
@@ -136,11 +134,11 @@ public class ConfigImpl implements Config {
     version = cluster.getNextConfigVersion(type);
 
     // tag is nullable from factory but not in the DB, so ensure we generate something
-    tag = StringUtils.isBlank(tag) ? GENERATED_TAG_PREFIX + version : tag;
+    tag = StringUtils.isBlank(tag) ? UUID.randomUUID().toString() : tag;
     this.tag = tag;
 
     ClusterEntity clusterEntity = clusterDAO.findById(cluster.getClusterId());
-    StackEntity stackEntity = stackDAO.find(stackId);
+    StackEntity stackEntity = stackDAO.find(stackId.getStackName(), stackId.getStackVersion());
 
     ClusterConfigEntity entity = new ClusterConfigEntity();
     entity.setClusterEntity(clusterEntity);
@@ -288,7 +286,7 @@ public class ConfigImpl implements Config {
   public Map<String, String> getProperties() {
     propertyLock.readLock().lock();
     try {
-      return properties == null ? new HashMap<String, String>() : new HashMap<>(properties);
+      return properties == null ? new HashMap<>() : new HashMap<>(properties);
     } finally {
       propertyLock.readLock().unlock();
     }
@@ -373,7 +371,9 @@ public class ConfigImpl implements Config {
 
     // save the entity, forcing a flush to ensure the refresh picks up the
     // newest data
-    clusterDAO.merge(clusterEntity, true);
+    clusterEntity = clusterDAO.merge(clusterEntity, true);
+    LOG.info("Persisted config entity with id {} and cluster entity {}", entity.getConfigId(),
+        clusterEntity.toString());
   }
 
   /**

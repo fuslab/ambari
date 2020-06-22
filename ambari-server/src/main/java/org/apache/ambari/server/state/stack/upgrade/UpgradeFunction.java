@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,5 +22,5 @@ public interface UpgradeFunction {
   /**
    * @return Return the function that the group must provide.
    */
-  public Task.Type getFunction();
+  Task.Type getFunction();
 }

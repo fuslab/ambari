@@ -35,9 +35,13 @@ import optparse
 import shlex
 import datetime
 import tempfile
+import glob
+import pwd
+import re
 from AmbariConfig import AmbariConfig
+from ambari_commons.constants import AGENT_TMP_DIR
 from ambari_commons import OSCheck, OSConst
-from ambari_commons.constants import AMBARI_SUDO_BINARY, AGENT_TMP_DIR
+from ambari_commons.constants import AMBARI_SUDO_BINARY
 from ambari_commons.os_family_impl import OsFamilyImpl, OsFamilyFuncImpl
 
 logger = logging.getLogger()
@@ -74,6 +78,8 @@ CACHE_FILES_PATTERN = {
 }
 PROCESS_SECTION = "processes"
 PROCESS_KEY = "proc_list"
+PROCESS_OWNER_KEY = "proc_owner_list"
+PROCESS_IDENTIFIER_KEY = "proc_identifier"
 ALT_SECTION = "alternatives"
 ALT_KEYS = ["symlink_list", "target_list"]
 HADOOP_GROUP = "hadoop"
@@ -86,6 +92,7 @@ DIRNAME_PATTERNS = [
 # resources that should not be cleaned
 REPOSITORY_BLACK_LIST = ["ambari.repo"]
 PACKAGES_BLACK_LIST = ["ambari-server", "ambari-agent"]
+USER_BLACK_LIST = ["root"]
 
 def get_erase_cmd():
   if OSCheck.is_redhat_family():
@@ -133,7 +140,15 @@ class HostCleanup:
       homeDirList = argMap.get(USER_HOMEDIR_SECTION)
       dirList = argMap.get(DIR_SECTION)
       repoList = argMap.get(REPO_SECTION)
-      procList = argMap.get(PROCESS_SECTION)
+      proc_map = argMap.get(PROCESS_SECTION)
+      if proc_map:
+        procList = proc_map.get(PROCESS_KEY)
+        procUserList = proc_map.get(PROCESS_OWNER_KEY)
+        procIdentifierList = proc_map.get(PROCESS_IDENTIFIER_KEY)
+      else:
+        procList = []
+        procUserList = []
+        procIdentifierList = []
       alt_map = argMap.get(ALT_SECTION)
       additionalDirList = self.get_additional_dirs()
 
@@ -142,6 +157,12 @@ class HostCleanup:
       if procList and not PROCESS_SECTION in SKIP_LIST:
         logger.info("\n" + "Killing pid's: " + str(procList) + "\n")
         self.do_kill_processes(procList)
+      if procIdentifierList and not PROCESS_SECTION in SKIP_LIST:
+        self.do_kill_processes_by_identifier(procIdentifierList)
+      if procUserList and not PROCESS_SECTION in SKIP_LIST:
+        logger.info("\n" + "Killing pids owned by: " + str(procUserList) + "\n")
+        self.do_kill_processes_by_users(procUserList)
+
       if packageList and not PACKAGE_SECTION in SKIP_LIST:
         logger.info("Deleting packages: " + str(packageList) + "\n")
         self.do_erase_packages(packageList)
@@ -161,7 +182,7 @@ class HostCleanup:
         logger.info("\n" + "Deleting repo files: " + str(repoFiles))
         self.do_erase_files_silent(repoFiles)
       if alt_map and not ALT_SECTION in SKIP_LIST:
-        logger.info("\n" + "Erasing alternatives:" + str(alt_map) + "\n")
+        logger.info("\n" + "Erasing alternatives: " + str(alt_map) + "\n")
         self.do_erase_alternatives(alt_map)
 
     return 0
@@ -188,11 +209,23 @@ class HostCleanup:
         propertyMap[PACKAGE_SECTION] = config.get(PACKAGE_SECTION, PACKAGE_KEY).split(',')
     except:
       logger.warn("Cannot read package list: " + str(sys.exc_info()[0]))
+
     try:
+      proc_map = {}
       if config.has_option(PROCESS_SECTION, PROCESS_KEY):
-        propertyMap[PROCESS_SECTION] = config.get(PROCESS_SECTION, PROCESS_KEY).split(',')
+        proc_map[PROCESS_KEY] = config.get(PROCESS_SECTION, PROCESS_KEY).split(',')
+
+      if config.has_option(PROCESS_SECTION, PROCESS_OWNER_KEY):
+        proc_map[PROCESS_OWNER_KEY] = config.get(PROCESS_SECTION, PROCESS_OWNER_KEY).split(',')
+
+      if config.has_option(PROCESS_SECTION, PROCESS_IDENTIFIER_KEY):
+        proc_map[PROCESS_IDENTIFIER_KEY] = config.get(PROCESS_SECTION, PROCESS_IDENTIFIER_KEY).split(',')
+
+      if proc_map:
+          propertyMap[PROCESS_SECTION] = proc_map
     except:
-        logger.warn("Cannot read process list: " + str(sys.exc_info()[0]))
+      logger.warn("Cannot read process list: " + str(sys.exc_info()))
+
     try:
       if config.has_option(USER_SECTION, USER_KEY):
         propertyMap[USER_SECTION] = config.get(USER_SECTION, USER_KEY).split(',')
@@ -315,8 +348,59 @@ class HostCleanup:
           command = PROC_KILL_CMD.format(pid)
           (returncode, stdoutdata, stderrdata) = self.run_os_command(command)
           if returncode != 0:
-            logger.error("Unable to kill process with pid: " + pid + ", " + stderrdata)
+            logger.error("Unable to kill process with pid: " + str(pid) + ", " + str(stderrdata))
     return 0
+
+  def getProcsByUsers(self, users, pidList):
+    logger.debug("User list: "+str(users))
+    pids = [pid for pid in os.listdir('/proc') if pid.isdigit()]
+    logger.debug("All pids under /proc: "+str(pids));
+    for pid in pids:
+      logger.debug("Checking " + str(pid))
+      try:
+        with open(os.path.join('/proc', pid, 'status'), 'r') as f:
+          for line in f:
+            if line.startswith('Uid:'):
+              uid = int(line.split()[1])
+              user = pwd.getpwuid(uid).pw_name
+              logger.debug("User: "+user);
+              if user in users and user not in USER_BLACK_LIST:
+                logger.info(user + " started process " + str(pid))
+                pidList.append(int(pid))
+      except:
+        logger.debug(str(sys.exc_info()))
+
+  def do_kill_processes_by_users(self, userList):
+    pidList = []
+    self.getProcsByUsers(userList, pidList)
+    logger.info("Killing pids: "+ str(pidList) + " owned by " + str(userList))
+    return self.do_kill_processes(pidList)
+
+  def do_kill_processes_by_identifier(self, identifierList):
+    pidList = []
+    cmd = "ps auxww"
+    (returncode, stdoutdata, stderrdata) = self.run_os_command(cmd)
+
+    if 0 == returncode and stdoutdata:
+      lines = stdoutdata.split('\n')
+      for line in lines:
+        line = line.strip()
+        for identifier in identifierList:
+          identifier = identifier.strip()
+          if identifier in line:
+            logger.debug("Found " + line + " for " + identifier);
+            line = re.sub("\s\s+" , " ", line) #replace multi spaces with single space before calling the split
+            tokens = line.split(' ')
+            logger.debug(tokens)
+            logger.debug(len(tokens))
+            if len(tokens) > 1:
+              pid = str(tokens[1]);
+              pid = pid.strip()
+              if pid and pid not in pidList:
+                logger.info("Adding pid: "+str(pid) + " for " + identifier)
+                pidList.append(pid)
+
+    return self.do_kill_processes(pidList)
 
   def get_files_in_dir(self, dirPath, filemask = None):
     fileList = []
@@ -387,30 +471,37 @@ class HostCleanup:
 
   def do_erase_dir_silent(self, pathList):
     if pathList:
-      for path in pathList:
-        if path and os.path.exists(path):
-          if os.path.isdir(path):
-            try:
-              shutil.rmtree(path)
-            except:
-              logger.warn("Failed to remove dir: " + path + ", error: " + str(sys.exc_info()[0]))
-          else:
-            logger.info(path + " is a file and not a directory, deleting file")
-            self.do_erase_files_silent([path])
-        else:
-          logger.info("Path doesn't exists: " + path)
+      for aPath in pathList:
+        pathArr = glob.glob(aPath)
+        logger.debug("Resolved {0} to {1}".format(aPath, ','.join(pathArr)))
+        for path in pathArr:
+          if path:
+            if os.path.exists(path):
+              if os.path.isdir(path):
+                try:
+                  shutil.rmtree(path)
+                except:
+                  logger.warn("Failed to remove dir {0} , error: {1}".format(path, str(sys.exc_info()[0])))
+              else:
+                logger.info("{0} is a file, deleting file".format(path))
+                self.do_erase_files_silent([path])
+            elif os.path.islink(path):
+              logger.info("Deleting broken symbolic link {0}".format(path))
+              self.do_erase_files_silent([path])
+            else:
+              logger.info("Path doesn't exists: {0}".format(path))
     return 0
 
   def do_erase_files_silent(self, pathList):
     if pathList:
       for path in pathList:
-        if path and os.path.exists(path):
+        if path and ( os.path.exists(path) or os.path.islink(path) ):
           try:
             os.remove(path)
           except:
-            logger.warn("Failed to delete file: " + path + ", error: " + str(sys.exc_info()[0]))
+            logger.warn("Failed to delete file: {0}, error: {1}".format(path, str(sys.exc_info()[0])))
         else:
-          logger.info("File doesn't exists: " + path)
+          logger.info("File doesn't exists: {0}".format(path))
     return 0
 
   def do_delete_group(self):
@@ -425,8 +516,13 @@ class HostCleanup:
     for folder in folders:
       for filename in os.listdir(folder):
         fileToCheck = os.path.join(folder, filename)
-        stat = os.lstat(fileToCheck)
-        if stat.st_uid in userIds:
+        try:
+          stat = os.stat(fileToCheck)
+        except OSError:
+          stat = None
+          logger.warn("Cannot stat file, skipping: " + fileToCheck)
+
+        if stat and stat.st_uid in userIds:
           self.do_erase_dir_silent([fileToCheck])
           logger.info("Deleting file/folder: " + fileToCheck)
 
@@ -537,7 +633,7 @@ def main():
   hostCheckResultPath = os.path.join(hostCheckFileDir, OUTPUT_FILE_NAME)
 
   parser = optparse.OptionParser()
-  parser.add_option("-v", "--verbose", dest="verbose", action="store_false",
+  parser.add_option("-v", "--verbose", dest="verbose", action="store_true",
                     default=False, help="output verbosity.")
   parser.add_option("-f", "--file", dest="inputfiles",
                     default=hostCheckFilesPaths,

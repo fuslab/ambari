@@ -1,4 +1,4 @@
-/**
+/*
 * Licensed to the Apache Software Foundation (ASF) under one
 * or more contributor license agreements.  See the NOTICE file
 * distributed with this work for additional information
@@ -34,6 +34,6 @@ public interface MultipleArcTransition
    *                state may change.
    * @param event causal event
    */
-  public STATE transition(OPERAND operand, EVENT event);
+  STATE transition(OPERAND operand, EVENT event);
 
 }

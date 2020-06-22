@@ -18,18 +18,25 @@
 
 package org.apache.ambari.server.security.authentication.kerberos;
 
+import static java.util.stream.Collectors.toSet;
+
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.HashSet;
+import java.util.Arrays;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import javax.inject.Inject;
 
 import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.orm.entities.GroupEntity;
 import org.apache.ambari.server.orm.entities.MemberEntity;
 import org.apache.ambari.server.orm.entities.UserEntity;
+import org.apache.ambari.server.security.authentication.AccountDisabledException;
 import org.apache.ambari.server.security.authentication.AmbariUserDetailsImpl;
+import org.apache.ambari.server.security.authentication.InvalidUsernamePasswordCombinationException;
+import org.apache.ambari.server.security.authentication.TooManyLoginFailuresException;
 import org.apache.ambari.server.security.authentication.tproxy.AmbariTProxyConfiguration;
 import org.apache.ambari.server.security.authentication.tproxy.TrustedProxyAuthenticationDetails;
 import org.apache.ambari.server.security.authentication.tproxy.TrustedProxyAuthenticationNotAllowedException;
@@ -39,11 +46,13 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.security.authentication.util.KerberosName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.stereotype.Component;
+
+import com.google.inject.Provider;
 
 /**
  * AmbariProxiedUserDetailsService is a {@link UserDetailsService} that handles proxied users via the
@@ -53,12 +62,18 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
  * If all criteria is met and  a user account with the the proxied user's username exist, that user
  * account will be set as the authenticated user.
  */
+@Component
 public class AmbariProxiedUserDetailsService implements UserDetailsService {
   private static final Logger LOG = LoggerFactory.getLogger(AmbariProxiedUserDetailsService.class);
 
   private static final Pattern IP_ADDRESS_PATTERN = Pattern.compile("^(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:\\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$");
   private static final Pattern IP_ADDRESS_RANGE_PATTERN = Pattern.compile("^((?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:\\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3})/(\\d{1,2})$");
+
+  @Inject
+  private Provider<AmbariTProxyConfiguration> ambariTProxyConfigurationProvider;
+
   private final Configuration configuration;
+
   private final Users users;
 
   /**
@@ -70,7 +85,7 @@ public class AmbariProxiedUserDetailsService implements UserDetailsService {
    * @param configuration the Ambari configuration data
    * @param users         the Ambari users access object
    */
-  public AmbariProxiedUserDetailsService(Configuration configuration, Users users) {
+  AmbariProxiedUserDetailsService(Configuration configuration, Users users) {
     this.configuration = configuration;
     this.users = users;
   }
@@ -99,7 +114,7 @@ public class AmbariProxiedUserDetailsService implements UserDetailsService {
       throw new TrustedProxyAuthenticationNotAllowedException(message);
     }
 
-    AmbariTProxyConfiguration tProxyConfiguration = AmbariTProxyConfiguration.fromConfig(configuration);
+    AmbariTProxyConfiguration tProxyConfiguration = ambariTProxyConfigurationProvider.get();
 
     // Make sure the trusted proxy support is enabled
     if (!tProxyConfiguration.isEnabled()) {
@@ -145,7 +160,9 @@ public class AmbariProxiedUserDetailsService implements UserDetailsService {
     String allowedGroups = tProxyConfiguration.getAllowedGroups(proxyUserName);
 
     if (StringUtils.isNotEmpty(allowedGroups)) {
-      Set<String> groupSpecs = explode(allowedGroups);
+      Set<String> groupSpecs = Arrays.stream(allowedGroups.split("\\s*,\\s*"))
+          .map(s -> s.trim().toLowerCase())
+          .collect(toSet());
 
       if (groupSpecs.contains("*")) {
         return true;
@@ -168,14 +185,6 @@ public class AmbariProxiedUserDetailsService implements UserDetailsService {
     return false;
   }
 
-  private static Set<String> explode(String commaSeparated) {
-    Set<String> result = new HashSet<>();
-    for (String each : commaSeparated.split("\\s*,\\s*")) {
-      result.add(each.trim().toLowerCase());
-    }
-    return result;
-  }
-
   boolean validateUser(AmbariTProxyConfiguration tProxyConfiguration, String proxyUserName, String proxiedUserName) {
     String allowedUsers = tProxyConfiguration.getAllowedUsers(proxyUserName);
 
@@ -195,7 +204,9 @@ public class AmbariProxiedUserDetailsService implements UserDetailsService {
     String allowedHosts = tProxyConfiguration.getAllowedHosts(proxyUserName);
 
     if (StringUtils.isNotEmpty(allowedHosts)) {
-      Set<String> hostSpecs = explode(allowedHosts);
+      Set<String> hostSpecs = Arrays.stream(allowedHosts.split("\\s*,\\s*"))
+          .map(s -> s.trim().toLowerCase())
+          .collect(toSet());
 
       if (hostSpecs.contains("*")) {
         return true;
@@ -293,10 +304,15 @@ public class AmbariProxiedUserDetailsService implements UserDetailsService {
     String username = userEntity.getUserName();
 
     // Ensure the user account is allowed to log in
-    if (!userEntity.getActive()) {
-      LOG.info("User account is disabled: {}", username);
-      // Do not give away information about the existence or status of a user
-      throw new BadCredentialsException("Bad credentials");
+    try {
+      users.validateLogin(userEntity, username);
+    } catch (AccountDisabledException | TooManyLoginFailuresException e) {
+      if (configuration.showLockedOutUserMessage()) {
+        throw e;
+      } else {
+        // Do not give away information about the existence or status of a user
+        throw new InvalidUsernamePasswordCombinationException(username, false, e);
+      }
     }
 
     return new AmbariUserDetailsImpl(new User(userEntity), null, users.getUserAuthorities(userEntity));

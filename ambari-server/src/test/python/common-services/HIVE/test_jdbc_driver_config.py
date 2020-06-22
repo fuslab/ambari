@@ -48,3 +48,4 @@ class TestJdbcDriverConfig(RMFTestCase):
       pass
     except Exception as e:
       self.fail("Expected 'Fail', got {}".format(e))
+

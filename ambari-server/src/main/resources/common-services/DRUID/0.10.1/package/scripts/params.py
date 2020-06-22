@@ -26,6 +26,8 @@ from resource_management.libraries.script.script import Script
 from resource_management.libraries.functions import format
 from resource_management.libraries.functions.get_not_managed_resources import get_not_managed_resources
 from resource_management.libraries.functions.default import default
+from resource_management.libraries.functions.lzo_utils import should_install_lzo
+from ambari_commons.constants import AMBARI_SUDO_BINARY
 
 import status_params
 
@@ -45,15 +47,19 @@ config = Script.get_config()
 stack_root = Script.get_stack_root()
 tmp_dir = Script.get_tmp_dir()
 
-stack_name = default("/hostLevelParams/stack_name", None)
+stack_name = default("/clusterLevelParams/stack_name", None)
 
 # stack version
 stack_version = default("/commandParams/version", None)
 
+# un-formatted stack version
+stack_version_unformatted = str(config['clusterLevelParams']['stack_version'])
+
 # default role to coordinator needed for service checks
 component_directory = Script.get_component_from_role(SERVER_ROLE_DIRECTORY_MAP, "DRUID_COORDINATOR")
 
-hostname = config['hostname']
+hostname = config['agentLevelParams']['hostname']
+sudo = AMBARI_SUDO_BINARY
 
 # default druid parameters
 druid_home = format("{stack_root}/current/{component_directory}")
@@ -79,11 +85,10 @@ druid_repo_list = config['configurations']['druid-common']['druid.extensions.rep
 druid_extensions_load_list = config['configurations']['druid-common']['druid.extensions.loadList']
 druid_security_extensions_load_list = config['configurations']['druid-common']['druid.security.extensions.loadList']
 
-
 # status params
 druid_pid_dir = status_params.druid_pid_dir
 user_group = config['configurations']['cluster-env']['user_group']
-java8_home = config['hostLevelParams']['java_home']
+java8_home = config['ambariLevelParams']['java_home']
 druid_env_sh_template = config['configurations']['druid-env']['content']
 
 # log4j params
@@ -103,11 +108,11 @@ metadata_storage_db_name = config['configurations']['druid-common']['database_na
 metadata_storage_db_name = config['configurations']['druid-common']['database_name']
 metadata_storage_type = config['configurations']['druid-common']['druid.metadata.storage.type']
 metadata_storage_url = config['configurations']['druid-common']['druid.metadata.storage.connector.connectURI']
-jdk_location = config['hostLevelParams']['jdk_location']
+jdk_location = config['ambariLevelParams']['jdk_location']
 if 'mysql' == metadata_storage_type:
-  jdbc_driver_jar = default("/hostLevelParams/custom_mysql_jdbc_name", None)
+  jdbc_driver_jar = default("/ambariLevelParams/custom_mysql_jdbc_name", None)
   connector_curl_source = format("{jdk_location}/{jdbc_driver_jar}")
-  connector_download_dir=format("{druid_extensions_dir}/mysql-metadata-storage")
+  connector_download_dir = format("{druid_extensions_dir}/mysql-metadata-storage")
   downloaded_custom_connector = format("{tmp_dir}/{jdbc_driver_jar}")
 
 check_db_connection_jar_name = "DBConnectionVerification.jar"
@@ -124,7 +129,7 @@ hdfs_principal_name = default('/configurations/hadoop-env/hdfs_principal_name', 
                                                                                                              hostname)
 hdfs_site = config['configurations']['hdfs-site']
 default_fs = config['configurations']['core-site']['fs.defaultFS']
-dfs_type = default("/commandParams/dfs_type", "")
+dfs_type = default("/clusterLevelParams/dfs_type", "")
 hdfs_tmp_dir = config['configurations']['hadoop-env']['hdfs_tmp_dir']
 
 # Kerberos
@@ -157,31 +162,39 @@ metric_emitter_type = "noop"
 metric_collector_host = ""
 metric_collector_port = ""
 metric_collector_protocol = ""
-metric_truststore_path= default("/configurations/ams-ssl-client/ssl.client.truststore.location", "")
-metric_truststore_type= default("/configurations/ams-ssl-client/ssl.client.truststore.type", "")
-metric_truststore_password= default("/configurations/ams-ssl-client/ssl.client.truststore.password", "")
+metric_truststore_path = default("/configurations/ams-ssl-client/ssl.client.truststore.location", "")
+metric_truststore_type = default("/configurations/ams-ssl-client/ssl.client.truststore.type", "")
+metric_truststore_password = default("/configurations/ams-ssl-client/ssl.client.truststore.password", "")
 
 ams_collector_hosts = default("/clusterHostInfo/metrics_collector_hosts", [])
+if 'cluster-env' in config['configurations'] and \
+    'metrics_collector_external_hosts' in config['configurations']['cluster-env']:
+  ams_collector_hosts = config['configurations']['cluster-env']['metrics_collector_external_hosts']
+  set_instanceId = "true"
+else:
+  ams_collector_hosts = ",".join(default("/clusterHostInfo/metrics_collector_hosts", []))
 has_metric_collector = not len(ams_collector_hosts) == 0
 
 if has_metric_collector:
-    metric_emitter_type = "ambari-metrics"
-    if 'cluster-env' in config['configurations'] and \
-                    'metrics_collector_vip_host' in config['configurations']['cluster-env']:
-        metric_collector_host = config['configurations']['cluster-env']['metrics_collector_vip_host']
+  metric_emitter_type = "ambari-metrics"
+  metric_collector_host = ams_collector_hosts[0]
+  if 'cluster-env' in config['configurations'] and \
+      'metrics_collector_external_port' in config['configurations']['cluster-env']:
+    metric_collector_port = config['configurations']['cluster-env']['metrics_collector_external_port']
+  else:
+    metric_collector_web_address = default("/configurations/ams-site/timeline.metrics.service.webapp.address", "0.0.0.0:6188")
+    if metric_collector_web_address.find(':') != -1:
+      metric_collector_port = metric_collector_web_address.split(':')[1]
     else:
-        metric_collector_host = ams_collector_hosts[0]
-    if 'cluster-env' in config['configurations'] and \
-                    'metrics_collector_vip_port' in config['configurations']['cluster-env']:
-        metric_collector_port = config['configurations']['cluster-env']['metrics_collector_vip_port']
-    else:
-        metric_collector_web_address = default("/configurations/ams-site/timeline.metrics.service.webapp.address", "localhost:6188")
-        if metric_collector_web_address.find(':') != -1:
-            metric_collector_port = metric_collector_web_address.split(':')[1]
-        else:
-            metric_collector_port = '6188'
-    if default("/configurations/ams-site/timeline.metrics.service.http.policy", "HTTP_ONLY") == "HTTPS_ONLY":
-        metric_collector_protocol = 'https'
-    else:
-        metric_collector_protocol = 'http'
-    pass
+      metric_collector_port = '6188'
+  if default("/configurations/ams-site/timeline.metrics.service.http.policy", "HTTP_ONLY") == "HTTPS_ONLY":
+    metric_collector_protocol = 'https'
+  else:
+    metric_collector_protocol = 'http'
+  pass
+
+# Create current Hadoop Clients  Libs
+stack_version_unformatted = str(config['clusterLevelParams']['stack_version'])
+io_compression_codecs = default("/configurations/core-site/io.compression.codecs", None)
+lzo_enabled = should_install_lzo()
+hadoop_lib_home = stack_root + '/' + stack_version + '/hadoop/lib'

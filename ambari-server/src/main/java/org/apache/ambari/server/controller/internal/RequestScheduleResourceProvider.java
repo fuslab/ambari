@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,6 +16,13 @@
  * limitations under the License.
  */
 package org.apache.ambari.server.controller.internal;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.ClusterNotFoundException;
@@ -45,97 +52,146 @@ import org.apache.ambari.server.state.scheduler.Schedule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 
 public class RequestScheduleResourceProvider extends AbstractControllerResourceProvider {
   private static final Logger LOG = LoggerFactory.getLogger
     (RequestScheduleResourceProvider.class);
 
-  protected static final String REQUEST_SCHEDULE_ID_PROPERTY_ID =
-    PropertyHelper.getPropertyId("RequestSchedule", "id");
-  protected static final String REQUEST_SCHEDULE_CLUSTER_NAME_PROPERTY_ID =
-    PropertyHelper.getPropertyId("RequestSchedule", "cluster_name");
-  protected static final String REQUEST_SCHEDULE_DESC_PROPERTY_ID =
-    PropertyHelper.getPropertyId("RequestSchedule", "description");
-  protected static final String REQUEST_SCHEDULE_STATUS_PROPERTY_ID =
-    PropertyHelper.getPropertyId("RequestSchedule", "status");
-  protected static final String REQUEST_SCHEDULE_LAST_STATUS_PROPERTY_ID =
-    PropertyHelper.getPropertyId("RequestSchedule", "last_execution_status");
-  protected static final String REQUEST_SCHEDULE_BATCH_PROPERTY_ID =
-    PropertyHelper.getPropertyId("RequestSchedule", "batch");
-  protected static final String REQUEST_SCHEDULE_SCHEDULE_PROPERTY_ID =
-    PropertyHelper.getPropertyId("RequestSchedule", "schedule");
-  protected static final String REQUEST_SCHEDULE_CREATE_USER_PROPERTY_ID =
-    PropertyHelper.getPropertyId("RequestSchedule", "create_user");
-  protected static final String REQUEST_SCHEDULE_AUTHENTICATED_USER_PROPERTY_ID =
-    PropertyHelper.getPropertyId("RequestSchedule", "authenticated_user");
-  protected static final String REQUEST_SCHEDULE_UPDATE_USER_PROPERTY_ID =
-    PropertyHelper.getPropertyId("RequestSchedule", "update_user");
-  protected static final String REQUEST_SCHEDULE_CREATE_TIME_PROPERTY_ID =
-    PropertyHelper.getPropertyId("RequestSchedule", "create_time");
-  protected static final String REQUEST_SCHEDULE_UPDATE_TIME_PROPERTY_ID =
-    PropertyHelper.getPropertyId("RequestSchedule", "update_time");
+  public static final String REQUEST_SCHEDULE = "RequestSchedule";
+  public static final String BATCH_SETTINGS = "batch_settings";
+  public static final String BATCH_REQUESTS = "batch_requests";
 
-  protected static final String REQUEST_SCHEDULE_BATCH_SEPARATION_PROPERTY_ID =
-    PropertyHelper.getPropertyId("batch_settings", "batch_separation_in_seconds");
-  protected static final String REQUEST_SCHEDULE_BATCH_TOLERATION_PROPERTY_ID =
-    PropertyHelper.getPropertyId("batch_settings", "task_failure_tolerance");
-  protected static final String REQUEST_SCHEDULE_BATCH_REQUESTS_PROPERTY_ID =
-    PropertyHelper.getPropertyId(null, "requests");
+  public static final String ID_PROPERTY_ID = "id";
+  public static final String CLUSTER_NAME_PROPERTY_ID = "cluster_name";
+  public static final String DESCRIPTION_PROPERTY_ID = "description";
+  public static final String STATUS_PROPERTY_ID = "status";
+  public static final String LAST_EXECUTION_STATUS_PROPERTY_ID = "last_execution_status";
+  public static final String BATCH_PROPERTY_ID = "batch";
+  public static final String SCHEDULE_PROPERTY_ID = "schedule";
+  public static final String CREATE_USER_PROPERTY_ID = "create_user";
+  public static final String AUTHENTICATED_USER_PROPERTY_ID = "authenticated_user";
+  public static final String UPDATE_USER_PROPERTY_ID = "update_user";
+  public static final String CREATE_TIME_PROPERTY_ID = "create_time";
+  public static final String UPDATE_TIME_PROPERTY_ID = "update_time";
 
-  protected static final String BATCH_REQUEST_TYPE_PROPERTY_ID =
-    PropertyHelper.getPropertyId(null, "type");
-  protected static final String BATCH_REQUEST_URI_PROPERTY_ID =
-    PropertyHelper.getPropertyId(null, "uri");
-  protected static final String BATCH_REQUEST_ORDER_ID_PROPERTY_ID =
-    PropertyHelper.getPropertyId(null, "order_id");
-  protected static final String BATCH_REQUEST_BODY_PROPERTY_ID =
-    PropertyHelper.getPropertyId(null, RequestBodyParser.REQUEST_BLOB_TITLE);
+  public static final String BATCH_SEPARATION_IN_SECONDS_PROPERTY_ID = "batch_separation_in_seconds";
+  public static final String TASK_FAILURE_TOLERANCE_PROPERTY_ID = "task_failure_tolerance";
+  public static final String TASK_FAILURE_TOLERANCE_LIMIT_PROPERTY_ID = "task_failure_tolerance_limit";
+  public static final String REQUESTS_PROPERTY_ID = "requests";
 
-  protected static final String SCHEDULE_DAYS_OF_MONTH_PROPERTY_ID =
-    PropertyHelper.getPropertyId(REQUEST_SCHEDULE_SCHEDULE_PROPERTY_ID, "days_of_month");
-  protected static final String SCHEDULE_MINUTES_PROPERTY_ID =
-    PropertyHelper.getPropertyId(REQUEST_SCHEDULE_SCHEDULE_PROPERTY_ID, "minutes");
-  protected static final String SCHEDULE_HOURS_PROPERTY_ID =
-    PropertyHelper.getPropertyId(REQUEST_SCHEDULE_SCHEDULE_PROPERTY_ID, "hours");
-  protected static final String SCHEDULE_YEAR_PROPERTY_ID =
-    PropertyHelper.getPropertyId(REQUEST_SCHEDULE_SCHEDULE_PROPERTY_ID, "year");
-  protected static final String SCHEDULE_DAY_OF_WEEK_PROPERTY_ID =
-    PropertyHelper.getPropertyId(REQUEST_SCHEDULE_SCHEDULE_PROPERTY_ID, "day_of_week");
-  protected static final String SCHEDULE_MONTH_PROPERTY_ID =
-    PropertyHelper.getPropertyId(REQUEST_SCHEDULE_SCHEDULE_PROPERTY_ID, "month");
-  protected static final String SCHEDULE_START_TIME_PROPERTY_ID =
-    PropertyHelper.getPropertyId(REQUEST_SCHEDULE_SCHEDULE_PROPERTY_ID, "startTime");
-  protected static final String SCHEDULE_END_TIME_PROPERTY_ID =
-    PropertyHelper.getPropertyId(REQUEST_SCHEDULE_SCHEDULE_PROPERTY_ID, "endTime");
+  public static final String TYPE_PROPERTY_ID = "type";
+  public static final String URI_PROPERTY_ID = "uri";
+  public static final String ORDER_ID_PROPERTY_ID = "order_id";
+  public static final String REQUEST_TYPE_PROPERTY_ID = "request_type";
+  public static final String REQUEST_URI_PROPERTY_ID = "request_uri";
+  public static final String REQUEST_BODY_PROPERTY_ID = "request_body";
+  public static final String REQUEST_STATUS_PROPERTY_ID = "request_status";
+  public static final String RETURN_CODE_PROPERTY_ID = "return_code";
+  public static final String RESPONSE_MESSAGE_PROPERTY_ID = "response_message";
 
-  private static Set<String> pkPropertyIds = new HashSet<String>(Arrays
-    .asList(new String[]{ REQUEST_SCHEDULE_ID_PROPERTY_ID }));
+  public static final String DAYS_OF_MONTH_PROPERTY_ID = "days_of_month";
+  public static final String MINUTES_PROPERTY_ID = "minutes";
+  public static final String HOURS_PROPERTY_ID = "hours";
+  public static final String YEAR_PROPERTY_ID = "year";
+  public static final String DAY_OF_WEEK_PROPERTY_ID = "day_of_week";
+  public static final String MONTH_PROPERTY_ID = "month";
+  public static final String START_TIME_PROPERTY_ID = "startTime";
+  public static final String START_TIME_SNAKE_CASE_PROPERTY_ID = "start_time";
+  public static final String END_TIME_PROPERTY_ID = "endTime";
+  public static final String END_TIME_SNAKE_CASE_PROPERTY_ID = "end_time";
+
+
+  public static final String ID = PropertyHelper.getPropertyId(REQUEST_SCHEDULE, ID_PROPERTY_ID);
+  public static final String CLUSTER_NAME = PropertyHelper.getPropertyId(REQUEST_SCHEDULE, CLUSTER_NAME_PROPERTY_ID);
+  public static final String DESCRIPTION = PropertyHelper.getPropertyId(REQUEST_SCHEDULE, DESCRIPTION_PROPERTY_ID);
+  public static final String STATUS = PropertyHelper.getPropertyId(REQUEST_SCHEDULE, STATUS_PROPERTY_ID);
+  public static final String LAST_EXECUTION_STATUS = PropertyHelper.getPropertyId(REQUEST_SCHEDULE,
+          LAST_EXECUTION_STATUS_PROPERTY_ID);
+  public static final String BATCH = PropertyHelper.getPropertyId(REQUEST_SCHEDULE, BATCH_PROPERTY_ID);
+  public static final String SCHEDULE = PropertyHelper.getPropertyId(REQUEST_SCHEDULE, SCHEDULE_PROPERTY_ID);
+  public static final String CREATE_USER = PropertyHelper.getPropertyId(REQUEST_SCHEDULE, CREATE_USER_PROPERTY_ID);
+  public static final String AUTHENTICATED_USER = PropertyHelper.getPropertyId(REQUEST_SCHEDULE,
+          AUTHENTICATED_USER_PROPERTY_ID);
+  public static final String UPDATE_USER = PropertyHelper.getPropertyId(REQUEST_SCHEDULE, UPDATE_USER_PROPERTY_ID);
+  public static final String CREATE_TIME = PropertyHelper.getPropertyId(REQUEST_SCHEDULE, CREATE_TIME_PROPERTY_ID);
+  public static final String UPDATE_TIME = PropertyHelper.getPropertyId(REQUEST_SCHEDULE, UPDATE_TIME_PROPERTY_ID);
+
+  public static final String BATCH_SEPARATION_IN_SECONDS = PropertyHelper.getPropertyId(BATCH_SETTINGS,
+          BATCH_SEPARATION_IN_SECONDS_PROPERTY_ID);
+  public static final String TASK_FAILURE_TOLERANCE = PropertyHelper.getPropertyId(BATCH_SETTINGS,
+          TASK_FAILURE_TOLERANCE_PROPERTY_ID);
+  public static final String REQUESTS = PropertyHelper.getPropertyId(null, REQUESTS_PROPERTY_ID);
+
+  public static final String TYPE = PropertyHelper.getPropertyId(null, TYPE_PROPERTY_ID);
+  public static final String URI = PropertyHelper.getPropertyId(null, URI_PROPERTY_ID);
+  public static final String ORDER_ID = PropertyHelper.getPropertyId(null, ORDER_ID_PROPERTY_ID);
+  public static final String BODY = PropertyHelper.getPropertyId(null, RequestBodyParser.REQUEST_BLOB_TITLE);
+
+  public static final String DAYS_OF_MONTH = PropertyHelper.getPropertyId(SCHEDULE, DAYS_OF_MONTH_PROPERTY_ID);
+  public static final String MINUTES = PropertyHelper.getPropertyId(SCHEDULE, MINUTES_PROPERTY_ID);
+  public static final String HOURS = PropertyHelper.getPropertyId(SCHEDULE, HOURS_PROPERTY_ID);
+  public static final String YEAR = PropertyHelper.getPropertyId(SCHEDULE, YEAR_PROPERTY_ID);
+  public static final String DAY_OF_WEEK = PropertyHelper.getPropertyId(SCHEDULE, DAY_OF_WEEK_PROPERTY_ID);
+  public static final String MONTH = PropertyHelper.getPropertyId(SCHEDULE, MONTH_PROPERTY_ID);
+  public static final String START_TIME = PropertyHelper.getPropertyId(SCHEDULE, START_TIME_PROPERTY_ID);
+  public static final String END_TIME = PropertyHelper.getPropertyId(SCHEDULE, END_TIME_PROPERTY_ID);
+
+  /**
+   * The key property ids for a RequestSchedule resource.
+   */
+  private static Map<Resource.Type, String> keyPropertyIds = ImmutableMap.<Resource.Type, String>builder()
+      .put(Resource.Type.Cluster, CLUSTER_NAME)
+      .put(Resource.Type.RequestSchedule, ID)
+      .build();
+
+  /**
+   * The property ids for a RequestSchedule resource.
+   */
+  private static Set<String> propertyIds = Sets.newHashSet(
+    ID,
+    CLUSTER_NAME,
+    DESCRIPTION,
+    STATUS,
+    LAST_EXECUTION_STATUS,
+    BATCH,
+    SCHEDULE,
+    CREATE_USER,
+    AUTHENTICATED_USER,
+    UPDATE_USER,
+    CREATE_TIME,
+    UPDATE_TIME,
+    BATCH_SEPARATION_IN_SECONDS,
+    TASK_FAILURE_TOLERANCE,
+    REQUESTS,
+    TYPE,
+    URI,
+    ORDER_ID,
+    BODY,
+    DAYS_OF_MONTH,
+    MINUTES,
+    HOURS,
+    YEAR,
+    DAY_OF_WEEK,
+    MONTH,
+    START_TIME,
+    END_TIME);
 
   /**
    * Create a  new resource provider for the given management controller.
    *
-   * @param propertyIds          the property ids
-   * @param keyPropertyIds       the key property ids
    * @param managementController the management controller
    */
 
-  protected RequestScheduleResourceProvider(Set<String> propertyIds,
-      Map<Resource.Type, String> keyPropertyIds,
-        AmbariManagementController managementController) {
-    super(propertyIds, keyPropertyIds, managementController);
+  protected RequestScheduleResourceProvider(AmbariManagementController managementController) {
+    super(Resource.Type.RequestSchedule, propertyIds, keyPropertyIds, managementController);
   }
 
 
   @Override
   protected Set<String> getPKPropertyIds() {
-    return pkPropertyIds;
+    return new HashSet<>(keyPropertyIds.values());
   }
 
   @Override
@@ -143,7 +199,7 @@ public class RequestScheduleResourceProvider extends AbstractControllerResourceP
       UnsupportedPropertyException, ResourceAlreadyExistsException,
       NoSuchParentResourceException {
 
-    final Set<RequestScheduleRequest> requests = new HashSet<RequestScheduleRequest>();
+    final Set<RequestScheduleRequest> requests = new HashSet<>();
 
     for (Map<String, Object> propertyMap : request.getProperties()) {
       requests.add(getRequestScheduleRequest(propertyMap));
@@ -159,10 +215,10 @@ public class RequestScheduleResourceProvider extends AbstractControllerResourceP
 
     notifyCreate(Resource.Type.RequestSchedule, request);
 
-    Set<Resource> associatedResources = new HashSet<Resource>();
+    Set<Resource> associatedResources = new HashSet<>();
     for (RequestScheduleResponse response : responses) {
       Resource resource = new ResourceImpl(Resource.Type.RequestSchedule);
-      resource.setProperty(REQUEST_SCHEDULE_ID_PROPERTY_ID, response.getId());
+      resource.setProperty(ID, response.getId());
       associatedResources.add(resource);
     }
 
@@ -174,7 +230,7 @@ public class RequestScheduleResourceProvider extends AbstractControllerResourceP
       SystemException, UnsupportedPropertyException, NoSuchResourceException,
       NoSuchParentResourceException {
 
-    final Set<RequestScheduleRequest> requests = new HashSet<RequestScheduleRequest>();
+    final Set<RequestScheduleRequest> requests = new HashSet<>();
     for (Map<String, Object> propertyMap : getPropertyMaps(predicate)) {
       requests.add(getRequestScheduleRequest(propertyMap));
     }
@@ -188,34 +244,34 @@ public class RequestScheduleResourceProvider extends AbstractControllerResourceP
       });
 
     Set<String>   requestedIds = getRequestPropertyIds(request, predicate);
-    Set<Resource> resources    = new HashSet<Resource>();
+    Set<Resource> resources    = new HashSet<>();
 
     for (RequestScheduleResponse response : responses) {
       Resource resource = new ResourceImpl(Resource.Type.RequestSchedule);
 
-      setResourceProperty(resource, REQUEST_SCHEDULE_ID_PROPERTY_ID,
+      setResourceProperty(resource, ID,
         response.getId(), requestedIds);
-      setResourceProperty(resource, REQUEST_SCHEDULE_CLUSTER_NAME_PROPERTY_ID,
+      setResourceProperty(resource, CLUSTER_NAME,
         response.getClusterName(), requestedIds);
-      setResourceProperty(resource, REQUEST_SCHEDULE_DESC_PROPERTY_ID,
+      setResourceProperty(resource, DESCRIPTION,
         response.getDescription(), requestedIds);
-      setResourceProperty(resource, REQUEST_SCHEDULE_STATUS_PROPERTY_ID,
+      setResourceProperty(resource, STATUS,
         response.getStatus(), requestedIds);
-      setResourceProperty(resource, REQUEST_SCHEDULE_LAST_STATUS_PROPERTY_ID,
+      setResourceProperty(resource, LAST_EXECUTION_STATUS,
         response.getLastExecutionStatus(), requestedIds);
-      setResourceProperty(resource, REQUEST_SCHEDULE_BATCH_PROPERTY_ID,
+      setResourceProperty(resource, BATCH,
         response.getBatch(), requestedIds);
-      setResourceProperty(resource, REQUEST_SCHEDULE_SCHEDULE_PROPERTY_ID,
+      setResourceProperty(resource, SCHEDULE,
         response.getSchedule(), requestedIds);
-      setResourceProperty(resource, REQUEST_SCHEDULE_CREATE_USER_PROPERTY_ID,
+      setResourceProperty(resource, CREATE_USER,
         response.getCreateUser(), requestedIds);
-      setResourceProperty(resource, REQUEST_SCHEDULE_AUTHENTICATED_USER_PROPERTY_ID,
+      setResourceProperty(resource, AUTHENTICATED_USER,
         response.getAuthenticatedUserId(), requestedIds);
-      setResourceProperty(resource, REQUEST_SCHEDULE_CREATE_TIME_PROPERTY_ID,
+      setResourceProperty(resource, CREATE_TIME,
         response.getCreateTime(), requestedIds);
-      setResourceProperty(resource, REQUEST_SCHEDULE_UPDATE_USER_PROPERTY_ID,
+      setResourceProperty(resource, UPDATE_USER,
         response.getUpdateUser(), requestedIds);
-      setResourceProperty(resource, REQUEST_SCHEDULE_UPDATE_TIME_PROPERTY_ID,
+      setResourceProperty(resource, UPDATE_TIME,
         response.getUpdateTime(), requestedIds);
 
       resources.add(resource);
@@ -244,7 +300,7 @@ public class RequestScheduleResourceProvider extends AbstractControllerResourceP
       NoSuchResourceException, NoSuchParentResourceException {
 
     final Set<RequestScheduleRequest> requests = new
-      HashSet<RequestScheduleRequest>();
+      HashSet<>();
 
     Iterator<Map<String,Object>> iterator = request.getProperties().iterator();
     if (iterator.hasNext()) {
@@ -403,7 +459,7 @@ public class RequestScheduleResourceProvider extends AbstractControllerResourceP
     }
 
     Set<RequestScheduleResponse> responses = new
-      HashSet<RequestScheduleResponse>();
+      HashSet<>();
 
     Clusters clusters = getManagementController().getClusters();
     RequestExecutionFactory requestExecutionFactory =
@@ -472,7 +528,7 @@ public class RequestScheduleResourceProvider extends AbstractControllerResourceP
     Batch batch = request.getBatch();
     if (batch != null && !batch.getBatchRequests().isEmpty()) {
       // Verify requests can be ordered
-      HashSet<Long> orderIdSet = new HashSet<Long>();
+      HashSet<Long> orderIdSet = new HashSet<>();
       for (BatchRequest batchRequest : batch.getBatchRequests()) {
         if (batchRequest.getOrderId() == null) {
           throw new AmbariException("No order id provided for batch request. " +
@@ -491,7 +547,7 @@ public class RequestScheduleResourceProvider extends AbstractControllerResourceP
     (Set<RequestScheduleRequest> requests) throws AmbariException {
 
     Set<RequestScheduleResponse> responses = new
-      HashSet<RequestScheduleResponse>();
+      HashSet<>();
 
     if (requests != null) {
       for (RequestScheduleRequest request : requests) {
@@ -546,7 +602,7 @@ public class RequestScheduleResourceProvider extends AbstractControllerResourceP
   }
 
   private RequestScheduleRequest getRequestScheduleRequest(Map<String, Object> properties) {
-    Object idObj = properties.get(REQUEST_SCHEDULE_ID_PROPERTY_ID);
+    Object idObj = properties.get(ID);
     Long id = null;
     if (idObj != null)  {
       id = idObj instanceof Long ? (Long) idObj :
@@ -555,17 +611,17 @@ public class RequestScheduleResourceProvider extends AbstractControllerResourceP
 
     RequestScheduleRequest requestScheduleRequest = new RequestScheduleRequest(
       id,
-      (String) properties.get(REQUEST_SCHEDULE_CLUSTER_NAME_PROPERTY_ID),
-      (String) properties.get(REQUEST_SCHEDULE_DESC_PROPERTY_ID),
-      (String) properties.get(REQUEST_SCHEDULE_STATUS_PROPERTY_ID),
+      (String) properties.get(CLUSTER_NAME),
+      (String) properties.get(DESCRIPTION),
+      (String) properties.get(STATUS),
       null,
       null);
 
     Batch batch = new Batch();
     BatchSettings batchSettings = new BatchSettings();
-    List<BatchRequest> batchRequests = new ArrayList<BatchRequest>();
+    List<BatchRequest> batchRequests = new ArrayList<>();
 
-    Object batchObject = properties.get(REQUEST_SCHEDULE_BATCH_PROPERTY_ID);
+    Object batchObject = properties.get(BATCH);
     if (batchObject != null && batchObject instanceof HashSet<?>) {
       try {
         HashSet<Map<String, Object>> batchMap = (HashSet<Map<String, Object>>) batchObject;
@@ -574,15 +630,15 @@ public class RequestScheduleResourceProvider extends AbstractControllerResourceP
           if (batchEntry != null) {
             for (Map.Entry<String, Object> batchMapEntry : batchEntry.entrySet()) {
               if (batchMapEntry.getKey().equals
-                  (REQUEST_SCHEDULE_BATCH_TOLERATION_PROPERTY_ID)) {
+                  (TASK_FAILURE_TOLERANCE)) {
                 batchSettings.setTaskFailureToleranceLimit(Integer.valueOf
                   ((String) batchMapEntry.getValue()));
               } else if (batchMapEntry.getKey().equals
-                  (REQUEST_SCHEDULE_BATCH_SEPARATION_PROPERTY_ID)) {
+                  (BATCH_SEPARATION_IN_SECONDS)) {
                 batchSettings.setBatchSeparationInSeconds(Integer.valueOf
                   ((String) batchMapEntry.getValue()));
               } else if (batchMapEntry.getKey().equals
-                  (REQUEST_SCHEDULE_BATCH_REQUESTS_PROPERTY_ID)) {
+                  (REQUESTS)) {
                 HashSet<Map<String, Object>> requestSet =
                   (HashSet<Map<String, Object>>) batchMapEntry.getValue();
 
@@ -592,19 +648,19 @@ public class RequestScheduleResourceProvider extends AbstractControllerResourceP
                     for (Map.Entry<String, Object> requestMapEntry :
                         requestEntry.entrySet()) {
                       if (requestMapEntry.getKey()
-                                 .equals(BATCH_REQUEST_TYPE_PROPERTY_ID)) {
+                                 .equals(TYPE)) {
                         batchRequest.setType(BatchRequest.Type.valueOf
                           ((String) requestMapEntry.getValue()));
                       } else if (requestMapEntry.getKey()
-                                 .equals(BATCH_REQUEST_URI_PROPERTY_ID)) {
+                                 .equals(URI)) {
                         batchRequest.setUri(
                           (String) requestMapEntry.getValue());
                       } else if (requestMapEntry.getKey()
-                                .equals(BATCH_REQUEST_ORDER_ID_PROPERTY_ID)) {
+                                .equals(ORDER_ID)) {
                         batchRequest.setOrderId(Long.parseLong(
                           (String) requestMapEntry.getValue()));
                       } else if (requestMapEntry.getKey()
-                                .equals(BATCH_REQUEST_BODY_PROPERTY_ID)) {
+                                .equals(BODY)) {
                         batchRequest.setBody(
                           (String) requestMapEntry.getValue());
                       }
@@ -630,21 +686,21 @@ public class RequestScheduleResourceProvider extends AbstractControllerResourceP
 
     Schedule schedule = new Schedule();
     for (Map.Entry<String, Object> propertyEntry : properties.entrySet()) {
-      if (propertyEntry.getKey().equals(SCHEDULE_DAY_OF_WEEK_PROPERTY_ID)) {
+      if (propertyEntry.getKey().equals(DAY_OF_WEEK)) {
         schedule.setDayOfWeek((String) propertyEntry.getValue());
-      } else if (propertyEntry.getKey().equals(SCHEDULE_DAYS_OF_MONTH_PROPERTY_ID)) {
+      } else if (propertyEntry.getKey().equals(DAYS_OF_MONTH)) {
         schedule.setDaysOfMonth((String) propertyEntry.getValue());
-      } else if (propertyEntry.getKey().equals(SCHEDULE_END_TIME_PROPERTY_ID)) {
+      } else if (propertyEntry.getKey().equals(END_TIME)) {
         schedule.setEndTime((String) propertyEntry.getValue());
-      } else if (propertyEntry.getKey().equals(SCHEDULE_HOURS_PROPERTY_ID)) {
+      } else if (propertyEntry.getKey().equals(HOURS)) {
         schedule.setHours((String) propertyEntry.getValue());
-      } else if (propertyEntry.getKey().equals(SCHEDULE_MINUTES_PROPERTY_ID)) {
+      } else if (propertyEntry.getKey().equals(MINUTES)) {
         schedule.setMinutes((String) propertyEntry.getValue());
-      } else if (propertyEntry.getKey().equals(SCHEDULE_MONTH_PROPERTY_ID)) {
+      } else if (propertyEntry.getKey().equals(MONTH)) {
         schedule.setMonth((String) propertyEntry.getValue());
-      } else if (propertyEntry.getKey().equals(SCHEDULE_START_TIME_PROPERTY_ID)) {
+      } else if (propertyEntry.getKey().equals(START_TIME)) {
         schedule.setStartTime((String) propertyEntry.getValue());
-      } else if (propertyEntry.getKey().equals(SCHEDULE_YEAR_PROPERTY_ID)) {
+      } else if (propertyEntry.getKey().equals(YEAR)) {
         schedule.setYear((String) propertyEntry.getValue());
       }
     }

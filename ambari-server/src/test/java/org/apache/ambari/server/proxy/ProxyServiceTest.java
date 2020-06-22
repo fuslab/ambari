@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,41 +18,39 @@
 
 package org.apache.ambari.server.proxy;
 
-import com.google.gson.Gson;
-import com.sun.jersey.core.spi.factory.ResponseBuilderImpl;
-import com.sun.jersey.core.spi.factory.ResponseImpl;
-import com.sun.jersey.core.util.MultivaluedMapImpl;
-
-import org.apache.ambari.server.api.services.BaseServiceTest;
-import org.apache.ambari.server.controller.internal.URLStreamProvider;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import static org.junit.Assert.assertSame;
-import org.powermock.api.easymock.PowerMock;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-
-import static javax.ws.rs.core.MediaType.APPLICATION_FORM_URLENCODED;
 import static javax.ws.rs.core.MediaType.APPLICATION_FORM_URLENCODED_TYPE;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriBuilder;
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.junit.Assert.assertSame;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URI;
-import java.util.Map;
-import java.util.LinkedList;
-import java.util.HashMap;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
-import static org.easymock.EasyMock.createMock;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.replay;
+import javax.ws.rs.core.MultivaluedMap;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriBuilder;
+
+import org.apache.ambari.server.api.services.BaseServiceTest;
+import org.apache.ambari.server.controller.internal.URLStreamProvider;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.powermock.api.easymock.PowerMock;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
+
+import com.google.gson.Gson;
+import com.sun.jersey.core.spi.factory.ResponseBuilderImpl;
+import com.sun.jersey.core.spi.factory.ResponseImpl;
+import com.sun.jersey.core.util.MultivaluedMapImpl;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ ProxyServiceTest.class, ProxyService.class, URLStreamProvider.class, Response.class,
@@ -67,12 +65,12 @@ public class ProxyServiceTest extends BaseServiceTest {
     URI uriMock = PowerMock.createMock(URI.class);
     MultivaluedMap<String, String> queryParams = new MultivaluedMapImpl();
     MultivaluedMap<String, String> headerParams = new MultivaluedMapImpl();
-    Map<String, List<String>> headerParamsToForward = new HashMap<String, List<String>>();
+    Map<String, List<String>> headerParamsToForward = new HashMap<>();
     Response.ResponseBuilder responseBuilderMock = PowerMock.createMock(ResponseBuilderImpl.class);
     Response responseMock = createMock(ResponseImpl.class);
     headerParams.add("AmbariProxy-User-Remote","testuser");
     headerParams.add("Content-Type","testtype");
-    List<String> userRemoteParams = new LinkedList<String>();
+    List<String> userRemoteParams = new LinkedList<>();
     userRemoteParams.add("testuser");
     headerParamsToForward.put("User-Remote", userRemoteParams);
     InputStream is = new ByteArrayInputStream("test".getBytes());
@@ -105,12 +103,12 @@ public class ProxyServiceTest extends BaseServiceTest {
     URI uriMock = PowerMock.createMock(URI.class);
     MultivaluedMap<String, String> queryParams = new MultivaluedMapImpl();
     MultivaluedMap<String, String> headerParams = new MultivaluedMapImpl();
-    Map<String, List<String>> headerParamsToForward = new HashMap<String, List<String>>();
+    Map<String, List<String>> headerParamsToForward = new HashMap<>();
     Response.ResponseBuilder responseBuilderMock = PowerMock.createMock(ResponseBuilderImpl.class);
     Response responseMock = createMock(ResponseImpl.class);
     headerParams.add("AmbariProxy-User-Remote","testuser");
     headerParams.add("Content-Type","testtype");
-    List<String> userRemoteParams = new LinkedList<String>();
+    List<String> userRemoteParams = new LinkedList<>();
     userRemoteParams.add("testuser");
     headerParamsToForward.put("User-Remote", userRemoteParams);
     InputStream is = new ByteArrayInputStream("test".getBytes());
@@ -144,12 +142,12 @@ public class ProxyServiceTest extends BaseServiceTest {
     URI uriMock = PowerMock.createMock(URI.class);
     MultivaluedMap<String, String> queryParams = new MultivaluedMapImpl();
     MultivaluedMap<String, String> headerParams = new MultivaluedMapImpl();
-    Map<String, List<String>> headerParamsToForward = new HashMap<String, List<String>>();
+    Map<String, List<String>> headerParamsToForward = new HashMap<>();
     Response.ResponseBuilder responseBuilderMock = PowerMock.createMock(ResponseBuilderImpl.class);
     Response responseMock = createMock(ResponseImpl.class);
     headerParams.add("AmbariProxy-User-Remote","testuser");
     headerParams.add("Content-Type","testtype");
-    List<String> userRemoteParams = new LinkedList<String>();
+    List<String> userRemoteParams = new LinkedList<>();
     userRemoteParams.add("testuser");
     headerParamsToForward.put("User-Remote", userRemoteParams);
     InputStream is = new ByteArrayInputStream("test".getBytes());
@@ -183,12 +181,12 @@ public class ProxyServiceTest extends BaseServiceTest {
     URI uriMock = PowerMock.createMock(URI.class);
     MultivaluedMap<String, String> queryParams = new MultivaluedMapImpl();
     MultivaluedMap<String, String> headerParams = new MultivaluedMapImpl();
-    Map<String, List<String>> headerParamsToForward = new HashMap<String, List<String>>();
+    Map<String, List<String>> headerParamsToForward = new HashMap<>();
     Response.ResponseBuilder responseBuilderMock = PowerMock.createMock(ResponseBuilderImpl.class);
     Response responseMock = createMock(ResponseImpl.class);
     headerParams.add("AmbariProxy-User-Remote","testuser");
     headerParams.add("Content-Type","testtype");
-    List<String> userRemoteParams = new LinkedList<String>();
+    List<String> userRemoteParams = new LinkedList<>();
     userRemoteParams.add("testuser");
     headerParamsToForward.put("User-Remote", userRemoteParams);
     InputStream is = new ByteArrayInputStream("test".getBytes());
@@ -224,10 +222,10 @@ public class ProxyServiceTest extends BaseServiceTest {
     InputStream es = new ByteArrayInputStream("error".getBytes());
     MultivaluedMap<String, String> queryParams = new MultivaluedMapImpl();
     MultivaluedMap<String, String> headerParams = new MultivaluedMapImpl();
-    Map<String, List<String>> headerParamsToForward = new HashMap<String, List<String>>();
+    Map<String, List<String>> headerParamsToForward = new HashMap<>();
     headerParams.add("AmbariProxy-User-Remote","testuser");
     headerParams.add("Content-Type","testtype");
-    List<String> userRemoteParams = new LinkedList<String>();
+    List<String> userRemoteParams = new LinkedList<>();
     userRemoteParams.add("testuser");
     headerParamsToForward.put("User-Remote", userRemoteParams);
     PowerMock.mockStatic(Response.class);
@@ -259,12 +257,12 @@ public class ProxyServiceTest extends BaseServiceTest {
     URI uriMock = PowerMock.createMock(URI.class);
     MultivaluedMap<String, String> queryParams = new MultivaluedMapImpl();
     MultivaluedMap<String, String> headerParams = new MultivaluedMapImpl();
-    Map<String, List<String>> headerParamsToForward = new HashMap<String, List<String>>();
+    Map<String, List<String>> headerParamsToForward = new HashMap<>();
     Response.ResponseBuilder responseBuilderMock = PowerMock.createMock(ResponseBuilderImpl.class);
     Response responseMock = createMock(ResponseImpl.class);
     headerParams.add("AmbariProxy-User-Remote","testuser");
     headerParams.add("Content-Type","testtype");
-    List<String> userRemoteParams = new LinkedList<String>();
+    List<String> userRemoteParams = new LinkedList<>();
     userRemoteParams.add("testuser");
     headerParamsToForward.put("User-Remote", userRemoteParams);
     Map map = new Gson().fromJson(new InputStreamReader(new ByteArrayInputStream("{ \"test\":\"test\" }".getBytes())), Map.class);
@@ -298,9 +296,9 @@ public class ProxyServiceTest extends BaseServiceTest {
     HttpURLConnection urlConnectionMock = createMock(HttpURLConnection.class);
     URI uri = UriBuilder.fromUri("http://dev01.hortonworks.com:8080/proxy?url=http%3a%2f%2fserver%3a8188%2fws%2fv1%2f" +
      "timeline%2fHIVE_QUERY_ID%3ffields=events%2cprimaryfilters%26limit=10%26primaryFilter=user%3ahiveuser1").build();
-    Map<String, List<String>> headerParamsToForward = new HashMap<String, List<String>>();
+    Map<String, List<String>> headerParamsToForward = new HashMap<>();
     InputStream is = new ByteArrayInputStream("test".getBytes());
-    List<String> userRemoteParams = new LinkedList<String>();
+    List<String> userRemoteParams = new LinkedList<>();
     userRemoteParams.add("testuser");
     headerParams.add("AmbariProxy-User-Remote","testuser");
     headerParams.add("Content-Type","testtype");

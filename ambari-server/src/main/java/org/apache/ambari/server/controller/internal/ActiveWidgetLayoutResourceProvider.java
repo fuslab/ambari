@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,11 +17,16 @@
  */
 package org.apache.ambari.server.controller.internal;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-import com.google.inject.Inject;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.StaticallyInject;
+import org.apache.ambari.server.controller.ActiveWidgetLayoutResponse;
 import org.apache.ambari.server.controller.AmbariManagementController;
 import org.apache.ambari.server.controller.WidgetResponse;
 import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
@@ -46,13 +51,11 @@ import org.apache.ambari.server.security.authorization.AuthorizationException;
 import org.apache.ambari.server.security.authorization.AuthorizationHelper;
 import org.apache.ambari.server.security.authorization.ResourceType;
 import org.apache.ambari.server.security.authorization.RoleAuthorization;
+import org.apache.commons.lang3.StringUtils;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import com.google.inject.Inject;
 
 /**
  * Resource provider for widget layout resources.
@@ -74,13 +77,13 @@ public class ActiveWidgetLayoutResourceProvider extends AbstractControllerResour
   public static final String ID = "id";
 
   @SuppressWarnings("serial")
-  private static Set<String> pkPropertyIds = new HashSet<String>();
+  private static Set<String> pkPropertyIds = new HashSet<>();
 
   @SuppressWarnings("serial")
-  public static Set<String> propertyIds = new HashSet<String>();
+  public static Set<String> propertyIds = new HashSet<>();
 
   @SuppressWarnings("serial")
-  public static Map<Type, String> keyPropertyIds = new HashMap<Type, String>();
+  public static Map<Type, String> keyPropertyIds = new HashMap<>();
 
   static {
     pkPropertyIds.add(WIDGETLAYOUT_ID_PROPERTY_ID);
@@ -124,7 +127,7 @@ public class ActiveWidgetLayoutResourceProvider extends AbstractControllerResour
    *
    */
   public ActiveWidgetLayoutResourceProvider(AmbariManagementController managementController) {
-    super(propertyIds, keyPropertyIds, managementController);
+    super(Type.ActiveWidgetLayout, propertyIds, keyPropertyIds, managementController);
   }
 
   @Override
@@ -140,17 +143,17 @@ public class ActiveWidgetLayoutResourceProvider extends AbstractControllerResour
   @Override
   public Set<Resource> getResources(Request request, Predicate predicate)
       throws SystemException, UnsupportedPropertyException, NoSuchResourceException, NoSuchParentResourceException {
-    final Set<Resource> resources = new HashSet<Resource>();
+    final Set<Resource> resources = new HashSet<>();
     final Set<String> requestedIds = getRequestPropertyIds(request, predicate);
     final Set<Map<String, Object>> propertyMaps = getPropertyMaps(predicate);
 
-    List<WidgetLayoutEntity> layoutEntities = new ArrayList<WidgetLayoutEntity>();
+    List<WidgetLayoutEntity> layoutEntities = new ArrayList<>();
 
     boolean isUserAdministrator = AuthorizationHelper.isAuthorized(ResourceType.AMBARI, null,
         RoleAuthorization.AMBARI_MANAGE_USERS);
 
     for (Map<String, Object> propertyMap: propertyMaps) {
-      final String userName = propertyMap.get(WIDGETLAYOUT_USERNAME_PROPERTY_ID).toString();
+      final String userName = getUserName(propertyMap);
 
       // Ensure that the authenticated user has authorization to get this information
       if (!isUserAdministrator && !AuthorizationHelper.getAuthenticatedName().equalsIgnoreCase(userName)) {
@@ -158,7 +161,7 @@ public class ActiveWidgetLayoutResourceProvider extends AbstractControllerResour
       }
 
       java.lang.reflect.Type type = new TypeToken<Set<Map<String, String>>>(){}.getType();
-        Set<Map<String, String>> activeWidgetLayouts = gson.fromJson(userDAO.findSingleUserByName(userName).getActiveWidgetLayouts(), type);
+        Set<Map<String, String>> activeWidgetLayouts = gson.fromJson(userDAO.findUserByName(userName).getActiveWidgetLayouts(), type);
         if (activeWidgetLayouts != null) {
           for (Map<String, String> widgetLayoutId : activeWidgetLayouts) {
             layoutEntities.add(widgetLayoutDAO.findById(Long.parseLong(widgetLayoutId.get(ID))));
@@ -167,34 +170,44 @@ public class ActiveWidgetLayoutResourceProvider extends AbstractControllerResour
     }
 
     for (WidgetLayoutEntity layoutEntity : layoutEntities) {
+      ActiveWidgetLayoutResponse activeWidgetLayoutResponse  = getResponse(layoutEntity);
       Resource resource = new ResourceImpl(Type.ActiveWidgetLayout);
-      resource.setProperty(WIDGETLAYOUT_ID_PROPERTY_ID, layoutEntity.getId());
-      String clusterName = null;
-      try {
-        clusterName = getManagementController().getClusters().getClusterById(layoutEntity.getClusterId()).getClusterName();
-      } catch (AmbariException e) {
-        throw new SystemException(e.getMessage());
-      }
-      resource.setProperty(WIDGETLAYOUT_CLUSTER_NAME_PROPERTY_ID, clusterName);
-      resource.setProperty(WIDGETLAYOUT_LAYOUT_NAME_PROPERTY_ID, layoutEntity.getLayoutName());
-      resource.setProperty(WIDGETLAYOUT_SECTION_NAME_PROPERTY_ID, layoutEntity.getSectionName());
-      resource.setProperty(WIDGETLAYOUT_SCOPE_PROPERTY_ID, layoutEntity.getScope());
-      resource.setProperty(WIDGETLAYOUT_USERNAME_PROPERTY_ID, layoutEntity.getUserName());
-      resource.setProperty(WIDGETLAYOUT_DISPLAY_NAME_PROPERTY_ID, layoutEntity.getDisplayName());
-
-      List<HashMap> widgets = new ArrayList<HashMap>();
-      List<WidgetLayoutUserWidgetEntity> widgetLayoutUserWidgetEntityList = layoutEntity.getListWidgetLayoutUserWidgetEntity();
-      for (WidgetLayoutUserWidgetEntity widgetLayoutUserWidgetEntity : widgetLayoutUserWidgetEntityList) {
-        WidgetEntity widgetEntity = widgetLayoutUserWidgetEntity.getWidget();
-        HashMap<String, Object> widgetInfoMap = new HashMap<String, Object>();
-        widgetInfoMap.put("WidgetInfo",WidgetResponse.coerce(widgetEntity));
-        widgets.add(widgetInfoMap);
-      }
-      resource.setProperty(WIDGETLAYOUT_WIDGETS_PROPERTY_ID, widgets);
-
+      resource.setProperty(WIDGETLAYOUT_ID_PROPERTY_ID, activeWidgetLayoutResponse.getId());
+      resource.setProperty(WIDGETLAYOUT_CLUSTER_NAME_PROPERTY_ID, activeWidgetLayoutResponse.getClusterName());
+      resource.setProperty(WIDGETLAYOUT_LAYOUT_NAME_PROPERTY_ID, activeWidgetLayoutResponse.getLayoutName());
+      resource.setProperty(WIDGETLAYOUT_SECTION_NAME_PROPERTY_ID, activeWidgetLayoutResponse.getSectionName());
+      resource.setProperty(WIDGETLAYOUT_SCOPE_PROPERTY_ID, activeWidgetLayoutResponse.getScope());
+      resource.setProperty(WIDGETLAYOUT_USERNAME_PROPERTY_ID, activeWidgetLayoutResponse.getUserName());
+      resource.setProperty(WIDGETLAYOUT_DISPLAY_NAME_PROPERTY_ID, activeWidgetLayoutResponse.getDisplayName());
+      resource.setProperty(WIDGETLAYOUT_WIDGETS_PROPERTY_ID, activeWidgetLayoutResponse.getWidgets());
       resources.add(resource);
     }
     return resources;
+  }
+
+  /**
+   * Returns the response for the active widget layout that should be returned for the active widget layout REST endpoint
+   * @param layoutEntity {@link WidgetLayoutEntity}
+   * @return  {@link ActiveWidgetLayoutResponse}
+   * @throws SystemException
+   */
+  private ActiveWidgetLayoutResponse getResponse(WidgetLayoutEntity layoutEntity) throws SystemException {
+    String clusterName = null;
+    try {
+      clusterName = getManagementController().getClusters().getClusterById(layoutEntity.getClusterId()).getClusterName();
+    } catch (AmbariException e) {
+      throw new SystemException(e.getMessage());
+    }
+    List<HashMap<String,WidgetResponse>> widgets = new ArrayList<>();
+    List<WidgetLayoutUserWidgetEntity> widgetLayoutUserWidgetEntityList = layoutEntity.getListWidgetLayoutUserWidgetEntity();
+    for (WidgetLayoutUserWidgetEntity widgetLayoutUserWidgetEntity : widgetLayoutUserWidgetEntityList) {
+      WidgetEntity widgetEntity = widgetLayoutUserWidgetEntity.getWidget();
+      HashMap<String, WidgetResponse> widgetInfoMap = new HashMap<>();
+      widgetInfoMap.put("WidgetInfo",WidgetResponse.coerce(widgetEntity));
+      widgets.add(widgetInfoMap);
+    }
+   return  new ActiveWidgetLayoutResponse(layoutEntity.getId(), clusterName, layoutEntity.getDisplayName(), layoutEntity.getLayoutName(),
+      layoutEntity.getSectionName(), layoutEntity.getScope(), layoutEntity.getUserName(),  widgets);
   }
 
   @Override
@@ -211,12 +224,12 @@ public class ActiveWidgetLayoutResourceProvider extends AbstractControllerResour
 
         for (Map<String, Object> propertyMap : propertyMaps) {
           // Ensure that the authenticated user has authorization to get this information
-          String userName = propertyMap.get(WIDGETLAYOUT_USERNAME_PROPERTY_ID).toString();
+          final String userName = getUserName(propertyMap);
           if (!isUserAdministrator && !AuthorizationHelper.getAuthenticatedName().equalsIgnoreCase(userName)) {
             throw new AuthorizationException();
           }
 
-          Set<HashMap> widgetLayouts = (Set) propertyMap.get(WIDGETLAYOUT);
+          Set<HashMap<String, String>> widgetLayouts = (Set) propertyMap.get(WIDGETLAYOUT);
           for (HashMap<String, String> widgetLayout : widgetLayouts) {
             final Long layoutId;
             try {
@@ -238,6 +251,14 @@ public class ActiveWidgetLayoutResourceProvider extends AbstractControllerResour
     });
 
     return getRequestStatus(null);
+  }
+
+  private String getUserName(Map<String, Object> propertyMap) {
+    String userName = propertyMap.get(WIDGETLAYOUT_USERNAME_PROPERTY_ID) == null ? "" : propertyMap.get(WIDGETLAYOUT_USERNAME_PROPERTY_ID).toString();
+    if (StringUtils.isBlank(userName)) {
+      userName = AuthorizationHelper.getAuthenticatedName();
+    }
+    return userName;
   }
 
   @Override

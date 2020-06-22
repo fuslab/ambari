@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -97,7 +97,7 @@ public class PropertyHelperTest {
     Assert.assertTrue(categories.contains("metrics"));
 
     String propertyId2 = "foo/bar/baz";
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
     propertyIds.add(propertyId);
     propertyIds.add(propertyId2);
 
@@ -127,7 +127,6 @@ public class PropertyHelperTest {
     Assert.assertFalse(PropertyHelper.containsArguments("$X/foo/bar/$Y/baz/$Z"));
   }
 
-  @Test
   /**
    * Test to make sure that point in time metrics are not in both JMX and Ganglia.
    * A metric marked as point in time should not be available from both JMX
@@ -138,8 +137,9 @@ public class PropertyHelperTest {
    * be available from both property providers then please add an exception to
    * this test.
    */
+  @Test
   public void testDuplicatePointInTimeMetrics() {
-    TreeSet<String> set = new TreeSet<String>();
+    TreeSet<String> set = new TreeSet<>();
 
     for (Resource.Type type : Resource.Type.values()) {
 
@@ -191,7 +191,6 @@ public class PropertyHelperTest {
     }
   }
 
-  @Test
   /**
    * Test to make sure that any metrics that are marked as temporal only in Ganglia are available
    * as point in time from JMX.  If a metric can not be provided by JMX it may be marked
@@ -200,8 +199,9 @@ public class PropertyHelperTest {
    * If there is a legitimate exception and the metric should be temporal only then please add an
    * exception to this test.
    */
+  @Test
   public void testTemporalOnlyMetrics() {
-    TreeSet<String> set = new TreeSet<String>();
+    TreeSet<String> set = new TreeSet<>();
 
     for (Resource.Type type : Resource.Type.values()) {
 
@@ -259,12 +259,12 @@ public class PropertyHelperTest {
     }
   }
 
-  @Test
   /**
    * Test to make sure that no JMX metrics are marked as point in time.
    */
+  @Test
   public void testJMXTemporal() {
-    TreeSet<String> set = new TreeSet<String>();
+    TreeSet<String> set = new TreeSet<>();
 
     for (Resource.Type type : Resource.Type.values()) {
 
@@ -369,12 +369,12 @@ public class PropertyHelperTest {
   // remove any replacement tokens (e.g. $1.replaceAll(\",q(\\d+)=\",\"/\").substring(1)) in the metric names
   private static Map<String, Map<String, PropertyInfo>> normalizeMetricNames(Map<String, Map<String, PropertyInfo>> gids) {
 
-    Map<String, Map<String, PropertyInfo>> returnMap = new HashMap<String, Map<String, PropertyInfo>>();
+    Map<String, Map<String, PropertyInfo>> returnMap = new HashMap<>();
 
     for (Map.Entry<String, Map<String, PropertyInfo>> gComponentEntry : gids.entrySet()) {
 
       String gComponent = gComponentEntry.getKey();
-      Map<String, PropertyInfo> newMap = new HashMap<String, PropertyInfo>();
+      Map<String, PropertyInfo> newMap = new HashMap<>();
 
       Set<Map.Entry<String, PropertyInfo>> gComponentEntries = gComponentEntry.getValue().entrySet();
 

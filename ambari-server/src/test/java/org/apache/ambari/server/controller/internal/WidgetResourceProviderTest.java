@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,11 +17,25 @@
  */
 package org.apache.ambari.server.controller.internal;
 
-import com.google.inject.Binder;
-import com.google.inject.Guice;
-import com.google.inject.Injector;
-import com.google.inject.Module;
-import com.google.inject.util.Modules;
+import static org.easymock.EasyMock.anyObject;
+import static org.easymock.EasyMock.capture;
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.createStrictMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.resetToStrict;
+import static org.easymock.EasyMock.verify;
+import static org.junit.Assert.assertEquals;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.AmbariManagementController;
 import org.apache.ambari.server.controller.spi.Predicate;
 import org.apache.ambari.server.controller.spi.Request;
@@ -46,24 +60,11 @@ import org.powermock.api.easymock.PowerMock;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import static org.easymock.EasyMock.anyObject;
-import static org.easymock.EasyMock.capture;
-import static org.easymock.EasyMock.createMock;
-import static org.easymock.EasyMock.createStrictMock;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.expectLastCall;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.resetToStrict;
-import static org.easymock.EasyMock.verify;
-import static org.junit.Assert.assertEquals;
+import com.google.inject.Binder;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import com.google.inject.Module;
+import com.google.inject.util.Modules;
 
 /**
  * Widget tests
@@ -218,7 +219,7 @@ public class WidgetResourceProviderTest {
     expect(clusters.getCluster((String) anyObject())).andReturn(cluster).atLeastOnce();
     expect(cluster.getClusterId()).andReturn(Long.valueOf(1)).anyTimes();
 
-    Capture<WidgetEntity> entityCapture = new Capture<WidgetEntity>();
+    Capture<WidgetEntity> entityCapture = EasyMock.newCapture();
     dao.create(capture(entityCapture));
     expectLastCall();
 
@@ -232,8 +233,8 @@ public class WidgetResourceProviderTest {
     requestProps.put(WidgetResourceProvider.WIDGET_WIDGET_TYPE_PROPERTY_ID, "GAUGE");
     requestProps.put(WidgetResourceProvider.WIDGET_AUTHOR_PROPERTY_ID, "admin");
     requestProps.put(WidgetResourceProvider.WIDGET_SCOPE_PROPERTY_ID, "USER");
-    Set testSet = new LinkedHashSet();
-    HashMap testMap = new HashMap();
+    Set<Map<String, String>> testSet = new LinkedHashSet<>();
+    Map<String, String> testMap = new HashMap<>();
     testMap.put("name","value");
     testMap.put("name2","value2");
     testSet.add(testMap);
@@ -275,7 +276,7 @@ public class WidgetResourceProviderTest {
     expect(clusters.getCluster((String) anyObject())).andReturn(cluster).atLeastOnce();
     expect(cluster.getClusterId()).andReturn(Long.valueOf(1)).atLeastOnce();
 
-    Capture<WidgetEntity> entityCapture = new Capture<WidgetEntity>();
+    Capture<WidgetEntity> entityCapture = EasyMock.newCapture();
     dao.create(capture(entityCapture));
     expectLastCall();
 
@@ -287,8 +288,8 @@ public class WidgetResourceProviderTest {
     requestProps.put(WidgetResourceProvider.WIDGET_WIDGET_TYPE_PROPERTY_ID, "GAUGE");
     requestProps.put(WidgetResourceProvider.WIDGET_AUTHOR_PROPERTY_ID, "admin");
     requestProps.put(WidgetResourceProvider.WIDGET_SCOPE_PROPERTY_ID, "USER");
-    Set testSet = new LinkedHashSet();
-    HashMap testMap = new HashMap();
+    Set<Map<String, String>> testSet = new LinkedHashSet<>();
+    Map<String, String> testMap = new HashMap<>();
     testMap.put("name","value");
     testMap.put("name2","value2");
     testSet.add(testMap);
@@ -332,8 +333,8 @@ public class WidgetResourceProviderTest {
     requestProps.put(WidgetResourceProvider.WIDGET_WIDGET_TYPE_PROPERTY_ID, "GAUGE");
     requestProps.put(WidgetResourceProvider.WIDGET_AUTHOR_PROPERTY_ID, "admin");
     requestProps.put(WidgetResourceProvider.WIDGET_SCOPE_PROPERTY_ID, "USER");
-    testSet = new LinkedHashSet();
-    testMap = new HashMap();
+    testSet = new LinkedHashSet<>();
+    testMap = new HashMap<>();
     testMap.put("name","new_value");
     testMap.put("new_name","new_value2");
     testSet.add(testMap);
@@ -370,7 +371,7 @@ public class WidgetResourceProviderTest {
     expect(clusters.getCluster((String) anyObject())).andReturn(cluster).atLeastOnce();
     expect(cluster.getClusterId()).andReturn(Long.valueOf(1)).anyTimes();
 
-    Capture<WidgetEntity> entityCapture = new Capture<WidgetEntity>();
+    Capture<WidgetEntity> entityCapture = EasyMock.newCapture();
     dao.create(capture(entityCapture));
     expectLastCall();
 
@@ -384,8 +385,8 @@ public class WidgetResourceProviderTest {
     requestProps.put(WidgetResourceProvider.WIDGET_WIDGET_TYPE_PROPERTY_ID, "GAUGE");
     requestProps.put(WidgetResourceProvider.WIDGET_AUTHOR_PROPERTY_ID, "admin");
     requestProps.put(WidgetResourceProvider.WIDGET_SCOPE_PROPERTY_ID, "USER");
-    Set testSet = new LinkedHashSet();
-    HashMap testMap = new HashMap();
+    Set<Map<String, String>> testSet = new LinkedHashSet<>();
+    Map<String, String> testMap = new HashMap<>();
     testMap.put("name","value");
     testMap.put("name2","value2");
     testSet.add(testMap);
@@ -434,9 +435,9 @@ public class WidgetResourceProviderTest {
     Cluster cluster = createMock(Cluster.class);
     expect(amc.getClusters()).andReturn(clusters).atLeastOnce();
     expect(clusters.getCluster((String) anyObject())).andReturn(cluster).atLeastOnce();
-    expect(cluster.getClusterId()).andReturn(Long.valueOf(1)).atLeastOnce();
+    expect(cluster.getResourceId()).andReturn(Long.valueOf(1)).atLeastOnce();
 
-    Capture<WidgetEntity> entityCapture = new Capture<WidgetEntity>();
+    Capture<WidgetEntity> entityCapture = EasyMock.newCapture();
     dao.create(capture(entityCapture));
     expectLastCall();
 

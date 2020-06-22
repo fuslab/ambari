@@ -18,18 +18,19 @@
 
 package org.apache.ambari.server.state.kerberos;
 
-import com.google.inject.Singleton;
-import org.apache.ambari.server.AmbariException;
-import org.apache.commons.lang.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import org.apache.ambari.server.AmbariException;
+import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.inject.Singleton;
 
 /**
  * Helper class to provide variable replacement services
@@ -56,8 +57,10 @@ public class VariableReplacementHelper {
     {
       put("each", new EachFunction());
       put("toLower", new ToLowerFunction());
+      put("replace", new ReplaceValue());
       put("append", new AppendFunction());
       put("principalPrimary", new PrincipalPrimary());
+      put("stripPort", new StripPort());
     }
   };
 
@@ -239,6 +242,38 @@ public class VariableReplacementHelper {
   }
 
   /**
+   * ReplaceValue is a Function implementation that replaces the value in the string
+   * <p/>
+   * This function expects the following arguments (in order) within the args array:
+   * <ol>
+   * <li>regular expression that should be replaced</li>
+   * <li>replacement value for the string</li>
+   * </ol>
+   */
+  private static class ReplaceValue implements Function {
+
+    @Override
+    public String perform(String[] args, String data, Map<String, Map<String, String>> replacementsMap) {
+      if ((args == null) || (args.length != 2)) {
+        throw new IllegalArgumentException("Invalid number of arguments encountered");
+      }
+      if (data != null) {
+        StringBuffer builder = new StringBuffer();
+        String regex = args[0];
+        String replacement = args[1];
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(data);
+        while (matcher.find()) {
+          matcher.appendReplacement(builder, replacement);
+        }
+        matcher.appendTail(builder);
+        return builder.toString();
+      }
+      return "";
+    }
+  }
+
+  /**
    * ToLowerFunction is a Function implementation that converts a String to lowercase
    */
   private static class ToLowerFunction implements Function {
@@ -283,7 +318,7 @@ public class VariableReplacementHelper {
 
       Collection<String> sourceItems = parseItems(sourceData, concatDelimiter);
       Collection<String> dataItems = parseItems(data, concatDelimiter);
-      Collection<String> items = new ArrayList<String>();
+      Collection<String> items = new ArrayList<>();
 
       if (uniqueOnly) {
         for (String item : sourceItems) {
@@ -313,7 +348,7 @@ public class VariableReplacementHelper {
      * @return a Collection of Strings split from the original string
      */
     private Collection<String> parseItems(String delimitedString, String concatDelimiter) {
-      Collection<String> items = new ArrayList<String>();
+      Collection<String> items = new ArrayList<>();
 
       if (!StringUtils.isEmpty(delimitedString)) {
         for (String item : delimitedString.split(concatDelimiter)) {
@@ -396,6 +431,21 @@ public class VariableReplacementHelper {
       } else {
         return data;
       }
+    }
+  }
+
+  /**
+   * Strips out the port (if any) from a URL assuming the following input data layout
+   * <code>host[:port]</code>
+   */
+  private static class StripPort implements Function {
+    @Override
+    public String perform(String[] args, String data, Map<String, Map<String, String>> replacementsMap) {
+      if (data == null) {
+        return null;
+      }
+      final int semicolonIndex = data.indexOf(":");
+      return semicolonIndex == -1 ? data : data.substring(0, semicolonIndex);
     }
   }
 }

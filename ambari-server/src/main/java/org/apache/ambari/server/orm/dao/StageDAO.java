@@ -267,8 +267,8 @@ public class StageDAO {
    *          the stage entity to update
    * @param desiredStatus
    *          the desired stage status
-   * @param controller
-   *          the ambari management controller
+   * @param actionManager
+   *          the action manager
    *
    * @throws java.lang.IllegalArgumentException
    *           if the transition to the desired status is not a legal transition
@@ -288,9 +288,11 @@ public class StageDAO {
     if (desiredStatus == HostRoleStatus.ABORTED) {
       actionManager.cancelRequest(stage.getRequestId(), "User aborted.");
     } else {
+      List <HostRoleCommandEntity> hrcWithChangedStatus = new ArrayList<>();
       for (HostRoleCommandEntity hostRoleCommand : tasks) {
         HostRoleStatus hostRoleStatus = hostRoleCommand.getStatus();
         if (hostRoleStatus.equals(currentStatus)) {
+          hrcWithChangedStatus.add(hostRoleCommand);
           hostRoleCommand.setStatus(desiredStatus);
 
           if (desiredStatus == HostRoleStatus.PENDING) {
@@ -301,6 +303,21 @@ public class StageDAO {
       }
     }
   }
+
+  /**
+   *
+   * @param stageEntityPK  {@link StageEntityPK}
+   * @param status {@link HostRoleStatus}
+   * @param displayStatus {@link HostRoleStatus}
+   */
+  @Transactional
+  public void updateStatus(StageEntityPK stageEntityPK, HostRoleStatus status, HostRoleStatus displayStatus) {
+    StageEntity stageEntity = findByPK(stageEntityPK);
+    stageEntity.setStatus(status);
+    stageEntity.setDisplayStatus(displayStatus);
+    merge(stageEntity);
+  }
+
 
   /**
    * Determine whether or not it is valid to transition from this stage status

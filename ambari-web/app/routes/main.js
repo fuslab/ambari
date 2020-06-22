@@ -19,36 +19,43 @@
 var App = require('app');
 
 module.exports = Em.Route.extend(App.RouterRedirections, {
+
+  breadcrumbs: {
+    label: '<span class="glyphicon glyphicon-home"></span>',
+    route: 'dashboard'
+  },
+
   route: '/main',
   enter: function (router) {
     App.db.updateStorage();
     var self = this;
     var location = router.location.location.hash;
+    var clusterController = App.router.get('clusterController');
+
     router.getAuthenticated().done(function (loggedIn) {
       if (loggedIn) {
         var applicationController = App.router.get('applicationController');
         App.router.get('experimentalController').loadSupports().complete(function () {
           applicationController.startKeepAlivePoller();
-          App.router.get('mainController').checkServerClientVersion().done(function () {
+          clusterController.loadAmbariProperties().complete(function () {
             App.router.get('mainViewsController').loadAmbariViews();
-            App.router.get('clusterController').loadClusterName(false).done(function () {
+            clusterController.loadClusterName(false).done(function () {
+              $('#main').removeClass('install-wizard-content');
               if (App.get('testMode')) {
                 router.get('mainController').initialize();
               } else {
                 if (router.get('clusterInstallCompleted')) {
-                  App.router.get('clusterController').loadClientServerClockDistance().done(function () {
-                    if (!App.get('isOnlyViewUser')) {
-                      App.router.get('clusterController').checkDetailedRepoVersion().done(function () {
-                        router.get('mainController').initialize();
-                      });
-                    } else {
-                      // Don't transit to Views when user already on View page
-                      if (App.router.currentState.name !== 'viewDetails') {
-                        App.router.transitionTo('main.views.index');
-                      }
-                      App.router.get('clusterController').set('isLoaded', true); // hide loading bar
+                  if (!App.get('isOnlyViewUser')) {
+                    clusterController.checkDetailedRepoVersion().done(function () {
+                      router.get('mainController').initialize();
+                    });
+                  } else {
+                    // Don't transit to Views when user already on View page
+                    if (App.router.currentState.name !== 'viewDetails' && App.router.currentState.name !== 'shortViewDetails') {
+                      App.router.transitionTo('main.views.index');
                     }
-                  });
+                    clusterController.set('isLoaded', true); // hide loading bar
+                  }
                 }
                 else {
                   Em.run.next(function () {
@@ -59,14 +66,16 @@ module.exports = Em.Route.extend(App.RouterRedirections, {
                         if (App.isAuthorized('AMBARI.ADD_DELETE_CLUSTERS')) {
                           self.redirectToInstaller(router, currentClusterStatus, false);
                         } else {
+                          clusterController.set('isLoaded', true);
                           Em.run.next(function () {
                             App.router.transitionTo('main.views.index');
                           });
                         }
+                      } else {
+                        clusterController.set('isLoaded', true);
                       }
                     });
                   });
-                  App.router.get('clusterController').set('isLoaded', true);
                 }
               }
             });
@@ -111,6 +120,12 @@ module.exports = Em.Route.extend(App.RouterRedirections, {
   }),
 
   dashboard: Em.Route.extend({
+
+    breadcrumbs: {
+      label: Em.I18n.t('menu.item.dashboard'),
+      route: 'dashboard'
+    },
+
     route: '/dashboard',
     connectOutlets: function (router, context) {
       router.get('mainController').connectOutlet('mainDashboard');
@@ -128,6 +143,9 @@ module.exports = Em.Route.extend(App.RouterRedirections, {
     },
     widgets: Em.Route.extend({
       route: '/metrics',
+      breadcrumbs: {
+        label: Em.I18n.t('common.metrics')
+      },
       connectOutlets: function (router, context) {
         App.loadTimer.start('Dashboard Metrics Page');
         router.set('mainDashboardController.selectedCategory', 'widgets');
@@ -136,6 +154,7 @@ module.exports = Em.Route.extend(App.RouterRedirections, {
     }),
     charts: Em.Route.extend({
       route: '/charts',
+      breadcrumbs: null,
       connectOutlets: function (router, context) {
         App.loadTimer.start('Heatmaps Page');
         router.set('mainDashboardController.selectedCategory', 'charts');
@@ -191,17 +210,41 @@ module.exports = Em.Route.extend(App.RouterRedirections, {
 
 
   hosts: Em.Route.extend({
+
+    breadcrumbs: {
+      label: Em.I18n.t('menu.item.hosts'),
+      route: 'hosts',
+      beforeTransition() {
+        App.router.set('mainHostController.showFilterConditionsFirstLoad', true);
+        App.router.set('mainHostController.saveSelection', true);
+      }
+    },
+
     route: '/hosts',
     index: Ember.Route.extend({
       route: '/',
       connectOutlets: function (router, context) {
         App.loadTimer.start('Hosts Page');
         router.get('mainController').connectOutlet('mainHost');
-        router.get('mainHostController').connectOutlet('mainHostComboSearchBox');
       }
     }),
 
     hostDetails: Em.Route.extend({
+
+      breadcrumbs: {
+        itemView: Em.View.extend({
+          tagName: "a",
+          contentBinding: 'App.router.mainHostDetailsController.content',
+          isActive: Em.computed.equal('content.passiveState', 'OFF'),
+          click: function() {
+            App.router.transitionTo('hosts.hostDetails.summary', this.get('content'));
+          },
+          template: Em.Handlebars.compile('<span class="host-breadcrumb">{{view.content.hostName}}</span>' +
+            '<span rel="HealthTooltip" {{bindAttr class="view.content.healthClass view.content.healthIconClass :icon"}} ' +
+            'data-placement="bottom" {{bindAttr data-original-title="view.content.healthToolTip" }}></span>')
+        })
+      },
+
       route: '/:host_id',
       connectOutlets: function (router, host) {
         router.get('mainHostController').set('showFilterConditionsFirstLoad', true);
@@ -218,21 +261,19 @@ module.exports = Em.Route.extend(App.RouterRedirections, {
         connectOutlets: function (router, context) {
           router.get('mainController').dataLoading().done(function() {
             var controller = router.get('mainHostDetailsController');
-            var tags =[{
-            	siteName: 'hive-env'
-            	}];
+            var tags = ['hive-env'];
             if ( App.Service.find().mapProperty('serviceName').contains('OOZIE')) {
               controller.loadConfigs('loadOozieConfigs');
               controller.isOozieConfigLoaded.always(function () {
                 if(App.Service.find().mapProperty('serviceName').contains('HIVE')){
-                  App.router.get('configurationController').getConfigsByTags(tags).always(function () {
+                  App.router.get('configurationController').getCurrentConfigsBySites(tags).always(function () {
             	    controller.connectOutlet('mainHostSummary');
             	  });
             	} else
-		  controller.connectOutlet('mainHostSummary');
+              controller.connectOutlet('mainHostSummary');
               });
             } else if(App.Service.find().mapProperty('serviceName').contains('HIVE')) {
-              App.router.get('configurationController').getConfigsByTags(tags).always(function () {
+              App.router.get('configurationController').getCurrentConfigsBySites(tags).always(function () {
                 controller.connectOutlet('mainHostSummary');
               });
             } else {
@@ -250,7 +291,6 @@ module.exports = Em.Route.extend(App.RouterRedirections, {
           });
         },
         exitRoute: function (router, context, callback) {
-          router.get('mainController').startPolling();
           callback();
         }
       }),
@@ -273,6 +313,9 @@ module.exports = Em.Route.extend(App.RouterRedirections, {
       }),
 
       stackVersions: Em.Route.extend({
+        breadcrumbs: {
+          label: Em.I18n.t('common.versions')
+        },
         route: '/stackVersions',
         connectOutlets: function (router, context) {
           if (App.get('stackVersionsAvailable')) {
@@ -318,6 +361,10 @@ module.exports = Em.Route.extend(App.RouterRedirections, {
 
     addHost: function (router) {
       router.transitionTo('hostAdd');
+    },
+
+    exit: function (router) {
+      router.set('mainHostController.saveSelection', false);
     }
 
   }),
@@ -325,6 +372,15 @@ module.exports = Em.Route.extend(App.RouterRedirections, {
   hostAdd: require('routes/add_host_routes'),
 
   alerts: Em.Route.extend({
+
+    breadcrumbs: {
+      label: Em.I18n.t('menu.item.alerts'),
+      route: 'alerts',
+      beforeTransition() {
+        App.router.set('mainAlertDefinitionsController.showFilterConditionsFirstLoad', false);
+      }
+    },
+
     route: '/alerts',
     index: Em.Route.extend({
       route: '/',
@@ -334,6 +390,11 @@ module.exports = Em.Route.extend(App.RouterRedirections, {
     }),
 
     alertDetails: Em.Route.extend({
+
+      breadcrumbs: {
+        labelBindingPath: 'App.router.mainAlertDefinitionDetailsController.content.label',
+        disabled: true
+      },
 
       route: '/:alert_definition_id',
 
@@ -365,6 +426,9 @@ module.exports = Em.Route.extend(App.RouterRedirections, {
 
   admin: Em.Route.extend({
     route: '/admin',
+    breadcrumbs: {
+      disabled: true
+    },
     enter: function (router, transition) {
       if (router.get('loggedIn') && !App.isAuthorized('CLUSTER.TOGGLE_KERBEROS, SERVICE.SET_SERVICE_USERS_GROUPS, CLUSTER.UPGRADE_DOWNGRADE_STACK, CLUSTER.VIEW_STACK_DETAILS')
         && !(App.get('upgradeInProgress') || App.get('upgradeHolding'))) {
@@ -401,6 +465,11 @@ module.exports = Em.Route.extend(App.RouterRedirections, {
     }),
 
     adminKerberos: Em.Route.extend({
+
+      breadcrumbs: {
+        label: Em.I18n.t('common.kerberos')
+      },
+
       route: '/kerberos',
       enter: function (router, transition) {
         if (router.get('loggedIn') && (!App.isAuthorized('CLUSTER.TOGGLE_KERBEROS') || !App.supports.enableToggleKerberos)) {
@@ -411,6 +480,7 @@ module.exports = Em.Route.extend(App.RouterRedirections, {
         route: '/',
         connectOutlets: function (router, context) {
           router.set('mainAdminController.category', "kerberos");
+          router.set('mainAdminController.categoryLabel', Em.I18n.t('common.kerberos'));
           router.get('mainAdminController').connectOutlet('mainAdminKerberos');
         }
       }),
@@ -422,14 +492,19 @@ module.exports = Em.Route.extend(App.RouterRedirections, {
           App.router.get('updateController').set('isWorking', false);
           router.get('mainController').dataLoading().done(function () {
             App.ModalPopup.show({
-              classNames: ['full-width-modal'],
+              classNames: ['wizard-modal-wrapper', 'disable-security-modal'],
+              modalDialogClasses: ['modal-xlg'],
               header: Em.I18n.t('admin.removeSecurity.header'),
               bodyClass: App.KerberosDisableView.extend({
                 controllerBinding: 'App.router.kerberosDisableController'
               }),
-              primary: Em.I18n.t('form.cancel'),
+              primary: Em.I18n.t('common.complete'),
               secondary: null,
-              showFooter: false,
+              disablePrimary: Em.computed.alias('App.router.kerberosDisableController.isSubmitDisabled'),
+
+              onPrimary() {
+                this.onClose();
+              },
 
               onClose: function () {
                 var self = this;
@@ -501,8 +576,10 @@ module.exports = Em.Route.extend(App.RouterRedirections, {
 
     stackAndUpgrade: Em.Route.extend({
       route: '/stack',
+      breadcrumbs: null,
       connectOutlets: function (router) {
         router.set('mainAdminController.category', "stackAndUpgrade");
+        router.set('mainAdminController.categoryLabel', Em.I18n.t('admin.stackUpgrade.title'));
         router.get('mainAdminController').connectOutlet('mainAdminStackAndUpgrade');
       },
 
@@ -512,6 +589,11 @@ module.exports = Em.Route.extend(App.RouterRedirections, {
       }),
 
       services: Em.Route.extend({
+
+        breadcrumbs: {
+          label: Em.I18n.t('common.stack')
+        },
+
         route: '/services',
         connectOutlets: function (router, context) {
           router.get('mainAdminStackAndUpgradeController').connectOutlet('mainAdminStackServices');
@@ -519,6 +601,9 @@ module.exports = Em.Route.extend(App.RouterRedirections, {
       }),
 
       versions: Em.Route.extend({
+        breadcrumbs: {
+          label: Em.I18n.t('common.versions')
+        },
         route: '/versions',
         connectOutlets: function (router, context) {
           router.get('mainAdminStackAndUpgradeController').connectOutlet('MainAdminStackVersions');
@@ -526,6 +611,11 @@ module.exports = Em.Route.extend(App.RouterRedirections, {
       }),
 
       upgradeHistory: Em.Route.extend({
+
+        breadcrumbs: {
+          label: Em.I18n.t('common.upgrade.history')
+        },
+
         route: '/history',
         connectOutlets: function (router, context) {
           router.get('mainAdminStackAndUpgradeController').connectOutlet('mainAdminStackUpgradeHistory');
@@ -549,6 +639,11 @@ module.exports = Em.Route.extend(App.RouterRedirections, {
       }
     }),
     adminServiceAccounts: Em.Route.extend({
+
+      breadcrumbs: {
+        label: Em.I18n.t('common.serviceAccounts')
+      },
+
       route: '/serviceAccounts',
       enter: function (router, transition) {
         if (router.get('loggedIn') && !App.isAuthorized('SERVICE.SET_SERVICE_USERS_GROUPS')) {
@@ -557,11 +652,17 @@ module.exports = Em.Route.extend(App.RouterRedirections, {
       },
       connectOutlets: function (router) {
         router.set('mainAdminController.category', "adminServiceAccounts");
+        router.set('mainAdminController.categoryLabel', Em.I18n.t('common.serviceAccounts'));
         router.get('mainAdminController').connectOutlet('mainAdminServiceAccounts');
       }
     }),
 
     adminServiceAutoStart: Em.Route.extend({
+
+      breadcrumbs: {
+        label: Em.I18n.t('admin.serviceAutoStart.title')
+      },
+
       route: '/serviceAutoStart',
       enter: function(router, transition) {
         if (router.get('loggedIn') && !App.isAuthorized('CLUSTER.MANAGE_AUTO_START') && !App.isAuthorized('SERVICE.MANAGE_AUTO_START')) {
@@ -570,11 +671,12 @@ module.exports = Em.Route.extend(App.RouterRedirections, {
       },
       connectOutlets: function (router) {
         router.set('mainAdminController.category', "serviceAutoStart");
+        router.set('mainAdminController.categoryLabel', Em.I18n.t('admin.serviceAutoStart.title'));
         router.get('mainAdminController').connectOutlet('mainAdminServiceAutoStart');
       },
       exitRoute: function (router, context, callback) {
         var controller = router.get('mainAdminServiceAutoStartController');
-        if (!controller.get('isSaveDisabled')) {
+        if (controller.get('isModified')) {
           controller.showSavePopup(callback);
         } else {
           callback();
@@ -644,6 +746,11 @@ module.exports = Em.Route.extend(App.RouterRedirections, {
   editWidget: require('routes/edit_widget'),
 
   services: Em.Route.extend({
+
+    breadcrumbs: {
+      disabled: true
+    },
+
     route: '/services',
     index: Em.Route.extend({
       route: '/',
@@ -673,6 +780,10 @@ module.exports = Em.Route.extend(App.RouterRedirections, {
     },
     service: Em.Route.extend({
       route: '/:service_id',
+      breadcrumbs: {
+        labelBindingPath: 'App.router.mainServiceItemController.content.displayName',
+        disabled: true
+      },
       connectOutlets: function (router, service) {
         router.get('mainServiceController').connectOutlet('mainServiceItem', service);
         if (service.get('isLoaded')) {
@@ -720,7 +831,6 @@ module.exports = Em.Route.extend(App.RouterRedirections, {
             //if service is not existed then route to default service
             if (item.get('isLoaded')) {
               if (router.get('mainServiceItemController.isConfigurable')) {
-                router.get('mainController').stopPolling();
                 router.get('mainServiceItemController').connectOutlet('mainServiceInfoConfigs', item);
               }
               else {
@@ -735,17 +845,11 @@ module.exports = Em.Route.extend(App.RouterRedirections, {
         },
         exitRoute: function (router, nextRoute, callback) {
           var controller = router.get('mainServiceInfoConfigsController');
-          var exitCallback = function() {
-            if (!/\/main\/services\/\w+\/configs$/.test(nextRoute)) {
-              router.get('mainController').startPolling();
-            }
-            callback();
-          };
           // If another user is running some wizard, current user can't save configs
           if (controller.hasUnsavedChanges() && !router.get('wizardWatcherController.isWizardRunning')) {
-            controller.showSavePopup(exitCallback);
+            controller.showSavePopup(callback);
           } else {
-            exitCallback();
+            callback();
           }
         }
       }),
@@ -786,6 +890,8 @@ module.exports = Em.Route.extend(App.RouterRedirections, {
     enableRMHighAvailability: require('routes/rm_high_availability_routes'),
 
     enableRAHighAvailability: require('routes/ra_high_availability_routes'),
+
+    enableNameNodeFederation: require('routes/namenode_federation_routes'),
 
     addHawqStandby: require('routes/add_hawq_standby_routes'),
 

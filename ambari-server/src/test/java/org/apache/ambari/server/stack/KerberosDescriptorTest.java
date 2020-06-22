@@ -26,6 +26,7 @@ import java.util.regex.Pattern;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +42,7 @@ import junit.framework.Assert;
  * KerberosDescriptorTest tests the stack- and service-level descriptors for certain stacks
  * and services
  */
+@Category({category.KerberosTest.class})
 public class KerberosDescriptorTest {
   private static Logger LOG = LoggerFactory.getLogger(KerberosDescriptorTest.class);
 

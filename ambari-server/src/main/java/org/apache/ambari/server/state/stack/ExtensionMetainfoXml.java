@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -59,11 +59,11 @@ public class ExtensionMetainfoXml implements Validable{
     }
     @XmlElementWrapper(name="min-stack-versions")
     @XmlElements(@XmlElement(name="stack"))
-    private List<Stack> stacks = new ArrayList<Stack>();
+    private List<Stack> stacks = new ArrayList<>();
 
     @XmlElementWrapper(name="min-extension-versions")
     @XmlElements(@XmlElement(name="extension"))
-    private List<Extension> extensions = new ArrayList<Extension>();
+    private List<Extension> extensions = new ArrayList<>();
 
     public List<Stack> getStacks() {
       return stacks;
@@ -99,7 +99,7 @@ public class ExtensionMetainfoXml implements Validable{
   }
 
   @XmlTransient
-  private Set<String> errorSet = new HashSet<String>();
+  private Set<String> errorSet = new HashSet<>();
 
   @Override
   public void addError(String error) {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -40,7 +40,6 @@ import org.apache.ambari.server.controller.spi.Request;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.ambari.server.controller.utilities.StreamProvider;
-import org.apache.ambari.server.state.Host;
 import org.apache.ambari.server.state.services.MetricsRetrievalService;
 import org.apache.ambari.server.state.services.MetricsRetrievalService.MetricSourceType;
 import org.slf4j.Logger;
@@ -86,7 +85,7 @@ public class JMXPropertyProvider extends ThreadPoolEnabledPropertyProvider {
   private static final String PORT_KEY = "tag.port";
   private static final String DOT_REPLACEMENT_CHAR = "#";
 
-  private static final Map<String, String> DEFAULT_JMX_PORTS = new HashMap<String, String>();
+  private static final Map<String, String> DEFAULT_JMX_PORTS = new HashMap<>();
 
   /**
    * When Ambari queries NameNode's HA state (among other metrics), it retrieves all metrics from "NN_URL:port/jmx".
@@ -117,7 +116,7 @@ public class JMXPropertyProvider extends ThreadPoolEnabledPropertyProvider {
                                  "/jmx?get=Hadoop:service=NameNode,name=FSNamesystem::tag.HAState"));
   }
 
-  protected final static Logger LOG =
+  private static final Logger LOG =
       LoggerFactory.getLogger(JMXPropertyProvider.class);
 
   private static final Pattern dotReplacementCharPattern =
@@ -203,7 +202,7 @@ public class JMXPropertyProvider extends ThreadPoolEnabledPropertyProvider {
       throws SystemException {
 
     Set<String> ids = getRequestPropertyIds(request, predicate);
-    Set<String> unsupportedIds = new HashSet<String>();
+    Set<String> unsupportedIds = new HashSet<>();
     String componentName = (String) resource.getPropertyValue(componentNamePropertyId);
 
     if (getComponentMetrics().get(componentName) == null) {
@@ -343,7 +342,7 @@ public class JMXPropertyProvider extends ThreadPoolEnabledPropertyProvider {
   private void getHadoopMetricValue(JMXMetricHolder metricHolder, Set<String> ids,
                        Resource resource, Request request, Ticket ticket) throws IOException {
 
-    Map<String, Map<String, Object>> categories = new HashMap<String, Map<String, Object>>();
+    Map<String, Map<String, Object>> categories = new HashMap<>();
     String componentName = (String) resource.getPropertyValue(componentNamePropertyId);
 
     String clusterName = (String) resource.getPropertyValue(clusterNamePropertyId);
@@ -370,7 +369,7 @@ public class JMXPropertyProvider extends ThreadPoolEnabledPropertyProvider {
           String property = propertyInfo.getPropertyId();
           String category = "";
 
-          List<String> keyList = new LinkedList<String>();
+          List<String> keyList = new LinkedList<>();
 
           int keyStartIndex = property.indexOf('[');
           if (-1 != keyStartIndex) {

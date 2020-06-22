@@ -17,10 +17,14 @@
  */
 package org.apache.ambari.server.controller.internal;
 
-import static org.apache.ambari.server.controller.internal.HostComponentResourceProvider.HOST_COMPONENT_CLUSTER_NAME_PROPERTY_ID;
-import static org.apache.ambari.server.controller.internal.HostComponentResourceProvider.HOST_COMPONENT_COMPONENT_NAME_PROPERTY_ID;
-import static org.apache.ambari.server.controller.internal.HostComponentResourceProvider.HOST_COMPONENT_HOST_NAME_PROPERTY_ID;
-import static org.apache.ambari.server.controller.internal.HostComponentResourceProvider.HOST_COMPONENT_SERVICE_NAME_PROPERTY_ID;
+import static org.apache.ambari.server.controller.internal.HostComponentResourceProvider.CLUSTER_NAME;
+import static org.apache.ambari.server.controller.internal.HostComponentResourceProvider.COMPONENT_NAME;
+import static org.apache.ambari.server.controller.internal.HostComponentResourceProvider.HOST_NAME;
+import static org.apache.ambari.server.controller.internal.HostComponentResourceProvider.SERVICE_NAME;
+import static org.apache.ambari.server.security.authorization.RoleAuthorization.AMBARI_VIEW_STATUS_INFO;
+import static org.apache.ambari.server.security.authorization.RoleAuthorization.CLUSTER_VIEW_STATUS_INFO;
+import static org.apache.ambari.server.security.authorization.RoleAuthorization.HOST_VIEW_STATUS_INFO;
+import static org.apache.ambari.server.security.authorization.RoleAuthorization.SERVICE_VIEW_STATUS_INFO;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -43,17 +47,18 @@ import org.apache.ambari.server.controller.AmbariManagementController;
 import org.apache.ambari.server.controller.ExecuteActionRequest;
 import org.apache.ambari.server.controller.RequestRequest;
 import org.apache.ambari.server.controller.RequestStatusResponse;
+import org.apache.ambari.server.controller.spi.ClusterController;
 import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
 import org.apache.ambari.server.controller.spi.NoSuchResourceException;
 import org.apache.ambari.server.controller.spi.Predicate;
+import org.apache.ambari.server.controller.spi.QueryResponse;
 import org.apache.ambari.server.controller.spi.Request;
 import org.apache.ambari.server.controller.spi.RequestStatus;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.spi.ResourceAlreadyExistsException;
-import org.apache.ambari.server.controller.spi.ResourceProvider;
 import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
-import org.apache.ambari.server.controller.utilities.PredicateBuilder;
+import org.apache.ambari.server.controller.utilities.ClusterControllerHelper;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.apache.ambari.server.customactions.ActionDefinition;
 import org.apache.ambari.server.orm.dao.HostRoleCommandDAO;
@@ -70,8 +75,11 @@ import org.apache.ambari.server.topology.LogicalRequest;
 import org.apache.ambari.server.topology.TopologyManager;
 import org.apache.ambari.server.utils.SecretReference;
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
@@ -81,6 +89,8 @@ import com.google.inject.Inject;
  */
 @StaticallyInject
 public class RequestResourceProvider extends AbstractControllerResourceProvider {
+
+  private static final Logger LOG = LoggerFactory.getLogger(RequestResourceProvider.class);
 
   @Inject
   private static RequestDAO s_requestDAO = null;
@@ -93,48 +103,61 @@ public class RequestResourceProvider extends AbstractControllerResourceProvider 
 
   // ----- Property ID constants ---------------------------------------------
   // Requests
-  public static final String REQUEST_CLUSTER_NAME_PROPERTY_ID = "Requests/cluster_name";
-  public static final String REQUEST_CLUSTER_ID_PROPERTY_ID = "Requests/cluster_id";
-  public static final String REQUEST_ID_PROPERTY_ID = "Requests/id";
-  protected static final String REQUEST_STATUS_PROPERTY_ID = "Requests/request_status";
-  protected static final String REQUEST_ABORT_REASON_PROPERTY_ID = "Requests/abort_reason";
-  protected static final String REQUEST_CONTEXT_ID = "Requests/request_context";
-  public static final String REQUEST_SOURCE_SCHEDULE = "Requests/request_schedule";
-  public static final String REQUEST_SOURCE_SCHEDULE_ID = "Requests/request_schedule/schedule_id";
-  public static final String REQUEST_SOURCE_SCHEDULE_HREF = "Requests/request_schedule/href";
-  protected static final String REQUEST_TYPE_ID = "Requests/type";
-  protected static final String REQUEST_INPUTS_ID = "Requests/inputs";
-  protected static final String REQUEST_CLUSTER_HOST_INFO_ID = "Requests/cluster_host_info";
-  protected static final String REQUEST_RESOURCE_FILTER_ID = "Requests/resource_filters";
-  protected static final String REQUEST_OPERATION_LEVEL_ID = "Requests/operation_level";
-  protected static final String REQUEST_CREATE_TIME_ID = "Requests/create_time";
-  protected static final String REQUEST_START_TIME_ID = "Requests/start_time";
-  protected static final String REQUEST_END_TIME_ID = "Requests/end_time";
-  protected static final String REQUEST_EXCLUSIVE_ID = "Requests/exclusive";
-  protected static final String REQUEST_TASK_CNT_ID = "Requests/task_count";
-  protected static final String REQUEST_FAILED_TASK_CNT_ID = "Requests/failed_task_count";
-  protected static final String REQUEST_ABORTED_TASK_CNT_ID = "Requests/aborted_task_count";
-  protected static final String REQUEST_TIMED_OUT_TASK_CNT_ID = "Requests/timed_out_task_count";
-  protected static final String REQUEST_COMPLETED_TASK_CNT_ID = "Requests/completed_task_count";
-  protected static final String REQUEST_QUEUED_TASK_CNT_ID = "Requests/queued_task_count";
-  protected static final String REQUEST_PROGRESS_PERCENT_ID = "Requests/progress_percent";
-  protected static final String REQUEST_REMOVE_PENDING_HOST_REQUESTS_ID = "Requests/remove_pending_host_requests";
-  protected static final String REQUEST_PENDING_HOST_REQUEST_COUNT_ID = "Requests/pending_host_request_count";
-
-  protected static final String COMMAND_ID = "command";
-  protected static final String SERVICE_ID = "service_name";
-  protected static final String COMPONENT_ID = "component_name";
-  protected static final String HOSTS_ID = "hosts"; // This is actually a list of hosts
-  protected static final String HOSTS_PREDICATE = "hosts_predicate";
-  protected static final String ACTION_ID = "action";
-  protected static final String INPUTS_ID = "parameters";
-  protected static final String EXCLUSIVE_ID = "exclusive";
+  public static final String REQUESTS = "Requests";
+  public static final String REQUEST_INFO = "RequestInfo";
+  public static final String REQUEST_CLUSTER_NAME_PROPERTY_ID = REQUESTS + "/cluster_name";
+  public static final String REQUEST_CLUSTER_ID_PROPERTY_ID = REQUESTS + "/cluster_id";
+  public static final String REQUEST_ID_PROPERTY_ID = REQUESTS + "/id";
+  public static final String REQUEST_STATUS_PROPERTY_ID = REQUESTS + "/request_status";
+  public static final String REQUEST_ABORT_REASON_PROPERTY_ID = REQUESTS + "/abort_reason";
+  public static final String REQUEST_CONTEXT_ID = REQUESTS + "/request_context";
+  public static final String REQUEST_SOURCE_SCHEDULE = REQUESTS + "/request_schedule";
+  public static final String REQUEST_SOURCE_SCHEDULE_ID = REQUESTS + "/request_schedule/schedule_id";
+  public static final String REQUEST_SOURCE_SCHEDULE_HREF = REQUESTS + "/request_schedule/href";
+  public static final String REQUEST_TYPE_ID = REQUESTS + "/type";
+  public static final String REQUEST_INPUTS_ID = REQUESTS + "/inputs";
+  public static final String REQUEST_CLUSTER_HOST_INFO_ID = REQUESTS + "/cluster_host_info";
+  public static final String REQUEST_RESOURCE_FILTER_ID = REQUESTS + "/resource_filters";
+  public static final String REQUEST_OPERATION_LEVEL_ID = REQUESTS + "/operation_level";
+  public static final String REQUEST_CREATE_TIME_ID = REQUESTS + "/create_time";
+  public static final String REQUEST_START_TIME_ID = REQUESTS + "/start_time";
+  public static final String REQUEST_END_TIME_ID = REQUESTS + "/end_time";
+  public static final String REQUEST_EXCLUSIVE_ID = REQUESTS + "/exclusive";
+  public static final String REQUEST_TASK_CNT_ID = REQUESTS + "/task_count";
+  public static final String REQUEST_FAILED_TASK_CNT_ID = REQUESTS + "/failed_task_count";
+  public static final String REQUEST_ABORTED_TASK_CNT_ID = REQUESTS + "/aborted_task_count";
+  public static final String REQUEST_TIMED_OUT_TASK_CNT_ID = REQUESTS + "/timed_out_task_count";
+  public static final String REQUEST_COMPLETED_TASK_CNT_ID = REQUESTS + "/completed_task_count";
+  public static final String REQUEST_QUEUED_TASK_CNT_ID = REQUESTS + "/queued_task_count";
+  public static final String REQUEST_PROGRESS_PERCENT_ID = REQUESTS + "/progress_percent";
+  public static final String REQUEST_REMOVE_PENDING_HOST_REQUESTS_ID = REQUESTS + "/remove_pending_host_requests";
+  public static final String REQUEST_PENDING_HOST_REQUEST_COUNT_ID = REQUESTS + "/pending_host_request_count";
+  public static final String REQUEST_USER_NAME = REQUESTS + "/user_name";
+  public static final String COMMAND_ID = "command";
+  public static final String SERVICE_ID = "service_name";
+  public static final String COMPONENT_ID = "component_name";
+  public static final String HOSTS_ID = "hosts"; // This is actually a list of hosts
+  public static final String HOSTS_PREDICATE = "hosts_predicate";
+  public static final String ACTION_ID = "action";
+  public static final String INPUTS_ID = "parameters";
+  public static final String EXCLUSIVE_ID = "exclusive";
   public static final String HAS_RESOURCE_FILTERS = "HAS_RESOURCE_FILTERS";
+  public static final String CONTEXT = "context";
+
   private static final Set<String> PK_PROPERTY_IDS = ImmutableSet.of(REQUEST_ID_PROPERTY_ID);
 
   private PredicateCompiler predicateCompiler = new PredicateCompiler();
 
+  /**
+   * The key property ids for a Request resource.
+   */
+  private static Map<Resource.Type, String> keyPropertyIds = ImmutableMap.<Resource.Type, String>builder()
+      .put(Resource.Type.Request, REQUEST_ID_PROPERTY_ID)
+      .put(Resource.Type.Cluster, REQUEST_CLUSTER_NAME_PROPERTY_ID)
+      .build();
+
   static Set<String> PROPERTY_IDS = Sets.newHashSet(
+    REQUEST_ID_PROPERTY_ID,
     REQUEST_CLUSTER_NAME_PROPERTY_ID,
     REQUEST_CLUSTER_ID_PROPERTY_ID,
     REQUEST_STATUS_PROPERTY_ID,
@@ -160,7 +183,8 @@ public class RequestResourceProvider extends AbstractControllerResourceProvider 
     REQUEST_PROGRESS_PERCENT_ID,
     REQUEST_REMOVE_PENDING_HOST_REQUESTS_ID,
     REQUEST_PENDING_HOST_REQUEST_COUNT_ID,
-    REQUEST_CLUSTER_HOST_INFO_ID
+    REQUEST_CLUSTER_HOST_INFO_ID,
+    REQUEST_USER_NAME
   );
 
   // ----- Constructors ----------------------------------------------------
@@ -168,14 +192,10 @@ public class RequestResourceProvider extends AbstractControllerResourceProvider 
   /**
    * Create a  new resource provider for the given management controller.
    *
-   * @param propertyIds          the property ids
-   * @param keyPropertyIds       the key property ids
    * @param managementController the management controller
    */
-  RequestResourceProvider(Set<String> propertyIds,
-                          Map<Resource.Type, String> keyPropertyIds,
-                          AmbariManagementController managementController) {
-    super(propertyIds, keyPropertyIds, managementController);
+  RequestResourceProvider(AmbariManagementController managementController) {
+    super(Resource.Type.Request, PROPERTY_IDS, keyPropertyIds, managementController);
   }
 
   // ----- ResourceProvider ------------------------------------------------
@@ -270,7 +290,7 @@ public class RequestResourceProvider extends AbstractControllerResourceProvider 
       throws SystemException, UnsupportedPropertyException, NoSuchResourceException, NoSuchParentResourceException {
 
     Set<String> requestedIds = getRequestPropertyIds(request, predicate);
-    Set<Resource> resources = new HashSet<Resource>();
+    Set<Resource> resources = new HashSet<>();
 
     String maxResultsRaw = request.getRequestInfoProperties().get(BaseRequest.PAGE_SIZE_PROPERTY_KEY);
     String ascOrderRaw = request.getRequestInfoProperties().get(BaseRequest.ASC_ORDER_PROPERTY_KEY);
@@ -279,9 +299,9 @@ public class RequestResourceProvider extends AbstractControllerResourceProvider 
     Boolean ascOrder = (ascOrderRaw == null ? null : Boolean.parseBoolean(ascOrderRaw));
 
     if (null == predicate) {
+      authorizeGetResources(null);
       // the no-arg call to /requests is here
-      resources.addAll(
-          getRequestResources(null, null, null, maxResults, ascOrder, requestedIds));
+      resources.addAll(getRequestResources(null, null, null, maxResults, ascOrder, requestedIds));
     } else {
       // process /requests with a predicate
       // process /clusters/[cluster]/requests
@@ -300,6 +320,7 @@ public class RequestResourceProvider extends AbstractControllerResourceProvider 
           requestStatus = (String) properties.get(REQUEST_STATUS_PROPERTY_ID);
         }
 
+        authorizeGetResources(clusterName);
         resources.addAll(getRequestResources(clusterName, requestId, requestStatus, maxResults,
             ascOrder, requestedIds));
       }
@@ -308,13 +329,30 @@ public class RequestResourceProvider extends AbstractControllerResourceProvider 
     return resources;
   }
 
+  private void authorizeGetResources(String clusterName) throws NoSuchParentResourceException, AuthorizationException {
+    final boolean ambariLevelRequest = StringUtils.isBlank(clusterName);
+    final ResourceType resourceType = ambariLevelRequest ? ResourceType.AMBARI : ResourceType.CLUSTER;
+    Long resourceId;
+    try {
+      resourceId = ambariLevelRequest ? null : getClusterResourceId(clusterName);
+    } catch (AmbariException e) {
+      throw new NoSuchParentResourceException("Error while fetching cluster resource ID", e);
+    }
+    final Set<RoleAuthorization> requiredAuthorizations = ambariLevelRequest ? Sets.newHashSet(AMBARI_VIEW_STATUS_INFO)
+        : Sets.newHashSet(CLUSTER_VIEW_STATUS_INFO, HOST_VIEW_STATUS_INFO, SERVICE_VIEW_STATUS_INFO);
+
+    if (!AuthorizationHelper.isAuthorized(resourceType, resourceId, requiredAuthorizations)) {
+      throw new AuthorizationException(String.format("The authenticated user is not authorized to fetch request related information."));
+    }
+  }
+
   @Override
   public RequestStatus updateResources(Request requestInfo, Predicate predicate)
           throws SystemException, UnsupportedPropertyException,
           NoSuchResourceException, NoSuchParentResourceException {
 
     AmbariManagementController amc = getManagementController();
-    final Set<RequestRequest> requests = new HashSet<RequestRequest>();
+    final Set<RequestRequest> requests = new HashSet<>();
 
     Iterator<Map<String,Object>> iterator = requestInfo.getProperties().iterator();
     if (iterator.hasNext()) {
@@ -324,7 +362,7 @@ public class RequestResourceProvider extends AbstractControllerResourceProvider 
     }
     // Validate
     List<org.apache.ambari.server.actionmanager.Request> targets =
-            new ArrayList<org.apache.ambari.server.actionmanager.Request>();
+      new ArrayList<>();
     for (RequestRequest updateRequest : requests) {
       ActionManager actionManager = amc.getActionManager();
       List<org.apache.ambari.server.actionmanager.Request> internalRequests =
@@ -448,18 +486,18 @@ public class RequestResourceProvider extends AbstractControllerResourceProvider 
     List<RequestResourceFilter> resourceFilterList = null;
     Set<Map<String, Object>> resourceFilters;
 
-    Map<String, String> params = new HashMap<String, String>();
+    Map<String, String> params = new HashMap<>();
     Object resourceFilterObj = propertyMap.get(REQUEST_RESOURCE_FILTER_ID);
     if (resourceFilterObj != null && resourceFilterObj instanceof HashSet) {
       resourceFilters = (HashSet<Map<String, Object>>) resourceFilterObj;
-      resourceFilterList = new ArrayList<RequestResourceFilter>();
+      resourceFilterList = new ArrayList<>();
 
       for (Map<String, Object> resourceMap : resourceFilters) {
         params.put(HAS_RESOURCE_FILTERS, "true");
         resourceFilterList.addAll(parseRequestResourceFilter(resourceMap,
           (String) propertyMap.get(REQUEST_CLUSTER_NAME_PROPERTY_ID)));
       }
-      LOG.debug("RequestResourceFilters : " + resourceFilters);
+      LOG.debug("RequestResourceFilters : {}", resourceFilters);
     }
     // Extract operation level property
     RequestOperationLevel operationLevel = null;
@@ -504,9 +542,9 @@ public class RequestResourceProvider extends AbstractControllerResourceProvider 
     String componentName = (String) resourceMap.get(COMPONENT_ID);
     String hostsPredicate = (String) resourceMap.get(HOSTS_PREDICATE);
     Object hostListStr = resourceMap.get(HOSTS_ID);
-    List<String> hostList = Collections.<String>emptyList();
+    List<String> hostList = Collections.emptyList();
     if (hostListStr != null) {
-      hostList = new ArrayList<String>();
+      hostList = new ArrayList<>();
       for (String hostName : ((String) hostListStr).split(",")) {
         hostList.add(hostName.trim());
       }
@@ -522,52 +560,46 @@ public class RequestResourceProvider extends AbstractControllerResourceProvider 
         throw new SystemException(msg, e);
       }
 
-      ResourceProvider resourceProvider = getResourceProvider(Resource.Type.HostComponent);
-
-      Set<String> propertyIds = new HashSet<String>();
-      propertyIds.add(HOST_COMPONENT_CLUSTER_NAME_PROPERTY_ID);
-      propertyIds.add(HOST_COMPONENT_SERVICE_NAME_PROPERTY_ID);
-      propertyIds.add(HOST_COMPONENT_COMPONENT_NAME_PROPERTY_ID);
+      Set<String> propertyIds = new HashSet<>();
+      propertyIds.add(CLUSTER_NAME);
+      propertyIds.add(SERVICE_NAME);
+      propertyIds.add(COMPONENT_NAME);
 
       Request request = PropertyHelper.getReadRequest(propertyIds);
-
-      Predicate finalPredicate = new PredicateBuilder(filterPredicate)
-        .property(HOST_COMPONENT_CLUSTER_NAME_PROPERTY_ID).equals(clusterName).and()
-        .property(HOST_COMPONENT_SERVICE_NAME_PROPERTY_ID).equals(serviceName).and()
-        .property(HOST_COMPONENT_COMPONENT_NAME_PROPERTY_ID).equals(componentName)
-        .toPredicate();
-
+      
       try {
-        Set<Resource> resources = resourceProvider.getResources(request, finalPredicate);
+        ClusterController clusterController = ClusterControllerHelper.getClusterController();
+        QueryResponse queryResponse = clusterController.getResources(
+          Resource.Type.HostComponent, request, filterPredicate);
+        Iterable<Resource> resourceIterable = clusterController.getIterable(
+          Resource.Type.HostComponent, queryResponse, request,
+          filterPredicate, null, null);
+        
+        // Allow request to span services / components using just the predicate
+        Map<ServiceComponentTuple, List<String>> tupleListMap = new HashMap<>();
+        for (Resource resource : resourceIterable) {
+          String hostnameStr = (String) resource.getPropertyValue(HOST_NAME);
+          if (hostnameStr != null) {
+            String computedServiceName = (String) resource.getPropertyValue(SERVICE_NAME);
+            String computedComponentName = (String) resource.getPropertyValue(COMPONENT_NAME);
+            ServiceComponentTuple tuple = new ServiceComponentTuple(computedServiceName, computedComponentName);
 
-        if (resources != null && !resources.isEmpty()) {
-          // Allow request to span services / components using just the predicate
-          Map<ServiceComponentTuple, List<String>> dupleListMap = new HashMap<>();
-          for (Resource resource : resources) {
-            String hostnameStr = (String) resource.getPropertyValue(HOST_COMPONENT_HOST_NAME_PROPERTY_ID);
-            if (hostnameStr != null) {
-              String computedServiceName = (String) resource.getPropertyValue(HOST_COMPONENT_SERVICE_NAME_PROPERTY_ID);
-              String computedComponentName = (String) resource.getPropertyValue(HOST_COMPONENT_COMPONENT_NAME_PROPERTY_ID);
-              ServiceComponentTuple duple =
-                new ServiceComponentTuple(computedServiceName, computedComponentName);
-
-              if (!dupleListMap.containsKey(duple)) {
-                hostList = new ArrayList<>();
-                hostList.add(hostnameStr);
-                dupleListMap.put(duple, hostList);
-              } else {
-                dupleListMap.get(duple).add(hostnameStr);
-              }
+            if (!tupleListMap.containsKey(tuple)) {
+              hostList = new ArrayList<>();
+              hostList.add(hostnameStr);
+              tupleListMap.put(tuple, hostList);
+            } else {
+              tupleListMap.get(tuple).add(hostnameStr);
             }
           }
-          if (!dupleListMap.isEmpty()) {
-            for (Map.Entry<ServiceComponentTuple, List<String>> entry : dupleListMap.entrySet()) {
-              resourceFilterList.add(new RequestResourceFilter(
-                entry.getKey().getServiceName(),
-                entry.getKey().getComponentName(),
-                entry.getValue()
-              ));
-            }
+        }
+        if (!tupleListMap.isEmpty()) {
+          for (Map.Entry<ServiceComponentTuple, List<String>> entry : tupleListMap.entrySet()) {
+            resourceFilterList.add(new RequestResourceFilter(
+              entry.getKey().getServiceName(),
+              entry.getKey().getComponentName(),
+              entry.getValue()
+            ));
           }
         }
       } catch (Exception e) {
@@ -639,7 +671,7 @@ public class RequestResourceProvider extends AbstractControllerResourceProvider 
                                             Set<String> requestedPropertyIds)
       throws NoSuchResourceException, NoSuchParentResourceException {
 
-    Set<Resource> response = new HashSet<Resource>();
+    Set<Resource> response = new HashSet<>();
     ActionManager actionManager = getManagementController().getActionManager();
 
     Long clusterId = null;
@@ -663,9 +695,7 @@ public class RequestResourceProvider extends AbstractControllerResourceProvider 
         status = org.apache.ambari.server.actionmanager.RequestStatus.valueOf(requestStatus);
       }
       if (LOG.isDebugEnabled()) {
-        LOG.debug("Received a Get Request Status request"
-            + ", requestId=null"
-            + ", requestStatus=" + status);
+        LOG.debug("Received a Get Request Status request, requestId=null, requestStatus={}", status);
       }
 
       maxResults = (maxResults != null) ? maxResults : BaseRequest.DEFAULT_PAGE_SIZE;
@@ -708,13 +738,13 @@ public class RequestResourceProvider extends AbstractControllerResourceProvider 
   private Collection<Resource> getRequestResources(Long clusterId, String clusterName,
       List<Long> requestIds, Set<String> requestedPropertyIds) {
 
-    Map<Long, Resource> resourceMap = new HashMap<Long, Resource>();
+    Map<Long, Resource> resourceMap = new HashMap<>();
 
     List<RequestEntity> requests = s_requestDAO.findByPks(requestIds, true);
 
 
     //todo: this was (and still is) in ActionManager but this class was changed to not use ActionManager recently
-    List<RequestEntity> topologyRequestEntities = new ArrayList<RequestEntity>();
+    List<RequestEntity> topologyRequestEntities = new ArrayList<>();
     Collection<? extends org.apache.ambari.server.actionmanager.Request> topologyRequests =
         topologyManager.getRequests(requestIds);
     for (org.apache.ambari.server.actionmanager.Request request : topologyRequests) {
@@ -723,7 +753,7 @@ public class RequestResourceProvider extends AbstractControllerResourceProvider 
 
     // if requests is empty, map is Collections.emptyMap() which can't be added to so create a new map
     if (requests.isEmpty()) {
-      requests = new ArrayList<RequestEntity>();
+      requests = new ArrayList<>();
     }
 
     requests.addAll(topologyRequestEntities);
@@ -790,7 +820,6 @@ public class RequestResourceProvider extends AbstractControllerResourceProvider 
       setResourceProperty(resource, REQUEST_SOURCE_SCHEDULE, null, requestedPropertyIds);
     }
 
-
     Map<Long, HostRoleCommandStatusSummaryDTO> summary = s_hostRoleCommandDAO.findAggregateCounts(entity.getRequestId());
 
     // get summaries from TopologyManager for logical requests
@@ -842,6 +871,7 @@ public class RequestResourceProvider extends AbstractControllerResourceProvider 
             hostRoleStatusCounters.get(HostRoleStatus.QUEUED), requestedPropertyIds);
     setResourceProperty(resource, REQUEST_COMPLETED_TASK_CNT_ID,
             hostRoleStatusCounters.get(HostRoleStatus.COMPLETED), requestedPropertyIds);
+    setResourceProperty(resource, REQUEST_USER_NAME, entity.getUserName(), requestedPropertyIds);
 
     return resource;
   }

@@ -106,4 +106,3 @@ def execute(configurations={}, parameters={}, host_name=None):
       return (RESULT_STATE_OK, ["\n".join(msg)])
   except Exception, e:
     return (RESULT_STATE_CRITICAL, [e.message])
-

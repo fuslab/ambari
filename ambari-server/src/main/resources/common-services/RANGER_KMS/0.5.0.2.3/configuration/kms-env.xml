@@ -28,6 +28,16 @@
     <value-attributes>
       <type>user</type>
       <overridable>false</overridable>
+      <user-groups>
+        <property>
+          <type>kms-env</type>
+          <name>kms_group</name>
+        </property>
+        <property>
+          <type>cluster-env</type>
+          <name>user_group</name>
+        </property>
+      </user-groups>
     </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
@@ -90,5 +100,25 @@
       <selection-cardinality>1</selection-cardinality>
     </value-attributes>
     <on-ambari-upgrade add="true"/>
+  </property>
+  <property>
+    <name>ranger_kms_privelege_user_jdbc_url</name>
+    <display-name>JDBC connect string for root user</display-name>
+    <description>JDBC connect string - auto populated based on other values. This is to be used by root user</description>
+    <value>jdbc:mysql://localhost</value>
+    <value-attributes>
+      <overridable>false</overridable>
+    </value-attributes>
+    <depends-on>
+      <property>
+        <type>kms-properties</type>
+        <name>DB_FLAVOR</name>
+      </property>
+      <property>
+        <type>kms-properties</type>
+        <name>db_host</name>
+      </property>
+    </depends-on>
+    <on-ambari-upgrade add="false"/>
   </property>
 </configuration>

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,28 +20,23 @@ package org.apache.ambari.server.serveraction.upgrades;
 import java.text.MessageFormat;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Collectors;
 
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.actionmanager.HostRoleStatus;
 import org.apache.ambari.server.agent.CommandReport;
-import org.apache.ambari.server.serveraction.AbstractServerAction;
 import org.apache.ambari.server.state.Cluster;
-import org.apache.ambari.server.state.Clusters;
 import org.apache.ambari.server.state.Config;
-
-import com.google.inject.Inject;
+import org.apache.ambari.server.state.Host;
 
 /**
  * Computes Ranger properties.  This class is only used when moving from
  * HDP-2.2 to HDP-2.3 in that upgrade pack.
  */
-public class RangerConfigCalculation extends AbstractServerAction {
+public class RangerConfigCalculation extends AbstractUpgradeServerAction {
   private static final String SOURCE_CONFIG_TYPE = "admin-properties";
   private static final String RANGER_ENV_CONFIG_TYPE = "ranger-env";
   private static final String RANGER_ADMIN_SITE_CONFIG_TYPE = "ranger-admin-site";
-
-  @Inject
-  private Clusters m_clusters;
 
   @Override
   public CommandReport execute(ConcurrentMap<String, Object> requestSharedDataContext)
@@ -49,7 +44,7 @@ public class RangerConfigCalculation extends AbstractServerAction {
 
     String clusterName = getExecutionCommand().getClusterName();
 
-    Cluster cluster = m_clusters.getCluster(clusterName);
+    Cluster cluster = getClusters().getCluster(clusterName);
 
     Config sourceConfig = cluster.getDesiredConfigByType(SOURCE_CONFIG_TYPE);
 
@@ -148,6 +143,7 @@ public class RangerConfigCalculation extends AbstractServerAction {
     targetValues.put("ranger_privelege_user_jdbc_url", userJDBCUrl);
     config.setProperties(targetValues);
     config.save();
+    agentConfigsHolder.updateData(cluster.getClusterId(), cluster.getHosts().stream().map(Host::getHostId).collect(Collectors.toList()));
 
     return createCommandReport(0, HostRoleStatus.COMPLETED, "{}", stdout.toString(), "");
   }

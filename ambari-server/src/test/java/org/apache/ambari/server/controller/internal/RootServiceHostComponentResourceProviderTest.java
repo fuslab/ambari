@@ -77,7 +77,7 @@ public class RootServiceHostComponentResourceProviderTest {
     expect(managementController.getClusters()).andReturn(clusters).anyTimes();
     expect(clusters.getHosts()).andReturn(hosts).anyTimes();
 
-    expect(factory.getRootServiceHostComponent((RootServiceHostComponentRequest) anyObject(), EasyMock.<Set<HostResponse>>anyObject())).
+    expect(factory.getRootServiceHostComponent((RootServiceHostComponentRequest) anyObject(), EasyMock.anyObject())).
         andReturn(responseSet).anyTimes();
 
     expect(clusters.getCluster("Cluster100")).andReturn(cluster).anyTimes();
@@ -101,8 +101,6 @@ public class RootServiceHostComponentResourceProviderTest {
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
         type,
-        PropertyHelper.getPropertyIds(type),
-        PropertyHelper.getKeyPropertyIds(type),
         managementController);
 
     Set<String> propertyIds = new HashSet<>();

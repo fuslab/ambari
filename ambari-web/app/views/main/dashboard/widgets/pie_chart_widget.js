@@ -25,8 +25,8 @@ App.PieChartDashboardWidgetView = App.DashboardWidgetView.extend({
 
   maxValue: 100,
 
-  modelFieldMax: null,
-  modelFieldUsed: null,
+  modelValueMax: null,
+  modelValueUsed: null,
 
   hiddenInfo: null,
 
@@ -37,11 +37,11 @@ App.PieChartDashboardWidgetView = App.DashboardWidgetView.extend({
   widgetHtmlId: null,
 
   getUsed: function() {
-    return this.get('model').get(this.get('modelFieldUsed')) || 0;
+    return this.get('modelValueUsed') || 0;
   },
 
   getMax: function() {
-    return this.get('model').get(this.get('modelFieldMax')) || 0;
+    return this.get('modelValueMax') || 0;
   },
 
   calcHiddenInfo: function() {
@@ -55,7 +55,7 @@ App.PieChartDashboardWidgetView = App.DashboardWidgetView.extend({
   },
 
   calcIsPieExists: function() {
-    return this.get('model').get(this.get('modelFieldMax')) > 0;
+    return this.get('modelValueMax') > 0;
   },
 
   calcDataForPieChart: function() {
@@ -77,17 +77,17 @@ App.PieChartDashboardWidgetView = App.DashboardWidgetView.extend({
 
   didInsertElement: function() {
     this._super();
-    this.addObserver('model.' + this.get('modelFieldMax'), this, this.calc);
-    this.addObserver('model.' + this.get('modelFieldUsed'), this, this.calc);
+    this.addObserver('modelValueMax', this, this.calc);
+    this.addObserver('modelValueUsed', this, this.calc);
   },
 
   content: App.ChartPieView.extend({
     model: null,  //data bind here
     id: Em.computed.alias('parentView.widgetHtmlId'), // html id
-    stroke: '#D6DDDF', //light grey
-    thresh1: null, //bind from parent
-    thresh2: null,
-    innerR: 25,
+    stroke: 'transparent',
+    thresholdMin: null, //bind from parent
+    thresholdMax: null,
+    innerR: 40,
 
     existCenterText: true,
     centerTextColor: Em.computed.alias('contentColor'),
@@ -107,25 +107,26 @@ App.PieChartDashboardWidgetView = App.DashboardWidgetView.extend({
 
     contentColor: function () {
       var used = parseFloat(this.get('parentView.dataForPieChart')[1]);
-      var thresh1 = parseFloat(this.get('thresh1'));
-      var thresh2 = parseFloat(this.get('thresh2'));
-      if (used <= thresh1) {
+      var thresholdMin = parseFloat(this.get('thresholdMin'));
+      var thresholdMax = parseFloat(this.get('thresholdMax'));
+      if (used <= thresholdMin) {
         this.set('palette', new Rickshaw.Color.Palette({
-          scheme: ['#FFFFFF', App.healthStatusGreen].reverse()
+          scheme: ['#DDDDDD', App.healthStatusGreen].reverse()
         }));
-        return App.healthStatusGreen;
       }
-      if (used <= thresh2) {
+      else if (used <= thresholdMax) {
         this.set('palette', new Rickshaw.Color.Palette({
-          scheme: ['#FFFFFF', App.healthStatusOrange].reverse()
+          scheme: ['#DDDDDD', App.healthStatusOrange].reverse()
         }));
-        return App.healthStatusOrange;
       }
-      this.set('palette', new Rickshaw.Color.Palette({
-        scheme: ['#FFFFFF', App.healthStatusRed].reverse()
-      }));
-      return App.healthStatusRed;
-    }.property('data', 'thresh1', 'thresh2'),
+      else {
+        this.set('palette', new Rickshaw.Color.Palette({
+          scheme: ['#DDDDDD', App.healthStatusRed].reverse()
+        }));
+      }
+      return App.widgetContentColor;
+
+    }.property('data', 'thresholdMin', 'thresholdMax'),
 
     // refresh text and color when data in model changed
     refreshSvg: function () {
@@ -137,6 +138,6 @@ App.PieChartDashboardWidgetView = App.DashboardWidgetView.extend({
 
       // draw new svg
       this.appendSvg();
-    }.observes('data', 'thresh1', 'thresh2')
+    }.observes('data', 'thresholdMin', 'thresholdMax')
   })
 });

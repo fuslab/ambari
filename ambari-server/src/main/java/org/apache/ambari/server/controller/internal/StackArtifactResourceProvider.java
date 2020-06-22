@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,19 @@
 
 package org.apache.ambari.server.controller.internal;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-import com.google.inject.Inject;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.StackAccessException;
 import org.apache.ambari.server.StaticallyInject;
@@ -46,19 +56,12 @@ import org.apache.ambari.server.state.stack.Metric;
 import org.apache.ambari.server.state.stack.MetricDefinition;
 import org.apache.ambari.server.state.stack.WidgetLayout;
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import com.google.inject.Inject;
 
 /**
  * Provider for stack and stack service artifacts.
@@ -72,6 +75,9 @@ import java.util.Set;
  */
 @StaticallyInject
 public class StackArtifactResourceProvider extends AbstractControllerResourceProvider {
+
+  private static final Logger LOG = LoggerFactory.getLogger(StackArtifactResourceProvider.class);
+
   /**
    * stack name
    */
@@ -110,18 +116,18 @@ public class StackArtifactResourceProvider extends AbstractControllerResourcePro
   /**
    * primary key fields
    */
-  public static Set<String> pkPropertyIds = new HashSet<String>();
+  public static Set<String> pkPropertyIds = new HashSet<>();
 
   /**
    * map of resource type to fk field
    */
   public static Map<Resource.Type, String> keyPropertyIds =
-      new HashMap<Resource.Type, String>();
+    new HashMap<>();
 
   /**
    * resource properties
    */
-  public static Set<String> propertyIds = new HashSet<String>();
+  public static Set<String> propertyIds = new HashSet<>();
 
   /**
    * name of the kerberos descriptor artifact.
@@ -153,9 +159,7 @@ public class StackArtifactResourceProvider extends AbstractControllerResourcePro
   Type widgetLayoutType = new TypeToken<Map<String, List<WidgetLayout>>>(){}.getType();
   Gson gson = new Gson();
 
-  /**
-   * set resource properties, pk and fk's
-   */
+  // set resource properties, pk and fk's
   static {
     // resource properties
     propertyIds.add(STACK_NAME_PROPERTY_ID);
@@ -180,7 +184,7 @@ public class StackArtifactResourceProvider extends AbstractControllerResourcePro
    * @param managementController ambari controller
    */
   protected StackArtifactResourceProvider(AmbariManagementController managementController) {
-    super(propertyIds, keyPropertyIds, managementController);
+    super(Resource.Type.StackArtifact, propertyIds, keyPropertyIds, managementController);
   }
 
   @Override
@@ -190,7 +194,7 @@ public class StackArtifactResourceProvider extends AbstractControllerResourcePro
              NoSuchResourceException,
              NoSuchParentResourceException {
 
-    Set<Resource> resources = new HashSet<Resource>();
+    Set<Resource> resources = new HashSet<>();
 
     resources.addAll(getKerberosDescriptors(request, predicate));
     resources.addAll(getMetricsDescriptors(request, predicate));
@@ -259,7 +263,7 @@ public class StackArtifactResourceProvider extends AbstractControllerResourcePro
              NoSuchParentResourceException,
              NoSuchResourceException {
 
-    Set<Resource> resources = new HashSet<Resource>();
+    Set<Resource> resources = new HashSet<>();
 
     for (Map<String, Object> properties : getPropertyMaps(predicate)) {
       String artifactName = (String) properties.get(ARTIFACT_NAME_PROPERTY_ID);
@@ -311,7 +315,7 @@ public class StackArtifactResourceProvider extends AbstractControllerResourcePro
       throws SystemException, UnsupportedPropertyException,
            NoSuchParentResourceException, NoSuchResourceException {
 
-    Set<Resource> resources = new HashSet<Resource>();
+    Set<Resource> resources = new HashSet<>();
 
     for (Map<String, Object> properties : getPropertyMaps(predicate)) {
       String artifactName = (String) properties.get(ARTIFACT_NAME_PROPERTY_ID);
@@ -347,7 +351,7 @@ public class StackArtifactResourceProvider extends AbstractControllerResourcePro
             Map<String, Map<String, PropertyInfo>> hostMetrics =
               PropertyHelper.getMetricPropertyIds(Resource.Type.Host);
 
-            descriptor = new HashMap<String, Object>();
+            descriptor = new HashMap<>();
             descriptor.put(Resource.Type.Cluster.name(), clusterMetrics);
             descriptor.put(Resource.Type.Host.name(), hostMetrics);
           }
@@ -378,7 +382,7 @@ public class StackArtifactResourceProvider extends AbstractControllerResourcePro
       throws SystemException, UnsupportedPropertyException,
              NoSuchParentResourceException, NoSuchResourceException {
 
-    Set<Resource> resources = new HashSet<Resource>();
+    Set<Resource> resources = new HashSet<>();
 
     for (Map<String, Object> properties : getPropertyMaps(predicate)) {
       String artifactName = (String) properties.get(ARTIFACT_NAME_PROPERTY_ID);
@@ -427,7 +431,7 @@ public class StackArtifactResourceProvider extends AbstractControllerResourcePro
     }
 
     if (StringUtils.isEmpty(serviceName)) {
-      return getWidgetsDescriptorForCluster(stackInfo);
+      return null;
     } else {
       return getWidgetsDescriptorForService(stackInfo, serviceName);
     }
@@ -446,22 +450,6 @@ public class StackArtifactResourceProvider extends AbstractControllerResourcePro
     File widgetDescriptorFile = serviceInfo.getWidgetsDescriptorFile();
     if (widgetDescriptorFile != null && widgetDescriptorFile.exists()) {
       widgetDescriptor = gson.fromJson(new FileReader(widgetDescriptorFile), widgetLayoutType);
-    }
-
-    return widgetDescriptor;
-  }
-
-  public Map<String, Object> getWidgetsDescriptorForCluster(StackInfo stackInfo)
-      throws NoSuchParentResourceException, IOException {
-
-    Map<String, Object> widgetDescriptor = null;
-
-    String widgetDescriptorFileLocation = stackInfo.getWidgetsDescriptorFileLocation();
-    if (widgetDescriptorFileLocation != null) {
-      File widgetDescriptorFile = new File(widgetDescriptorFileLocation);
-      if (widgetDescriptorFile.exists()) {
-        widgetDescriptor = gson.fromJson(new FileReader(widgetDescriptorFile), widgetLayoutType);
-      }
     }
 
     return widgetDescriptor;
@@ -500,7 +488,7 @@ public class StackArtifactResourceProvider extends AbstractControllerResourcePro
   private Map<String, Object> buildStackDescriptor(String stackName, String stackVersion)
       throws NoSuchParentResourceException, IOException {
 
-    KerberosDescriptor kerberosDescriptor = null;
+    KerberosDescriptor kerberosDescriptor = new KerberosDescriptor();
 
     AmbariManagementController controller = getManagementController();
     StackInfo stackInfo;
@@ -513,19 +501,8 @@ public class StackArtifactResourceProvider extends AbstractControllerResourcePro
 
     Collection<KerberosServiceDescriptor> serviceDescriptors = getServiceDescriptors(stackInfo);
 
-    String kerberosFileLocation = stackInfo.getKerberosDescriptorFileLocation();
-    if (kerberosFileLocation != null) {
-      kerberosDescriptor = kerberosDescriptorFactory.createInstance(new File(kerberosFileLocation));
-    } else if (! serviceDescriptors.isEmpty()) {
-      // service descriptors present with no stack descriptor,
-      // create an empty stack descriptor to hold services
-      kerberosDescriptor = new KerberosDescriptor();
-    }
-
-    if (kerberosDescriptor != null) {
-      for (KerberosServiceDescriptor descriptor : serviceDescriptors) {
-        kerberosDescriptor.putService(descriptor);
-      }
+    if (serviceDescriptors != null) {
+      serviceDescriptors.forEach(kerberosDescriptor::putService);
       return kerberosDescriptor.toMap();
     } else {
       return null;
@@ -580,7 +557,7 @@ public class StackArtifactResourceProvider extends AbstractControllerResourcePro
    * @throws IOException if unable to read or parse a descriptor file
    */
   private Collection<KerberosServiceDescriptor> getServiceDescriptors(StackInfo stack) throws IOException {
-    Collection<KerberosServiceDescriptor> serviceDescriptors = new ArrayList<KerberosServiceDescriptor>();
+    Collection<KerberosServiceDescriptor> serviceDescriptors = new ArrayList<>();
     for (ServiceInfo service : stack.getServices()) {
       File descriptorFile = service.getKerberosDescriptorFile();
       if (descriptorFile != null) {

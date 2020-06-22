@@ -1,5 +1,4 @@
 <?xml version="1.0"?>
-<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
 <!--
 /**
  *
@@ -31,6 +30,21 @@
       2) distributed: HBase daemons writing to HDFS
     </description>
     <on-ambari-upgrade add="true"/>
+    <value-attributes>
+      <overridable>false</overridable>
+      <type>value-list</type>
+      <entries>
+        <entry>
+          <value>embedded</value>
+          <label>Embedded</label>
+        </entry>
+        <entry>
+          <value>distributed</value>
+          <label>Distributed</label>
+        </entry>
+      </entries>
+      <selection-cardinality>1</selection-cardinality>
+    </value-attributes>
   </property>
   <property>
     <name>timeline.metrics.service.webapp.address</name>
@@ -71,6 +85,7 @@
     </description>
     <value-attributes>
       <type>int</type>
+      <unit>s</unit>
     </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
@@ -84,6 +99,7 @@
     </description>
     <value-attributes>
       <type>int</type>
+      <unit>s</unit>
     </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
@@ -94,6 +110,10 @@
       Time in seconds to sleep for the day resolution host based
       aggregator. Default resolution is 24 hours.
     </description>
+    <value-attributes>
+      <type>int</type>
+      <unit>s</unit>
+    </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
   <property>
@@ -106,6 +126,7 @@
     </description>
     <value-attributes>
       <type>int</type>
+      <unit>s</unit>
     </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
@@ -116,6 +137,10 @@
       Time in seconds to sleep for the day resolution cluster wide
       aggregator. Default is 24 hours.
     </description>
+    <value-attributes>
+      <type>int</type>
+      <unit>s</unit>
+    </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
   <property>
@@ -128,6 +153,7 @@
     </description>
     <value-attributes>
       <type>int</type>
+      <unit>s</unit>
     </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
@@ -141,6 +167,7 @@
     </description>
     <value-attributes>
       <type>int</type>
+      <unit>s</unit>
     </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
@@ -304,6 +331,7 @@
     </description>
     <value-attributes>
       <type>int</type>
+      <unit>s</unit>
     </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
@@ -313,6 +341,10 @@
     <description>
       Host based daily resolution data purge interval in seconds. Default is 1 year.
     </description>
+    <value-attributes>
+      <type>int</type>
+      <unit>s</unit>
+    </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
   <property>
@@ -321,6 +353,10 @@
     <description>
       Host based hourly resolution data purge interval in seconds. Default is 30 days.
     </description>
+    <value-attributes>
+      <type>int</type>
+      <unit>s</unit>
+    </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
   <property>
@@ -329,6 +365,10 @@
     <description>
       Host based minute resolution data purge interval in seconds. Default is 7 days.
     </description>
+    <value-attributes>
+      <type>int</type>
+      <unit>s</unit>
+    </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
   <property>
@@ -337,6 +377,10 @@
     <description>
       Cluster wide second resolution data purge interval in seconds. Default is 3 days.
     </description>
+    <value-attributes>
+      <type>int</type>
+      <unit>s</unit>
+    </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
   <property>
@@ -345,6 +389,10 @@
     <description>
       Cluster wide minute resolution data purge interval in seconds. Default is 30 days.
     </description>
+    <value-attributes>
+      <type>int</type>
+      <unit>s</unit>
+    </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
   <property>
@@ -353,6 +401,10 @@
     <description>
       Cluster wide hourly resolution data purge interval in seconds. Default is 1 year.
     </description>
+    <value-attributes>
+      <type>int</type>
+      <unit>s</unit>
+    </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
   <property>
@@ -369,6 +421,10 @@
     <description>
       1 minute resolution data purge interval in seconds. Default is 1 day.
     </description>
+    <value-attributes>
+      <type>int</type>
+      <unit>s</unit>
+    </value-attributes>
     <depends-on>
       <property>
         <type>ams-site</type>
@@ -399,10 +455,9 @@
   </property>
   <property>
     <name>timeline.metrics.service.default.result.limit</name>
-    <value>15840</value>
+    <value>5760</value>
     <description>
-      Max result limit on number of rows returned. Calculated as follows:
-      22 aggregate metrics/min * 2 * 60 * 6 : Retrieve 10 SECOND data for 2 hours.
+      Max result limit on number of rows returned.
     </description>
     <display-name>Metrics service default result limit</display-name>
     <value-attributes>
@@ -420,6 +475,7 @@
     </description>
     <value-attributes>
       <type>int</type>
+      <unit>s</unit>
     </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
@@ -443,10 +499,14 @@
       Percentage of total heap memory (i.e. Runtime.getRuntime().maxMemory())
       that all threads may use.
     </description>
+    <value-attributes>
+      <type>int</type>
+    </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
   <property>
     <name>phoenix.spool.directory</name>
+    <display-name>Phoenix Spool directory</display-name>
     <value>/tmp</value>
     <description>
       Set directory for Phoenix spill files. If possible set this to a
@@ -464,6 +524,11 @@
       List of application ids to use for aggregating host level metrics for
       an application. Example: bytes_read across Yarn Nodemanagers.
     </description>
+    <display-name>AppIds for aggregating System metrics</display-name>
+    <value-attributes>
+      <empty-value-valid>true</empty-value-valid>
+      <overridable>false</overridable>
+    </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
   <property>
@@ -476,74 +541,16 @@
     <on-ambari-upgrade add="true"/>
   </property>
   <property>
-    <name>timeline.metrics.host.aggregate.splitpoints</name>
-    <value> </value>
-    <description>
-      Pre-split regions using the split points corresponding to this property
-      for the precision table that stores seconds aggregate data.
-    </description>
-    <depends-on>
-      <property>
-        <type>ams-hbase-site</type>
-        <name>hbase.regionserver.global.memstore.upperLimit</name>
-      </property>
-      <property>
-        <type>ams-hbase-site</type>
-        <name>hbase.hregion.memstore.flush.size</name>
-      </property>
-      <property>
-        <type>ams-hbase-env</type>
-        <name>hbase_master_heapsize</name>
-      </property>
-      <property>
-        <type>ams-hbase-env</type>
-        <name>hbase_regionserver_heapsize</name>
-      </property>
-    </depends-on>
-    <on-ambari-upgrade add="true"/>
-  </property>
-  <property>
-    <name>timeline.metrics.cluster.aggregate.splitpoints</name>
-    <value> </value>
-    <description>
-      Pre-split regions using the split points corresponding to this property
-      for the aggregate table that stores seconds aggregate data across hosts.
-    </description>
-    <depends-on>
-      <property>
-        <type>ams-hbase-site</type>
-        <name>hbase.regionserver.global.memstore.upperLimit</name>
-      </property>
-      <property>
-        <type>ams-hbase-site</type>
-        <name>hbase.hregion.memstore.flush.size</name>
-      </property>
-      <property>
-        <type>ams-hbase-env</type>
-        <name>hbase_master_heapsize</name>
-      </property>
-      <property>
-        <type>ams-hbase-env</type>
-        <name>hbase_regionserver_heapsize</name>
-      </property>
-    </depends-on>
-    <on-ambari-upgrade add="true"/>
-  </property>
-  <property>
     <name>timeline.metrics.sink.report.interval</name>
     <value>60</value>
     <description>
       Time in seconds to sleep before report metrics to collector.
       Default resolution is 1 minute.
     </description>
-    <on-ambari-upgrade add="true"/>
-  </property>
-  <property>
-    <name>timeline.metrics.sink.collection.period</name>
-    <value>10</value>
-    <description>
-      The interval between two service metrics data exports.
-    </description>
+    <value-attributes>
+      <type>int</type>
+      <unit>s</unit>
+    </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
   <property>
@@ -567,6 +574,10 @@
       The time to delay first watcher check execution
       Default resolution is 10 minutes.
     </description>
+    <value-attributes>
+      <type>int</type>
+      <unit>s</unit>
+    </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
   <property>
@@ -577,6 +588,10 @@
       watcher check execution and the commencement of the next
       Default resolution is 30 seconds.
     </description>
+    <value-attributes>
+      <type>int</type>
+      <unit>s</unit>
+    </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
   <property>
@@ -586,6 +601,10 @@
       The maximum time to wait for a single watcher check execution
       Default resolution is 30 seconds.
     </description>
+    <value-attributes>
+      <type>int</type>
+      <unit>s</unit>
+    </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
   <property>
@@ -605,6 +624,7 @@
     </description>
     <value-attributes>
       <type>int</type>
+      <unit>s</unit>
     </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
@@ -612,8 +632,12 @@
     <name>timeline.metrics.cache.size</name>
     <value>150</value>
     <description>
-      Size of array blocking queue used to cache metrics
+      Size of array blocking queue used to cache metrics before flush to DB
     </description>
+    <value-attributes>
+      <type>int</type>
+      <unit>Bytes</unit>
+    </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
   <property>
@@ -683,7 +707,7 @@
   </property>
   <property>
     <name>timeline.metrics.downsampler.topn.metric.patterns</name>
-    <value>dfs.NNTopUserOpCounts.windowMs=60000.op=__%.user=%,dfs.NNTopUserOpCounts.windowMs=300000.op=__%.user=%,dfs.NNTopUserOpCounts.windowMs=1500000.op=__%.user=%</value>
+    <value></value>
     <description>
       Commas separated list of metric name regular expressions that are candidates for Top N downsampling.
     </description>
@@ -709,6 +733,18 @@
     <on-ambari-upgrade add="true"/>
   </property>
   <property>
+    <name>timeline.metrics.downsampler.event.metric.patterns</name>
+    <value></value>
+    <description>
+      Commas separated list of metric name regular expressions that are like events. No interpolation will be done for such
+      metrics, and the downsampling SUM aggregators will sum the values across time instead of averaging them out.
+    </description>
+    <value-attributes>
+      <empty-value-valid>true</empty-value-valid>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+  <property>
     <name>cluster.zookeeper.quorum</name>
     <value>{{cluster_zookeeper_quorum_hosts}}</value>
     <description>Comma separated list of servers in the cluster ZooKeeper Quorum.
@@ -721,15 +757,70 @@
     <on-ambari-upgrade add="true"/>
   </property>
   <property>
-    <name>timeline.metrics.downsampler.event.metric.patterns</name>
-    <value>topology\.%</value>
-    <description>
-      Commas separated list of metric name regular expressions that are like events. No interpolation will be done for such
-      metrics, and the downsampling SUM aggregators will sum the values across time instead of averaging them out.
-    </description>
+    <name>timeline.metrics.host.inmemory.aggregation</name>
+    <value>false</value>
+    <description>if set to "true" host metrics will be aggregated in memory on each host</description>
+    <display-name>Enable in-memory aggreation on monitors</display-name>
     <value-attributes>
-      <empty-value-valid>true</empty-value-valid>
+      <overridable>false</overridable>
+      <type>value-list</type>
+      <entries>
+        <entry>
+          <value>true</value>
+          <label>True</label>
+        </entry>
+        <entry>
+          <value>false</value>
+          <label>False</label>
+        </entry>
+      </entries>
+      <selection-cardinality>1</selection-cardinality>
     </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
+  <property>
+    <name>timeline.metrics.host.inmemory.aggregation.port</name>
+    <value>61888</value>
+    <on-ambari-upgrade add="true"/>
+  </property>
+  <property>
+    <name>timeline.metrics.whitelisting.enabled</name>
+    <value>false</value>
+    <description>Enable/Disable metric whitelisting</description>
+    <display-name>Enable only whitelisted metrics</display-name>
+    <on-ambari-upgrade add="true"/>
+    <value-attributes>
+      <overridable>false</overridable>
+      <type>value-list</type>
+      <entries>
+        <entry>
+          <value>true</value>
+          <label>True</label>
+        </entry>
+        <entry>
+          <value>false</value>
+          <label>False</label>
+        </entry>
+      </entries>
+      <selection-cardinality>1</selection-cardinality>
+    </value-attributes>
+  </property>
+  <property>
+    <name>timeline.metrics.host.inmemory.aggregation.http.policy</name>
+    <value>HTTP_ONLY</value>
+    <on-ambari-upgrade add="true"/>
+  </property>
+  <property>
+    <name>timeline.metrics.transient.metric.patterns</name>
+    <value>topology\.%,dfs.NNTopUserOpCounts.windowMs=60000.op=__%.user=%,dfs.NNTopUserOpCounts.windowMs=300000.op=__%.user=%,dfs.NNTopUserOpCounts.windowMs=1500000.op=__%.user=%</value>
+    <description>
+      Comma separated list of metric patterns that will enable them to be stored, queried, aggregated and purged
+      separately so as to decrease pressure on low volume high density metrics aggregation.
+    </description>
+    <on-ambari-upgrade add="true"/>
+    <value-attributes>
+      <empty-value-valid>true</empty-value-valid>
+    </value-attributes>
+  </property>
+
 </configuration>

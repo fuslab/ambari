@@ -34,6 +34,7 @@ import java.util.UUID;
 
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.H2DatabaseCleaner;
+import org.apache.ambari.server.controller.internal.DeleteHostComponentStatusMetaData;
 import org.apache.ambari.server.events.ServiceComponentInstalledEvent;
 import org.apache.ambari.server.events.ServiceComponentUninstalledEvent;
 import org.apache.ambari.server.events.ServiceInstalledEvent;
@@ -397,7 +398,9 @@ public class HostVersionOutOfSyncListenerTest {
     // add the 2nd host
     addHost("h2");
     clusters.mapHostToCluster("h2", "c1");
-    clusters.getHost("h2").setState(HostState.HEALTHY);
+    Host host = clusters.getHost("h2");
+    Long hostId = host.getHostId();
+    host.setState(HostState.HEALTHY);
 
     StackId stackId = new StackId(this.stackId);
     RepositoryVersionEntity repositoryVersionEntity = helper.getOrCreateRepositoryVersion(stackId,
@@ -431,7 +434,7 @@ public class HostVersionOutOfSyncListenerTest {
     // event handle it
     injector.getInstance(UnitOfWork.class).begin();
     clusters.deleteHost("h2");
-    clusters.publishHostsDeletion(Collections.singleton(c1), Collections.singleton("h2"));
+    clusters.publishHostsDeletion(Collections.singleton(hostId), Collections.singleton("h2"));
     injector.getInstance(UnitOfWork.class).end();
     assertRepoVersionState("2.2.0", RepositoryVersionState.CURRENT);
     assertRepoVersionState("2.2.9-9999", RepositoryVersionState.INSTALLED);
@@ -508,13 +511,13 @@ public class HostVersionOutOfSyncListenerTest {
     List<ServiceComponentHost> hostComponents = c1.getServiceComponentHosts(host3);
     for (ServiceComponentHost sch : hostComponents) {
       if (sch.getServiceName().equals("HDFS")) {
-        sch.delete();
+        sch.delete(new DeleteHostComponentStatusMetaData());
 
         StackId clusterStackId = c1.getDesiredStackVersion();
 
         ServiceComponentUninstalledEvent event = new ServiceComponentUninstalledEvent(
             c1.getClusterId(), clusterStackId.getStackName(), clusterStackId.getStackVersion(),
-            "HDFS", "DATANODE", sch.getHostName(), false);
+            "HDFS", "DATANODE", sch.getHostName(), false, false, -1l);
 
         m_eventPublisher.publish(event);
       }
@@ -585,7 +588,7 @@ public class HostVersionOutOfSyncListenerTest {
           .getServiceComponent(componentName), hostName));
       ServiceComponentInstalledEvent event = new ServiceComponentInstalledEvent(cl.getClusterId(),
           stackIdObj.getStackName(), stackIdObj.getStackVersion(),
-          serviceName, componentName, hostName, false /* recovery not enabled */);
+          serviceName, componentName, hostName, false /* recovery not enabled */, false);
       m_eventPublisher.publish(event);
     }
   }

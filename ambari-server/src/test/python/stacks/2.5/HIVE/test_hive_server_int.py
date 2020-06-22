@@ -57,11 +57,9 @@ class TestHiveServerInteractive(RMFTestCase):
       data = json.load(f)
     return data
 
-  @patch("os.path.isfile")
   @patch("resource_management.libraries.functions.copy_tarball.copy_to_hdfs")
-  def test_configure_default(self, copy_to_hdfs_mock, is_file_mock):
+  def test_configure_default(self, copy_to_hdfs_mock):
     self.maxDiff = None
-    is_file_mock.return_value = True
     copy_to_hdfs_mock.return_value = False
     self.executeScript(self.COMMON_SERVICES_PACKAGE_DIR + "/scripts/hive_server_interactive.py",
                        classname="HiveServerInteractive",
@@ -259,6 +257,7 @@ class TestHiveServerInteractive(RMFTestCase):
                        config_file=self.get_src_folder() + "/test/python/stacks/2.5/configs/hsi_default_for_restart.json",
                        stack_version=self.STACK_VERSION,
                        target=RMFTestCase.TARGET_COMMON_SERVICES,
+                       call_mocks = [(0, "OK.", ""), (0, "OK."), (0, "OK."), (0, "OK."), (0, "OK.")],
                        checked_call_mocks=[(0, "OK.", ""),
                                            #(0, "OK.", ""),
                                            (0, "UNWANTED_STRING \n "
@@ -290,7 +289,12 @@ class TestHiveServerInteractive(RMFTestCase):
     self.assertResourceCalled('File', '/var/run/hive/hive-interactive.pid',
                               action=['delete'],
                               )
-
+    self.assertResourceCalled('Execute', ('slider', 'destroy', u'llap0', '--force'),
+        ignore_failures = True,
+        user = 'hive',
+        timeout = 30,
+    )
+    
     self.assert_configure_default(with_cs_enabled=True)
 
     self.assertResourceCalled('Execute',
@@ -414,7 +418,6 @@ class TestHiveServerInteractive(RMFTestCase):
 
 
   def assert_configure_default(self, no_tmp=False, default_fs_default=u'hdfs://c6401.ambari.apache.org:8020', with_cs_enabled=False):
-
     self.assertResourceCalled('HdfsResource', '/apps/hive/warehouse',
                               immutable_paths = self.DEFAULT_IMMUTABLE_PATHS,
                               security_enabled = False,
@@ -711,16 +714,10 @@ class TestHiveServerInteractive(RMFTestCase):
                               group='root',
                               mode=0644,
     )
-    self.assertResourceCalled('File', '/usr/hdp/current/hive-server2-hive2/lib/None',
-                              action=['delete'],
-                              )
-    self.assertResourceCalled('Execute', ('rm', '-f',
-                                          '/usr/hdp/current/hive-server2-hive2/lib/ojdbc6.jar'),
-                              path=["/bin", "/usr/bin/"],
-                              sudo = True,
-                              )
-    self.assertResourceCalled('File', '/tmp/mysql-connector-java.jar',
-                              content = DownloadSource('http://c6401.ambari.apache.org:8080/resources/mysql-connector-java.jar'))
+    self.assertResourceCalled('File',
+                              '/tmp/mysql-connector-java.jar',
+                              content=DownloadSource('http://c6401.ambari.apache.org:8080/resources/mysql-connector-java.jar'),
+    )
     self.assertResourceCalled('Execute', ('cp',
                                           '--remove-destination',
                                           '/tmp/mysql-connector-java.jar',

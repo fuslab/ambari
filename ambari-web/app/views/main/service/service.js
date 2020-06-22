@@ -19,13 +19,14 @@
 var App = require('app');
 var uiEffects = require('utils/ui_effects');
 var numberUtils = require('utils/number_utils');
+require('views/main/service/info/components_list_view');
 
 App.MainDashboardServiceHealthView = Em.View.extend({
   classNameBindings: ["healthStatus", "healthStatusClass"],
   //template: Em.Handlebars.compile(""),
   blink: false,
   tagName: 'span',
-  attributeBindings:['rel', 'title','data-original-title'],
+  attributeBindings: ['rel', 'title', 'data-original-title'],
   rel: 'HealthTooltip',
   'data-original-title': '',
 
@@ -39,8 +40,8 @@ App.MainDashboardServiceHealthView = Em.View.extend({
 
   doBlink: function () {
     var self = this;
-    if (this.get('blink') && (this.get("state") == "inDOM")) {
-      uiEffects.pulsate(self.$(), 1000, function(){
+    if (this.get('blink') && this.get("state") === "inDOM") {
+      uiEffects.pulsate(self.$(), 1000, function () {
         self.doBlink();
       });
     }
@@ -53,9 +54,9 @@ App.MainDashboardServiceHealthView = Em.View.extend({
   healthStatus: function () {
     var isClientOnlyService = App.get('services.clientOnly').contains(this.get('service.serviceName'));
     if (isClientOnlyService) {
-      return 'icon-laptop';
+      return 'glyphicon glyphicon-blackboard';
     }
-    if (this.get('service.passiveState') != 'OFF') {
+    if (this.get('service.passiveState') !== 'OFF') {
       return 'icon-medkit';
     }
     var status = this.get('service.healthStatus');
@@ -82,11 +83,12 @@ App.MainDashboardServiceHealthView = Em.View.extend({
     }
 
     return 'health-status-' + status;
-  }.property('service.healthStatus','service.passiveState','service.serviceName'),
+  }.property('service.healthStatus', 'service.passiveState', 'service.serviceName'),
 
   healthStatusClass: function () {
-    if (this.get('service.passiveState') != 'OFF' || App.get('services.clientOnly').contains(this.get('service.serviceName')))
+    if (this.get('service.passiveState') !== 'OFF' || App.get('services.clientOnly').contains(this.get('service.serviceName'))) {
       return '';
+    }
     switch (this.get('service.healthStatus')) {
       case 'green':
       case 'green-blinking':
@@ -101,27 +103,25 @@ App.MainDashboardServiceHealthView = Em.View.extend({
       default:
         return '';
     }
-  }.property('service.healthStatus','service.passiveState','service.serviceName'),
+  }.property('service.healthStatus', 'service.passiveState', 'service.serviceName'),
 
   didInsertElement: function () {
     this.updateToolTip();
-    App.tooltip($("[rel='HealthTooltip']"));
+    App.tooltip($("[rel='HealthTooltip']"), {html: true});
     this.doBlink(); // check for blink availability
   }
 });
 
-App.ComponentLiveTextView =  Em.View.extend({
-  classNameBindings: ['color:service-summary-component-red-dead:service-summary-component-green-live'],
+App.ComponentLiveTextView = Em.View.extend({
   liveComponents: null,
   totalComponents: null,
-  color: function() {
+  color: function () {
     return this.get("liveComponents") === 0 && this.get('totalComponents') !== 0;
   }.property("liveComponents", 'totalComponents')
 });
 
 App.MainDashboardServiceViewWrapper = Em.Mixin.create({
-  layoutName: require('templates/main/service/service'),
-  isFullWidth: false
+  layoutName: require('templates/main/service/service')
 });
 
 App.MainDashboardServiceView = Em.View.extend(App.MainDashboardServiceViewWrapper, {
@@ -131,15 +131,8 @@ App.MainDashboardServiceView = Em.View.extend(App.MainDashboardServiceViewWrappe
     return this.get('controller.data.' + this.get('serviceName'));
   }.property('controller.data'),
 
-  dashboardMasterComponentView: Em.View.extend({
-    didInsertElement: function() {
-      App.tooltip($('[rel=SummaryComponentHealthTooltip]'));
-    },
-    templateName: require('templates/main/service/info/summary/master_components'),
-    mastersComp: Em.computed.alias('parentView.parentView.mastersObj'),
-    willDestroyElement: function() {
-      $('[rel=SummaryComponentHealthTooltip]').tooltip('destroy');
-    }
+  dashboardMasterComponentView: App.SummaryMasterComponentsView.extend({
+    mastersComp: Em.computed.alias('parentView.parentView.mastersObj')
   }),
 
   alertsCount: Em.computed.alias('service.alertsCount'),
@@ -148,18 +141,13 @@ App.MainDashboardServiceView = Em.View.extend(App.MainDashboardServiceViewWrappe
 
   isCollapsed: false,
 
-  toggleInfoView: function () {
-    this.$('.service-body').toggle('blind', 200);
-    this.set('isCollapsed', !this.isCollapsed);
-  },
-
   masters: Em.computed.filterBy('service.hostComponents', 'isMaster', true),
 
-  clients: function(){
+  clients: function () {
     var clients = this.get('service.hostComponents').filterProperty('isClient', true);
     var len = clients.length;
     var template = 'dashboard.services.{0}.client'.format(this.get('serviceName').toLowerCase());
-    if(len > 1){
+    if (len > 1) {
       template += 's';
     }
 
@@ -169,6 +157,8 @@ App.MainDashboardServiceView = Em.View.extend(App.MainDashboardServiceViewWrappe
     };
   }.property('service'),
 
+  hasMultipleMasterGroups: Em.computed.gt('parentView.mastersObj.length', 1),
+
   /**
    * Check if service component is created
    * @param componentName
@@ -176,23 +166,29 @@ App.MainDashboardServiceView = Em.View.extend(App.MainDashboardServiceViewWrappe
    */
   isServiceComponentCreated: function (componentName) {
     return App.MasterComponent.find().mapProperty('componentName').concat(
-        App.ClientComponent.find().mapProperty('componentName'),
-        App.SlaveComponent.find().mapProperty('componentName')
+      App.ClientComponent.find().mapProperty('componentName'),
+      App.SlaveComponent.find().mapProperty('componentName')
     ).contains(componentName);
   }
 
 });
 
 App.MainDashboardServiceView.reopenClass({
+  formattedHeapPercent: function (i18nKey, heapUsedKey, heapMaxKey) {
+    return Em.computed(heapUsedKey, heapMaxKey, function () {
+      var memUsed = Em.get(this, heapUsedKey);
+      var memMax = Em.get(this, heapMaxKey);
+      var percent = memMax > 0 ? 100 * memUsed / memMax : 0;
+      return Em.I18n.t(i18nKey).format(percent.toFixed(1));
+    });
+  },
   formattedHeap: function (i18nKey, heapUsedKey, heapMaxKey) {
     return Em.computed(heapUsedKey, heapMaxKey, function () {
       var memUsed = Em.get(this, heapUsedKey);
       var memMax = Em.get(this, heapMaxKey);
-      var percent = memMax > 0 ? ((100 * memUsed) / memMax) : 0;
       return Em.I18n.t(i18nKey).format(
         numberUtils.bytesToSize(memUsed, 1, 'parseFloat'),
-        numberUtils.bytesToSize(memMax, 1, 'parseFloat'),
-        percent.toFixed(1));
+        numberUtils.bytesToSize(memMax, 1, 'parseFloat'));
     });
   }
 });

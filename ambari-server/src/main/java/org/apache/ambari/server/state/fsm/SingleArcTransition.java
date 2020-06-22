@@ -1,4 +1,4 @@
-/**
+/*
 * Licensed to the Apache Software Foundation (ASF) under one
 * or more contributor license agreements.  See the NOTICE file
 * distributed with this work for additional information
@@ -30,6 +30,6 @@ public interface SingleArcTransition<OPERAND, EVENT> {
    *                state may change.
    * @param event causal event
    */
-  public void transition(OPERAND operand, EVENT event);
+  void transition(OPERAND operand, EVENT event);
 
 }

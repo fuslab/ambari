@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,15 @@
 
 package org.apache.ambari.server.stack;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import org.apache.ambari.server.AmbariException;
-import org.apache.ambari.server.state.CommandScriptDefinition;
-import org.apache.ambari.server.state.ComponentInfo;
-import org.apache.ambari.server.state.CredentialStoreInfo;
-import org.apache.ambari.server.state.CustomCommandDefinition;
-import org.apache.ambari.server.state.PropertyInfo;
-import org.apache.ambari.server.state.ServiceInfo;
-import org.apache.ambari.server.state.ServiceOsSpecific;
-import org.apache.ambari.server.state.ServicePropertyInfo;
-import org.junit.Test;
+import static org.easymock.EasyMock.anyObject;
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.createStrictMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.verify;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.lang.reflect.Field;
@@ -42,15 +39,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static org.easymock.EasyMock.anyObject;
-import static org.easymock.EasyMock.createNiceMock;
-import static org.easymock.EasyMock.createStrictMock;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.verify;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import org.apache.ambari.server.AmbariException;
+import org.apache.ambari.server.state.CommandScriptDefinition;
+import org.apache.ambari.server.state.ComponentInfo;
+import org.apache.ambari.server.state.CredentialStoreInfo;
+import org.apache.ambari.server.state.CustomCommandDefinition;
+import org.apache.ambari.server.state.PropertyInfo;
+import org.apache.ambari.server.state.ServiceInfo;
+import org.apache.ambari.server.state.ServiceOsSpecific;
+import org.apache.ambari.server.state.ServicePropertyInfo;
+import org.apache.ambari.server.state.SingleSignOnInfo;
+import org.junit.Test;
+
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 
 /**
  * ServiceModule unit tests.
@@ -140,7 +142,7 @@ public class ServiceModuleTest {
 
   @Test
   public void testResolve_RequiredServices() throws Exception {
-    List<String> requiredServices = new ArrayList<String>();
+    List<String> requiredServices = new ArrayList<>();
     requiredServices.add("foo");
     requiredServices.add("bar");
 
@@ -230,7 +232,7 @@ public class ServiceModuleTest {
 
   @Test
   public void testResolve_OsSpecifics() throws Exception {
-    Map<String, ServiceOsSpecific> osSpecifics = new HashMap<String, ServiceOsSpecific>();
+    Map<String, ServiceOsSpecific> osSpecifics = new HashMap<>();
     osSpecifics.put("foo", new ServiceOsSpecific());
 
     // specified in child only
@@ -249,7 +251,7 @@ public class ServiceModuleTest {
     assertEquals(osSpecifics, service.getModuleInfo().getOsSpecifics());
 
     // specified in both
-    Map<String, ServiceOsSpecific> osSpecifics2 = new HashMap<String, ServiceOsSpecific>();
+    Map<String, ServiceOsSpecific> osSpecifics2 = new HashMap<>();
     osSpecifics.put("bar", new ServiceOsSpecific());
 
     info.setOsSpecifics(osSpecifics);
@@ -437,6 +439,37 @@ public class ServiceModuleTest {
   }
 
   @Test
+  public void testResolveServiceAdvisor() throws Exception {
+    ServiceInfo info = new ServiceInfo();
+    ServiceInfo parentInfo = new ServiceInfo();
+    ServiceModule child = createServiceModule(info);
+    ServiceModule parent = createServiceModule(parentInfo);
+
+    // Parent is NULL, Child is NULL => Child defaults to PYTHON
+    parent.getModuleInfo().setServiceAdvisorType(null);
+    child.getModuleInfo().setServiceAdvisorType(null);
+    resolveService(child, parent);
+    assertEquals(ServiceInfo.ServiceAdvisorType.PYTHON, child.getModuleInfo().getServiceAdvisorType());
+
+    // Parent is NULL, Child is JAVA => Child is JAVA
+    child.getModuleInfo().setServiceAdvisorType(ServiceInfo.ServiceAdvisorType.JAVA);
+    resolveService(child, parent);
+    assertEquals(ServiceInfo.ServiceAdvisorType.JAVA, child.getModuleInfo().getServiceAdvisorType());
+
+    // Parent is JAVA, Child is NULL => Child inherits JAVA
+    parent.getModuleInfo().setServiceAdvisorType(ServiceInfo.ServiceAdvisorType.JAVA);
+    child.getModuleInfo().setServiceAdvisorType(null);
+    resolveService(child, parent);
+    assertEquals(ServiceInfo.ServiceAdvisorType.JAVA, child.getModuleInfo().getServiceAdvisorType());
+
+    // Parent is JAVA, Child is PYTHON => Child overrides and keeps PYTHON
+    parent.getModuleInfo().setServiceAdvisorType(null);
+    child.getModuleInfo().setServiceAdvisorType(ServiceInfo.ServiceAdvisorType.PYTHON);
+    resolveService(child, parent);
+    assertEquals(ServiceInfo.ServiceAdvisorType.PYTHON, child.getModuleInfo().getServiceAdvisorType());
+  }
+
+  @Test
   public void testResolve_UpgradeCheckDirectory() throws Exception {
     File checks = new File("checks");
 
@@ -498,7 +531,7 @@ public class ServiceModuleTest {
 
   @Test
   public void testResolve_CustomCommands() throws Exception {
-    List<CustomCommandDefinition> customCommands = new ArrayList<CustomCommandDefinition>();
+    List<CustomCommandDefinition> customCommands = new ArrayList<>();
     CustomCommandDefinition cmd1 = new CustomCommandDefinition();
     setPrivateField(cmd1, "name", "cmd1");
     setPrivateField(cmd1, "background", false);
@@ -523,7 +556,7 @@ public class ServiceModuleTest {
     assertEquals(customCommands, service.getModuleInfo().getCustomCommands());
 
     // specified in both
-    List<CustomCommandDefinition> parentCustomCommands = new ArrayList<CustomCommandDefinition>();
+    List<CustomCommandDefinition> parentCustomCommands = new ArrayList<>();
     CustomCommandDefinition cmd3 = new CustomCommandDefinition();
     setPrivateField(cmd3, "name", "cmd1");
     setPrivateField(cmd3, "background", true);
@@ -552,7 +585,7 @@ public class ServiceModuleTest {
 
   @Test
   public void testResolve_ConfigDependencies() throws Exception {
-    List<String> configDependencies = new ArrayList<String>();
+    List<String> configDependencies = new ArrayList<>();
     configDependencies.add("foo");
     configDependencies.add("bar");
 
@@ -572,7 +605,7 @@ public class ServiceModuleTest {
     assertEquals(configDependencies, service.getModuleInfo().getConfigDependencies());
 
     // specified in both
-    List<String> parentCustomCommands = new ArrayList<String>();
+    List<String> parentCustomCommands = new ArrayList<>();
     parentCustomCommands.add("bar");
     parentCustomCommands.add("other");
 
@@ -642,7 +675,7 @@ public class ServiceModuleTest {
     List<ComponentInfo> components = child.getModuleInfo().getComponents();
     assertEquals(3, components.size());
 
-    Map<String, ComponentInfo> mergedComponents = new HashMap<String, ComponentInfo>();
+    Map<String, ComponentInfo> mergedComponents = new HashMap<>();
     for (ComponentInfo component : components) {
       mergedComponents.put(component.getName(), component);
     }
@@ -663,33 +696,33 @@ public class ServiceModuleTest {
 
     // child configurations
     //FOO
-    Collection<PropertyInfo> childFooProperties = new ArrayList<PropertyInfo>();
+    Collection<PropertyInfo> childFooProperties = new ArrayList<>();
     PropertyInfo childProp1 = new PropertyInfo();
     childProp1.setName("childName1");
     childProp1.setValue("childVal1");
     childFooProperties.add(childProp1);
 
     //BAR : Doesn't inherit parents BAR due to attribute Supports.DO_NOT_EXTEND
-    Collection<PropertyInfo> childBarProperties = new ArrayList<PropertyInfo>();
+    Collection<PropertyInfo> childBarProperties = new ArrayList<>();
     PropertyInfo childProp2 = new PropertyInfo();
     childProp2.setName("childName2");
     childProp2.setValue("childVal2");
     childBarProperties.add(childProp2);
 
     // add attributes for BAR
-    Map<String, String> attributes = new HashMap<String, String>();
+    Map<String, String> attributes = new HashMap<>();
     attributes.put(ConfigurationInfo.Supports.DO_NOT_EXTEND.getXmlAttributeName(), "true");
 
     // create child config modules
     ConfigurationModule childConfigModule1 = createConfigurationModule("FOO", childFooProperties);
     ConfigurationModule childConfigModule2 = createConfigurationModule("BAR", childBarProperties, attributes);
-    Collection<ConfigurationModule> childModules = new ArrayList<ConfigurationModule>();
+    Collection<ConfigurationModule> childModules = new ArrayList<>();
     childModules.add(childConfigModule1);
     childModules.add(childConfigModule2);
 
     // parent configurations
     //FOO
-    Collection<PropertyInfo> parentFooProperties = new ArrayList<PropertyInfo>();
+    Collection<PropertyInfo> parentFooProperties = new ArrayList<>();
     PropertyInfo parentProp1 = new PropertyInfo();
     parentProp1.setName("parentName1");
     parentProp1.setValue("parentVal1");
@@ -701,14 +734,14 @@ public class ServiceModuleTest {
     parentFooProperties.add(parentProp12);
 
     //BAR
-    Collection<PropertyInfo> parentBarProperties = new ArrayList<PropertyInfo>();
+    Collection<PropertyInfo> parentBarProperties = new ArrayList<>();
     PropertyInfo parentProp2 = new PropertyInfo();
     parentProp2.setName("parentName2");
     parentProp2.setValue("parentVal2");
     parentBarProperties.add(parentProp2);
 
     //OTHER
-    Collection<PropertyInfo> parentOtherProperties = new ArrayList<PropertyInfo>();
+    Collection<PropertyInfo> parentOtherProperties = new ArrayList<>();
     PropertyInfo parentProp3 = new PropertyInfo();
     parentProp3.setName("parentName3");
     parentProp3.setValue("parentVal3");
@@ -718,7 +751,7 @@ public class ServiceModuleTest {
     ConfigurationModule parentConfigModule1 = createConfigurationModule("FOO", parentFooProperties);
     ConfigurationModule parentConfigModule2 = createConfigurationModule("BAR", parentBarProperties);
     ConfigurationModule parentConfigModule3 = createConfigurationModule("OTHER", parentOtherProperties);
-    Collection<ConfigurationModule> parentModules = new ArrayList<ConfigurationModule>();
+    Collection<ConfigurationModule> parentModules = new ArrayList<>();
     parentModules.add(parentConfigModule1);
     parentModules.add(parentConfigModule2);
     parentModules.add(parentConfigModule3);
@@ -734,7 +767,7 @@ public class ServiceModuleTest {
     List<PropertyInfo> mergedProperties = child.getModuleInfo().getProperties();
     assertEquals(4, mergedProperties.size());
 
-    Map<String, PropertyInfo> mergedPropertyMap = new HashMap<String, PropertyInfo>();
+    Map<String, PropertyInfo> mergedPropertyMap = new HashMap<>();
     for (PropertyInfo prop : mergedProperties) {
       mergedPropertyMap.put(prop.getName(), prop);
     }
@@ -749,14 +782,14 @@ public class ServiceModuleTest {
     Map<String, Map<String, Map<String, String>>> parentAttributes = parent.getModuleInfo().getConfigTypeAttributes();
 
     assertEquals(3, childAttributes.size());
-    assertAttributes(childAttributes.get("FOO"), Collections.<String, String>emptyMap());
+    assertAttributes(childAttributes.get("FOO"), Collections.emptyMap());
     assertAttributes(childAttributes.get("BAR"), attributes);
-    assertAttributes(childAttributes.get("OTHER"), Collections.<String, String>emptyMap());
+    assertAttributes(childAttributes.get("OTHER"), Collections.emptyMap());
 
     assertEquals(3, parentAttributes.size());
-    assertAttributes(parentAttributes.get("FOO"), Collections.<String, String>emptyMap());
-    assertAttributes(parentAttributes.get("BAR"), Collections.<String, String>emptyMap());
-    assertAttributes(parentAttributes.get("OTHER"), Collections.<String, String>emptyMap());
+    assertAttributes(parentAttributes.get("FOO"), Collections.emptyMap());
+    assertAttributes(parentAttributes.get("BAR"), Collections.emptyMap());
+    assertAttributes(parentAttributes.get("OTHER"), Collections.emptyMap());
   }
 
   @Test
@@ -785,39 +818,39 @@ public class ServiceModuleTest {
 
     // child configurations
     //FOO
-    Collection<PropertyInfo> childFooProperties = new ArrayList<PropertyInfo>();
+    Collection<PropertyInfo> childFooProperties = new ArrayList<>();
     PropertyInfo childProp1 = new PropertyInfo();
     childProp1.setName("childName1");
     childProp1.setValue("childVal1");
     childFooProperties.add(childProp1);
 
     // add attributes for parent FOO
-    Map<String, String> childFooAttributes = new HashMap<String, String>();
+    Map<String, String> childFooAttributes = new HashMap<>();
     // override parents value
     childFooAttributes.put(ConfigurationInfo.Supports.ADDING_FORBIDDEN.getXmlAttributeName(), "false");
 
     // create child config modules
     ConfigurationModule childConfigModule1 = createConfigurationModule("FOO", childFooProperties, childFooAttributes);
-    Collection<ConfigurationModule> childModules = new ArrayList<ConfigurationModule>();
+    Collection<ConfigurationModule> childModules = new ArrayList<>();
     childModules.add(childConfigModule1);
 
     // parent configurations
     //FOO
-    Collection<PropertyInfo> parentFooProperties = new ArrayList<PropertyInfo>();
+    Collection<PropertyInfo> parentFooProperties = new ArrayList<>();
     PropertyInfo parentProp1 = new PropertyInfo();
     parentProp1.setName("parentName1");
     parentProp1.setValue("parentVal1");
     parentFooProperties.add(parentProp1);
 
     // add attributes for parent FOO
-    Map<String, String> parentFooAttributes = new HashMap<String, String>();
+    Map<String, String> parentFooAttributes = new HashMap<>();
     // child will inherit
     parentFooAttributes.put(ConfigurationInfo.Supports.FINAL.getXmlAttributeName(), "true");
     // child will override
     parentFooAttributes.put(ConfigurationInfo.Supports.ADDING_FORBIDDEN.getXmlAttributeName(), "true");
 
     //BAR
-    Collection<PropertyInfo> parentBarProperties = new ArrayList<PropertyInfo>();
+    Collection<PropertyInfo> parentBarProperties = new ArrayList<>();
     PropertyInfo parentProp2 = new PropertyInfo();
     parentProp2.setName("parentName2");
     parentProp2.setValue("parentVal2");
@@ -827,7 +860,7 @@ public class ServiceModuleTest {
     // create parent config modules
     ConfigurationModule parentConfigModule1 = createConfigurationModule("FOO", parentFooProperties, parentFooAttributes);
     ConfigurationModule parentConfigModule2 = createConfigurationModule("BAR", parentBarProperties);
-    Collection<ConfigurationModule> parentModules = new ArrayList<ConfigurationModule>();
+    Collection<ConfigurationModule> parentModules = new ArrayList<>();
     parentModules.add(parentConfigModule1);
     parentModules.add(parentConfigModule2);
 
@@ -855,7 +888,7 @@ public class ServiceModuleTest {
 
     assertEquals(2, parentTypeAttributes.size());
     assertAttributes(parentTypeAttributes.get("FOO"), parentFooAttributes);
-    assertAttributes(parentTypeAttributes.get("BAR"), Collections.<String, String>emptyMap());
+    assertAttributes(parentTypeAttributes.get("BAR"), Collections.emptyMap());
   }
 
   @Test
@@ -864,7 +897,7 @@ public class ServiceModuleTest {
     info.setExcludedConfigTypes(Collections.singleton("BAR"));
 
     //FOO
-    Collection<PropertyInfo> fooProperties = new ArrayList<PropertyInfo>();
+    Collection<PropertyInfo> fooProperties = new ArrayList<>();
     PropertyInfo prop1 = new PropertyInfo();
     prop1.setName("name1");
     prop1.setValue("val1");
@@ -875,14 +908,14 @@ public class ServiceModuleTest {
     fooProperties.add(prop2);
 
     //BAR
-    Collection<PropertyInfo> barProperties = new ArrayList<PropertyInfo>();
+    Collection<PropertyInfo> barProperties = new ArrayList<>();
     PropertyInfo prop3 = new PropertyInfo();
     prop3.setName("name1");
     prop3.setValue("val3");
     barProperties.add(prop3);
 
     //OTHER
-    Collection<PropertyInfo> otherProperties = new ArrayList<PropertyInfo>();
+    Collection<PropertyInfo> otherProperties = new ArrayList<>();
     PropertyInfo prop4 = new PropertyInfo();
     prop4.setName("name1");
     prop4.setValue("val4");
@@ -891,7 +924,7 @@ public class ServiceModuleTest {
     ConfigurationModule configModule1 = createConfigurationModule("FOO", fooProperties);
     ConfigurationModule configModule2 = createConfigurationModule("BAR", barProperties);
     ConfigurationModule configModule3 = createConfigurationModule("OTHER", otherProperties);
-    Collection<ConfigurationModule> configModules = new ArrayList<ConfigurationModule>();
+    Collection<ConfigurationModule> configModules = new ArrayList<>();
     configModules.add(configModule1);
     configModules.add(configModule2);
     configModules.add(configModule3);
@@ -914,7 +947,7 @@ public class ServiceModuleTest {
     info.setExcludedConfigTypes(Collections.singleton("BAR"));
 
     //FOO
-    Collection<PropertyInfo> fooProperties = new ArrayList<PropertyInfo>();
+    Collection<PropertyInfo> fooProperties = new ArrayList<>();
     PropertyInfo prop1 = new PropertyInfo();
     prop1.setName("name1");
     prop1.setValue("val1");
@@ -925,21 +958,21 @@ public class ServiceModuleTest {
     fooProperties.add(prop2);
 
     ConfigurationModule childConfigModule = createConfigurationModule("FOO", fooProperties);
-    Collection<ConfigurationModule> childConfigModules = new ArrayList<ConfigurationModule>();
+    Collection<ConfigurationModule> childConfigModules = new ArrayList<>();
     childConfigModules.add(childConfigModule);
 
     // parent
     ServiceInfo parentInfo = new ServiceInfo();
 
     //BAR
-    Collection<PropertyInfo> barProperties = new ArrayList<PropertyInfo>();
+    Collection<PropertyInfo> barProperties = new ArrayList<>();
     PropertyInfo prop3 = new PropertyInfo();
     prop3.setName("name1");
     prop3.setValue("val3");
     barProperties.add(prop3);
 
     ConfigurationModule parentConfigModule = createConfigurationModule("BAR", barProperties);
-    Collection<ConfigurationModule> parentConfigModules = new ArrayList<ConfigurationModule>();
+    Collection<ConfigurationModule> parentConfigModules = new ArrayList<>();
     parentConfigModules.add(parentConfigModule);
 
     // create service modules
@@ -964,29 +997,29 @@ public class ServiceModuleTest {
   public void testMerge_Configuration__ExcludedTypes() throws Exception {
     // child
     ServiceInfo info = new ServiceInfo();
-    Set<String> childExcludedConfigTypes = new HashSet<String>();
+    Set<String> childExcludedConfigTypes = new HashSet<>();
     childExcludedConfigTypes.add("FOO");
     info.setExcludedConfigTypes(childExcludedConfigTypes);
 
     //FOO
-    Collection<PropertyInfo> fooProperties = new ArrayList<PropertyInfo>();
+    Collection<PropertyInfo> fooProperties = new ArrayList<>();
 
     ConfigurationModule childConfigModule = createConfigurationModule("FOO", fooProperties);
-    Collection<ConfigurationModule> childConfigModules = new ArrayList<ConfigurationModule>();
+    Collection<ConfigurationModule> childConfigModules = new ArrayList<>();
     childConfigModules.add(childConfigModule);
 
     // parent
     ServiceInfo parentInfo = new ServiceInfo();
-    Set<String> parentExcludedConfigTypes = new HashSet<String>();
+    Set<String> parentExcludedConfigTypes = new HashSet<>();
     childExcludedConfigTypes.add("BAR");
     info.setExcludedConfigTypes(childExcludedConfigTypes);
     parentInfo.setExcludedConfigTypes(parentExcludedConfigTypes);
     //BAR
-    Collection<PropertyInfo> barProperties = new ArrayList<PropertyInfo>();
+    Collection<PropertyInfo> barProperties = new ArrayList<>();
 
 
     ConfigurationModule parentConfigModule = createConfigurationModule("BAR", barProperties);
-    Collection<ConfigurationModule> parentConfigModules = new ArrayList<ConfigurationModule>();
+    Collection<ConfigurationModule> parentConfigModules = new ArrayList<>();
     parentConfigModules.add(parentConfigModule);
 
     // create service modules
@@ -1037,6 +1070,59 @@ public class ServiceModuleTest {
     assertEquals(credentialStoreInfoChild.isEnabled(), service.getModuleInfo().isCredentialStoreEnabled());
     assertEquals(credentialStoreInfoChild.isRequired(), service.getModuleInfo().isCredentialStoreRequired());
   }
+  /**
+   * Verify stack resolution for single sign-on details
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testResolve_SingleSignOnInfo() throws Exception {
+    SingleSignOnInfo singleSignOnInfoChild = new SingleSignOnInfo(false, null, true);
+    SingleSignOnInfo singleSignOnInfoParent = new SingleSignOnInfo(true, "config-type/property_name", false);
+    ServiceInfo childInfo = new ServiceInfo();
+    ServiceInfo parentInfo = new ServiceInfo();
+    ServiceModule serviceModule;
+    ServiceInfo serviceInfo;
+
+    // specified in child only, child wins
+    childInfo.setSingleSignOnInfo(singleSignOnInfoChild);
+    parentInfo.setSingleSignOnInfo(null);
+    serviceModule = resolveService(childInfo, parentInfo);
+    serviceInfo = serviceModule.getModuleInfo();
+    assertEquals(singleSignOnInfoChild.isSupported(), serviceInfo.isSingleSignOnSupported());
+    assertEquals(singleSignOnInfoChild.isSupported(), serviceInfo.getSingleSignOnInfo().isSupported());
+    assertEquals(singleSignOnInfoChild.getSupported(), serviceInfo.getSingleSignOnInfo().getSupported());
+    assertEquals(singleSignOnInfoChild.getEnabledConfiguration(), serviceInfo.getSingleSignOnInfo().getEnabledConfiguration());
+    assertEquals(singleSignOnInfoChild.getSsoEnabledTest(), serviceInfo.getSingleSignOnInfo().getSsoEnabledTest());
+    assertEquals(singleSignOnInfoChild.isKerberosRequired(), serviceInfo.isKerberosRequiredForSingleSignOnIntegration());
+    assertEquals(singleSignOnInfoChild.isKerberosRequired(), serviceInfo.getSingleSignOnInfo().isKerberosRequired());
+
+    // specified in parent only, parent wins
+    childInfo.setSingleSignOnInfo(null);
+    parentInfo.setSingleSignOnInfo(singleSignOnInfoParent);
+    serviceModule = resolveService(childInfo, parentInfo);
+    serviceInfo = serviceModule.getModuleInfo();
+    assertEquals(singleSignOnInfoParent.isSupported(), serviceInfo.isSingleSignOnSupported());
+    assertEquals(singleSignOnInfoParent.isSupported(), serviceInfo.getSingleSignOnInfo().isSupported());
+    assertEquals(singleSignOnInfoParent.getSupported(), serviceInfo.getSingleSignOnInfo().getSupported());
+    assertEquals(singleSignOnInfoParent.getEnabledConfiguration(), serviceInfo.getSingleSignOnInfo().getEnabledConfiguration());
+    assertEquals(singleSignOnInfoParent.getSsoEnabledTest(), serviceInfo.getSingleSignOnInfo().getSsoEnabledTest());
+    assertEquals(singleSignOnInfoParent.isKerberosRequired(), serviceInfo.isKerberosRequiredForSingleSignOnIntegration());
+    assertEquals(singleSignOnInfoParent.isKerberosRequired(), serviceInfo.getSingleSignOnInfo().isKerberosRequired());
+
+    // specified in both, child wins
+    childInfo.setSingleSignOnInfo(singleSignOnInfoChild);
+    parentInfo.setSingleSignOnInfo(singleSignOnInfoParent);
+    serviceModule = resolveService(childInfo, parentInfo);
+    serviceInfo = serviceModule.getModuleInfo();
+    assertEquals(singleSignOnInfoChild.isSupported(), serviceInfo.isSingleSignOnSupported());
+    assertEquals(singleSignOnInfoChild.isSupported(), serviceInfo.getSingleSignOnInfo().isSupported());
+    assertEquals(singleSignOnInfoChild.getSupported(), serviceInfo.getSingleSignOnInfo().getSupported());
+    assertEquals(singleSignOnInfoChild.getEnabledConfiguration(), serviceInfo.getSingleSignOnInfo().getEnabledConfiguration());
+    assertEquals(singleSignOnInfoChild.getSsoEnabledTest(), serviceInfo.getSingleSignOnInfo().getSsoEnabledTest());
+    assertEquals(singleSignOnInfoChild.isKerberosRequired(), serviceInfo.isKerberosRequiredForSingleSignOnIntegration());
+    assertEquals(singleSignOnInfoChild.isKerberosRequired(), serviceInfo.getSingleSignOnInfo().isKerberosRequired());
+  }
 
   @Test
   public void testServiceCheckRegistered() throws Exception {
@@ -1045,7 +1131,7 @@ public class ServiceModuleTest {
     info.setCommandScript(createNiceMock(CommandScriptDefinition.class));
 
     StackContext context = createStackContext(info.getName(), true);
-    ServiceModule service = createServiceModule(info, Collections.<ConfigurationModule>emptySet(), context);
+    ServiceModule service = createServiceModule(info, Collections.emptySet(), context);
     service.finalizeModule();
 
     verify(context);
@@ -1059,7 +1145,7 @@ public class ServiceModuleTest {
     info.setDeleted(true);
 
     StackContext context = createStackContext(info.getName(), false);
-    ServiceModule service = createServiceModule(info, Collections.<ConfigurationModule>emptySet(), context);
+    ServiceModule service = createServiceModule(info, Collections.emptySet(), context);
     service.finalizeModule();
 
     verify(context);
@@ -1221,8 +1307,8 @@ public class ServiceModuleTest {
 
     StackContext context = createStackContext(serviceInfo.getName(), true);
     // no config props
-    ConfigurationInfo configInfo = createConfigurationInfo(Collections.<PropertyInfo>emptyList(),
-        Collections.<String, String>emptyMap());
+    ConfigurationInfo configInfo = createConfigurationInfo(Collections.emptyList(),
+        Collections.emptyMap());
 
     ConfigurationModule module = createConfigurationModule(configType, configInfo);
     ConfigurationDirectory configDirectory = createConfigurationDirectory(Collections.singletonList(module));
@@ -1290,7 +1376,7 @@ public class ServiceModuleTest {
   }
 
   private ConfigurationModule createConfigurationModule(String configType, Collection<PropertyInfo> properties) {
-    ConfigurationInfo info = new ConfigurationInfo(properties, Collections.<String, String>emptyMap());
+    ConfigurationInfo info = new ConfigurationInfo(properties, Collections.emptyMap());
     return new ConfigurationModule(configType, info);
   }
 
@@ -1328,7 +1414,7 @@ public class ServiceModuleTest {
   }
 
   private void resolveService(ServiceModule service, ServiceModule parent) throws AmbariException {
-    service.resolve(parent, Collections.<String, StackModule>emptyMap(), Collections.<String, ServiceModule>emptyMap(), Collections.<String, ExtensionModule>emptyMap());
+    service.resolve(parent, Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap());
     // during runtime this would be called by the Stack module when it's resolve completed
     service.finalizeModule();
     parent.finalizeModule();

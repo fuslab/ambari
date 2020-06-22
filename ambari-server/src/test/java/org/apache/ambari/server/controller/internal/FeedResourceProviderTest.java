@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,19 @@
 package org.apache.ambari.server.controller.internal;
 
 
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.verify;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.ivory.Feed;
 import org.apache.ambari.server.controller.ivory.IvoryService;
 import org.apache.ambari.server.controller.spi.Predicate;
@@ -29,13 +42,6 @@ import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.*;
-
-import static org.easymock.EasyMock.createMock;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.verify;
-
 /**
  * Tests for FeedResourceProvider.
  */
@@ -44,9 +50,9 @@ public class FeedResourceProviderTest {
   public void testCreateResources() throws Exception {
     IvoryService service = createMock(IvoryService.class);
 
-    Set<Map<String, Object>> propertySet = new HashSet<Map<String, Object>>();
+    Set<Map<String, Object>> propertySet = new HashSet<>();
 
-    Map<String, Object> properties = new HashMap<String, Object>();
+    Map<String, Object> properties = new HashMap<>();
 
     properties.put(FeedResourceProvider.FEED_NAME_PROPERTY_ID, "Feed1");
     properties.put(FeedResourceProvider.FEED_DESCRIPTION_PROPERTY_ID, "desc");
@@ -63,11 +69,9 @@ public class FeedResourceProviderTest {
 
     propertySet.add(properties);
 
-    Request request = PropertyHelper.getCreateRequest(propertySet, Collections.<String,String>emptyMap());
+    Request request = PropertyHelper.getCreateRequest(propertySet, Collections.emptyMap());
 
-    FeedResourceProvider provider = new FeedResourceProvider(service,
-        PropertyHelper.getPropertyIds(Resource.Type.DRFeed),
-        PropertyHelper.getKeyPropertyIds(Resource.Type.DRFeed));
+    FeedResourceProvider provider = new FeedResourceProvider(service);
 
     provider.createResources(request);
 
@@ -79,16 +83,16 @@ public class FeedResourceProviderTest {
   public void testGetResources() throws Exception {
     IvoryService service = createMock(IvoryService.class);
 
-    Set<Map<String, Object>> propertySet = new HashSet<Map<String, Object>>();
+    Set<Map<String, Object>> propertySet = new HashSet<>();
 
-    Map<String, Object> properties = new HashMap<String, Object>();
+    Map<String, Object> properties = new HashMap<>();
 
-    List<String> feedNames = new LinkedList<String>();
+    List<String> feedNames = new LinkedList<>();
     feedNames.add("Feed1");
     feedNames.add("Feed2");
     feedNames.add("Feed3");
 
-    Map<String,String> props = new HashMap<String, String>();
+    Map<String,String> props = new HashMap<>();
 
     Feed feed1 = new Feed("Feed1", "d", "s", "sch", "source", "st", "end", "l", "a", "target", "st", "end", "l", "a", props);
     Feed feed2 = new Feed("Feed2", "d", "s", "sch", "source", "st", "end", "l", "a", "target", "st", "end", "l", "a", props);
@@ -106,11 +110,9 @@ public class FeedResourceProviderTest {
 
     propertySet.add(properties);
 
-    Request request = PropertyHelper.getCreateRequest(propertySet, Collections.<String,String>emptyMap());
+    Request request = PropertyHelper.getCreateRequest(propertySet, Collections.emptyMap());
 
-    FeedResourceProvider provider = new FeedResourceProvider(service,
-        PropertyHelper.getPropertyIds(Resource.Type.DRFeed),
-        PropertyHelper.getKeyPropertyIds(Resource.Type.DRFeed));
+    FeedResourceProvider provider = new FeedResourceProvider(service);
 
     Set<Resource> resources = provider.getResources(request, null);
 
@@ -124,9 +126,9 @@ public class FeedResourceProviderTest {
   public void testUpdateResources() throws Exception {
     IvoryService service = createMock(IvoryService.class);
 
-    Set<Map<String, Object>> propertySet = new HashSet<Map<String, Object>>();
+    Set<Map<String, Object>> propertySet = new HashSet<>();
 
-    Map<String, Object> properties = new HashMap<String, Object>();
+    Map<String, Object> properties = new HashMap<>();
 
     properties.put(FeedResourceProvider.FEED_NAME_PROPERTY_ID, "Feed1");
     properties.put(FeedResourceProvider.FEED_DESCRIPTION_PROPERTY_ID, "desc");
@@ -135,10 +137,10 @@ public class FeedResourceProviderTest {
     properties.put(FeedResourceProvider.FEED_SOURCE_CLUSTER_NAME_PROPERTY_ID, "source");
     properties.put(FeedResourceProvider.FEED_TARGET_CLUSTER_NAME_PROPERTY_ID, "target");
 
-    List<String> feedNames = new LinkedList<String>();
+    List<String> feedNames = new LinkedList<>();
     feedNames.add("Feed1");
 
-    Map<String,String> props = new HashMap<String, String>();
+    Map<String,String> props = new HashMap<>();
 
     Feed feed1 = new Feed("Feed1", "desc", "WAITING", "sched", "source", "st", "end", "l", "a", "target", "st", "end", "l", "a", props);
 
@@ -154,11 +156,9 @@ public class FeedResourceProviderTest {
 
     propertySet.add(properties);
 
-    Request request = PropertyHelper.getCreateRequest(propertySet, Collections.<String,String>emptyMap());
+    Request request = PropertyHelper.getCreateRequest(propertySet, Collections.emptyMap());
 
-    FeedResourceProvider provider = new FeedResourceProvider(service,
-        PropertyHelper.getPropertyIds(Resource.Type.DRFeed),
-        PropertyHelper.getKeyPropertyIds(Resource.Type.DRFeed));
+    FeedResourceProvider provider = new FeedResourceProvider(service);
 
     provider.updateResources(request, null);
 
@@ -170,10 +170,10 @@ public class FeedResourceProviderTest {
   public void testDeleteResources() throws Exception {
     IvoryService service = createMock(IvoryService.class);
 
-    List<String> feedNames = new LinkedList<String>();
+    List<String> feedNames = new LinkedList<>();
     feedNames.add("Feed1");
 
-    Map<String,String> props = new HashMap<String, String>();
+    Map<String,String> props = new HashMap<>();
 
     Feed feed1 = new Feed("Feed1", "d", "s", "sch", "source", "st", "end", "l", "a", "target", "st", "end", "l", "a", props);
 
@@ -187,9 +187,7 @@ public class FeedResourceProviderTest {
     // replay
     replay(service);
 
-    FeedResourceProvider provider = new FeedResourceProvider(service,
-        PropertyHelper.getPropertyIds(Resource.Type.DRFeed),
-        PropertyHelper.getKeyPropertyIds(Resource.Type.DRFeed));
+    FeedResourceProvider provider = new FeedResourceProvider(service);
 
     Predicate predicate = new PredicateBuilder().property(FeedResourceProvider.FEED_NAME_PROPERTY_ID).equals("Feed1").toPredicate();
 
@@ -197,18 +195,5 @@ public class FeedResourceProviderTest {
 
     // verify
     verify(service);
-  }
-
-  @Test
-  public void testGetKeyPropertyIds() throws Exception {
-    IvoryService service = createMock(IvoryService.class);
-
-    Map<Resource.Type, String> keyPropertyIds = PropertyHelper.getKeyPropertyIds(Resource.Type.DRFeed);
-
-    FeedResourceProvider provider = new FeedResourceProvider(service,
-        PropertyHelper.getPropertyIds(Resource.Type.DRFeed),
-        keyPropertyIds);
-
-    Assert.assertEquals(keyPropertyIds, provider.getKeyPropertyIds());
   }
 }

@@ -18,16 +18,16 @@
 
 package org.apache.ambari.server.controller.utilities;
 
-import org.apache.ambari.server.AmbariException;
-import org.apache.ambari.server.configuration.Configuration;
-import org.easymock.EasyMockSupport;
-import org.junit.Test;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
 
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
 
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.expectLastCall;
+import org.apache.ambari.server.AmbariException;
+import org.apache.ambari.server.configuration.Configuration;
+import org.easymock.EasyMockSupport;
+import org.junit.Test;
 
 public class KerberosCheckerTest extends EasyMockSupport {
 

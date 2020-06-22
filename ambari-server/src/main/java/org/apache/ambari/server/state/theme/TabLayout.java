@@ -18,28 +18,31 @@
 
 package org.apache.ambari.server.state.theme;
 
-
-
-import org.codehaus.jackson.annotate.JsonIgnoreProperties;
-import org.codehaus.jackson.annotate.JsonProperty;
-import org.codehaus.jackson.map.annotate.JsonSerialize;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.codehaus.jackson.annotate.JsonIgnoreProperties;
+import org.codehaus.jackson.annotate.JsonProperty;
+import org.codehaus.jackson.map.annotate.JsonSerialize;
+
+import io.swagger.annotations.ApiModelProperty;
 
 @JsonSerialize(include= JsonSerialize.Inclusion.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class TabLayout {
+
 	@JsonProperty("tab-rows")
 	private String tabRows;
+
 	@JsonProperty("sections")
 	private List<Section> sections;
+
 	@JsonProperty("tab-columns")
 	private String tabColumns;
 
+  @ApiModelProperty(name = "tab-rows")
   public String getTabRows() {
     return tabRows;
   }
@@ -48,6 +51,7 @@ public class TabLayout {
     this.tabRows = tabRows;
   }
 
+  @ApiModelProperty(name = "sections")
   public List<Section> getSections() {
     return sections;
   }
@@ -56,6 +60,7 @@ public class TabLayout {
     this.sections = sections;
   }
 
+  @ApiModelProperty(name = "tab-columns")
   public String getTabColumns() {
     return tabColumns;
   }
@@ -81,7 +86,7 @@ public class TabLayout {
   }
 
   private List<Section> mergedSections(List<Section> parentSections, List<Section> childSections) {
-    Map<String, Section> mergedSections = new HashMap<String, Section>();
+    Map<String, Section> mergedSections = new HashMap<>();
     for (Section parentSection : parentSections) {
       mergedSections.put(parentSection.getName(), parentSection);
     }
@@ -101,7 +106,7 @@ public class TabLayout {
         }
       }
     }
-    return new ArrayList<Section>(mergedSections.values());
+    return new ArrayList<>(mergedSections.values());
 
   }
 }

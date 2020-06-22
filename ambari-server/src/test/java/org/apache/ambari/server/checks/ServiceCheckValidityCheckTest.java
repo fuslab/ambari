@@ -28,6 +28,7 @@ import java.util.Collections;
 
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.Role;
+import org.apache.ambari.server.api.services.AmbariMetaInfo;
 import org.apache.ambari.server.controller.PrereqCheckRequest;
 import org.apache.ambari.server.metadata.ActionMetadata;
 import org.apache.ambari.server.orm.dao.HostRoleCommandDAO;
@@ -39,11 +40,13 @@ import org.apache.ambari.server.state.Clusters;
 import org.apache.ambari.server.state.MaintenanceState;
 import org.apache.ambari.server.state.Service;
 import org.apache.ambari.server.state.ServiceComponent;
+import org.apache.ambari.server.state.StackId;
 import org.apache.ambari.server.state.stack.PrereqCheckStatus;
 import org.apache.ambari.server.state.stack.PrerequisiteCheck;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Provider;
@@ -60,6 +63,7 @@ public class ServiceCheckValidityCheckTest {
   private ServiceConfigDAO serviceConfigDAO;
   private HostRoleCommandDAO hostRoleCommandDAO;
   private Service service;
+  private AmbariMetaInfo ambariMetaInfo;
   private ActionMetadata actionMetadata;
 
   @Before
@@ -68,6 +72,7 @@ public class ServiceCheckValidityCheckTest {
     service = mock(Service.class);
     serviceConfigDAO = mock(ServiceConfigDAO.class);
     hostRoleCommandDAO = mock(HostRoleCommandDAO.class);
+    ambariMetaInfo = mock(AmbariMetaInfo.class);
     actionMetadata = new ActionMetadata();
 
     serviceCheckValidityCheck = new ServiceCheckValidityCheck();
@@ -100,8 +105,20 @@ public class ServiceCheckValidityCheckTest {
     when(clusters.getCluster(CLUSTER_NAME)).thenReturn(cluster);
     when(cluster.getClusterId()).thenReturn(CLUSTER_ID);
     when(cluster.getServices()).thenReturn(ImmutableMap.of(SERVICE_NAME, service));
-
+    when(cluster.getCurrentStackVersion()).thenReturn(new StackId("HDP", "2.2"));
     when(service.getName()).thenReturn(SERVICE_NAME);
+    when(service.getDesiredStackId()).thenReturn(new StackId("HDP", "2.2"));
+
+
+    serviceCheckValidityCheck.ambariMetaInfo = new Provider<AmbariMetaInfo>() {
+      @Override
+      public AmbariMetaInfo get() {
+        return ambariMetaInfo;
+      }
+    };
+
+    when(ambariMetaInfo.isServiceWithNoConfigs(Mockito.anyString(), Mockito.anyString(),
+        Mockito.anyString())).thenReturn(false);
 
     actionMetadata.addServiceCheckAction("HDFS");
   }

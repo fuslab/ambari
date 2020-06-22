@@ -18,11 +18,21 @@
 
 package org.apache.ambari.server.serveraction.kerberos;
 
-import com.google.inject.AbstractModule;
-import com.google.inject.Guice;
-import com.google.inject.Injector;
+import static org.easymock.EasyMock.anyObject;
+import static org.easymock.EasyMock.anyString;
+import static org.easymock.EasyMock.eq;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
 
-import junit.framework.Assert;
+import java.io.File;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+
+import javax.persistence.EntityManager;
 
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.actionmanager.HostRoleCommand;
@@ -32,75 +42,106 @@ import org.apache.ambari.server.agent.ExecutionCommand;
 import org.apache.ambari.server.audit.AuditLogger;
 import org.apache.ambari.server.controller.KerberosHelper;
 import org.apache.ambari.server.security.credential.PrincipalKeyCredential;
+import org.apache.ambari.server.serveraction.kerberos.stageutils.KerberosKeytabController;
+import org.apache.ambari.server.serveraction.kerberos.stageutils.ResolvedKerberosKeytab;
+import org.apache.ambari.server.serveraction.kerberos.stageutils.ResolvedKerberosPrincipal;
 import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.Clusters;
+import org.apache.ambari.server.state.Config;
+import org.apache.ambari.server.state.kerberos.KerberosIdentityDescriptor;
 import org.apache.ambari.server.state.stack.OsFamily;
-import org.easymock.EasyMock;
+import org.easymock.EasyMockSupport;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.File;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import com.google.common.collect.Sets;
+import com.google.inject.AbstractModule;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
 
-import static org.easymock.EasyMock.*;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import junit.framework.Assert;
 
-public class KerberosServerActionTest {
+public class KerberosServerActionTest extends EasyMockSupport {
 
-  Map<String, String> commandParams = new HashMap<String, String>();
+  private  static final Map<String, String> KERBEROS_ENV_PROPERTIES = Collections.singletonMap("admin_server_host", "kdc.example.com");
+
+  Map<String, String> commandParams = new HashMap<>();
   File temporaryDirectory;
   private Injector injector;
   private KerberosServerAction action;
+  private Cluster cluster;
+  private KerberosKeytabController kerberosKeytabController;
 
   @Before
   public void setUp() throws Exception {
-    final Cluster cluster = mock(Cluster.class);
+    Config kerberosEnvConfig = createMock(Config.class);
+    expect(kerberosEnvConfig.getProperties()).andReturn(KERBEROS_ENV_PROPERTIES).anyTimes();
 
-    final Clusters clusters = mock(Clusters.class);
-    when(clusters.getCluster(anyString())).thenReturn(cluster);
+    cluster = createMock(Cluster.class);
+    expect(cluster.getDesiredConfigByType("kerberos-env")).andReturn(kerberosEnvConfig).anyTimes();
 
-    final ExecutionCommand mockExecutionCommand = mock(ExecutionCommand.class);
-    final HostRoleCommand mockHostRoleCommand = mock(HostRoleCommand.class);
+    Clusters clusters = createMock(Clusters.class);
+    expect(clusters.getCluster(anyString())).andReturn(cluster).anyTimes();
+
+    ExecutionCommand mockExecutionCommand = createMock(ExecutionCommand.class);
+    HostRoleCommand mockHostRoleCommand = createMock(HostRoleCommand.class);
+    kerberosKeytabController = createMock(KerberosKeytabController.class);
+    expect(kerberosKeytabController.adjustServiceComponentFilter(anyObject(), eq(true), anyObject())).andReturn(null).anyTimes();
+    expect(kerberosKeytabController.getFilteredKeytabs((Collection<KerberosIdentityDescriptor>)null, null, null))
+      .andReturn(
+        Sets.newHashSet(new ResolvedKerberosKeytab(
+          null,
+          null,
+          null,
+          null,
+          null,
+          Sets.newHashSet(new ResolvedKerberosPrincipal(1l, "host", "principal", true, "/tmp", "SERVICE", "COMPONENT", "/tmp")),
+          true,
+          true))
+      ).anyTimes();
+
+    action = new KerberosServerAction() {
+
+      @Override
+      protected CommandReport processIdentity(ResolvedKerberosPrincipal resolvedPrincipal,
+                                              KerberosOperationHandler operationHandler,
+                                              Map<String, String> kerberosConfiguration,
+                                              boolean includedInFilter,
+                                              Map<String, Object> requestSharedDataContext)
+          throws AmbariException {
+        Assert.assertNotNull(requestSharedDataContext);
+
+        if (requestSharedDataContext.get("FAIL") != null) {
+          return createCommandReport(1, HostRoleStatus.FAILED, "{}", "ERROR", "ERROR");
+        } else {
+          requestSharedDataContext.put(resolvedPrincipal.getPrincipal(), resolvedPrincipal.getPrincipal());
+          return null;
+        }
+      }
+
+      @Override
+      public CommandReport execute(ConcurrentMap<String, Object> requestSharedDataContext)
+          throws AmbariException, InterruptedException {
+        return processIdentities(requestSharedDataContext);
+      }
+    };
+    action.setExecutionCommand(mockExecutionCommand);
+    action.setHostRoleCommand(mockHostRoleCommand);
 
     injector = Guice.createInjector(new AbstractModule() {
 
       @Override
       protected void configure() {
-        bind(KerberosHelper.class).toInstance(createNiceMock(KerberosHelper.class));
-        bind(KerberosServerAction.class).toInstance(new KerberosServerAction() {
-
-          @Override
-          protected CommandReport processIdentity(Map<String, String> identityRecord, String evaluatedPrincipal,
-                                                  KerberosOperationHandler operationHandler,
-                                                  Map<String, String> kerberosConfiguration,
-                                                  Map<String, Object> requestSharedDataContext)
-              throws AmbariException {
-            Assert.assertNotNull(requestSharedDataContext);
-
-            if (requestSharedDataContext.get("FAIL") != null) {
-              return createCommandReport(1, HostRoleStatus.FAILED, "{}", "ERROR", "ERROR");
-            } else {
-              requestSharedDataContext.put(identityRecord.get(KerberosIdentityDataFileReader.PRINCIPAL), evaluatedPrincipal);
-              return null;
-            }
-          }
-
-          @Override
-          public CommandReport execute(ConcurrentMap<String, Object> requestSharedDataContext)
-              throws AmbariException, InterruptedException {
-            return processIdentities(requestSharedDataContext);
-          }
-        });
+        bind(KerberosHelper.class).toInstance(createMock(KerberosHelper.class));
+        bind(KerberosServerAction.class).toInstance(action);
+        bind(EntityManager.class).toInstance(createNiceMock(EntityManager.class));
 
         bind(Clusters.class).toInstance(clusters);
         bind(OsFamily.class).toInstance(createNiceMock(OsFamily.class));
         bind(AuditLogger.class).toInstance(createNiceMock(AuditLogger.class));
+        bind(KerberosOperationHandlerFactory.class).toInstance(createMock(KerberosOperationHandlerFactory.class));
+        bind(KerberosKeytabController.class).toInstance(kerberosKeytabController);
       }
     });
 
@@ -117,7 +158,7 @@ public class KerberosServerActionTest {
           "principal|_HOST|_REALM" + i, "principal_type", "keytabFilePath" + i,
           "keytabFileOwnerName" + i, "keytabFileOwnerAccess" + i,
           "keytabFileGroupName" + i, "keytabFileGroupAccess" + i,
-          "false", "false");
+          "false");
     }
     writer.close();
 
@@ -125,13 +166,18 @@ public class KerberosServerActionTest {
     commandParams.put(KerberosServerAction.DEFAULT_REALM, "REALM.COM");
     commandParams.put(KerberosServerAction.KDC_TYPE, KDCType.MIT_KDC.toString());
 
-    when(mockExecutionCommand.getCommandParams()).thenReturn(commandParams);
-    when(mockExecutionCommand.getClusterName()).thenReturn("c1");
+    expect(mockExecutionCommand.getCommandParams()).andReturn(commandParams).anyTimes();
+    expect(mockExecutionCommand.getClusterName()).andReturn("c1").anyTimes();
+    expect(mockExecutionCommand.getClusterId()).andReturn("1").anyTimes();
+    expect(mockExecutionCommand.getConfigurations()).andReturn(Collections.emptyMap()).anyTimes();
+    expect(mockExecutionCommand.getRoleCommand()).andReturn(null).anyTimes();
+    expect(mockExecutionCommand.getConfigurationTags()).andReturn(null).anyTimes();
+    expect(mockExecutionCommand.getRole()).andReturn(null).anyTimes();
+    expect(mockExecutionCommand.getServiceName()).andReturn(null).anyTimes();
+    expect(mockExecutionCommand.getTaskId()).andReturn(1L).anyTimes();
 
-    action = injector.getInstance(KerberosServerAction.class);
-
-    action.setExecutionCommand(mockExecutionCommand);
-    action.setHostRoleCommand(mockHostRoleCommand);
+    expect(mockHostRoleCommand.getRequestId()).andReturn(1L).anyTimes();
+    expect(mockHostRoleCommand.getStageId()).andReturn(1L).anyTimes();
   }
 
   @After
@@ -166,8 +212,8 @@ public class KerberosServerActionTest {
 
   @Test
   public void testSetPrincipalPasswordMapStatic() throws Exception {
-    ConcurrentMap<String, Object> sharedMap = new ConcurrentHashMap<String, Object>();
-    Map<String, String> dataMap = new HashMap<String, String>();
+    ConcurrentMap<String, Object> sharedMap = new ConcurrentHashMap<>();
+    Map<String, String> dataMap = new HashMap<>();
 
     KerberosServerAction.setPrincipalPasswordMap(sharedMap, dataMap);
     Assert.assertSame(dataMap, KerberosServerAction.getPrincipalPasswordMap(sharedMap));
@@ -175,53 +221,95 @@ public class KerberosServerActionTest {
 
   @Test
   public void testGetPrincipalPasswordMapStatic() throws Exception {
-    ConcurrentMap<String, Object> sharedMap = new ConcurrentHashMap<String, Object>();
+    ConcurrentMap<String, Object> sharedMap = new ConcurrentHashMap<>();
     Assert.assertNotNull(KerberosServerAction.getPrincipalPasswordMap(sharedMap));
   }
 
   @Test
   public void testGetDataDirectoryPath() throws Exception {
+    replayAll();
     Assert.assertEquals(temporaryDirectory.getAbsolutePath(), action.getDataDirectoryPath());
+    verifyAll();
   }
 
   @Test
   public void testProcessIdentitiesSuccess() throws Exception {
     KerberosHelper kerberosHelper = injector.getInstance(KerberosHelper.class);
-    expect(kerberosHelper.getKDCAdministratorCredentials(EasyMock.anyObject(String.class)))
+    expect(kerberosHelper.getKDCAdministratorCredentials(anyObject(String.class)))
         .andReturn(new PrincipalKeyCredential("principal", "password"))
         .anyTimes();
 
-    replay(kerberosHelper);
+    KerberosOperationHandler kerberosOperationHandler = createMock(KerberosOperationHandler.class);
+    kerberosOperationHandler.open(anyObject(PrincipalKeyCredential.class), anyString(), anyObject(Map.class));
+    expectLastCall().atLeastOnce();
+    kerberosOperationHandler.close();
+    expectLastCall().atLeastOnce();
 
-    ConcurrentMap<String, Object> sharedMap = new ConcurrentHashMap<String, Object>();
+    KerberosOperationHandlerFactory factory = injector.getInstance(KerberosOperationHandlerFactory.class);
+    expect(factory.getKerberosOperationHandler(KDCType.MIT_KDC)).andReturn(kerberosOperationHandler).once();
+
+    replayAll();
+
+    ConcurrentMap<String, Object> sharedMap = new ConcurrentHashMap<>();
     CommandReport report = action.processIdentities(sharedMap);
     Assert.assertNotNull(report);
     Assert.assertEquals(HostRoleStatus.COMPLETED.toString(), report.getStatus());
 
     for (Map.Entry<String, Object> entry : sharedMap.entrySet()) {
-      Assert.assertEquals(entry.getValue(),
-          entry.getKey().replace("_HOST", "hostName").replace("_REALM", "REALM.COM"));
+      Assert.assertEquals(entry.getValue(), entry.getKey());
     }
 
-    verify(kerberosHelper);
+    verifyAll();
   }
 
   @Test
   public void testProcessIdentitiesFail() throws Exception {
     KerberosHelper kerberosHelper = injector.getInstance(KerberosHelper.class);
-    expect(kerberosHelper.getKDCAdministratorCredentials(EasyMock.anyObject(String.class)))
+    expect(kerberosHelper.getKDCAdministratorCredentials(anyObject(String.class)))
         .andReturn(new PrincipalKeyCredential("principal", "password"))
         .anyTimes();
 
-    replay(kerberosHelper);
+    KerberosOperationHandler kerberosOperationHandler = createMock(KerberosOperationHandler.class);
+    kerberosOperationHandler.open(anyObject(PrincipalKeyCredential.class), anyString(), anyObject(Map.class));
+    expectLastCall().atLeastOnce();
+    kerberosOperationHandler.close();
+    expectLastCall().atLeastOnce();
 
-    ConcurrentMap<String, Object> sharedMap = new ConcurrentHashMap<String, Object>();
+    KerberosOperationHandlerFactory factory = injector.getInstance(KerberosOperationHandlerFactory.class);
+    expect(factory.getKerberosOperationHandler(KDCType.MIT_KDC)).andReturn(kerberosOperationHandler).once();
+
+    replayAll();
+
+    ConcurrentMap<String, Object> sharedMap = new ConcurrentHashMap<>();
     sharedMap.put("FAIL", "true");
 
     CommandReport report = action.processIdentities(sharedMap);
     Assert.assertNotNull(report);
     Assert.assertEquals(HostRoleStatus.FAILED.toString(), report.getStatus());
 
-    verify(kerberosHelper);
+    verifyAll();
+  }
+
+  @Test
+  public void testGetConfigurationProperties() throws AmbariException {
+    Config emptyConfig = createMock(Config.class);
+    expect(emptyConfig.getProperties()).andReturn(Collections.emptyMap()).once();
+
+    Config missingPropertiesConfig = createMock(Config.class);
+    expect(missingPropertiesConfig.getProperties()).andReturn(null).once();
+
+    expect(cluster.getDesiredConfigByType("invalid-type")).andReturn(null).once();
+    expect(cluster.getDesiredConfigByType("missing-properties-type")).andReturn(missingPropertiesConfig).once();
+    expect(cluster.getDesiredConfigByType("empty-type")).andReturn(emptyConfig).once();
+
+    replayAll();
+
+    Assert.assertNull(action.getConfigurationProperties(null));
+    Assert.assertNull(action.getConfigurationProperties("invalid-type"));
+    Assert.assertNull(action.getConfigurationProperties("missing-properties-type"));
+    Assert.assertEquals(Collections.emptyMap(), action.getConfigurationProperties("empty-type"));
+    Assert.assertEquals(KERBEROS_ENV_PROPERTIES, action.getConfigurationProperties("kerberos-env"));
+
+    verifyAll();
   }
 }

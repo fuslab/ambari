@@ -33,7 +33,7 @@ import org.apache.ambari.server.controller.KerberosHelper;
 import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.ConfigHelper;
 import org.apache.ambari.server.state.PropertyInfo;
-import org.apache.ambari.server.state.SecurityState;
+import org.apache.ambari.server.state.ServiceComponent;
 import org.apache.ambari.server.state.ServiceComponentHost;
 import org.apache.ambari.server.state.StackId;
 import org.apache.ambari.server.state.kerberos.KerberosDescriptor;
@@ -83,13 +83,7 @@ public class PrepareDisableKerberosServerAction extends AbstractPrepareKerberosS
     List<ServiceComponentHost> schToProcess = kerberosHelper.getServiceComponentHostsToProcess(cluster,
         kerberosDescriptor,
         getServiceComponentFilter(),
-        null, identityFilter,
-        new KerberosHelper.Command<Boolean, ServiceComponentHost>() {
-          @Override
-          public Boolean invoke(ServiceComponentHost sch) throws AmbariException {
-            return (sch.getDesiredSecurityState() == SecurityState.UNSECURED) && (sch.getSecurityState() != SecurityState.UNSECURED);
-          }
-        });
+        null);
 
     Map<String, Map<String, String>> kerberosConfigurations = new HashMap<>();
     Map<String, String> commandParameters = getCommandParameters();
@@ -113,7 +107,7 @@ public class PrepareDisableKerberosServerAction extends AbstractPrepareKerberosS
     Map<String, Map<String, String>> configurations = kerberosHelper.calculateConfigurations(cluster, null, kerberosDescriptor, false, false);
 
     processServiceComponentHosts(cluster, kerberosDescriptor, schToProcess, identityFilter, dataDirectory,
-        configurations, kerberosConfigurations, includeAmbariIdentity, propertiesToIgnore, false);
+        configurations, kerberosConfigurations, includeAmbariIdentity, propertiesToIgnore);
 
     // Add auth-to-local configurations to the set of changes
     Map<String, Set<String>> authToLocalProperties = kerberosHelper.translateConfigurationSpecifications(kerberosDescriptor.getAllAuthToLocalProperties());
@@ -172,7 +166,8 @@ public class PrepareDisableKerberosServerAction extends AbstractPrepareKerberosS
           String serviceName = sch.getServiceName();
 
           if (!visitedServices.contains(serviceName)) {
-            StackId stackVersion = sch.getDesiredStackId();
+            ServiceComponent serviceComponent = sch.getServiceComponent();
+            StackId stackVersion = serviceComponent.getDesiredStackId();
 
             visitedServices.add(serviceName);
 
@@ -208,10 +203,15 @@ public class PrepareDisableKerberosServerAction extends AbstractPrepareKerberosS
       kerberosHelper.applyStackAdvisorUpdates(cluster, services, configurations, kerberosConfigurations,
           propertiesToIgnore, configurationsToRemove, false);
 
-      processConfigurationChanges(dataDirectory, kerberosConfigurations, configurationsToRemove);
+      processConfigurationChanges(dataDirectory, kerberosConfigurations, configurationsToRemove, kerberosDescriptor, getUpdateConfigurationPolicy(commandParameters));
     }
 
     return createCommandReport(0, HostRoleStatus.COMPLETED, "{}", actionLog.getStdOut(), actionLog.getStdErr());
+  }
+
+  @Override
+  protected boolean pruneServiceFilter() {
+    return false;
   }
 }
 

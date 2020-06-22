@@ -23,6 +23,7 @@ import re
 import os
 import ambari_simplejson as json # simplejson is much faster comparing to Python 2.6 json module and has the same functions set.
 import socket
+import traceback
 
 from resource_management.libraries.script import Script
 from resource_management.libraries.functions.default import default
@@ -79,6 +80,7 @@ def resolve_ambari_config():
     else:
       raise Exception("No config found at %s" % str(config_path))
   except Exception, err:
+    traceback.print_exc()
     Logger.warning(err)
 
 
@@ -101,6 +103,8 @@ class ExecuteUpgradeTasks(Script):
 
     # These 2 variables are optional
     service_package_folder = default('/commandParams/service_package_folder', None)
+    if service_package_folder is None:
+      service_package_folder = default('/serviceLevelParams/service_package_folder', None)
     hooks_folder = default('/commandParams/hooks_folder', None)
 
     tasks = json.loads(config['roleParams']['tasks'])
@@ -113,19 +117,26 @@ class ExecuteUpgradeTasks(Script):
         if task.script and task.function:
           file_cache = FileCache(agent_config)
 
-          server_url_prefix = default('/hostLevelParams/jdk_location', "")
-
           if service_package_folder and hooks_folder:
             command_paths = {
               "commandParams": {
                 "service_package_folder": service_package_folder,
-                "hooks_folder": hooks_folder
+              },
+              "clusterLevelParams": {
+                   "hooks_folder": hooks_folder
+              },
+              "ambariLevelParams": {
+                "jdk_location": default('/ambariLevelParams/jdk_location', "")
               }
             } 
 
-            base_dir = file_cache.get_service_base_dir(command_paths, server_url_prefix)
+            base_dir = file_cache.get_service_base_dir(command_paths)
           else:
-            base_dir = file_cache.get_custom_actions_base_dir(server_url_prefix)
+            base_dir = file_cache.get_custom_actions_base_dir({
+              "ambariLevelParams": {
+                "jdk_location": default('/ambariLevelParams/jdk_location', "")
+              }
+            })
 
           script_path = os.path.join(base_dir, task.script)
           if not os.path.exists(script_path):

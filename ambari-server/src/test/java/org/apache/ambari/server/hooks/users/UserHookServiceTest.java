@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -105,7 +105,7 @@ public class UserHookServiceTest extends EasyMockSupport {
   @Before
   public void before() throws Exception {
     usersToGroups = new HashMap<>();
-    usersToGroups.put("testUser", new HashSet<String>(Arrays.asList("hdfs", "yarn")));
+    usersToGroups.put("testUser", new HashSet<>(Arrays.asList("hdfs", "yarn")));
     hookContext = new PostUserCreationHookContext(usersToGroups);
 
     userCreatedEvent = new UserCreatedEvent(hookContext);
@@ -158,7 +158,7 @@ public class UserHookServiceTest extends EasyMockSupport {
     replayAll();
 
     // WHEN
-    Boolean triggered = hookService.execute(new PostUserCreationHookContext(Collections.<String, Set<String>>emptyMap()));
+    Boolean triggered = hookService.execute(new PostUserCreationHookContext(Collections.emptyMap()));
 
     //THEN
     Assert.assertFalse("The hook should not be triggered if there is no users in the context!", triggered);
@@ -216,7 +216,7 @@ public class UserHookServiceTest extends EasyMockSupport {
 
     // TBD refine expectations to validate the logic / eg capture arguments
     stageMock.addServerActionCommand(EasyMock.anyString(), EasyMock.anyString(), EasyMock.anyObject(Role.class), EasyMock.anyObject(RoleCommand.class), EasyMock.anyString(), EasyMock.anyObject(ServiceComponentHostServerActionEvent.class),
-        EasyMock.anyObject(Map.class), EasyMock.anyString(), EasyMock.anyObject(Map.class), EasyMock.anyInt(), EasyMock.anyBoolean(), EasyMock.anyBoolean());
+        EasyMock.anyObject(), EasyMock.anyString(), EasyMock.anyObject(), EasyMock.anyInt(), EasyMock.anyBoolean(), EasyMock.anyBoolean());
     EasyMock.expect(requestFactoryMock.createNewFromStages(Arrays.asList(stageMock), "{}")).andReturn(null);
     EasyMock.expect(stageFactoryMock.createNew(1, "/var/lib/ambari-server/tmp:1", "test-cluster", 1, "Post user creation hook for [ 1 ] users", "{}", "{}")).andReturn(stageMock);
 

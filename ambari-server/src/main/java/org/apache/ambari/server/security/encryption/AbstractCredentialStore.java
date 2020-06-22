@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,11 +17,6 @@
  */
 package org.apache.ambari.server.security.encryption;
 
-import org.apache.ambari.server.AmbariException;
-import org.apache.ambari.server.security.credential.Credential;
-import org.apache.ambari.server.security.credential.CredentialFactory;
-
-import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -40,6 +35,12 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+
+import javax.crypto.spec.SecretKeySpec;
+
+import org.apache.ambari.server.AmbariException;
+import org.apache.ambari.server.security.credential.Credential;
+import org.apache.ambari.server.security.credential.CredentialFactory;
 
 /**
  * AbstractCredentialStore is an abstract implementation of CredentialStore that loads and
@@ -158,7 +159,7 @@ public abstract class AbstractCredentialStore implements CredentialStore {
           Enumeration<String> aliases = ks.aliases();
 
           if (aliases != null) {
-            credentials = new HashSet<String>();
+            credentials = new HashSet<>();
             while (aliases.hasMoreElements()) {
               credentials.add(aliases.nextElement());
             }

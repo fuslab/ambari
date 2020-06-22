@@ -16,98 +16,92 @@
 * limitations under the License.
 }}
 
-<!-- HBase Master Server -->
-{{view view.dashboardMasterComponentView}}
-<!-- HBaseRESTServer -->
-{{#if view.isRestServerCreated}}
-  <tr {{bindAttr class=":component view.restServerComponent.componentName"}}>
-    <td class="summary-label"><a
-      href="#" {{action filterHosts view.restServerComponent}}>{{t dashboard.services.hbase.restServers}}</a>
-    </td>
-    <td class="summary-value">
-        {{#if App.router.clusterController.isServiceContentFullyLoaded}}
-          <span>
-              {{#view App.ComponentLiveTextView liveComponentsBinding="view.service.restServersStarted" totalComponentsBinding="view.service.restServersTotal"}}
-                  {{view.liveComponents}}/{{view.totalComponents}}
-              {{/view}}
-          </span>
-            {{t services.service.summary.RestServersLIVE}}
-        {{else}}
-            {{t common.loading.eclipses}}
+<div class="row">
+  <div class="component-summary">
+    {{! HBase Master Server }}
+    {{view view.dashboardMasterComponentView}}
+    <div class="col-md-12">
+      <div class="col-md-2">
+        {{#if view.hasMultipleMasterGroups}}
+          {{t dashboard.services.hdfs.summary.components}}
         {{/if}}
-    </td>
-  </tr>
-{{/if}}
-<!-- RegionServers -->
-{{#if view.isRegionServerCreated}}
-  <tr {{bindAttr class=":component view.regionServerComponent.componentName"}}>
-    <td class="summary-label"><a
-            href="#" {{action filterHosts view.regionServerComponent}}>{{t dashboard.services.hbase.regionServers}}</a>
-    </td>
-    <td class="summary-value">
-      {{#if App.router.clusterController.isServiceContentFullyLoaded}}
-        <span>
-          {{#view App.ComponentLiveTextView liveComponentsBinding="view.service.regionServersStarted" totalComponentsBinding="view.service.regionServersTotal"}}
-            {{view.liveComponents}}/{{view.totalComponents}}
-          {{/view}}
-        </span>
-        {{t services.service.summary.RegionServersLIVE}}
-      {{else}}
-        {{t common.loading.eclipses}}
-      {{/if}}
-    </td>
-  </tr>
-{{/if}}
-<!-- PhoenixServers -->
-{{#if view.isPhoenixQueryServerCreated}}
-  <tr {{bindAttr class=":component view.phoenixServerComponent.componentName"}}>
-    <td class="summary-label"><a
-            href="#" {{action filterHosts view.phoenixServerComponent}}>{{t dashboard.services.hbase.phoenixServers}}</a>
-    </td>
-    <td class="summary-value">
-      <span>
-        {{#view App.ComponentLiveTextView liveComponentsBinding="view.service.phoenixServersStarted" totalComponentsBinding="view.service.phoenixServersTotal"}}
-          {{#if App.router.clusterController.isServiceContentFullyLoaded}}
-            {{view.liveComponents}}/{{view.totalComponents}}
-          {{/if}}
-        {{/view}}
-      </span>
-      {{t services.service.summary.PhoenixServersLIVE}}
-    </td>
-  </tr>
-{{/if}}
-<!-- Regions in Transition -->
-<tr class="regions-in-trnasition">
-  <td class="summary-label">{{t dashboard.services.hbase.regions.transition}}</td>
-  <td class="summary-value">{{view.service.regionsInTransition}}</td>
-</tr>
+      </div>
+      <div class="col-md-10">
+        {{! RegionServers }}
+        {{#if view.isRegionServerCreated}}
+          <div {{bindAttr class=":row :component :col-md-3 view.regionServerComponent.componentName"}}>
+            <div class="summary-value main-info">
+              {{#if App.router.clusterController.isServiceContentFullyLoaded}}
+                <span>
+                  {{#view App.ComponentLiveTextView liveComponentsBinding="view.service.regionServersStarted" totalComponentsBinding="view.service.regionServersTotal"}}
+                    {{view.liveComponents}}/{{view.totalComponents}}
+                  {{/view}}
+                </span>
+                {{t common.live}}
+              {{else}}
+                {{t common.loading.eclipses}}
+              {{/if}}
+            </div>
+            <div class="summary-label">
+              <a
+                href="#" {{action filterHosts view.regionServerComponent}}>{{t dashboard.services.hbase.regionServers}}</a>
+            </div>
+          </div>
+        {{/if}}
+        {{! PhoenixServers }}
+        {{#if view.isPhoenixQueryServerCreated}}
+          <div {{bindAttr class=":row :component :col-md-3 view.phoenixServerComponent.componentName"}}>
+            <div class="summary-value main-info">
+            <span>
+              {{#view App.ComponentLiveTextView liveComponentsBinding="view.service.phoenixServersStarted" totalComponentsBinding="view.service.phoenixServersTotal"}}
+                {{#if App.router.clusterController.isServiceContentFullyLoaded}}
+                  {{view.liveComponents}}/{{view.totalComponents}}
+                {{/if}}
+              {{/view}}
+            </span>
+              {{t common.live}}
+            </div>
+            <div class="summary-label">
+              <a
+                href="#" {{action filterHosts view.phoenixServerComponent}}>{{t dashboard.services.hbase.phoenixServers}}</a>
+            </div>
+          </div>
+        {{/if}}
+        {{! Regions in Transition }}
+        <div class="row col-md-3 regions-in-trnasition">
+          <div class="summary-value main-info">{{view.service.regionsInTransition}}</div>
+          <div class="summary-label">{{t dashboard.services.hbase.regions.transition}}</div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-<!-- Divider-- make the remaining summary info on 2nd table-->
-</tbody>
-</table>
+  <div class="col-md-12 metrics-summary">
+    <div class="col-md-2">{{t dashboard.services.hdfs.summary.service-metrics}}</div>
+    <div class="col-md-10">
+      {{! HBase Master Started Time }}
+      <div class="row col-md-3 started-time">
+        <div class="summary-value main-info">{{view.masterStartedTime}}</div>
+        <div class="summary-label">{{t dashboard.services.hbase.masterStarted}}</div>
+      </div>
+      {{! HBase Master Activated Time }}
+      <div class="row col-md-3 activated-time">
+        <div class="summary-value main-info">{{view.masterStartedTime}}</div>
+        <div class="summary-label">{{t dashboard.services.hbase.masterActivated}}</div>
+      </div>
+      {{! Average Load }}
+      <div class="row col-md-3 average-load">
+        <div class="summary-value main-info">{{view.averageLoad}}</div>
+        <div class="summary-label">{{t dashboard.services.hbase.averageLoad}}</div>
+      </div>
+      {{! Master Server Heap }}
+      <div class="row col-md-3 server-heap">
+        <div class="summary-value">
+          <div class="main-info">{{view.masterServerHeapSummaryPercent}}</div>
+          <div class="info-desc">{{view.masterServerHeapSummary}}</div>
+        </div>
+        <div class="summary-label">{{t dashboard.services.hbase.masterServerHeap}}</div>
+      </div>
+    </div>
+  </div>
 </div>
-<div class="span6">
-  <table class="summary-info table no-borders table-condensed">
-    <tbody>
-
-    <!-- HBase Master Started Time -->
-    <tr class="started-time">
-      <td class="summary-label">{{t dashboard.services.hbase.masterStarted}}</td>
-      <td class="summary-value">{{view.masterStartedTime}}</td>
-    </tr>
-    <!-- HBase Master Activated Time -->
-    <tr class="activated-time">
-      <td class="summary-label">{{t dashboard.services.hbase.masterActivated}}</td>
-      <td class="summary-value">{{view.masterStartedTime}}</td>
-    </tr>
-    <!-- Average Load -->
-    <tr class="average-load">
-      <td class="summary-label">{{t dashboard.services.hbase.averageLoad}}</td>
-      <td class="summary-value">{{view.averageLoad}}</td>
-    </tr>
-    <!-- Master Server Heap -->
-    <tr class="server-heap">
-      <td class="summary-label">{{t dashboard.services.hbase.masterServerHeap}}</td>
-      <td class="summary-value">{{view.masterServerHeapSummary}}</td>
-    </tr>
-

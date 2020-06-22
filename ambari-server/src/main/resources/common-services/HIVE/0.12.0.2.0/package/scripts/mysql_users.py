@@ -18,7 +18,9 @@ limitations under the License.
 
 """
 
-from resource_management import *
+from resource_management.core.resources.system import Execute, File
+from resource_management.core.source import StaticFile
+from resource_management.libraries.functions.format import format
 from mysql_service import get_daemon_name
 
 # Used to add hive access to the needed components

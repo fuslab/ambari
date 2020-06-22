@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,13 +17,13 @@
  */
 package org.apache.ambari.server.audit;
 
+import static org.hamcrest.core.IsEqual.equalTo;
+import static org.junit.Assert.assertThat;
+
 import org.apache.ambari.server.audit.event.AccessUnauthorizedAuditEvent;
 import org.junit.Test;
 
 import nl.jqno.equalsverifier.EqualsVerifier;
-
-import static org.hamcrest.core.IsEqual.equalTo;
-import static org.junit.Assert.assertThat;
 
 public class AccessUnauthorizedAuditEventTest {
 
@@ -54,16 +54,16 @@ public class AccessUnauthorizedAuditEventTest {
     assertThat(actualAuditMessage, equalTo(expectedAuditMessage));
 
     evnt = AccessUnauthorizedAuditEvent.builder()
-      .withTimestamp(System.currentTimeMillis())
-      .withRemoteIp(testRemoteIp)
-      .withUserName(testUserName)
-      .withProxyUserName(testProxyUserName)
-      .withHttpMethodName(testHttpMethod)
-      .withResourcePath(testResourcePath)
-      .build();
+        .withTimestamp(System.currentTimeMillis())
+        .withRemoteIp(testRemoteIp)
+        .withUserName(testUserName)
+        .withProxyUserName(testProxyUserName)
+        .withHttpMethodName(testHttpMethod)
+        .withResourcePath(testResourcePath)
+        .build();
 
     // When
-    actualAuditMessage = evnt.getAuditMessage();
+     actualAuditMessage = evnt.getAuditMessage();
 
     // Then
     expectedAuditMessage = String.format("User(%s), RemoteIp(%s), ProxyUser(PROXYUSER1), Operation(%s), ResourcePath(%s), Status(Failed), Reason(Access not authorized)", testUserName, testRemoteIp, testHttpMethod, testResourcePath);

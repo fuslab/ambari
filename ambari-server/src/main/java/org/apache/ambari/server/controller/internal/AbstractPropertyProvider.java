@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,20 +18,6 @@
 
 package org.apache.ambari.server.controller.internal;
 
-import org.apache.ambari.server.AmbariException;
-import org.apache.ambari.server.controller.AmbariManagementController;
-import org.apache.ambari.server.controller.AmbariServer;
-import org.apache.ambari.server.controller.metrics.MetricReportingAdapter;
-import org.apache.ambari.server.controller.spi.PropertyProvider;
-import org.apache.ambari.server.controller.spi.Resource;
-import org.apache.ambari.server.controller.spi.TemporalInfo;
-import org.apache.ambari.server.controller.utilities.PropertyHelper;
-import org.apache.ambari.server.security.authorization.AuthorizationException;
-import org.apache.ambari.server.security.authorization.AuthorizationHelper;
-import org.apache.ambari.server.security.authorization.ResourceType;
-import org.apache.ambari.server.security.authorization.RoleAuthorization;
-import org.apache.hadoop.metrics2.sink.timeline.TimelineMetric;
-
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.text.DecimalFormat;
@@ -46,10 +32,28 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.ambari.server.AmbariException;
+import org.apache.ambari.server.controller.AmbariManagementController;
+import org.apache.ambari.server.controller.AmbariServer;
+import org.apache.ambari.server.controller.metrics.MetricReportingAdapter;
+import org.apache.ambari.server.controller.spi.PropertyProvider;
+import org.apache.ambari.server.controller.spi.Resource;
+import org.apache.ambari.server.controller.spi.TemporalInfo;
+import org.apache.ambari.server.controller.utilities.PropertyHelper;
+import org.apache.ambari.server.security.authorization.AuthorizationException;
+import org.apache.ambari.server.security.authorization.AuthorizationHelper;
+import org.apache.ambari.server.security.authorization.ResourceType;
+import org.apache.ambari.server.security.authorization.RoleAuthorization;
+import org.apache.hadoop.metrics2.sink.timeline.TimelineMetric;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  *  Abstract property provider implementation.
  */
 public abstract class AbstractPropertyProvider extends BaseProvider implements PropertyProvider {
+
+  private static final Logger LOG = LoggerFactory.getLogger(AbstractPropertyProvider.class);
 
   /**
    * The property/metric information for this provider keyed by component name / property id.
@@ -137,7 +141,7 @@ public abstract class AbstractPropertyProvider extends BaseProvider implements P
    * @return Cluster's Name
    */
   protected Set<String> getClustersNameFromResources(Set<Resource> resources, String clusterNamePropertyId) {
-    Set<String> clusNames = new HashSet<String>();
+    Set<String> clusNames = new HashSet<>();
     if (resources != null) {
       Iterator<Resource> itr = resources.iterator();
       while (itr.hasNext()) {
@@ -158,7 +162,7 @@ public abstract class AbstractPropertyProvider extends BaseProvider implements P
    * @return cluster Id.
    */
   protected Set<Long> getClustersResourceId(Set<Resource> resources, String clusterNamePropertyId) {
-    Set<Long> clusterResId = new HashSet<Long>();
+    Set<Long> clusterResId = new HashSet<>();
     if (clusterNamePropertyId != null) {
       try {
         AmbariManagementController amc = AmbariServer.getController();
@@ -174,7 +178,7 @@ public abstract class AbstractPropertyProvider extends BaseProvider implements P
       }
     }
     if(LOG.isDebugEnabled()) {
-      LOG.debug("Retrieved Cluster Ids = " + clusterResId.toString());
+      LOG.debug("Retrieved Cluster Ids = {}", clusterResId);
     }
     return clusterResId;
   }
@@ -204,7 +208,7 @@ public abstract class AbstractPropertyProvider extends BaseProvider implements P
     }
 
     if(LOG.isDebugEnabled()) {
-      LOG.debug("Retrieved cluster's Resource Id = " + clusterResIds + ", Resource Type = " + resType);
+      LOG.debug("Retrieved cluster's Resource Id = {}, Resource Type = {}", clusterResIds, resType);
     }
     Iterator<Long> clusResIdsItr = clusterResIds.iterator();
     while (clusResIdsItr.hasNext()) {
@@ -248,7 +252,7 @@ public abstract class AbstractPropertyProvider extends BaseProvider implements P
    * @return a map of metrics
    */
   protected Map<String, PropertyInfo> getPropertyInfoMap(String componentName, String propertyId) {
-    Map<String, PropertyInfo> propertyInfoMap = new HashMap<String, PropertyInfo>();
+    Map<String, PropertyInfo> propertyInfoMap = new HashMap<>();
 
     updatePropertyInfoMap(componentName, propertyId, propertyInfoMap);
 
@@ -346,8 +350,8 @@ public abstract class AbstractPropertyProvider extends BaseProvider implements P
           String methodName = argName.substring(matcher.start() + 1, openParenIndex);
           String args = argName.substring(openParenIndex + 1, closeParenIndex);
 
-          List<Object> argList = new LinkedList<Object>();
-          List<Class<?>> paramTypes = new LinkedList<Class<?>>();
+          List<Object> argList = new LinkedList<>();
+          List<Class<?>> paramTypes = new LinkedList<>();
 
           // for each argument of the method ...
           Matcher argMatcher = FIND_ARGUMENT_METHOD_ARGUMENTS_REGEX.matcher(args);

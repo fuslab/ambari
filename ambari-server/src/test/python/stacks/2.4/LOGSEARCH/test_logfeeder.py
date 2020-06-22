@@ -21,6 +21,7 @@ limitations under the License.
 import grp
 from mock.mock import MagicMock, patch
 from stacks.utils.RMFTestCase import RMFTestCase, Template, InlineTemplate
+from resource_management.libraries.functions.default import default
 
 class TestLogFeeder(RMFTestCase):
   COMMON_SERVICES_PACKAGE_DIR = "LOGSEARCH/0.5.0/package"
@@ -37,7 +38,7 @@ class TestLogFeeder(RMFTestCase):
                               cd_access='a',
                               mode=0755
                               )
-    self.assertResourceCalled('Directory', '/etc/ambari-logsearch-logfeeder/conf/checkpoints',
+    self.assertResourceCalled('Directory', '/usr/lib/ambari-logsearch-logfeeder/conf/checkpoints',
                               create_parents=True,
                               cd_access='a',
                               mode=0755
@@ -49,7 +50,7 @@ class TestLogFeeder(RMFTestCase):
                               cd_access='a',
                               mode=0755
                               )
-    self.assertResourceCalled('Directory', '/etc/ambari-logsearch-logfeeder/conf',
+    self.assertResourceCalled('Directory', '/usr/lib/ambari-logsearch-logfeeder/conf',
                               create_parents=True,
                               recursive_ownership=True,
                               cd_access='a',
@@ -60,59 +61,59 @@ class TestLogFeeder(RMFTestCase):
                               mode=0644,
                               content=''
                               )
-    self.assertResourceCalled('File', '/etc/ambari-logsearch-logfeeder/conf/keys/ks_pass.txt',
+    self.assertResourceCalled('File', '/usr/lib/ambari-logsearch-logfeeder/conf/keys/ks_pass.txt',
                               action = ['delete']
                               )
-    self.assertResourceCalled('File', '/etc/ambari-logsearch-logfeeder/conf/keys/ts_pass.txt',
+    self.assertResourceCalled('File', '/usr/lib/ambari-logsearch-logfeeder/conf/keys/ts_pass.txt',
                               action = ['delete']
                               )
-    self.assertResourceCalled('PropertiesFile', '/etc/ambari-logsearch-logfeeder/conf/logfeeder.properties',
-                              properties={'hadoop.security.credential.provider.path': 'jceks://file/etc/ambari-logsearch-logfeeder/conf/logfeeder.jceks',
-                                          'logfeeder.checkpoint.folder': '/etc/ambari-logsearch-logfeeder/conf/checkpoints',
-                                          'logfeeder.config.files': 'output.config.json,input.config-ambari.json,global.config.json,input.config-logsearch.json,input.config-zookeeper.json',
+    self.assertResourceCalled('PropertiesFile', '/usr/lib/ambari-logsearch-logfeeder/conf/logfeeder.properties',
+                              properties={'cluster.name': 'c1',
+                                          'common-property': 'common-value',
+                                          'hadoop.security.credential.provider.path': 'jceks://file/usr/lib/ambari-logsearch-logfeeder/conf/logfeeder.jceks',
+                                          'logfeeder.checkpoint.folder': '/usr/lib/ambari-logsearch-logfeeder/conf/checkpoints',
+                                          'logfeeder.config.dir': '/usr/lib/ambari-logsearch-logfeeder/conf',
+                                          'logfeeder.config.files': 'output.config.json,global.config.json',
                                           'logfeeder.metrics.collector.hosts': '',
                                           'logfeeder.metrics.collector.path': '/ws/v1/timeline/metrics',
                                           'logfeeder.metrics.collector.port': '',
                                           'logfeeder.metrics.collector.protocol': '',
                                           'logfeeder.solr.core.config.name': 'history',
-                                          'logfeeder.solr.zk_connect_string': 'c6401.ambari.apache.org:2181/infra-solr'
+                                          'logfeeder.solr.zk_connect_string': 'c6401.ambari.apache.org:2181/infra-solr',
+                                          'logsearch.config.zk_connect_string': 'c6401.ambari.apache.org:2181'
                                          }
                               )
-    self.assertResourceCalled('File', '/etc/ambari-logsearch-logfeeder/conf/logfeeder-env.sh',
+    self.assertResourceCalled('File', '/usr/lib/ambari-logsearch-logfeeder/conf/logfeeder-env.sh',
                               mode=0755,
                               content=InlineTemplate(self.getConfig()['configurations']['logfeeder-env']['content'])
                               )
-    self.assertResourceCalled('File', '/etc/ambari-logsearch-logfeeder/conf/log4j.xml',
+    self.assertResourceCalled('File', '/usr/lib/ambari-logsearch-logfeeder/conf/log4j.xml',
                               content=InlineTemplate(self.getConfig()['configurations']['logfeeder-log4j']['content'])
                               )
-    self.assertResourceCalled('File', '/etc/ambari-logsearch-logfeeder/conf/grok-patterns',
+    self.assertResourceCalled('File', '/usr/lib/ambari-logsearch-logfeeder/conf/grok-patterns',
                               content=InlineTemplate('GP'),
                               encoding='utf-8'
                               )
-    self.assertResourceCalled('File', '/etc/ambari-logsearch-logfeeder/conf/input.config-ambari.json',
+    self.assertResourceCalled('File', '/usr/lib/ambari-logsearch-logfeeder/conf/global.config.json',
+                              content=Template('global.config.json.j2')
+                              )
+    self.assertResourceCalled('File', '/usr/lib/ambari-logsearch-logfeeder/conf/input.config-ambari.json',
                               content=InlineTemplate('ambari-grok-filter'),
                               encoding='utf-8'
                               )
-    self.assertResourceCalled('File', '/etc/ambari-logsearch-logfeeder/conf/output.config.json',
+    self.assertResourceCalled('File', '/usr/lib/ambari-logsearch-logfeeder/conf/output.config.json',
                               content=InlineTemplate('output-grok-filter'),
                               encoding='utf-8'
                               )
-
-    logfeeder_supported_services = ['logsearch']
-
-    logfeeder_config_file_names = ['global.config.json'] + \
-                                  ['input.config-%s.json' % (tag) for tag in logfeeder_supported_services]
-
-    for file_name in logfeeder_config_file_names:
-      self.assertResourceCalled('File', '/etc/ambari-logsearch-logfeeder/conf/' + file_name,
-                                content=Template(file_name + ".j2")
-                                )
-    self.assertResourceCalled('File', '/etc/ambari-logsearch-logfeeder/conf/input.config-logfeeder-custom.json',
-                              action=['delete']
+    self.assertResourceCalled('Directory', '/usr/lib/ambari-logsearch-logfeeder/conf',
+                              create_parents = True,
+                              cd_access = 'a',
+                              mode = 0755
                               )
-    self.assertResourceCalled('File', '/etc/ambari-logsearch-logfeeder/conf/input.config-zookeeper.json',
-                              content=InlineTemplate("pattern content")
-                              )
+    self.assertResourceCalled('File', '/usr/lib/ambari-logsearch-logfeeder/conf/input.config-logsearch.json',
+                            mode=0644,
+                            content = Template('input.config-logsearch.json.j2', extra_imports=[default])
+                            )
 
   def test_configure_default(self):
     self.executeScript(self.COMMON_SERVICES_PACKAGE_DIR + "/scripts/logfeeder.py",
@@ -136,8 +137,6 @@ class TestLogFeeder(RMFTestCase):
                        )
 
     self.configureResourcesCalled()
-    self.assertResourceCalled('Execute', ('/usr/lib/ambari-logsearch-logfeeder/run.sh',),
-                              sudo=True,
-                              environment={
-                                'LOGFEEDER_INCLUDE': '/etc/ambari-logsearch-logfeeder/conf/logfeeder-env.sh'}
+    self.assertResourceCalled('Execute', ('/usr/lib/ambari-logsearch-logfeeder/bin/logfeeder.sh', "start"),
+                              sudo=True
                               )

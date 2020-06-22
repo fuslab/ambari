@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,24 +21,33 @@ package org.apache.ambari.server.agent;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.ambari.server.agent.stomp.StompResponse;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.google.gson.annotations.SerializedName;
 
 /**
  * Controller to Agent response data model.
  */
-public class HeartBeatResponse {
+@JsonInclude(JsonInclude.Include.NON_EMPTY)
+public class HeartBeatResponse extends StompResponse {
 
   @SerializedName("responseId")
+  @com.fasterxml.jackson.annotation.JsonProperty("id")
   private long responseId;
 
   @SerializedName("executionCommands")
-  private List<ExecutionCommand> executionCommands = new ArrayList<ExecutionCommand>();
+  @JsonIgnore
+  private List<ExecutionCommand> executionCommands = new ArrayList<>();
 
   @SerializedName("statusCommands")
-  private List<StatusCommand> statusCommands = new ArrayList<StatusCommand>();
+  @JsonIgnore
+  private List<StatusCommand> statusCommands = new ArrayList<>();
 
   @SerializedName("cancelCommands")
-  private List<CancelCommand> cancelCommands = new ArrayList<CancelCommand>();
+  @JsonIgnore
+  private List<CancelCommand> cancelCommands = new ArrayList<>();
 
   /**
    * {@link AlertDefinitionCommand}s are used to isntruct the agent as to which
@@ -48,6 +57,7 @@ public class HeartBeatResponse {
    * the agent to abandon all alert definitions that are scheduled.
    */
   @SerializedName("alertDefinitionCommands")
+  @JsonIgnore
   private List<AlertDefinitionCommand> alertDefinitionCommands = null;
 
   /**
@@ -55,24 +65,31 @@ public class HeartBeatResponse {
    * immediately.
    */
   @SerializedName("alertExecutionCommands")
+  @JsonIgnore
   private List<AlertExecutionCommand> alertExecutionCommands = null;
 
   @SerializedName("registrationCommand")
+  @JsonIgnore
   private RegistrationCommand registrationCommand;
 
   @SerializedName("restartAgent")
-  private boolean restartAgent = false;
+  @com.fasterxml.jackson.annotation.JsonProperty("restartAgent")
+  private Boolean restartAgent = null;
 
   @SerializedName("hasMappedComponents")
+  @JsonIgnore
   private boolean hasMappedComponents = false;
 
   @SerializedName("hasPendingTasks")
+  @JsonIgnore
   private boolean hasPendingTasks = false;
 
   @SerializedName("recoveryConfig")
+  @JsonIgnore
   private RecoveryConfig recoveryConfig;
 
   @SerializedName("clusterSize")
+  @JsonIgnore
   private int clusterSize = -1;
 
   public long getResponseId() {
@@ -138,9 +155,6 @@ public class HeartBeatResponse {
   /**
    * Gets the alert definition commands that contain the alert definitions for
    * each cluster that the host is a member of.
-   *
-   * @param commands
-   *          the commands, or {@code null} for none.
    */
   public List<AlertDefinitionCommand> getAlertDefinitionCommands() {
     return alertDefinitionCommands;
@@ -157,11 +171,11 @@ public class HeartBeatResponse {
     alertDefinitionCommands = commands;
   }
 
-  public boolean isRestartAgent() {
+  public Boolean isRestartAgent() {
     return restartAgent;
   }
 
-  public void setRestartAgent(boolean restartAgent) {
+  public void setRestartAgent(Boolean restartAgent) {
     this.restartAgent = restartAgent;
   }
 
@@ -197,7 +211,7 @@ public class HeartBeatResponse {
     // commands are added here when they are taken off the queue; there should
     // be no thread contention and thus no worry about locks for the null check
     if (null == alertDefinitionCommands) {
-      alertDefinitionCommands = new ArrayList<AlertDefinitionCommand>();
+      alertDefinitionCommands = new ArrayList<>();
     }
 
     alertDefinitionCommands.add(command);
@@ -207,7 +221,7 @@ public class HeartBeatResponse {
     // commands are added here when they are taken off the queue; there should
     // be no thread contention and thus no worry about locks for the null check
     if (null == alertExecutionCommands) {
-      alertExecutionCommands = new ArrayList<AlertExecutionCommand>();
+      alertExecutionCommands = new ArrayList<>();
     }
 
     alertExecutionCommands.add(command);

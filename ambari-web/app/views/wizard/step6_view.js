@@ -50,6 +50,16 @@ App.WizardStep6View = App.TableView.extend({
   didInsertElement: function () {
     this.setLabel();
     this.get('controller').loadStep();
+    Em.run.next(this, this.adjustColumnWidth);
+  },
+
+  adjustColumnWidth: function() {
+    const table = $('#component_assign_table');
+    const columnsCount = this.get('controller.headers.length');
+    if (table.width() > table.find('tbody').width()) {
+      const columnWidth = Math.floor(table.width() / columnsCount);
+      table.find("th:not('.freeze'), td:not('.freeze')").width(columnWidth);
+    }
   },
 
   /**
@@ -87,7 +97,7 @@ App.WizardStep6View = App.TableView.extend({
 
   columnCount: function() {
     var hosts = this.get('controller.hosts');
-    return (hosts && hosts.length > 0) ? hosts[0].get('checkboxes').length + 1 : 1;
+    return hosts && hosts.length > 0 ? hosts[0].get('checkboxes').length + 1 : 1;
   }.property('controller.hosts.@each.checkboxes')
 });
 
@@ -99,6 +109,10 @@ App.WizardStep6HostView = Em.View.extend({
    */
   host: null,
 
+  'data-qa': 'hostname-block',
+
+  classNames: ['freeze'],
+
   tagName: 'td',
 
   /**
@@ -106,11 +120,13 @@ App.WizardStep6HostView = Em.View.extend({
    * @method didInsertElement
    */
   didInsertElement: function () {
+    const componentNames = this.get('controller')
+      .getMasterComponentsForHost(this.get('host.hostName'))
+      .map(_component => App.format.role(_component, false))
+      .join('<br />');
     App.popover(this.$(), {
       title: Em.I18n.t('installer.step6.wizardStep6Host.title').format(this.get('host.hostName')),
-      content: this.get('controller').getMasterComponentsForHost(this.get('host.hostName')).map(function (_component) {
-        return App.format.role(_component, false);
-      }).join("<br />"),
+      content: `<div data-qa="master-component-popover">${componentNames}</div>`,
       placement: 'right',
       trigger: 'hover'
     });

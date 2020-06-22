@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -355,7 +355,7 @@ public class AlertDefinitionResourceProviderTest {
       Assert.assertEquals("my_def",
           resource.getPropertyValue(AlertDefinitionResourceProvider.ALERT_DEF_NAME));
 
-      Map<String, String> reporting = (Map<String, String>) resource.getPropertyValue("AlertDefinition/source/reporting");
+      Map<?, ?> reporting = (Map<?, ?>) resource.getPropertyValue("AlertDefinition/source/reporting");
 
       Assert.assertTrue(reporting.containsKey("ok"));
       Assert.assertTrue(reporting.containsKey("critical"));
@@ -379,7 +379,7 @@ public class AlertDefinitionResourceProviderTest {
           "my_def",
           resource.getPropertyValue(AlertDefinitionResourceProvider.ALERT_DEF_NAME));
 
-      Map<String, String> reporting = (Map<String, String>) resource.getPropertyValue("AlertDefinition/source/reporting");
+      Map<?, ?> reporting = (Map<?, ?>) resource.getPropertyValue("AlertDefinition/source/reporting");
 
       Assert.assertNull(reporting);
     }
@@ -421,14 +421,14 @@ public class AlertDefinitionResourceProviderTest {
     expect(clusters.getCluster((String) anyObject())).andReturn(cluster).atLeastOnce();
     expect(cluster.getClusterId()).andReturn(Long.valueOf(1)).anyTimes();
 
-    Capture<AlertDefinitionEntity> entityCapture = new Capture<AlertDefinitionEntity>();
+    Capture<AlertDefinitionEntity> entityCapture = EasyMock.newCapture();
     dao.create(capture(entityCapture));
     expectLastCall();
 
     // creating a single definition should invalidate hosts of the definition
     expect(
         definitionHash.invalidateHosts(EasyMock.anyObject(AlertDefinitionEntity.class))).andReturn(
-        new HashSet<String>()).once();
+      new HashSet<>()).once();
 
     replay(amc, clusters, cluster, dao, definitionHash);
 
@@ -438,7 +438,7 @@ public class AlertDefinitionResourceProviderTest {
     MetricSource source = (MetricSource)getMockSource();
     AlertDefinitionResourceProvider provider = createProvider(amc);
 
-    Map<String, Object> requestProps = new HashMap<String, Object>();
+    Map<String, Object> requestProps = new HashMap<>();
     requestProps.put(AlertDefinitionResourceProvider.ALERT_DEF_CLUSTER_NAME, "c1");
     requestProps.put(AlertDefinitionResourceProvider.ALERT_DEF_INTERVAL, "1");
     requestProps.put(AlertDefinitionResourceProvider.ALERT_DEF_NAME, "my_def");
@@ -457,7 +457,7 @@ public class AlertDefinitionResourceProviderTest {
 
     // JMX
     requestProps.put("AlertDefinition/source/jmx/value",
-        source.getJmxInfo().getValue());
+        source.getJmxInfo().getValue().toString());
     requestProps.put("AlertDefinition/source/jmx/property_list",
         source.getJmxInfo().getPropertyList());
 
@@ -571,14 +571,14 @@ public class AlertDefinitionResourceProviderTest {
     expect(clusters.getCluster((String) anyObject())).andReturn(cluster).atLeastOnce();
     expect(cluster.getClusterId()).andReturn(Long.valueOf(1)).atLeastOnce();
 
-    Capture<AlertDefinitionEntity> entityCapture = new Capture<AlertDefinitionEntity>();
+    Capture<AlertDefinitionEntity> entityCapture = EasyMock.newCapture();
     dao.create(capture(entityCapture));
     expectLastCall();
 
     // updateing a single definition should invalidate hosts of the definition
     expect(
         definitionHash.invalidateHosts(EasyMock.anyObject(AlertDefinitionEntity.class))).andReturn(
-        new HashSet<String>()).atLeastOnce();
+      new HashSet<>()).atLeastOnce();
 
     replay(amc, clusters, cluster, dao, definitionHash);
 
@@ -586,7 +586,7 @@ public class AlertDefinitionResourceProviderTest {
 
     MetricSource source = (MetricSource) getMockSource();
 
-    Map<String, Object> requestProps = new HashMap<String, Object>();
+    Map<String, Object> requestProps = new HashMap<>();
     requestProps.put(AlertDefinitionResourceProvider.ALERT_DEF_CLUSTER_NAME, "c1");
     requestProps.put(AlertDefinitionResourceProvider.ALERT_DEF_INTERVAL, "1");
     requestProps.put(AlertDefinitionResourceProvider.ALERT_DEF_NAME, "my_def");
@@ -600,7 +600,7 @@ public class AlertDefinitionResourceProviderTest {
 
     // JMX
     requestProps.put("AlertDefinition/source/jmx/value",
-        source.getJmxInfo().getValue());
+        source.getJmxInfo().getValue().toString());
     requestProps.put("AlertDefinition/source/jmx/property_list",
         source.getJmxInfo().getPropertyList());
 
@@ -655,7 +655,7 @@ public class AlertDefinitionResourceProviderTest {
     expect(dao.merge((AlertDefinitionEntity) anyObject())).andReturn(entity).anyTimes();
     replay(dao);
 
-    requestProps = new HashMap<String, Object>();
+    requestProps = new HashMap<>();
     requestProps.put(AlertDefinitionResourceProvider.ALERT_DEF_ID, "1");
     requestProps.put(AlertDefinitionResourceProvider.ALERT_DEF_CLUSTER_NAME, "c1");
     requestProps.put(AlertDefinitionResourceProvider.ALERT_DEF_INTERVAL, "2");
@@ -706,20 +706,20 @@ public class AlertDefinitionResourceProviderTest {
     expect(clusters.getCluster((String) anyObject())).andReturn(cluster).atLeastOnce();
     expect(cluster.getClusterId()).andReturn(Long.valueOf(1)).atLeastOnce();
 
-    Capture<AlertDefinitionEntity> entityCapture = new Capture<AlertDefinitionEntity>();
+    Capture<AlertDefinitionEntity> entityCapture = EasyMock.newCapture();
     dao.create(capture(entityCapture));
     expectLastCall();
 
     // updateing a single definition should invalidate hosts of the definition
     expect(definitionHash.invalidateHosts(EasyMock.anyObject(AlertDefinitionEntity.class))).andReturn(
-        new HashSet<String>()).atLeastOnce();
+      new HashSet<>()).atLeastOnce();
 
     replay(amc, clusters, cluster, dao, definitionHash);
 
     SecurityContextHolder.getContext().setAuthentication(TestAuthenticationFactory.createAdministrator());
 
     MetricSource source = (MetricSource) getMockSource();
-    Map<String, Object> requestProps = new HashMap<String, Object>();
+    Map<String, Object> requestProps = new HashMap<>();
     requestProps.put(AlertDefinitionResourceProvider.ALERT_DEF_CLUSTER_NAME, "c1");
     requestProps.put(AlertDefinitionResourceProvider.ALERT_DEF_INTERVAL, "1");
     requestProps.put(AlertDefinitionResourceProvider.ALERT_DEF_NAME, "my_def");
@@ -789,14 +789,14 @@ public class AlertDefinitionResourceProviderTest {
     expect(clusters.getCluster((String) anyObject())).andReturn(cluster).atLeastOnce();
     expect(cluster.getClusterId()).andReturn(Long.valueOf(1)).anyTimes();
 
-    Capture<AlertDefinitionEntity> entityCapture = new Capture<AlertDefinitionEntity>();
+    Capture<AlertDefinitionEntity> entityCapture = EasyMock.newCapture();
     dao.create(capture(entityCapture));
     expectLastCall();
 
     // deleting a single definition should invalidate hosts of the definition
     expect(
         definitionHash.invalidateHosts(EasyMock.anyObject(AlertDefinitionEntity.class))).andReturn(
-        new HashSet<String>()).atLeastOnce();
+      new HashSet<>()).atLeastOnce();
 
     replay(amc, clusters, cluster, dao, definitionHash);
 
@@ -804,7 +804,7 @@ public class AlertDefinitionResourceProviderTest {
 
     AlertDefinitionResourceProvider provider = createProvider(amc);
 
-    Map<String, Object> requestProps = new HashMap<String, Object>();
+    Map<String, Object> requestProps = new HashMap<>();
     requestProps.put(AlertDefinitionResourceProvider.ALERT_DEF_CLUSTER_NAME, "c1");
     requestProps.put(AlertDefinitionResourceProvider.ALERT_DEF_INTERVAL, "1");
     requestProps.put(AlertDefinitionResourceProvider.ALERT_DEF_NAME, "my_def");

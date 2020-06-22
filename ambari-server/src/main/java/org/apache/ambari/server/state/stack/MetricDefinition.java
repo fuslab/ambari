@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,21 +18,28 @@
 
 package org.apache.ambari.server.state.stack;
 
-import org.codehaus.jackson.annotate.JsonIgnore;
-import org.codehaus.jackson.annotate.JsonProperty;
+import static java.util.Map.Entry;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
-import static java.util.Map.Entry;
+import org.apache.ambari.server.state.UriInfo;
+import org.codehaus.jackson.annotate.JsonIgnore;
+import org.codehaus.jackson.annotate.JsonProperty;
+
+import com.google.gson.annotations.SerializedName;
 
 /**
  * Used to represent metrics for a stack component.
  */
 public class MetricDefinition {
+  private static final String OVERRIDDEN_HOST_PROP = "overridden_host";
   private String type = null;
   private Map<String, String> properties = null;
   private Map<String, Map<String, Metric>> metrics = null;
+  @SerializedName("jmx_source_uri")
+  private UriInfo jmxSourceUri;
 
   public MetricDefinition(String type, Map<String, String> properties, Map<String, Map<String, Metric>> metrics) {
     this.type = type;
@@ -58,7 +65,7 @@ public class MetricDefinition {
    */
   @JsonIgnore
   public Map<String, Metric> getMetrics() {
-    Map<String, Metric> metricMap = new HashMap<String, Metric>();
+    Map<String, Metric> metricMap = new HashMap<>();
     for (Entry<String, Map<String, Metric>> metricMapEntry : metrics.entrySet()) {
       metricMap.putAll(metricMapEntry.getValue());
     }
@@ -74,5 +81,14 @@ public class MetricDefinition {
     
     return sb.toString();
   }
-  
+
+  public Optional<String> getOverriddenHosts() {
+    return properties == null
+      ? Optional.empty()
+      : Optional.ofNullable(properties.get(OVERRIDDEN_HOST_PROP));
+  }
+
+  public Optional<UriInfo> getJmxSourceUri() {
+    return !"jmx".equalsIgnoreCase(type) ? Optional.empty() : Optional.ofNullable(jmxSourceUri);
+  }
 }

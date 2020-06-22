@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,11 +17,12 @@
  */
 package org.apache.ambari.server.api.query.render;
 
-import org.apache.ambari.server.api.query.QueryInfo;
-import org.apache.ambari.server.api.util.TreeNode;
+import static org.apache.ambari.server.controller.metrics.MetricsPaddingMethod.PADDING_STRATEGY;
+
 import java.util.Set;
 
-import static org.apache.ambari.server.controller.metrics.MetricsPaddingMethod.PADDING_STRATEGY;
+import org.apache.ambari.server.api.query.QueryInfo;
+import org.apache.ambari.server.api.util.TreeNode;
 
 public class MetricsPaddingRenderer extends DefaultRenderer {
   PADDING_STRATEGY paddingMethod = PADDING_STRATEGY.ZEROS;

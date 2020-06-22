@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,6 @@
 
 package org.apache.ambari.server.audit.request;
 
-import junit.framework.Assert;
-
 import java.util.HashMap;
 
 import org.apache.ambari.server.api.query.QueryImpl;
@@ -34,9 +32,8 @@ import org.apache.ambari.server.api.services.RequestFactory;
 import org.apache.ambari.server.api.services.Result;
 import org.apache.ambari.server.api.services.ResultImpl;
 import org.apache.ambari.server.api.services.ResultStatus;
-import org.apache.ambari.server.audit.event.AuditEvent;
 import org.apache.ambari.server.audit.AuditLogger;
-import org.apache.ambari.server.controller.spi.Resource;
+import org.apache.ambari.server.audit.event.AuditEvent;
 import org.easymock.Capture;
 import org.easymock.EasyMock;
 import org.junit.After;
@@ -46,6 +43,8 @@ import org.junit.Test;
 
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+
+import junit.framework.Assert;
 
 public class RequestAuditLoggerTest {
 
@@ -142,7 +141,7 @@ public class RequestAuditLoggerTest {
   }
 
   private Request createRequest(ResourceDefinition resourceDefinition, Request.Type requestType) {
-    ResourceInstance resource = new QueryImpl(new HashMap<Resource.Type, String>(), resourceDefinition, null);
+    ResourceInstance resource = new QueryImpl(new HashMap<>(), resourceDefinition, null);
     return requestFactory.createRequest(null, new RequestBody(), new LocalUriInfo(TEST_URI), requestType, resource);
   }
 

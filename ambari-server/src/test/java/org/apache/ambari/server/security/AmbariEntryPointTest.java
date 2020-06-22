@@ -18,6 +18,9 @@
 
 package org.apache.ambari.server.security;
 
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
+
 import java.io.IOException;
 import java.util.Properties;
 
@@ -31,9 +34,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.springframework.security.core.AuthenticationException;
-
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.expectLastCall;
 
 public class AmbariEntryPointTest extends EasyMockSupport {
   @Rule

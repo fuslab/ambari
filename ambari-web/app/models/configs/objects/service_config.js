@@ -87,7 +87,7 @@ App.ServiceConfig = Ember.Object.extend({
 
   setConfigsWithErrorsOnce: function() {
     var configsWithErrors = this.get('activeProperties').filter(function(c) {
-      return !c.get('isValid') || !c.get('isValidOverride');
+      return (!c.get('isValid') || !c.get('isValidOverride'));
     });
     this.set('configsWithErrors', configsWithErrors);
   },
@@ -96,7 +96,7 @@ App.ServiceConfig = Ember.Object.extend({
     this.get('configCategories').setEach('errorCount', 0);
     this.get('configsWithErrors').forEach(function(c) {
       //configurations with widget shouldn't affect advanced category error counter
-      if (this.get('configCategoriesMap')[c.get('category')] && !c.get('widget')) {
+      if (this.get('configCategoriesMap')[c.get('category')] && !c.get('isInDefaultTheme')) {
         this.get('configCategoriesMap')[c.get('category')].incrementProperty('errorCount');
       }
     }, this);

@@ -16,49 +16,46 @@
 * limitations under the License.
 }}
 
-{{#isAuthorized "SERVICE.TOGGLE_ALERTS"}}
-  <div id="alert-actions-button" class="pull-left">
-    {{view App.MainAlertDefinitionActionsView controllerBinding="App.router.mainAlertDefinitionActionsController"}}
+<div id="alerts" class="container-wrap-table">
+  <div class="row">
+    <h2 class="table-title col-sm-1">{{t menu.item.alerts}}</h2>
+    <div class="table-controls row col-sm-11 pull-right">
+      <div class="col-sm-12">
+        {{#isAuthorized "SERVICE.TOGGLE_ALERTS"}}
+          {{view App.MainAlertDefinitionActionsView controllerBinding="App.router.mainAlertDefinitionActionsController"}}
+        {{/isAuthorized}}
+        <div class="VS-open-box pull-right">
+          <button class="btn btn-default">
+            <i class="icon-filter"></i>
+          </button>
+          <div class="popup-arrow-up hide"></div>
+        </div>
+      </div>
+    </div>
   </div>
-{{/isAuthorized}}
-
-<div id="alert-groups-filter" class="pull-left advanced-header-table groups-filter">
-{{#if App.router.clusterController.isAlertsLoaded}}
-  {{view view.alertGroupFilterView}}
-{{/if}}
-</div>
-
-<div id="alerts">
-  <div class="box-header row">
+  <div class="row search-box-row hide">
+    {{view App.MainAlertDefinitionSearchBoxView}}
   </div>
-  <table class="table advanced-header-table table-bordered table-striped alerts-table" id="alert-definitions-table">
+  <table class="table advanced-header-table table-hover alerts-table" id="alert-definitions-table">
     <thead>
     {{#view view.sortView classNames="label-row" contentBinding="view.filteredContent"}}
-      {{view view.parentView.nameSort class="first name-sorting"}}
-      {{view view.parentView.statusSort class="status-sorting"}}
+      {{view view.parentView.statusSort class="first status-sorting"}}
+      {{view view.parentView.nameSort class="name-sorting"}}
       {{view view.parentView.serviceSort class="service-sorting"}}
       {{view view.parentView.lastTriggeredSort class="last-triggred-sorting"}}
       {{view view.parentView.enabledSort class="enabled-sorting"}}
     {{/view}}
-    <tr class="filter-row">
-      <th class="first">{{view view.nameFilterView class="name-filter"}}</th>
-      <th>{{view view.stateFilterView class="status-filter"}}</th>
-      <th>{{view view.serviceFilterView class="service-filter"}}</th>
-      <th>{{view view.triggeredFilterView class="last-triggered-filter"}}</th>
-      <th>{{view view.enabledFilterView class="enabled-filter"}}</th>
-    </tr>
     </thead>
     <tbody>
     {{#if App.router.clusterController.isAlertsLoaded}}
       {{#if view.pageContent}}
         {{#each alertDefinition in view.pageContent}}
           <tr>
-            <td class="first alert-name">
-              <span {{bindAttr title="alertDefinition.type"}} {{bindAttr class=":type-icon  alertDefinition.typeIconClass"}}></span>
-              <a href="#" {{action "gotoAlertDetails" alertDefinition}}>{{alertDefinition.label}}</a>
-            </td>
-            <td class="alert-status">
+            <td class="first alert-status">
               {{view App.AlertDefinitionSummary contentBinding="alertDefinition"}}
+            </td>
+            <td class="alert-name">
+              <a href="#" {{action "gotoAlertDetails" alertDefinition}}>{{alertDefinition.label}}</a>
             </td>
             <td class="alert-service">{{alertDefinition.serviceDisplayName}}</td>
             <td class="alert-time">
@@ -87,24 +84,13 @@
       </tr>
     {{/if}}
     </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="5">
+          {{view App.PaginationView}}
+        </td>
+      </tr>
+    </tfoot>
   </table>
 
-  <div class="page-bar">
-    <div class="filtered-info span4">
-      <label>{{view.filteredContentInfo}} - <a {{action clearFilters target="view"}}
-              href="#">{{t tableView.filters.clearAllFilters}}</a></label>
-    </div>
-    <div class="selected-hosts-info span4">
-    </div>
-    <div class="items-on-page">
-      <label>{{t common.show}}: {{view view.rowsPerPageSelectView selectionBinding="view.displayLength"}}</label>
-    </div>
-    <div class="info">{{view.paginationInfo}}</div>
-    <div class="paging_two_button">
-      <a {{bindAttr class="view.paginationLeftClass"}}{{action previousPage target="view"}}><i
-              class="icon-arrow-left"></i></a>
-      <a {{bindAttr class="view.paginationRightClass"}}{{action nextPage target="view"}}><i
-              class="icon-arrow-right"></i></a>
-    </div>
-  </div>
 </div>

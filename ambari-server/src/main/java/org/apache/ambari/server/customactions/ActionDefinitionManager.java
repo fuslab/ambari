@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,19 +17,6 @@
  */
 package org.apache.ambari.server.customactions;
 
-import org.apache.ambari.server.AmbariException;
-import org.apache.ambari.server.actionmanager.ActionType;
-import org.apache.ambari.server.actionmanager.TargetHostType;
-import org.apache.ambari.server.security.authorization.RoleAuthorization;
-import org.apache.ambari.server.stack.StackDirectory;
-import org.apache.commons.lang.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.UnmarshalException;
-import javax.xml.bind.Unmarshaller;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -39,16 +26,30 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBException;
+import javax.xml.bind.UnmarshalException;
+import javax.xml.bind.Unmarshaller;
+
+import org.apache.ambari.server.AmbariException;
+import org.apache.ambari.server.actionmanager.ActionType;
+import org.apache.ambari.server.actionmanager.TargetHostType;
+import org.apache.ambari.server.security.authorization.RoleAuthorization;
+import org.apache.ambari.server.stack.StackDirectory;
+import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Manages Action definitions read from XML files
  */
 public class ActionDefinitionManager {
-  public static final Short MIN_TIMEOUT = 60;
+  public static final Integer MIN_TIMEOUT = 60;
   private final static Logger LOG = LoggerFactory
       .getLogger(ActionDefinitionManager.class);
   private static final Map<Class<?>, JAXBContext> _jaxbContexts =
-      new HashMap<Class<?>, JAXBContext>();
-  private static final Short MAX_TIMEOUT = Short.MAX_VALUE-1;
+    new HashMap<>();
+  private static final Integer MAX_TIMEOUT = Integer.MAX_VALUE-1;
 
   static {
     try {
@@ -59,7 +60,7 @@ public class ActionDefinitionManager {
     }
   }
 
-  private final Map<String, ActionDefinition> actionDefinitionMap = new HashMap<String, ActionDefinition>();
+  private final Map<String, ActionDefinition> actionDefinitionMap = new HashMap<>();
 
   public ActionDefinitionManager() {
   }
@@ -78,7 +79,7 @@ public class ActionDefinitionManager {
     try {
       return Enum.valueOf(enumm, s);
     } catch (IllegalArgumentException iaex) {
-      reason.append("Invalid value provided for " + enumm.getName());
+      reason.append("Invalid value provided for ").append(enumm.getName());
       return null;
     }
   }
@@ -104,23 +105,23 @@ public class ActionDefinitionManager {
           continue;
         }
         for (ActionDefinitionSpec ad : adx.actionDefinitions()) {
-          LOG.debug("Read action definition = " + ad.toString());
+          LOG.debug("Read action definition = {}", ad);
           StringBuilder errorReason =
-              new StringBuilder("Error while parsing action definition. ").append(ad.toString()).append(" --- ");
+              new StringBuilder("Error while parsing action definition. ").append(ad).append(" --- ");
 
           TargetHostType targetType = safeValueOf(TargetHostType.class, ad.getTargetType(), errorReason);
           ActionType actionType = safeValueOf(ActionType.class, ad.getActionType(), errorReason);
 
-          Short defaultTimeout = MIN_TIMEOUT;
+          Integer defaultTimeout = MIN_TIMEOUT;
           if (ad.getDefaultTimeout() != null && !ad.getDefaultTimeout().isEmpty()) {
-            defaultTimeout = Short.parseShort(ad.getDefaultTimeout());
+            defaultTimeout = Integer.parseInt(ad.getDefaultTimeout());
           }
 
           if (isValidActionDefinition(ad, actionType, defaultTimeout, errorReason)) {
             String actionName = ad.getActionName();
             if (actionDefinitionMap.containsKey(actionName)) {
               LOG.warn("Ignoring action definition as a different definition by that name already exists. "
-                  + ad.toString());
+                  + ad);
               continue;
             }
 
@@ -137,7 +138,7 @@ public class ActionDefinitionManager {
   }
 
   private boolean isValidActionDefinition(ActionDefinitionSpec ad, ActionType actionType,
-                                          Short defaultTimeout, StringBuilder reason) {
+                                          Integer defaultTimeout, StringBuilder reason) {
     if (isValidActionName(ad.getActionName(), reason)) {
 
       if (defaultTimeout < MIN_TIMEOUT || defaultTimeout > MAX_TIMEOUT) {
@@ -146,7 +147,7 @@ public class ActionDefinitionManager {
       }
 
       if (actionType == null || actionType == ActionType.SYSTEM_DISABLED) {
-        reason.append("Action type cannot be " + actionType);
+        reason.append("Action type cannot be ").append(actionType);
         return false;
       }
 
@@ -178,7 +179,7 @@ public class ActionDefinitionManager {
   }
 
   public List<ActionDefinition> getAllActionDefinition() {
-    return new ArrayList<ActionDefinition>(actionDefinitionMap.values());
+    return new ArrayList<>(actionDefinitionMap.values());
   }
 
   public ActionDefinition getActionDefinition(String name) {
@@ -221,7 +222,7 @@ public class ActionDefinitionManager {
     if (StringUtils.isEmpty(permissions)) {
       return null;
     } else {
-      Set<RoleAuthorization> authorizations = new HashSet<RoleAuthorization>();
+      Set<RoleAuthorization> authorizations = new HashSet<>();
       String[] parts = permissions.split(",");
 
       for (String permission : parts) {

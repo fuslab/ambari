@@ -90,11 +90,12 @@
 
       <execute-stage service="RANGER" component="RANGER_ADMIN" title="Pre Upgrade Ranger Backup">
         <task xsi:type="manual">
-          <message>Before continuing, please backup the Ranger Admin database and Ranger Audit database.
-                If audit database size is too large( > 3GB ) then follow the below instructions:
-                1. Backup the audit table from audit database.
-                2. Truncate audit table.
-                3. Follow upgrade process and once completed then restore audit data to audit table.</message>
+          <message>
+            Before continuing, please backup the Ranger Admin database and Ranger Audit database. If audit database size is too large( > 3GB ) then follow the below instructions:
+          </message>
+          <message>1. Backup the audit table from audit database.</message>
+          <message>2. Truncate audit table.</message>
+          <message>3. Follow upgrade process and once completed then restore audit data to audit table.</message>
         </task>
       </execute-stage>
 
@@ -129,7 +130,7 @@
       </service>
     </group>
 
-    <group name="HBASE" title="Update HBase Configuration">
+    <group xsi:type="cluster" name="HBASE" title="Update HBase Configuration">
       <skippable>true</skippable>
 
       <execute-stage service="HBASE" component="HBASE_MASTER" title="Update HBase Configuration">
@@ -425,16 +426,6 @@
       </service>
     </group>
 
-    <group xsi:type="cluster" name="ALL_HOST_OPS" title="Finalize Hosts">
-      <scope>COMPLETE</scope>
-      <execute-stage title="Update remaining HDP stack to {{version}}">
-        <task xsi:type="execute">
-          <script>scripts/ru_set_all.py</script>
-          <function>actionexecute</function>
-        </task>
-      </execute-stage>
-    </group>
-
     <group xsi:type="cluster" name="FINALIZE_PRE_CHECK" title="Finalize {{direction.text.proper}} Pre-Check">
       <direction>UPGRADE</direction>
 
@@ -496,7 +487,7 @@
         </upgrade>
       </component>
     </service>
-    
+
     <service name="RANGER">
       <component name="RANGER_ADMIN">
         <pre-upgrade>
@@ -524,6 +515,7 @@
             <script>scripts/ranger_admin.py</script>
             <function>setup_ranger_java_patches</function>
           </task>
+
         </pre-upgrade>
         
         <pre-downgrade copy-upgrade="true" />
@@ -910,7 +902,7 @@
         <pre-upgrade>
           <task xsi:type="configure" id="kafka_log4j_parameterize" />
         </pre-upgrade>
-        <pre-downgrade></pre-downgrade>
+        <pre-downgrade/>
         <upgrade>
           <task xsi:type="restart-task" />
         </upgrade>
@@ -1015,5 +1007,6 @@
         </upgrade>
       </component>
     </service>
+
   </processing>
 </upgrade>

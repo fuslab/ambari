@@ -27,6 +27,7 @@ import java.util.Set;
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.controller.spi.Predicate;
 import org.apache.ambari.server.controller.spi.Resource;
+import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.apache.ambari.server.orm.entities.GroupEntity;
 import org.apache.ambari.server.orm.entities.PermissionEntity;
 import org.apache.ambari.server.orm.entities.PrivilegeEntity;
@@ -38,43 +39,44 @@ import org.apache.ambari.server.security.authorization.ResourceType;
 import org.apache.ambari.server.security.authorization.RoleAuthorization;
 import org.apache.ambari.server.view.ViewRegistry;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
+
 /**
  * Resource provider for view privilege resources.
  */
 public class ViewPrivilegeResourceProvider extends PrivilegeResourceProvider<ViewInstanceEntity> {
 
-  /**
-   * View privilege property id constants.
-   */
-  public static final String PRIVILEGE_VIEW_NAME_PROPERTY_ID     = "PrivilegeInfo/view_name";
-  public static final String PRIVILEGE_VIEW_VERSION_PROPERTY_ID  = "PrivilegeInfo/version";
-  public static final String PRIVILEGE_INSTANCE_NAME_PROPERTY_ID = "PrivilegeInfo/instance_name";
+  public static final String VIEW_NAME_PROPERTY_ID = "view_name";
+  public static final String VERSION_PROPERTY_ID = "version";
+  public static final String INSTANCE_NAME_PROPERTY_ID = "instance_name";
+
+  public static final String VIEW_NAME = PRIVILEGE_INFO + PropertyHelper.EXTERNAL_PATH_SEP + VIEW_NAME_PROPERTY_ID;
+  public static final String VERSION = PRIVILEGE_INFO + PropertyHelper.EXTERNAL_PATH_SEP + VERSION_PROPERTY_ID;
+  public static final String INSTANCE_NAME = PRIVILEGE_INFO + PropertyHelper.EXTERNAL_PATH_SEP + INSTANCE_NAME_PROPERTY_ID;
 
   /**
    * The property ids for a privilege resource.
    */
-  private static Set<String> propertyIds = new HashSet<String>();
-  static {
-    propertyIds.add(PRIVILEGE_VIEW_NAME_PROPERTY_ID);
-    propertyIds.add(PRIVILEGE_VIEW_VERSION_PROPERTY_ID);
-    propertyIds.add(PRIVILEGE_INSTANCE_NAME_PROPERTY_ID);
-    propertyIds.add(PRIVILEGE_ID_PROPERTY_ID);
-    propertyIds.add(PERMISSION_NAME_PROPERTY_ID);
-    propertyIds.add(PERMISSION_LABEL_PROPERTY_ID);
-    propertyIds.add(PRINCIPAL_NAME_PROPERTY_ID);
-    propertyIds.add(PRINCIPAL_TYPE_PROPERTY_ID);
-  }
+  private static Set<String> propertyIds = Sets.newHashSet(
+      VIEW_NAME,
+      VERSION,
+      INSTANCE_NAME,
+      PRIVILEGE_ID,
+      PERMISSION_NAME,
+      PERMISSION_LABEL,
+      PRINCIPAL_NAME,
+      PRINCIPAL_TYPE);
 
   /**
    * The key property ids for a privilege resource.
    */
-  private static Map<Resource.Type, String> keyPropertyIds = new HashMap<Resource.Type, String>();
-  static {
-    keyPropertyIds.put(Resource.Type.View, PRIVILEGE_VIEW_NAME_PROPERTY_ID);
-    keyPropertyIds.put(Resource.Type.ViewVersion, PRIVILEGE_VIEW_VERSION_PROPERTY_ID);
-    keyPropertyIds.put(Resource.Type.ViewInstance, PRIVILEGE_INSTANCE_NAME_PROPERTY_ID);
-    keyPropertyIds.put(Resource.Type.ViewPrivilege, PRIVILEGE_ID_PROPERTY_ID);
-  }
+  private static Map<Resource.Type, String> keyPropertyIds = ImmutableMap.<Resource.Type, String>builder()
+      .put(Resource.Type.View, VIEW_NAME)
+      .put(Resource.Type.ViewVersion, VERSION)
+      .put(Resource.Type.ViewInstance, INSTANCE_NAME)
+      .put(Resource.Type.ViewPrivilege, PRIVILEGE_ID)
+      .build();
 
   /**
    * The built-in VIEW.USER permission.
@@ -113,9 +115,9 @@ public class ViewPrivilegeResourceProvider extends PrivilegeResourceProvider<Vie
   public Map<Long, ViewInstanceEntity> getResourceEntities(Map<String, Object> properties) throws AmbariException {
     ViewRegistry viewRegistry = ViewRegistry.getInstance();
 
-    String viewName     = (String) properties.get(PRIVILEGE_VIEW_NAME_PROPERTY_ID);
-    String viewVersion  = (String) properties.get(PRIVILEGE_VIEW_VERSION_PROPERTY_ID);
-    String instanceName = (String) properties.get(PRIVILEGE_INSTANCE_NAME_PROPERTY_ID);
+    String viewName     = (String) properties.get(VIEW_NAME);
+    String viewVersion  = (String) properties.get(VERSION);
+    String instanceName = (String) properties.get(INSTANCE_NAME);
 
     if (viewName != null && viewVersion != null && instanceName != null) {
       ViewInstanceEntity viewInstanceEntity =
@@ -129,10 +131,10 @@ public class ViewPrivilegeResourceProvider extends PrivilegeResourceProvider<Vie
 
       return view.isDeployed() ?
           Collections.singletonMap(viewInstanceEntity.getResource().getId(), viewInstanceEntity) :
-          Collections.<Long, ViewInstanceEntity>emptyMap();
+          Collections.emptyMap();
     }
 
-    Set<ViewEntity> viewEntities = new HashSet<ViewEntity>();
+    Set<ViewEntity> viewEntities = new HashSet<>();
 
     if (viewVersion != null) {
       ViewEntity viewEntity = viewRegistry.getDefinition(viewName, viewVersion);
@@ -147,7 +149,7 @@ public class ViewPrivilegeResourceProvider extends PrivilegeResourceProvider<Vie
       }
     }
 
-    Map<Long, ViewInstanceEntity> resourceEntities = new HashMap<Long, ViewInstanceEntity>();
+    Map<Long, ViewInstanceEntity> resourceEntities = new HashMap<>();
 
     for (ViewEntity viewEntity : viewEntities) {
       if (viewEntity.isDeployed()) {
@@ -163,9 +165,9 @@ public class ViewPrivilegeResourceProvider extends PrivilegeResourceProvider<Vie
   public Long getResourceEntityId(Predicate predicate) {
     final ViewRegistry viewRegistry = ViewRegistry.getInstance();
 
-    final String viewName     = getQueryParameterValue(PRIVILEGE_VIEW_NAME_PROPERTY_ID, predicate).toString();
-    final String viewVersion  = getQueryParameterValue(PRIVILEGE_VIEW_VERSION_PROPERTY_ID, predicate).toString();
-    final String instanceName = getQueryParameterValue(PRIVILEGE_INSTANCE_NAME_PROPERTY_ID, predicate).toString();
+    final String viewName     = getQueryParameterValue(VIEW_NAME, predicate).toString();
+    final String viewVersion  = getQueryParameterValue(VERSION, predicate).toString();
+    final String instanceName = getQueryParameterValue(INSTANCE_NAME, predicate).toString();
 
     final ViewInstanceEntity viewInstanceEntity = viewRegistry.getInstanceDefinition(viewName, viewVersion, instanceName);
 
@@ -204,9 +206,9 @@ public class ViewPrivilegeResourceProvider extends PrivilegeResourceProvider<Vie
         return null;
       }
 
-      setResourceProperty(resource, PRIVILEGE_VIEW_NAME_PROPERTY_ID, viewEntity.getCommonName(), requestedIds);
-      setResourceProperty(resource, PRIVILEGE_VIEW_VERSION_PROPERTY_ID, viewEntity.getVersion(), requestedIds);
-      setResourceProperty(resource, PRIVILEGE_INSTANCE_NAME_PROPERTY_ID, viewInstanceEntity.getName(), requestedIds);
+      setResourceProperty(resource, VIEW_NAME, viewEntity.getCommonName(), requestedIds);
+      setResourceProperty(resource, VERSION, viewEntity.getVersion(), requestedIds);
+      setResourceProperty(resource, INSTANCE_NAME, viewInstanceEntity.getName(), requestedIds);
     }
     return resource;
   }

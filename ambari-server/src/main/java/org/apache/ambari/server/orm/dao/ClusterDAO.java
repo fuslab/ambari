@@ -217,6 +217,21 @@ public class ClusterDAO {
   }
 
   /**
+   * Gets the latest configurations for a given stack with any of the given config types.
+   * This method does not take into account the configuration being enabled.
+   */
+  @RequiresSession
+  public List<ClusterConfigEntity> getLatestConfigurationsWithTypes(long clusterId, StackId stackId, Collection<String> configTypes) {
+    StackEntity stackEntity = stackDAO.find(stackId.getStackName(), stackId.getStackVersion());
+    return daoUtils.selectList(
+      entityManagerProvider.get()
+      .createNamedQuery("ClusterConfigEntity.findLatestConfigsByStackWithTypes", ClusterConfigEntity.class)
+      .setParameter("clusterId", clusterId)
+      .setParameter("stack", stackEntity)
+      .setParameter("types", configTypes));
+  }
+
+  /**
    * Gets the latest configurations for a given stack for all of the
    * configurations of the specified cluster.
    *
@@ -235,6 +250,24 @@ public class ClusterDAO {
 
     query.setParameter("clusterId", clusterId);
     query.setParameter("stack", stackEntity);
+
+    return daoUtils.selectList(query);
+  }
+
+  /**
+   * Gets the latest configurations for the specified cluster.
+   *
+   * @param clusterId
+   *          the cluster that the service is a part of.
+   * @return the latest configurations for the specified cluster.
+   */
+  @RequiresSession
+  public List<ClusterConfigEntity> getEnabledConfigs(long clusterId) {
+
+    TypedQuery<ClusterConfigEntity> query = entityManagerProvider.get().createNamedQuery(
+        "ClusterConfigEntity.findEnabledConfigs", ClusterConfigEntity.class);
+
+    query.setParameter("clusterId", clusterId);
 
     return daoUtils.selectList(query);
   }

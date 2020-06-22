@@ -63,6 +63,10 @@ public class FlumeTimelineMetricsSink extends AbstractTimelineMetricsSink implem
   private int timeoutSeconds = 10;
   private boolean setInstanceId;
   private String instanceId;
+  private boolean hostInMemoryAggregationEnabled;
+  private int hostInMemoryAggregationPort;
+  private String hostInMemoryAggregationProtocol;
+
 
   @Override
   public void start() {
@@ -90,6 +94,8 @@ public class FlumeTimelineMetricsSink extends AbstractTimelineMetricsSink implem
       if ((hostname == null) || (!hostname.contains("."))) {
         hostname = InetAddress.getLocalHost().getCanonicalHostName();
       }
+      hostname = hostname.toLowerCase();
+
     } catch (UnknownHostException e) {
       LOG.error("Could not identify hostname.");
       throw new FlumeException("Could not identify hostname.", e);
@@ -108,10 +114,14 @@ public class FlumeTimelineMetricsSink extends AbstractTimelineMetricsSink implem
     port = configuration.getProperty(COLLECTOR_PORT, "6188");
     setInstanceId = Boolean.valueOf(configuration.getProperty(SET_INSTANCE_ID_PROPERTY, "false"));
     instanceId = configuration.getProperty(INSTANCE_ID_PROPERTY, "");
+
+    hostInMemoryAggregationEnabled = Boolean.getBoolean(configuration.getProperty(HOST_IN_MEMORY_AGGREGATION_ENABLED_PROPERTY, "false"));
+    hostInMemoryAggregationPort = Integer.valueOf(configuration.getProperty(HOST_IN_MEMORY_AGGREGATION_PORT_PROPERTY, "61888"));
+    hostInMemoryAggregationProtocol = configuration.getProperty(HOST_IN_MEMORY_AGGREGATION_PROTOCOL_PROPERTY, "http");
     // Initialize the collector write strategy
     super.init();
 
-    if (protocol.contains("https")) {
+    if (protocol.contains("https") || hostInMemoryAggregationProtocol.contains("https")) {
       String trustStorePath = configuration.getProperty(SSL_KEYSTORE_PATH_PROPERTY).trim();
       String trustStoreType = configuration.getProperty(SSL_KEYSTORE_TYPE_PROPERTY).trim();
       String trustStorePwd = configuration.getProperty(SSL_KEYSTORE_PASSWORD_PROPERTY).trim();
@@ -158,6 +168,21 @@ public class FlumeTimelineMetricsSink extends AbstractTimelineMetricsSink implem
   @Override
   protected String getHostname() {
     return hostname;
+  }
+
+  @Override
+  protected boolean isHostInMemoryAggregationEnabled() {
+    return hostInMemoryAggregationEnabled;
+  }
+
+  @Override
+  protected int getHostInMemoryAggregationPort() {
+    return hostInMemoryAggregationPort;
+  }
+
+  @Override
+  protected String getHostInMemoryAggregationProtocol() {
+    return hostInMemoryAggregationProtocol;
   }
 
   public void setPollFrequency(long pollFrequency) {

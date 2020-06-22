@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,9 +17,11 @@
  */
 package org.apache.ambari.server.orm.dao;
 
-import com.google.inject.Guice;
-import com.google.inject.Injector;
-import junit.framework.Assert;
+import java.sql.SQLException;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.H2DatabaseCleaner;
 import org.apache.ambari.server.orm.GuiceJpaInitializer;
@@ -37,10 +39,10 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import java.sql.SQLException;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+
+import junit.framework.Assert;
 
 public class TopologyLogicalRequestDAOTest {
   private Injector injector;

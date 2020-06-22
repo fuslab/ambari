@@ -85,7 +85,7 @@ class TestKnoxGateway(RMFTestCase):
                               group = 'knox',
                               conf_dir = '/usr/hdp/current/knox-server/conf',
                               configurations = self.getConfig()['configurations']['gateway-site'],
-                              configuration_attributes = self.getConfig()['configuration_attributes']['gateway-site']
+                              configuration_attributes = self.getConfig()['configurationAttributes']['gateway-site']
     )
 
     self.assertResourceCalled('File', '/usr/hdp/current/knox-server/conf/gateway-log4j.properties',
@@ -95,11 +95,13 @@ class TestKnoxGateway(RMFTestCase):
                               content = InlineTemplate(self.getConfig()['configurations']['gateway-log4j']['content'])
     )
     self.assertResourceCalled('File', '/usr/hdp/current/knox-server/conf/topologies/default.xml',
+                              mode=0600,
                               group='knox',
                               owner = 'knox',
                               content = InlineTemplate(self.getConfig()['configurations']['topology']['content'])
     )
     self.assertResourceCalled('File', '/usr/hdp/current/knox-server/conf/topologies/admin.xml',
+                              mode=0600,
                               group='knox',
                               owner = 'knox',
                               content = InlineTemplate(self.getConfig()['configurations']['admin-topology']['content'])
@@ -394,7 +396,7 @@ class TestKnoxGateway(RMFTestCase):
                               group = 'knox',
                               conf_dir = '/usr/hdp/current/knox-server/conf',
                               configurations = self.getConfig()['configurations']['gateway-site'],
-                              configuration_attributes = self.getConfig()['configuration_attributes']['gateway-site']
+                              configuration_attributes = self.getConfig()['configurationAttributes']['gateway-site']
     )
 
     self.assertResourceCalled('File', '/usr/hdp/current/knox-server/conf/gateway-log4j.properties',
@@ -406,11 +408,13 @@ class TestKnoxGateway(RMFTestCase):
     self.assertResourceCalled('File', '/usr/hdp/current/knox-server/conf/topologies/default.xml',
                               group='knox',
                               owner = 'knox',
+                              mode = 0600,
                               content = InlineTemplate(self.getConfig()['configurations']['topology']['content'])
     )
     self.assertResourceCalled('File', '/usr/hdp/current/knox-server/conf/topologies/admin.xml',
                               group='knox',
                               owner = 'knox',
+                              mode = 0600,
                               content = InlineTemplate(self.getConfig()['configurations']['admin-topology']['content'])
     )
     self.assertResourceCalled('Execute', '/usr/hdp/current/knox-server/bin/knoxcli.sh create-master --master sa',
@@ -440,7 +444,7 @@ class TestKnoxGateway(RMFTestCase):
     )
     self.assertResourceCalled('Directory', '/var/log/knox',
                               owner = 'knox',
-                              mode = 0755,
+                              mode = 0700,
                               group = 'knox',
                               create_parents = True,
                               cd_access = 'a',
@@ -452,4 +456,5 @@ class TestKnoxGateway(RMFTestCase):
                               user = u'knox',)
     self.assertTrue(islink_mock.called)
     self.assertNoMoreResources()
+
 

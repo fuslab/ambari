@@ -35,7 +35,6 @@ App.themesMapper = App.QuickDataMapper.create({
   },
 
   sectionConfig: {
-    "id": "name",
     "name": "name",
     "display_name": "display-name",
     "row_index": "row-index",
@@ -48,7 +47,6 @@ App.themesMapper = App.QuickDataMapper.create({
   },
 
   subSectionConfig: {
-    "id": "name",
     "name": "name",
     "display_name": "display-name",
     "border": "border",
@@ -68,6 +66,16 @@ App.themesMapper = App.QuickDataMapper.create({
     "display_name": "display-name",
     "depends_on": "depends-on",
     "sub_section_id": "sub_section_id"
+  },
+
+  resetModels: function() {
+    this.get('tabModel').find().clear();
+    this.get('sectionModel').find().clear();
+    this.get('subSectionModel').find().clear();
+    this.get('subSectionTabModel').find().clear();
+    this.get('themeConditionModel').find().clear();
+    App.clearModels([this.get('tabModel')]);
+    App.resetDsStoreTypeMap(this.get('tabModel'));
   },
 
   /**
@@ -96,61 +104,24 @@ App.themesMapper = App.QuickDataMapper.create({
    * @param {Object} json - json to parse
    * @param {Object[]} tabs - tabs list
    */
-  mapThemeLayouts: function(json, tabs) {
-     var serviceName = Em.get(json, "ThemeInfo.service_name");
-     Em.getWithDefault(json, "ThemeInfo.theme_data.Theme.configuration.layouts", []).forEach(function(layout) {
+  mapThemeLayouts: function (json, tabs) {
+    var serviceName = Em.get(json, "ThemeInfo.service_name");
+    var themeName = Em.get(json, "ThemeInfo.theme_data.Theme.name");
+    Em.getWithDefault(json, "ThemeInfo.theme_data.Theme.configuration.layouts", []).forEach(function (layout) {
       if (layout.tabs) {
-        layout.tabs.forEach(function(tab) {
+        layout.tabs.forEach(function (tab) {
           var parsedTab = this.parseIt(tab, this.get("tabConfig"));
           parsedTab.id = serviceName + "_" + tab.name;
           parsedTab.service_name = serviceName;
+          parsedTab.theme_name = themeName;
 
           if (Em.get(tab, "layout.sections")) {
             var sections = [];
-            Em.get(tab, "layout.sections").forEach(function(section) {
+            Em.get(tab, "layout.sections").forEach(function (section) {
               var parsedSection = this.parseIt(section, this.get("sectionConfig"));
+              parsedSection.id = section.name + '_' + parsedTab.id;
               parsedSection.tab_id = parsedTab.id;
-
-              if (section.subsections) {
-                var subSections = [];
-                var subSectionConditions = [];
-                section.subsections.forEach(function(subSection) {
-                  var parsedSubSection = this.parseIt(subSection, this.get("subSectionConfig"));
-                  parsedSubSection.section_id = parsedSection.id;
-
-                  if (subSection['subsection-tabs']) {
-                    var subSectionTabs = [];
-                    var subSectionTabConditions = [];
-
-                    subSection['subsection-tabs'].forEach(function (subSectionTab) {
-                      var parsedSubSectionTab = this.parseIt(subSectionTab, this.get("subSectionTabConfig"));
-                      parsedSubSectionTab.sub_section_id = parsedSubSection.id;
-                      if (parsedSubSectionTab['depends_on']) {
-                        subSectionTabConditions.push(parsedSubSectionTab);
-                      }
-                      subSectionTabs.push(parsedSubSectionTab);
-                    }, this);
-                    subSectionTabs[0].is_active = true;
-                    if (subSectionTabConditions.length) {
-                      var type = 'subsectionTab';
-                      this.mapThemeConditions(subSectionTabConditions, type);
-                    }
-                    App.store.safeLoadMany(this.get("subSectionTabModel"), subSectionTabs);
-                    parsedSubSection.sub_section_tabs = subSectionTabs.mapProperty("id");
-                  }
-                  if (parsedSubSection['depends_on']) {
-                    subSectionConditions.push(parsedSubSection);
-                  }
-                  subSections.push(parsedSubSection);
-                }, this);
-                if (subSectionConditions.length) {
-                  var type = 'subsection';
-                  this.mapThemeConditions(subSectionConditions, type);
-                }
-                App.store.safeLoadMany(this.get("subSectionModel"), subSections);
-                parsedSection.sub_sections = subSections.mapProperty("id");
-              }
-
+              this.loadSubSections(section, parsedSection, serviceName, themeName);
               sections.push(parsedSection);
             }, this);
 
@@ -165,6 +136,56 @@ App.themesMapper = App.QuickDataMapper.create({
     }, this);
   },
 
+  loadSubSections: function(section, parsedSection, serviceName, themeName) {
+    if (section.subsections) {
+      var subSections = [];
+      var subSectionConditions = [];
+      section.subsections.forEach(function(subSection) {
+        var parsedSubSection = this.parseIt(subSection, this.get("subSectionConfig"));
+        parsedSubSection.section_id = parsedSection.id;
+        parsedSubSection.id = parsedSubSection.name + '_' + serviceName + '_' + themeName;
+        parsedSubSection.theme_name = themeName;
+
+        this.loadSubSectionTabs(subSection, parsedSubSection, themeName);
+        if (parsedSubSection['depends_on']) {
+          subSectionConditions.push(parsedSubSection);
+        }
+        subSections.push(parsedSubSection);
+      }, this);
+      if (subSectionConditions.length) {
+        var type = 'subsection';
+        this.mapThemeConditions(subSectionConditions, type, themeName);
+      }
+      App.store.safeLoadMany(this.get("subSectionModel"), subSections);
+      parsedSection.sub_sections = subSections.mapProperty("id");
+    }
+  },
+
+
+  loadSubSectionTabs: function(subSection, parsedSubSection, themeName) {
+    if (subSection['subsection-tabs']) {
+      var subSectionTabs = [];
+      var subSectionTabConditions = [];
+
+      subSection['subsection-tabs'].forEach(function (subSectionTab) {
+        var parsedSubSectionTab = this.parseIt(subSectionTab, this.get("subSectionTabConfig"));
+        parsedSubSectionTab.sub_section_id = parsedSubSection.id;
+        parsedSubSectionTab.theme_name = themeName;
+        if (parsedSubSectionTab['depends_on']) {
+          subSectionTabConditions.push(parsedSubSectionTab);
+        }
+        subSectionTabs.push(parsedSubSectionTab);
+      }, this);
+      subSectionTabs[0].is_active = true;
+      if (subSectionTabConditions.length) {
+        var type = 'subsectionTab';
+        this.mapThemeConditions(subSectionTabConditions, type, themeName);
+      }
+      App.store.safeLoadMany(this.get("subSectionTabModel"), subSectionTabs);
+      parsedSubSection.sub_section_tabs = subSectionTabs.mapProperty("id");
+    }
+  },
+
   /**
    * create tie between <code>stackConfigProperty<code> and <code>subSection<code>
    *
@@ -172,73 +193,30 @@ App.themesMapper = App.QuickDataMapper.create({
    */
   mapThemeConfigs: function(json) {
     var serviceName = Em.get(json, "ThemeInfo.service_name");
+    var themeName = Em.get(json, "ThemeInfo.theme_data.Theme.name");
     Em.getWithDefault(json, "ThemeInfo.theme_data.Theme.configuration.placement.configs", []).forEach(function(configLink) {
       var configId = this.getConfigId(configLink);
-      var subSectionId = configLink["subsection-name"];
+      var subSectionId = configLink["subsection-name"] ? configLink["subsection-name"] + '_' + serviceName + '_' + themeName : false;
       var subSectionTabId = configLink["subsection-tab-name"];
+      var configProperty = App.configsCollection.getConfig(configId);
+      var dependsOnConfigs = configLink["depends-on"] || [];
+
       if (subSectionTabId) {
         var subSectionTab = App.SubSectionTab.find(subSectionTabId);
       } else if (subSectionId) {
         var subSection = App.SubSection.find(subSectionId);
       }
-      var configProperty = App.configsCollection.getConfig(configId);
 
-      var dependsOnConfigs = configLink["depends-on"] || [];
-
-      if (configProperty && subSection) {
-        var cp = subSection.get('configProperties').contains(configProperty.id);
-        if (!cp) {
+      if (configProperty && subSection && subSection.get('isLoaded')) {
+        if (!subSection.get('configProperties').contains(configProperty.id)) {
           subSection.set('configProperties', subSection.get('configProperties').concat(configProperty.id));
         }
-      } else if (configProperty && subSectionTab) {
-        var cp = subSectionTab.get('configProperties').contains(configProperty.id);
-        if (!cp) {
+      } else if (configProperty && subSectionTab && subSectionTab.get('isLoaded')) {
+        if (!subSectionTab.get('configProperties').contains(configProperty.id)) {
           subSectionTab.set('configProperties', subSectionTab.get('configProperties').concat(configProperty.id));
         }
       } else {
-        var valueAttributes = configLink["property_value_attributes"];
-        if (valueAttributes) {
-          var isUiOnlyProperty = valueAttributes["ui_only_property"];
-          var isCopy = valueAttributes["copy"] || '';
-          // UI only configs are mentioned in the themes for supporting widgets that is not intended for setting a value
-          // And thus is affiliated with fake config property termed as ui only config property
-          if (isUiOnlyProperty && subSection) {
-            var split = configLink.config.split("/");
-            var fileName =  split[0] + '.xml', configName = split[1], id = App.config.configId(configName, fileName);
-            var uiOnlyConfig = App.configsCollection.getConfig(id);
-            if (!uiOnlyConfig) {
-              configProperty = {
-                id: id,
-                isRequiredByAgent: false,
-                showLabel: false,
-                isOverridable: false,
-                recommendedValue: true,
-                name: configName,
-                isUserProperty: false,
-                filename: fileName,
-                fileName: fileName,
-                isNotSaved: false,
-                serviceName: serviceName,
-                copy: isCopy,
-                stackName: App.get('currentStackName'),
-                stackVersion: App.get('currentStackVersionNumber')
-              };
-              App.configsCollection.add(configProperty);
-
-              if (subSection) {
-                var cp = subSection.get('configProperties').contains(configProperty.id);
-                if (!cp) {
-                  subSection.set('configProperties', subSection.get('configProperties').concat(configProperty.id));
-                }
-              } else if (subSectionTab) {
-                var cp = subSectionTab.get('configProperties').contains(configProperty.id);
-                if (!cp) {
-                  subSectionTab.set('configProperties', subSectionTab.get('configProperties').concat(configProperty.id));
-                }
-              }
-            }
-          }
-        }
+        configProperty = this.getConfigByAttributes(configProperty, configLink, subSection, subSectionTab, serviceName);
       }
 
       // map all the configs which conditionally affect the value attributes of a config
@@ -247,6 +225,45 @@ App.themesMapper = App.QuickDataMapper.create({
       }
 
     }, this);
+  },
+
+  getConfigByAttributes: function(configProperty, configLink, subSection, subSectionTab, serviceName) {
+    var valueAttributes = configLink["property_value_attributes"];
+    if (valueAttributes) {
+      var isUiOnlyProperty = valueAttributes["ui_only_property"];
+      var isCopy = valueAttributes["copy"] || '';
+      // UI only configs are mentioned in the themes for supporting widgets that is not intended for setting a value
+      // And thus is affiliated with fake config property termed as ui only config property
+      if (isUiOnlyProperty && subSection) {
+        var split = configLink.config.split("/");
+        var fileName =  split[0] + '.xml', configName = split[1], id = App.config.configId(configName, fileName);
+        var uiOnlyConfig = App.configsCollection.getConfig(id);
+        if (!uiOnlyConfig) {
+          configProperty = {
+            id: id,
+            isRequiredByAgent: false,
+            showLabel: false,
+            isOverridable: false,
+            recommendedValue: true,
+            name: JSON.parse('"' + configName + '"'),
+            isUserProperty: false,
+            filename: fileName,
+            fileName: fileName,
+            isNotSaved: false,
+            serviceName: serviceName,
+            copy: isCopy,
+            stackName: App.get('currentStackName'),
+            stackVersion: App.get('currentStackVersionNumber')
+          };
+          App.configsCollection.add(configProperty);
+
+          if (!subSection.get('configProperties').contains(configProperty.id)) {
+            subSection.set('configProperties', subSection.get('configProperties').concat(configProperty.id));
+          }
+        }
+      }
+    }
+    return configProperty;
   },
 
   /**
@@ -284,7 +301,7 @@ App.themesMapper = App.QuickDataMapper.create({
    * @param subSections: Array
    * @param type: {String} possible values: `subsection` or `subsectionTab`
    */
-  mapThemeConditions: function(subSections, type) {
+  mapThemeConditions: function(subSections, type, themeName) {
     var subSectionConditionsCopy = [];
     subSections.forEach(function(_subSection){
       var subSectionConditions = _subSection['depends_on'];
@@ -292,6 +309,7 @@ App.themesMapper = App.QuickDataMapper.create({
         var subSectionCondition = $.extend({},_subSectionCondition);
         subSectionCondition.id = _subSection.id + '_' + index;
         subSectionCondition.name = _subSection.name;
+        subSectionCondition.theme_name = themeName;
         if (_subSectionCondition.configs && _subSectionCondition.configs.length) {
           subSectionCondition.configs = _subSectionCondition.configs.map(function (item) {
             var result = {};
@@ -315,6 +333,7 @@ App.themesMapper = App.QuickDataMapper.create({
    * @param {Object} json - json to parse
    */
   mapThemeWidgets: function(json) {
+    var themeName = Em.get(json, 'ThemeInfo.theme_data.Theme.name');
     Em.getWithDefault(json, "ThemeInfo.theme_data.Theme.configuration.widgets", []).forEach(function(widget) {
       var configId = this.getConfigId(widget);
       var configProperty = App.configsCollection.getConfig(configId);
@@ -322,14 +341,20 @@ App.themesMapper = App.QuickDataMapper.create({
       if (configProperty) {
         Em.set(configProperty, 'widget', widget.widget);
         Em.set(configProperty, 'widgetType', Em.get(widget, 'widget.type'));
+        if (themeName === 'default') {
+          Em.set(configProperty, 'isInDefaultTheme', true);
+        }
       } else {
         var split = widget.config.split("/");
         var fileName =  split[0] + '.xml';
         var configName = split[1];
         var uiOnlyProperty = App.configsCollection.getConfigByName(configName, fileName);
         if (uiOnlyProperty) {
-          uiOnlyProperty.widget = widget.widget;
+          uiOnlyProperty.set('widget', widget.widget);
           uiOnlyProperty.set('widgetType', Em.get(widget, 'widget.type'));
+          if (themeName === 'default') {
+            Em.set(uiOnlyProperty, 'isInDefaultTheme', true);
+          }
         }
       }
     }, this);
@@ -342,8 +367,10 @@ App.themesMapper = App.QuickDataMapper.create({
    */
   getConfigId: function(json) {
     if (json && json.config && typeof json.config === "string") {
-      var split = json.config.split("/");
-      return App.config.configId(split[1], split[0]);
+      // symbols until first slash is file-name and the rest is config-name
+      const fileName = json.config.substr(0, json.config.indexOf('/'));
+      const configName = json.config.substr(json.config.indexOf('/') + 1);
+      return App.config.configId(configName, fileName);
     } else {
       return null;
     }

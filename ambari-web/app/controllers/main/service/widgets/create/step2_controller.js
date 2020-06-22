@@ -139,6 +139,32 @@ App.WidgetWizardStep2Controller = Em.Controller.extend({
   },
 
   /**
+   * check whether any of the expressions is incomplete or invalid
+   * @returns {boolean}
+   */
+  isAnyExpressionInvalid: function() {
+    var isAnyExpressionInvalid = false;
+    switch (this.get('content.widgetType')) {
+      case "NUMBER":
+      case "GAUGE":
+      case "TEMPLATE":
+        isAnyExpressionInvalid = this.get('isSubmitDisabled') && this.get('expressions').someProperty('isEmpty', false);
+        break;
+      case "GRAPH":
+        var dataSets = this.get('dataSets'),
+          isNotEmpty = false;
+        for (var i = 0; i < dataSets.length; i++) {
+          if (dataSets[i].get('expression.data').length > 0) {
+            isNotEmpty = true;
+            break;
+          }
+        }
+        isAnyExpressionInvalid = this.get('isSubmitDisabled') && isNotEmpty;
+    }
+    return isAnyExpressionInvalid;
+  }.property('isSubmitDisabled'),
+
+  /**
    * check whether data of graph widget is complete
    * @param dataSets
    * @returns {boolean} isComplete
@@ -158,10 +184,10 @@ App.WidgetWizardStep2Controller = Em.Controller.extend({
   },
 
   /**
-    * if label is valid
-    * @param dataset
-    * @returns {boolean} isValid
-    */
+   * if label is valid
+   * @param dataset
+   * @returns {boolean} isValid
+   */
   checkIfIsLabelValid: function(dataset) {
     var label = dataset.get('label');
     var isValid = label.trim() !== '' && validator.isValidChartWidgetDatasetLabel(label);
@@ -386,15 +412,21 @@ App.WidgetWizardStep2Controller = Em.Controller.extend({
             "name": element.name,
             "service_name": element.serviceName,
             "component_name": element.componentName,
-            "metric_path": element.metricPath
+            "metric_path": element.metricPath,
+            "tag": element.tag
           };
           if (element.hostComponentCriteria) {
             metricObj.host_component_criteria = element.hostComponentCriteria;
           }
           metrics.push(metricObj);
-
         }
-        value += element.name;
+        if (element.isOperator) {
+          // operators should have spaces around in order to differentiate them when symbol is a part of metric name
+          // e.g "metric-a" and "metric1 - metric2"
+          value += " " + element.name + " ";
+        } else {
+          value += element.name;
+        }
       }, this);
       value += '}';
     }

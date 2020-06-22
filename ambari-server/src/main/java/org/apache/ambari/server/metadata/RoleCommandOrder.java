@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -90,7 +90,7 @@ public class RoleCommandOrder implements Cloneable {
     RoleCommandPair rcp2 = new RoleCommandPair(blockerRole, blockerCommand);
 
     if (dependencies.get(rcp1) == null || overrideExisting) {
-      dependencies.put(rcp1, new HashSet<RoleCommandPair>());
+      dependencies.put(rcp1, new HashSet<>());
     }
 
     dependencies.get(rcp1).add(rcp2);
@@ -133,26 +133,31 @@ public class RoleCommandOrder implements Cloneable {
     this.sectionKeys = sectionKeys;
     dependencies.clear();
 
-    StackId stackId = cluster.getDesiredStackVersion();
-    StackInfo stack = null;
-    try {
-      stack = ambariMetaInfo.getStack(stackId.getStackName(),
-        stackId.getStackVersion());
-    } catch (AmbariException e) {
+    Set<StackId> stackIds = new HashSet<>();
+    for (Service service : cluster.getServices().values()) {
+      stackIds.add(service.getDesiredStackId());
     }
 
-    LOG.info("Generating RCO graph for cluster {} and stack {}", cluster.getClusterName(), stackId);
+    for (StackId stackId : stackIds) {
+      StackInfo stack = null;
+      try {
+        stack = ambariMetaInfo.getStack(stackId.getStackName(),
+          stackId.getStackVersion());
+      } catch (AmbariException ignored) {
+        // initialize() will fail with NPE
+      }
 
-    Map<String,Object> userData = stack.getRoleCommandOrder().getContent();
-    Map<String,Object> generalSection =
-      (Map<String, Object>) userData.get(GENERAL_DEPS_KEY);
+      Map<String,Object> userData = stack.getRoleCommandOrder().getContent();
+      Map<String,Object> generalSection =
+        (Map<String, Object>) userData.get(GENERAL_DEPS_KEY);
 
-    addDependencies(generalSection);
+      addDependencies(generalSection);
 
-    for (String sectionKey : sectionKeys) {
-      Map<String, Object> section = (Map<String, Object>) userData.get(sectionKey);
+      for (String sectionKey : sectionKeys) {
+        Map<String, Object> section = (Map<String, Object>) userData.get(sectionKey);
 
-      addDependencies(section);
+        addDependencies(section);
+      }
     }
 
     extendTransitiveDependency();
@@ -191,10 +196,10 @@ public class RoleCommandOrder implements Cloneable {
   public Set<Service> getTransitiveServices(Service service, RoleCommand cmd)
     throws AmbariException {
 
-    Set<Service> transitiveServices = new HashSet<Service>();
+    Set<Service> transitiveServices = new HashSet<>();
     Cluster cluster = service.getCluster();
 
-    Set<RoleCommandPair> allDeps = new HashSet<RoleCommandPair>();
+    Set<RoleCommandPair> allDeps = new HashSet<>();
     for (ServiceComponent sc : service.getServiceComponents().values()) {
       RoleCommandPair rcp = new RoleCommandPair(Role.valueOf(sc.getName()), cmd);
       Set<RoleCommandPair> deps = dependencies.get(rcp);
@@ -222,8 +227,8 @@ public class RoleCommandOrder implements Cloneable {
    */
   private void extendTransitiveDependency() {
     for (Map.Entry<RoleCommandPair, Set<RoleCommandPair>> roleCommandPairSetEntry : dependencies.entrySet()) {
-      HashSet<RoleCommandPair> visited = new HashSet<RoleCommandPair>();
-      HashSet<RoleCommandPair> transitiveDependencies = new HashSet<RoleCommandPair>();
+      HashSet<RoleCommandPair> visited = new HashSet<>();
+      HashSet<RoleCommandPair> transitiveDependencies = new HashSet<>();
       for (RoleCommandPair directlyBlockedOn : dependencies.get(roleCommandPairSetEntry.getKey())) {
         visited.add(directlyBlockedOn);
         identifyTransitiveDependencies(directlyBlockedOn, visited, transitiveDependencies);
@@ -268,9 +273,9 @@ public class RoleCommandOrder implements Cloneable {
             roleCommandDeps.add(new RoleCommandPair(rco.getRole(), RoleCommand.RESTART));
           }
 
-          LOG.info("Adding dependency for " + restartPair + ", " +
-            "dependencies => " + roleCommandDeps);
-
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Adding dependency for {}, dependencies => {}", restartPair, roleCommandDeps);
+          }
           missingDependencies.put(restartPair, roleCommandDeps);
         }
       }
@@ -332,9 +337,7 @@ public class RoleCommandOrder implements Cloneable {
       v1 = dependencies.get(roleCommandPairSetEntry.getKey());
       v2 = rco.dependencies.get(roleCommandPairSetEntry.getKey());
       if (!v1.equals(v2)) {
-        LOG.debug("different entry found for key ("
-          + roleCommandPairSetEntry.getKey().getRole().toString() + ", "
-          + roleCommandPairSetEntry.getKey().getCmd().toString() + ")" );
+        LOG.debug("different entry found for key ({}, {})", roleCommandPairSetEntry.getKey().getRole(), roleCommandPairSetEntry.getKey().getCmd());
         return 1;
       }
     }

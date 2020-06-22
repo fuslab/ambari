@@ -21,12 +21,17 @@ var App = require('app');
 module.exports = App.WizardRoute.extend({
   route: '/highAvailability/NameNode/enable',
 
+  breadcrumbs: {
+    label: Em.I18n.t('admin.highAvailability.wizard.header')
+  },
+
   enter: function (router) {
     var highAvailabilityWizardController = router.get('highAvailabilityWizardController');
     highAvailabilityWizardController.dataLoading().done(function () {
         App.router.get('updateController').set('isWorking', false);
         var popup = App.ModalPopup.show({
-          classNames: ['full-width-modal'],
+          classNames: ['wizard-modal-wrapper'],
+          modalDialogClasses: ['modal-xlg'],
           header: Em.I18n.t('admin.highAvailability.wizard.header'),
           bodyClass: App.HighAvailabilityWizardView.extend({
             controller: highAvailabilityWizardController

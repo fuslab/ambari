@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,9 @@
 
 package org.apache.ambari.server.controller.utilities.state;
 
-import com.google.inject.Inject;
-import com.google.inject.Provider;
+import java.util.Collections;
+import java.util.Set;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.ObjectNotFoundException;
 import org.apache.ambari.server.StaticallyInject;
@@ -31,13 +32,14 @@ import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.Clusters;
 import org.apache.ambari.server.state.ComponentInfo;
 import org.apache.ambari.server.state.MaintenanceState;
+import org.apache.ambari.server.state.Service;
 import org.apache.ambari.server.state.StackId;
 import org.apache.ambari.server.state.State;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
-import java.util.Set;
+import com.google.inject.Inject;
+import com.google.inject.Provider;
 
 /**
  * Default calculator of service state.
@@ -53,7 +55,7 @@ import java.util.Set;
 @StaticallyInject
 public class DefaultServiceCalculatedState implements ServiceCalculatedState {
 
-  protected final static Logger LOG = LoggerFactory.getLogger(DefaultServiceCalculatedState.class);
+  private static final Logger LOG = LoggerFactory.getLogger(DefaultServiceCalculatedState.class);
 
   @Inject
   protected static Provider<Clusters> clustersProvider = null;
@@ -77,18 +79,20 @@ public class DefaultServiceCalculatedState implements ServiceCalculatedState {
     return null;
   }
 
+  @Override
   public State getState(String clusterName, String serviceName) {
       try {
         Cluster cluster = getCluster(clusterName);
         if (cluster != null && managementControllerProvider != null) {
+          Service service = cluster.getService(serviceName);
           AmbariMetaInfo ambariMetaInfo = managementControllerProvider.get().getAmbariMetaInfo();
-          StackId stackId = cluster.getDesiredStackVersion();
+          StackId stackId = service.getDesiredStackId();
 
           ServiceComponentHostRequest request = new ServiceComponentHostRequest(clusterName,
             serviceName, null, null, null);
 
           Set<ServiceComponentHostResponse> hostComponentResponses =
-            managementControllerProvider.get().getHostComponents(Collections.singleton(request));
+            managementControllerProvider.get().getHostComponents(Collections.singleton(request), true);
 
           State   masterState = null;
           State   clientState = null;
@@ -117,7 +121,7 @@ public class DefaultServiceCalculatedState implements ServiceCalculatedState {
                 hasDisabled = true;
               }
 
-              if (isInMaintenance && !componentInfo.isClient()) {
+              if (isInMaintenance & !componentInfo.isClient()) {
                 hasMM = true;
                 if ( maxMMState == null || state.ordinal() > maxMMState.ordinal()) {
                   maxMMState = state;

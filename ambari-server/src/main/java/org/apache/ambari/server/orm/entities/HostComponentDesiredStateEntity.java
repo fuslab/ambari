@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,11 +36,12 @@ import javax.persistence.Table;
 import javax.persistence.TableGenerator;
 import javax.persistence.UniqueConstraint;
 
+import org.apache.ambari.server.state.BlueprintProvisioningState;
 import org.apache.ambari.server.state.HostComponentAdminState;
 import org.apache.ambari.server.state.MaintenanceState;
-import org.apache.ambari.server.state.SecurityState;
 import org.apache.ambari.server.state.State;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 
 
@@ -66,8 +67,14 @@ import com.google.common.base.Objects;
     @NamedQuery(name = "HostComponentDesiredStateEntity.findByServiceComponentAndHost", query =
         "SELECT hcds from HostComponentDesiredStateEntity hcds WHERE hcds.serviceName=:serviceName AND hcds.componentName=:componentName AND hcds.hostEntity.hostName=:hostName"),
 
-  @NamedQuery(name = "HostComponentDesiredStateEntity.findByIndex", query =
+  @NamedQuery(name = "HostComponentDesiredStateEntity.findByIndexAndHost", query =
     "SELECT hcds from HostComponentDesiredStateEntity hcds WHERE hcds.clusterId=:clusterId AND hcds.serviceName=:serviceName AND hcds.componentName=:componentName AND hcds.hostId=:hostId"),
+
+  @NamedQuery(name = "HostComponentDesiredStateEntity.findByIndex", query =
+    "SELECT hcds from HostComponentDesiredStateEntity hcds WHERE hcds.clusterId=:clusterId AND hcds.serviceName=:serviceName AND hcds.componentName=:componentName"),
+
+  @NamedQuery(name = "HostComponentDesiredStateEntity.findByHostsAndCluster", query =
+    "SELECT hcds from HostComponentDesiredStateEntity hcds WHERE hcds.hostId IN :hostIds AND hcds.clusterId=:clusterId"),
 })
 public class HostComponentDesiredStateEntity {
 
@@ -94,11 +101,6 @@ public class HostComponentDesiredStateEntity {
   @Enumerated(value = EnumType.STRING)
   private State desiredState = State.INIT;
 
-  @Basic
-  @Column(name = "security_state", nullable = false, insertable = true, updatable = true)
-  @Enumerated(value = EnumType.STRING)
-  private SecurityState securityState = SecurityState.UNSECURED;
-
   @Enumerated(value = EnumType.STRING)
   @Column(name = "admin_state", nullable = true, insertable = true, updatable = true)
   private HostComponentAdminState adminState;
@@ -121,6 +123,11 @@ public class HostComponentDesiredStateEntity {
   @Basic
   @Column(name = "restart_required", insertable = true, updatable = true, nullable = false)
   private Integer restartRequired = 0;
+
+  @Basic
+  @Enumerated(value = EnumType.STRING)
+  @Column(name = "blueprint_provisioning_state", insertable = true, updatable = true)
+  private BlueprintProvisioningState blueprintProvisioningState = BlueprintProvisioningState.NONE;
 
   public Long getId() { return id; }
 
@@ -160,14 +167,6 @@ public class HostComponentDesiredStateEntity {
     this.desiredState = desiredState;
   }
 
-  public SecurityState getSecurityState() {
-    return securityState;
-  }
-
-  public void setSecurityState(SecurityState securityState) {
-    this.securityState = securityState;
-  }
-
   public HostComponentAdminState getAdminState() {
     return adminState;
   }
@@ -182,6 +181,18 @@ public class HostComponentDesiredStateEntity {
 
   public void setMaintenanceState(MaintenanceState state) {
     maintenanceState = state;
+  }
+
+  public void setHostId(Long hostId) {
+    this.hostId = hostId;
+  }
+
+  public BlueprintProvisioningState getBlueprintProvisioningState() {
+    return blueprintProvisioningState;
+  }
+
+  public void setBlueprintProvisioningState(BlueprintProvisioningState blueprintProvisioningState) {
+    this.blueprintProvisioningState = blueprintProvisioningState;
   }
 
   @Override
@@ -216,6 +227,10 @@ public class HostComponentDesiredStateEntity {
     }
 
     if (!Objects.equal(serviceName, that.serviceName)) {
+      return false;
+    }
+
+    if (!Objects.equal(blueprintProvisioningState, that.blueprintProvisioningState)) {
       return false;
     }
 
@@ -263,7 +278,7 @@ public class HostComponentDesiredStateEntity {
    */
   @Override
   public String toString() {
-    return Objects.toStringHelper(this).add("serviceName", serviceName).add("componentName",
+    return MoreObjects.toStringHelper(this).add("serviceName", serviceName).add("componentName",
         componentName).add("hostId", hostId).add("desiredState", desiredState).toString();
   }
 }

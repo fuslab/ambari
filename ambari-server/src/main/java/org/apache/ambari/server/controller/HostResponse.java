@@ -27,11 +27,14 @@ import java.util.Objects;
 import org.apache.ambari.server.agent.AgentEnv;
 import org.apache.ambari.server.agent.DiskInfo;
 import org.apache.ambari.server.agent.RecoveryReport;
+import org.apache.ambari.server.controller.internal.HostResourceProvider;
 import org.apache.ambari.server.state.AgentVersion;
 import org.apache.ambari.server.state.HostConfig;
 import org.apache.ambari.server.state.HostHealthStatus;
 import org.apache.ambari.server.state.HostState;
 import org.apache.ambari.server.state.MaintenanceState;
+
+import io.swagger.annotations.ApiModelProperty;
 
 public class HostResponse {
 
@@ -48,7 +51,7 @@ public class HostResponse {
    * Count of cores on Host
    */
   private long cpuCount;
-
+  
   /**
    * Count of physical cores on Host
    */
@@ -80,7 +83,7 @@ public class HostResponse {
    * Last heartbeat timestamp from the Host
    */
   private long lastHeartbeatTime;
-
+  
   /**
    * Last environment information
    */
@@ -120,7 +123,7 @@ public class HostResponse {
    * Summary of node recovery
    */
   private String recoverySummary = "DISABLED";
-
+  
   /**
    * Public name.
    */
@@ -173,12 +176,13 @@ public class HostResponse {
   public HostResponse(String hostname) {
     this(hostname, "", "",
       0, 0, "", "",
-      0, new ArrayList<DiskInfo>(),
-        0, 0, "",
-        new HashMap<String, String>(),
-        null, null, null, null);
+      0, new ArrayList<>(),
+      0, 0, "",
+      new HashMap<>(),
+      null, null, null, null);
   }
 
+  @ApiModelProperty(name = HostResourceProvider.HOST_NAME_PROPERTY_ID)
   public String getHostname() {
     return hostname;
   }
@@ -187,6 +191,7 @@ public class HostResponse {
     this.hostname = hostname;
   }
 
+  @ApiModelProperty(name = HostResourceProvider.CLUSTER_NAME_PROPERTY_ID)
   public String getClusterName() {
     return clusterName;
   }
@@ -198,6 +203,7 @@ public class HostResponse {
     this.clusterName = clusterName;
   }
 
+  @ApiModelProperty(name = HostResourceProvider.IP_PROPERTY_ID)
   public String getIpv4() {
     return ipv4;
   }
@@ -206,6 +212,7 @@ public class HostResponse {
     this.ipv4 = ipv4;
   }
 
+  @ApiModelProperty(name = HostResourceProvider.CPU_COUNT_PROPERTY_ID)
   public long getCpuCount() {
     return cpuCount;
   }
@@ -214,6 +221,7 @@ public class HostResponse {
     this.cpuCount = cpuCount;
   }
 
+  @ApiModelProperty(name = HostResourceProvider.PHYSICAL_CPU_COUNT_PROPERTY_ID)
   public long getPhCpuCount() {
     return phCpuCount;
   }
@@ -222,6 +230,7 @@ public class HostResponse {
     this.phCpuCount = phCpuCount;
   }
 
+  @ApiModelProperty(name = HostResourceProvider.OS_ARCH_PROPERTY_ID)
   public String getOsArch() {
     return osArch;
   }
@@ -230,6 +239,7 @@ public class HostResponse {
     this.osArch = osArch;
   }
 
+  @ApiModelProperty(name = HostResourceProvider.OS_FAMILY_PROPERTY_ID)
   public String getOsFamily() {
     return osFamily;
   }
@@ -238,6 +248,7 @@ public class HostResponse {
     this.osFamily = osFamily;
   }
 
+  @ApiModelProperty(name = HostResourceProvider.OS_TYPE_PROPERTY_ID)
   public String getOsType() {
     return osType;
   }
@@ -246,6 +257,7 @@ public class HostResponse {
     this.osType = osType;
   }
 
+  @ApiModelProperty(name = HostResourceProvider.TOTAL_MEM_PROPERTY_ID)
   public long getTotalMemBytes() {
     return totalMemBytes;
   }
@@ -254,6 +266,7 @@ public class HostResponse {
     this.totalMemBytes = totalMemBytes;
   }
 
+  @ApiModelProperty(name = HostResourceProvider.DISK_INFO_PROPERTY_ID)
   public List<DiskInfo> getDisksInfo() {
     return disksInfo;
   }
@@ -262,6 +275,7 @@ public class HostResponse {
     this.disksInfo = disksInfo;
   }
 
+  @ApiModelProperty(name = HostResourceProvider.LAST_HEARTBEAT_TIME_PROPERTY_ID)
   public long getLastHeartbeatTime() {
     return lastHeartbeatTime;
   }
@@ -270,6 +284,7 @@ public class HostResponse {
     this.lastHeartbeatTime = lastHeartbeatTime;
   }
 
+  @ApiModelProperty(name = HostResourceProvider.LAST_REGISTRATION_TIME_PROPERTY_ID)
   public long getLastRegistrationTime() {
     return lastRegistrationTime;
   }
@@ -278,6 +293,7 @@ public class HostResponse {
     this.lastRegistrationTime = lastRegistrationTime;
   }
 
+  @ApiModelProperty(name = HostResourceProvider.RACK_INFO_PROPERTY_ID)
   public String getRackInfo() {
     return rackInfo;
   }
@@ -286,6 +302,7 @@ public class HostResponse {
     this.rackInfo = rackInfo;
   }
 
+  @ApiModelProperty(hidden = true)
   public Map<String, String> getHostAttributes() {
     return hostAttributes;
   }
@@ -294,6 +311,7 @@ public class HostResponse {
     this.hostAttributes = hostAttributes;
   }
 
+  @ApiModelProperty(hidden = true)
   public AgentVersion getAgentVersion() {
     return agentVersion;
   }
@@ -302,6 +320,7 @@ public class HostResponse {
     this.agentVersion = agentVersion;
   }
 
+  @ApiModelProperty(name = HostResourceProvider.HOST_HEALTH_REPORT_PROPERTY_ID)
   public String getHealthReport() {
     return healthStatus.getHealthReport();
   }
@@ -325,6 +344,7 @@ public class HostResponse {
     return Objects.hashCode(hostname);
   }
 
+  @ApiModelProperty(name = HostResourceProvider.PUBLIC_NAME_PROPERTY_ID)
   public String getPublicHostName() {
     return publicHostname;
   }
@@ -333,6 +353,7 @@ public class HostResponse {
     publicHostname = name;
   }
 
+  @ApiModelProperty(name = HostResourceProvider.STATE_PROPERTY_ID)
   public HostState getHostState() {
     return hostState;
   }
@@ -341,14 +362,16 @@ public class HostResponse {
     this.hostState = hostState;
   }
 
+  @ApiModelProperty(name = HostResourceProvider.LAST_AGENT_ENV_PROPERTY_ID)
   public AgentEnv getLastAgentEnv() {
     return lastAgentEnv;
   }
-
+  
   public void setLastAgentEnv(AgentEnv agentEnv) {
     lastAgentEnv = agentEnv;
   }
-
+  
+  @ApiModelProperty(name = HostResourceProvider.DESIRED_CONFIGS_PROPERTY_ID)
   public Map<String, HostConfig> getDesiredHostConfigs() {
     return desiredHostConfigs;
   }
@@ -357,6 +380,7 @@ public class HostResponse {
     this.desiredHostConfigs = desiredHostConfigs;
   }
 
+  @ApiModelProperty(name = HostResourceProvider.HOST_STATUS_PROPERTY_ID)
   public String getStatus() {
     return status;
   }
@@ -368,7 +392,8 @@ public class HostResponse {
   public void setMaintenanceState(MaintenanceState state) {
     maintenanceState = state;
   }
-
+  
+  @ApiModelProperty(name = HostResourceProvider.MAINTENANCE_STATE_PROPERTY_ID)
   public MaintenanceState getMaintenanceState() {
     return maintenanceState;
   }
@@ -376,6 +401,7 @@ public class HostResponse {
   /**
    * Get the recovery summary for the host
    */
+  @ApiModelProperty(name = HostResourceProvider.RECOVERY_SUMMARY_PROPERTY_ID)
   public String getRecoverySummary() {
     return recoverySummary;
   }
@@ -390,6 +416,7 @@ public class HostResponse {
   /**
    * Get the detailed recovery report
    */
+  @ApiModelProperty(name = HostResourceProvider.RECOVERY_REPORT_PROPERTY_ID)
   public RecoveryReport getRecoveryReport() {
     return recoveryReport;
   }
@@ -401,4 +428,9 @@ public class HostResponse {
     this.recoveryReport = recoveryReport;
   }
 
+  public interface HostResponseWrapper extends ApiModel {
+    @ApiModelProperty(name = HostResourceProvider.RESPONSE_KEY)
+    @SuppressWarnings("unused")
+    HostResponse getHostResponse();
+  }
 }

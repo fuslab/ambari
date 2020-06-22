@@ -78,7 +78,7 @@ class StopHandlerWindows(StopHandler):
       raise FatalException(-1, "Error waiting for stop event: " + str(result))
     if (win32event.WAIT_TIMEOUT == result):
       return -1
-      logger.info("Stop event received")
+      logger.debug("Stop event received")
     return result # 0 -> stop
 
 
@@ -117,8 +117,9 @@ class StopHandlerLinux(StopHandler):
 
   def wait(self, timeout=None):
     # Stop process when stop event received
-    if self.stop_event.wait(timeout):
-      logger.info("Stop event received")
+    self.stop_event.wait(timeout)
+    if self.stop_event.isSet():
+      logger.debug("Stop event received")
       return 0
     # Timeout
     return -1

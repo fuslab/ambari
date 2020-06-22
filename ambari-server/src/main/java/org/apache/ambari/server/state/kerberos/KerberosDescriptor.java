@@ -161,7 +161,7 @@ public class KerberosDescriptor extends AbstractKerberosDescriptorContainer {
   public void setServices(Map<String, KerberosServiceDescriptor> services) {
     this.services = (services == null)
         ? null
-        : new TreeMap<String, KerberosServiceDescriptor>(services);
+        : new TreeMap<>(services);
   }
 
   /**
@@ -190,7 +190,7 @@ public class KerberosDescriptor extends AbstractKerberosDescriptorContainer {
    * entry will be added; else if it one already exists and <code>overwrite</code> is
    * <code>true</code>, it will be replaced; else the exsting entry will be updated.
    *
-   * @param service   the KerberosServiceDescriptor to put
+   * @param service the KerberosServiceDescriptor to put
    */
   public void putService(KerberosServiceDescriptor service) {
     if (service != null) {
@@ -223,7 +223,7 @@ public class KerberosDescriptor extends AbstractKerberosDescriptorContainer {
   public void setProperties(Map<String, String> properties) {
     this.properties = (properties == null)
         ? null
-        : new TreeMap<String, String>(properties);
+        : new TreeMap<>(properties);
   }
 
   /**
@@ -259,7 +259,7 @@ public class KerberosDescriptor extends AbstractKerberosDescriptorContainer {
     }
 
     if (properties == null) {
-      properties = new TreeMap<String, String>();
+      properties = new TreeMap<>();
     }
 
     properties.put(name, value);
@@ -325,7 +325,7 @@ public class KerberosDescriptor extends AbstractKerberosDescriptorContainer {
     Map<String, Object> map = super.toMap();
 
     if (services != null) {
-      List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
+      List<Map<String, Object>> list = new ArrayList<>();
       for (KerberosServiceDescriptor service : services.values()) {
         list.add(service.toMap());
       }
@@ -333,7 +333,7 @@ public class KerberosDescriptor extends AbstractKerberosDescriptorContainer {
     }
 
     if (properties != null) {
-      map.put(KEY_PROPERTIES, new TreeMap<String, String>(properties));
+      map.put(KEY_PROPERTIES, new TreeMap<>(properties));
     }
 
     return map;
@@ -464,13 +464,5 @@ public class KerberosDescriptor extends AbstractKerberosDescriptorContainer {
         result.put(path, each.getPrincipalDescriptor().getName());
       }
     }
-  }
-
-  private static <T> Collection<T> nullToEmpty(Collection<T> collection) {
-    return collection == null ? Collections.<T>emptyList() : collection;
-  }
-
-  private static <K, V> Map<K, V> nullToEmpty(Map<K, V> collection) {
-    return collection == null ? Collections.<K, V>emptyMap() : collection;
   }
 }

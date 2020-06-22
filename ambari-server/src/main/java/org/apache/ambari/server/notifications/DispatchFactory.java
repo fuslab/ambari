@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -37,7 +37,7 @@ public class DispatchFactory {
   /**
    * Mapping of dispatch type to dispatcher singleton.
    */
-  private final Map<String, NotificationDispatcher> m_dispatchers = new HashMap<String, NotificationDispatcher>();
+  private final Map<String, NotificationDispatcher> m_dispatchers = new HashMap<>();
 
   /**
    * Constructor.

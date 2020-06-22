@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,23 +25,16 @@ import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import junit.framework.TestCase;
-
-import org.apache.ambari.server.agent.ActionQueue;
-import org.apache.ambari.server.agent.AlertDefinitionCommand;
-import org.apache.ambari.server.agent.AlertExecutionCommand;
 import org.apache.ambari.server.orm.InMemoryDefaultTestModule;
 import org.apache.ambari.server.orm.dao.AlertDefinitionDAO;
 import org.apache.ambari.server.orm.entities.AlertDefinitionEntity;
 import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.Clusters;
-import org.apache.ambari.server.state.Config;
 import org.apache.ambari.server.state.ConfigHelper;
 import org.apache.ambari.server.state.Host;
 import org.apache.ambari.server.state.Service;
@@ -56,13 +49,15 @@ import org.easymock.EasyMock;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import com.google.inject.Binder;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Module;
 import com.google.inject.util.Modules;
-import org.junit.experimental.categories.Category;
+
+import junit.framework.TestCase;
 
 /**
  * Tests for {@link AlertDefinitionHash}.
@@ -101,7 +96,7 @@ public class AlertDefinitionHashTest extends TestCase {
     m_mockDao = m_injector.getInstance(AlertDefinitionDAO.class);
 
     // add HDFS/NN
-    List<ServiceComponentHost> serviceComponentHosts = new ArrayList<ServiceComponentHost>();
+    List<ServiceComponentHost> serviceComponentHosts = new ArrayList<>();
     ServiceComponentHost sch = EasyMock.createNiceMock(ServiceComponentHost.class);
     expect(sch.getServiceName()).andReturn("HDFS").anyTimes();
     expect(sch.getServiceComponentName()).andReturn("NAMENODE").anyTimes();
@@ -117,19 +112,19 @@ public class AlertDefinitionHashTest extends TestCase {
     EasyMock.replay(sch);
     serviceComponentHosts.add(sch);
 
-    Map<String, ServiceComponentHost> mapComponentHosts = new HashMap<String, ServiceComponentHost>();
+    Map<String, ServiceComponentHost> mapComponentHosts = new HashMap<>();
     ServiceComponentHost host = EasyMock.createNiceMock(ServiceComponentHost.class);
     expect(host.getHostName()).andReturn(HOSTNAME).anyTimes();
     mapComponentHosts.put(HOSTNAME, host);
 
-    Map<String, ServiceComponent> serviceComponents = new HashMap<String, ServiceComponent>();
+    Map<String, ServiceComponent> serviceComponents = new HashMap<>();
     ServiceComponent namenode = EasyMock.createNiceMock(ServiceComponent.class);
     expect(namenode.getServiceComponentHosts()).andReturn(mapComponentHosts).anyTimes();
     expect(namenode.isMasterComponent()).andReturn(true).anyTimes();
     serviceComponents.put("NAMENODE", namenode);
 
     // create HDFS for the cluster
-    Map<String, Service> services = new HashMap<String, Service>();
+    Map<String, Service> services = new HashMap<>();
     String hdfsName = "HDFS";
     Service hdfs = EasyMock.createNiceMock(Service.class);
     expect(hdfs.getName()).andReturn("HDFS").anyTimes();
@@ -146,7 +141,7 @@ public class AlertDefinitionHashTest extends TestCase {
     expect(m_mockClusters.getClusterById(EasyMock.anyInt())).andReturn(
         m_mockCluster).atLeastOnce();
 
-    Map<String, Host> clusterHosts = new HashMap<String, Host>();
+    Map<String, Host> clusterHosts = new HashMap<>();
     clusterHosts.put(HOSTNAME, null);
 
     expect(m_mockClusters.getHostsForCluster(EasyMock.eq(CLUSTERNAME))).andReturn(
@@ -197,7 +192,7 @@ public class AlertDefinitionHashTest extends TestCase {
             EasyMock.anyObject(String.class), EasyMock.anyObject(String.class))).andReturn(
         Collections.singletonList(m_hdfsHost)).anyTimes();
 
-    m_agentDefinitions = new ArrayList<AlertDefinitionEntity>();
+    m_agentDefinitions = new ArrayList<>();
     m_agentDefinitions.add(agentScoped);
     EasyMock.expect(m_mockDao.findAgentScoped(EasyMock.anyInt())).andReturn(
         m_agentDefinitions).anyTimes();
@@ -207,8 +202,8 @@ public class AlertDefinitionHashTest extends TestCase {
 
     // configHelper mock
     m_configHelper = m_injector.getInstance(ConfigHelper.class);
-    EasyMock.expect(m_configHelper.getEffectiveDesiredTags((Cluster) anyObject(), EasyMock.anyString())).andReturn(new HashMap<String, Map<String, String>>()).anyTimes();
-    EasyMock.expect(m_configHelper.getEffectiveConfigProperties((Cluster) anyObject(), (Map<String, Map<String, String>>) anyObject())).andReturn(new HashMap<String, Map<String, String>>()).anyTimes();
+    EasyMock.expect(m_configHelper.getEffectiveDesiredTags((Cluster) anyObject(), EasyMock.anyString())).andReturn(new HashMap<>()).anyTimes();
+    EasyMock.expect(m_configHelper.getEffectiveConfigProperties((Cluster) anyObject(), (Map<String, Map<String, String>>) anyObject())).andReturn(new HashMap<>()).anyTimes();
     EasyMock.replay(m_configHelper);
   }
 
@@ -275,7 +270,7 @@ public class AlertDefinitionHashTest extends TestCase {
   }
 
   /**
-   * Test {@link AlertDefinitionHash#isHashCached(String)}.
+   * Test {@link AlertDefinitionHash#isHashCached(String,String)}.
    */
   @Test
   public void testIsHashCached() {
@@ -353,7 +348,7 @@ public class AlertDefinitionHashTest extends TestCase {
 
   @Test
   public void testHashingAlgorithm() throws Exception {
-    List<String> uuids = new ArrayList<String>();
+    List<String> uuids = new ArrayList<>();
     uuids.add(m_hdfsService.getHash());
     uuids.add(m_hdfsHost.getHash());
 
@@ -374,35 +369,6 @@ public class AlertDefinitionHashTest extends TestCase {
     assertEquals(expected, m_hash.getHash(CLUSTERNAME, HOSTNAME));
   }
 
-  @Test
-  public void testActionQueueInvalidation() throws Exception{
-    ActionQueue actionQueue = m_injector.getInstance(ActionQueue.class);
-
-    AlertDefinitionCommand definitionCommand1 = new AlertDefinitionCommand(
-        CLUSTERNAME, HOSTNAME, HOSTNAME, "12345", null);
-
-    AlertDefinitionCommand definitionCommand2 = new AlertDefinitionCommand(
-        CLUSTERNAME, "anotherHost", "anotherHost", "67890", null);
-
-    AlertExecutionCommand executionCommand = new AlertExecutionCommand(
-        CLUSTERNAME, HOSTNAME, null);
-
-    actionQueue.enqueue(HOSTNAME, definitionCommand1);
-    actionQueue.enqueue(HOSTNAME, executionCommand);
-    actionQueue.enqueue("anotherHost", definitionCommand2);
-
-    assertEquals(2, actionQueue.size(HOSTNAME));
-    assertEquals(1, actionQueue.size("anotherHost"));
-
-    Set<String> hosts = new HashSet<String>();
-    hosts.add(HOSTNAME);
-
-    // should invalidate both alert commands, and add a new definition command
-    m_hash.enqueueAgentCommands(1L, hosts);
-    assertEquals(1, actionQueue.size(HOSTNAME));
-    assertEquals(1, actionQueue.size("anotherHost"));
-  }
-
   /**
    *
    */
@@ -414,7 +380,7 @@ public class AlertDefinitionHashTest extends TestCase {
     public void configure(Binder binder) {
       Cluster cluster = EasyMock.createNiceMock(Cluster.class);
       EasyMock.expect(cluster.getAllConfigs()).andReturn(
-          new ArrayList<Config>()).anyTimes();
+        new ArrayList<>()).anyTimes();
 
       binder.bind(Clusters.class).toInstance(
           EasyMock.createNiceMock(Clusters.class));

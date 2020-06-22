@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,14 +27,9 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.ambari.server.AmbariException;
-import org.apache.ambari.server.state.ConfigHelper;
 import org.apache.ambari.server.state.ExtensionInfo;
-import org.apache.ambari.server.state.PropertyDependencyInfo;
-import org.apache.ambari.server.state.PropertyInfo;
-import org.apache.ambari.server.state.RepositoryInfo;
 import org.apache.ambari.server.state.ServiceInfo;
 import org.apache.ambari.server.state.stack.ExtensionMetainfoXml;
-import org.apache.ambari.server.state.stack.RepositoryXml;
 import org.apache.ambari.server.state.stack.ServiceMetainfoXml;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,12 +78,12 @@ public class ExtensionModule extends BaseModule<ExtensionModule, ExtensionInfo> 
   /**
    * Map of child configuration modules keyed by configuration type
    */
-  private Map<String, ConfigurationModule> configurationModules = new HashMap<String, ConfigurationModule>();
+  private Map<String, ConfigurationModule> configurationModules = new HashMap<>();
 
   /**
    * Map of child service modules keyed by service name
    */
-  private Map<String, ServiceModule> serviceModules = new HashMap<String, ServiceModule>();
+  private Map<String, ServiceModule> serviceModules = new HashMap<>();
 
   /**
    * Corresponding ExtensionInfo instance
@@ -118,7 +113,7 @@ public class ExtensionModule extends BaseModule<ExtensionModule, ExtensionInfo> 
   /**
    * Constructor.
    * @param extensionDirectory  represents extension directory
-   * @param extensionContext    general extension context
+   * @param stackContext    general stack context
    */
   public ExtensionModule(ExtensionDirectory extensionDirectory, StackContext stackContext) {
     this.extensionDirectory = extensionDirectory;
@@ -384,9 +379,7 @@ public class ExtensionModule extends BaseModule<ExtensionModule, ExtensionInfo> 
 
     id = String.format("%s:%s", extensionInfo.getName(), extensionInfo.getVersion());
 
-    LOG.debug("Adding new extension to known extensions"
-        + ", extensionName = " + extensionInfo.getName()
-        + ", extensionVersion = " + extensionInfo.getVersion());
+    LOG.debug("Adding new extension to known extensions, extensionName = {}, extensionVersion = {}", extensionInfo.getName(), extensionInfo.getVersion());
 
 
     //todo: give additional thought on handling missing metainfo.xml
@@ -438,7 +431,7 @@ public class ExtensionModule extends BaseModule<ExtensionModule, ExtensionInfo> 
    * @param serviceDirectory the child service directory
    */
   private void populateService(ServiceDirectory serviceDirectory)  {
-    Collection<ServiceModule> serviceModules = new ArrayList<ServiceModule>();
+    Collection<ServiceModule> serviceModules = new ArrayList<>();
     // unfortunately, we allow multiple services to be specified in the same metainfo.xml,
     // so we can't move the unmarshal logic into ServiceModule
     ServiceMetainfoXml metaInfoXml = serviceDirectory.getMetaInfoFile();
@@ -524,10 +517,10 @@ public class ExtensionModule extends BaseModule<ExtensionModule, ExtensionInfo> 
     this.valid = valid;
   }
 
-  private Set<String> errorSet = new HashSet<String>();
+  private Set<String> errorSet = new HashSet<>();
 
   @Override
-  public Collection getErrors() {
+  public Collection<String> getErrors() {
     return errorSet;
   }
 

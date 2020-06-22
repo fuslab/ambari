@@ -17,9 +17,11 @@
  */
 package org.apache.ambari.server.controller.internal;
 
+import java.util.Map;
+
 import org.apache.ambari.server.controller.spi.Resource;
 
-import java.util.Map;
+import com.google.common.collect.ImmutableMap;
 
 /**
  * Operation level is specified along with some requests. It identifies
@@ -183,4 +185,23 @@ public class RequestOperationLevel {
             ", hostName='" + hostName + '\'' +
             '}';
   }
+
+  /**
+   * Create a map of required properties to be added to a request info map which is
+   * then used to create a {@link RequestOperationLevel} object.
+   * Other properties (service name, host name, host component name) can be set on
+   * the request info map itself as needed.
+   *
+   * @param type resource type for which to calculate the operation level
+   * @param clusterName cluster name
+   * @return immutable map with required properties: operation level and cluster name
+   * @throws IllegalArgumentException if the given resource {@code type} is not mapped to any operation level
+   */
+  public static Map<String, String> propertiesFor(Resource.Type type, String clusterName) {
+    return ImmutableMap.of(
+      OPERATION_LEVEL_ID, getExternalLevelName(type.name()),
+      OPERATION_CLUSTER_ID, clusterName
+    );
+  }
+
 }

@@ -22,7 +22,7 @@ App.AddServiceController = App.WizardController.extend(App.AddSecurityConfigs, {
 
   name: 'addServiceController',
 
-  totalSteps: 8,
+  totalSteps: 7,
 
   /**
    * @type {string}
@@ -122,28 +122,19 @@ App.AddServiceController = App.WizardController.extend(App.AddSecurityConfigs, {
         callback: function () {
           var self = this;
           var dfd = $.Deferred();
-          this.loadKerberosDescriptorConfigs().done(function() {
-            self.loadServiceConfigGroups();
-            self.loadConfigThemes().then(function() {
-              self.loadServiceConfigProperties().always(function() {
-                self.loadCurrentHostGroups();
-                dfd.resolve();
-              });
-            });
-          });
-          return dfd.promise();
-        }
-      }
-    ],
-    '5': [
-      {
-        type: 'sync',
-        callback: function () {
-          this.checkSecurityStatus();
           this.load('cluster');
           this.set('content.additionalClients', []);
           this.set('installClientQueueLength', 0);
           this.set('installClietsQueue', App.ajaxQueue.create({abortOnError: false}));
+          this.loadKerberosDescriptorConfigs().done(function() {
+            self.loadServiceConfigGroups();
+            self.loadConfigThemes().then(function() {
+              self.loadServiceConfigProperties();
+              self.loadCurrentHostGroups();
+              dfd.resolve();
+            });
+          });
+          return dfd.promise();
         }
       }
     ]
@@ -242,12 +233,11 @@ App.AddServiceController = App.WizardController.extend(App.AddSecurityConfigs, {
    * @param stepController App.WizardStep5Controller
    */
   saveMasterComponentHosts: function (stepController) {
-    var obj = stepController.get('selectedServicesMasters');
     var masterComponentHosts = [];
-    var installedComponents = App.HostComponent.find();
+    var installedComponentsMap = App.HostComponent.find().toArray().toMapByProperty('componentName');
 
-    obj.forEach(function (_component) {
-      var installedComponent = installedComponents.findProperty('componentName', _component.component_name);
+    stepController.get('selectedServicesMasters').forEach(function (_component) {
+      var installedComponent = installedComponentsMap[_component.component_name];
       masterComponentHosts.push({
         display_name: _component.display_name,
         component: _component.component_name,
@@ -261,7 +251,7 @@ App.AddServiceController = App.WizardController.extend(App.AddSecurityConfigs, {
     this.setDBProperty('masterComponentHosts', masterComponentHosts);
     this.set('content.masterComponentHosts', masterComponentHosts);
 
-    this.set('content.skipMasterStep', this.get('content.masterComponentHosts').everyProperty('isInstalled', true));
+    this.set('content.skipMasterStep', masterComponentHosts.everyProperty('isInstalled', true));
     this.get('isStepDisabled').findProperty('step', 2).set('value', this.get('content.skipMasterStep'));
   },
 
@@ -270,10 +260,12 @@ App.AddServiceController = App.WizardController.extend(App.AddSecurityConfigs, {
    */
   loadMasterComponentHosts: function () {
     var self = this,
-      dfd = $.Deferred();
+        dfd = $.Deferred(),
+        ASSIGN_MASTER_STEP = 2,
+        DEPLOYMENT_STEPS = ['6', '7', '8'];
     this._super().done(function () {
       self.set('content.skipMasterStep', App.StackService.find().filterProperty('isSelected').filterProperty('hasMaster').everyProperty('isInstalled', true));
-      self.get('isStepDisabled').findProperty('step', 2).set('value', self.get('content.skipMasterStep') || (self.get('currentStep') == 7 || self.get('currentStep') == 8));
+      self.get('isStepDisabled').findProperty('step', ASSIGN_MASTER_STEP).set('value', self.get('content.skipMasterStep') || DEPLOYMENT_STEPS.contains(self.get('currentStep')));
       dfd.resolve();
     });
     return dfd.promise();
@@ -302,19 +294,14 @@ App.AddServiceController = App.WizardController.extend(App.AddSecurityConfigs, {
   },
 
   loadServiceConfigProperties: function () {
-    var self = this;
-    var dfd = $.Deferred();
-    this._super().always(function() {
-      if (!self.get('content.services')) {
-        self.loadServices();
-      }
-      if (self.get('currentStep') > 1 && self.get('currentStep') < 6) {
-        self.set('content.skipConfigStep', self.skipConfigStep());
-        self.get('isStepDisabled').findProperty('step', 4).set('value', self.get('content.skipConfigStep'));
-      }
-      dfd.resolve();
-    });
-    return dfd.promise();
+    this._super();
+    if (!this.get('content.services')) {
+      this.loadServices();
+    }
+    if (this.get('currentStep') > 1 && this.get('currentStep') < 6) {
+      this.set('content.skipConfigStep', this.skipConfigStep());
+      this.get('isStepDisabled').findProperty('step', 4).set('value', this.get('content.skipConfigStep'));
+    }
   },
 
   /**
@@ -323,12 +310,17 @@ App.AddServiceController = App.WizardController.extend(App.AddSecurityConfigs, {
    */
   loadKerberosDescriptorConfigs: function() {
     var self = this,
-        dfd = $.Deferred();
+        dfd = $.Deferred(),
+        mergedDescriptorConfigs;
     if (App.get('isKerberosEnabled')) {
-      this.loadClusterDescriptorConfigs().then(function(properties) {
-        self.set('kerberosDescriptorConfigs', self.createServicesStackDescriptorConfigs(properties));
-      }).always(function(){
-        dfd.resolve();
+      this.loadClusterDescriptorStackConfigs().then(function (stackProperties) {
+        self.loadClusterDescriptorConfigs().then(function(properties) {
+          self.set('kerberosDescriptorData', properties);
+          mergedDescriptorConfigs = self.mergeDescriptorStackWithConfigs(stackProperties, properties);
+          self.set('kerberosDescriptorConfigs', mergedDescriptorConfigs);
+        }).always(function(){
+          dfd.resolve();
+        });
       });
     } else {
       dfd.resolve();
@@ -337,16 +329,11 @@ App.AddServiceController = App.WizardController.extend(App.AddSecurityConfigs, {
   },
 
   saveServiceConfigProperties: function (stepController) {
-    var dfd = $.Deferred();
-    var self = this;
-    this._super(stepController).always(function() {
-      if (self.get('currentStep') > 1 && self.get('currentStep') < 6) {
-        self.set('content.skipConfigStep', self.skipConfigStep());
-        self.get('isStepDisabled').findProperty('step', 4).set('value', self.get('content.skipConfigStep'));
-      }
-      dfd.resolve();
-    });
-    return dfd.promise();
+    this._super(stepController);
+    if (this.get('currentStep') > 1 && this.get('currentStep') < 6) {
+      this.set('content.skipConfigStep', this.skipConfigStep());
+      this.get('isStepDisabled').findProperty('step', 4).set('value', this.get('content.skipConfigStep'));
+    }
   },
 
   /**
@@ -565,13 +552,6 @@ App.AddServiceController = App.WizardController.extend(App.AddSecurityConfigs, {
   installClientError: function(request, ajaxOptions, error, opt, params) {
     if (this.get('installClientQueueLength') - 1 === params.counter) {
       params.deferred.resolve();
-    }
-  },
-
-  checkSecurityStatus: function() {
-    if (!App.get('isKerberosEnabled')) {
-      this.set('skipConfigureIdentitiesStep', true);
-      this.get('isStepDisabled').findProperty('step', 5).set('value', true);
     }
   },
 

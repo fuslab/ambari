@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,8 @@ package org.apache.ambari.server.state.configgroup;
 
 import java.util.Map;
 
+import javax.annotation.Nullable;
+
 import org.apache.ambari.server.orm.entities.ConfigGroupEntity;
 import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.Config;
@@ -29,27 +31,14 @@ import com.google.inject.assistedinject.Assisted;
 public interface ConfigGroupFactory {
   /**
    * Creates and saves a new {@link ConfigGroup}.
-   *
-   * @param cluster
-   * @param name
-   * @param tag
-   * @param description
-   * @param configs
-   * @param hosts
-   * @param serviceName
-   * @return
    */
-  ConfigGroup createNew(@Assisted("cluster") Cluster cluster, @Assisted("name") String name,
-      @Assisted("tag") String tag, @Assisted("serviceName") String serviceName,
-      @Assisted("description") String description,
+  ConfigGroup createNew(@Assisted("cluster") Cluster cluster,
+      @Assisted("serviceName") @Nullable String serviceName, @Assisted("name") String name,
+      @Assisted("tag") String tag, @Assisted("description") String description,
       @Assisted("configs") Map<String, Config> configs, @Assisted("hosts") Map<Long, Host> hosts);
 
   /**
-   * Instantiates a {@link ConfigGroup} fron an existing, persisted entity.
-   *
-   * @param cluster
-   * @param entity
-   * @return
+   * Instantiates a {@link ConfigGroup} from an existing, persisted entity.
    */
   ConfigGroup createExisting(Cluster cluster, ConfigGroupEntity entity);
 }

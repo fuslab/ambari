@@ -1,4 +1,4 @@
-/**
+/*
 * Licensed to the Apache Software Foundation (ASF) under one
 * or more contributor license agreements.  See the NOTICE file
 * distributed with this work for additional information
@@ -92,11 +92,11 @@ final public class StateMachineFactory
   }
 
   private class TransitionsListNode {
-    final ApplicableTransition transition;
+    final ApplicableTransition<OPERAND, STATE, EVENTTYPE, EVENT> transition;
     final TransitionsListNode next;
 
     TransitionsListNode
-        (ApplicableTransition transition, TransitionsListNode next) {
+        (ApplicableTransition<OPERAND, STATE, EVENTTYPE, EVENT> transition, TransitionsListNode next) {
       this.transition = transition;
       this.next = next;
     }
@@ -127,8 +127,7 @@ final public class StateMachineFactory
         // I use HashMap here because I would expect most EVENTTYPE's to not
         //  apply out of a particular state, so FSM sizes would be
         //  quadratic if I use EnumMap's here as I do at the top level.
-        transitionMap = new HashMap<EVENTTYPE,
-          Transition<OPERAND, STATE, EVENTTYPE, EVENT>>();
+        transitionMap = new HashMap<>();
         subject.stateMachineTable.put(preState, transitionMap);
       }
       transitionMap.put(eventType, transition);
@@ -221,8 +220,8 @@ final public class StateMachineFactory
           addTransition(STATE preState, STATE postState,
                         EVENTTYPE eventType,
                         SingleArcTransition<OPERAND, EVENT> hook){
-    return new StateMachineFactory
-        (this, new ApplicableSingleOrMultipleTransition
+    return new StateMachineFactory<>
+        (this, new ApplicableSingleOrMultipleTransition<>
            (preState, eventType, new SingleInternalArc(postState, hook)));
   }
 
@@ -244,9 +243,9 @@ final public class StateMachineFactory
           addTransition(STATE preState, Set<STATE> postStates,
                         EVENTTYPE eventType,
                         MultipleArcTransition<OPERAND, EVENT, STATE> hook){
-    return new StateMachineFactory
+    return new StateMachineFactory<>
         (this,
-         new ApplicableSingleOrMultipleTransition
+         new ApplicableSingleOrMultipleTransition<>
            (preState, eventType, new MultipleInternalArc(postStates, hook)));
   }
 
@@ -269,14 +268,14 @@ final public class StateMachineFactory
   public StateMachineFactory
              <OPERAND, STATE, EVENTTYPE, EVENT>
           installTopology() {
-    return new StateMachineFactory(this, true);
+    return new StateMachineFactory<>(this, true);
   }
 
   /**
    * Effect a transition due to the effecting stimulus.
-   * @param state current state
+   * @param oldState current state
    * @param eventType trigger to initiate the transition
-   * @param cause causal eventType context
+   * @param event causal eventType context
    * @return transitioned state
    */
   private STATE doTransition
@@ -304,18 +303,16 @@ final public class StateMachineFactory
   }
 
   private void makeStateMachineTable() {
-    Stack<ApplicableTransition> stack = new Stack<ApplicableTransition>();
+    Stack<ApplicableTransition<OPERAND, STATE, EVENTTYPE, EVENT>> stack = new Stack<>();
 
     Map<STATE, Map<EVENTTYPE, Transition<OPERAND, STATE, EVENTTYPE, EVENT>>>
-      prototype = new HashMap<STATE, Map<EVENTTYPE, Transition<OPERAND, STATE, EVENTTYPE, EVENT>>>();
+      prototype = new HashMap<>();
 
     prototype.put(defaultInitialState, null);
 
     // I use EnumMap here because it'll be faster and denser.  I would
     //  expect most of the states to have at least one transition.
-    stateMachineTable
-       = new EnumMap<STATE, Map<EVENTTYPE,
-                           Transition<OPERAND, STATE, EVENTTYPE, EVENT>>>(prototype);
+    stateMachineTable = new EnumMap<>(prototype);
 
     for (TransitionsListNode cursor = transitionsListNode;
          cursor != null;

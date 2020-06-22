@@ -18,6 +18,18 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.createStrictMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.reset;
+import static org.easymock.EasyMock.verify;
+
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.apache.ambari.server.orm.dao.GroupDAO;
@@ -51,18 +63,6 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.springframework.security.core.context.SecurityContextHolder;
-
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
-
-import static org.easymock.EasyMock.createMock;
-import static org.easymock.EasyMock.createNiceMock;
-import static org.easymock.EasyMock.createStrictMock;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.reset;
-import static org.easymock.EasyMock.verify;
 
 /**
  * ViewPrivilegeResourceProvider tests.
@@ -111,7 +111,7 @@ public class ViewPrivilegeResourceProviderTest {
     registry.addInstanceDefinition(viewDefinition, viewInstanceDefinition);
 
 
-    List<PrivilegeEntity> privilegeEntities = new LinkedList<PrivilegeEntity>();
+    List<PrivilegeEntity> privilegeEntities = new LinkedList<>();
 
     PrivilegeEntity privilegeEntity = createNiceMock(PrivilegeEntity.class);
     ResourceEntity resourceEntity = createNiceMock(ResourceEntity.class);
@@ -120,10 +120,10 @@ public class ViewPrivilegeResourceProviderTest {
     PrincipalTypeEntity principalTypeEntity = createNiceMock(PrincipalTypeEntity.class);
     PermissionEntity permissionEntity = createNiceMock(PermissionEntity.class);
 
-    List<PrincipalEntity> principalEntities = new LinkedList<PrincipalEntity>();
+    List<PrincipalEntity> principalEntities = new LinkedList<>();
     principalEntities.add(principalEntity);
 
-    List<UserEntity> userEntities = new LinkedList<UserEntity>();
+    List<UserEntity> userEntities = new LinkedList<>();
     userEntities.add(userEntity);
 
     privilegeEntities.add(privilegeEntity);
@@ -157,10 +157,10 @@ public class ViewPrivilegeResourceProviderTest {
 
     Resource resource = resources.iterator().next();
 
-    Assert.assertEquals("VIEW.USER", resource.getPropertyValue(AmbariPrivilegeResourceProvider.PERMISSION_NAME_PROPERTY_ID));
-    Assert.assertEquals("View User", resource.getPropertyValue(AmbariPrivilegeResourceProvider.PERMISSION_LABEL_PROPERTY_ID));
-    Assert.assertEquals("joe", resource.getPropertyValue(AmbariPrivilegeResourceProvider.PRINCIPAL_NAME_PROPERTY_ID));
-    Assert.assertEquals("USER", resource.getPropertyValue(AmbariPrivilegeResourceProvider.PRINCIPAL_TYPE_PROPERTY_ID));
+    Assert.assertEquals("VIEW.USER", resource.getPropertyValue(AmbariPrivilegeResourceProvider.PERMISSION_NAME));
+    Assert.assertEquals("View User", resource.getPropertyValue(AmbariPrivilegeResourceProvider.PERMISSION_LABEL));
+    Assert.assertEquals("joe", resource.getPropertyValue(AmbariPrivilegeResourceProvider.PRINCIPAL_NAME));
+    Assert.assertEquals("USER", resource.getPropertyValue(AmbariPrivilegeResourceProvider.PRINCIPAL_TYPE));
 
     verify(privilegeDAO, userDAO, groupDAO, principalDAO, permissionDAO, resourceDAO, privilegeEntity, resourceEntity,
         userEntity, principalEntity, permissionEntity, principalTypeEntity);

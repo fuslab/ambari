@@ -19,20 +19,23 @@
 
 package org.apache.ambari.logfeeder.filter;
 
+import org.apache.ambari.logfeeder.conf.LogFeederProps;
+import org.apache.ambari.logfeeder.plugin.common.MetricData;
+import org.apache.ambari.logfeeder.plugin.filter.Filter;
+import org.apache.ambari.logfeeder.plugin.input.InputMarker;
+import org.apache.ambari.logfeeder.util.LogFeederUtil;
+import org.apache.ambari.logsearch.config.api.model.inputconfig.FilterKeyValueDescriptor;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import org.apache.ambari.logfeeder.common.LogfeederException;
-import org.apache.ambari.logfeeder.input.InputMarker;
-import org.apache.ambari.logfeeder.metrics.MetricData;
-import org.apache.ambari.logfeeder.util.LogFeederUtil;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
+public class FilterKeyValue extends Filter<LogFeederProps> {
 
-public class FilterKeyValue extends Filter {
   private static final Logger LOG = Logger.getLogger(FilterKeyValue.class);
 
   private String sourceField = null;
@@ -43,29 +46,29 @@ public class FilterKeyValue extends Filter {
   private MetricData errorMetric = new MetricData("filter.error.keyvalue", false);
 
   @Override
-  public void init() throws Exception {
-    super.init();
+  public void init(LogFeederProps logFeederProps) throws Exception {
+    super.init(logFeederProps);
 
-    sourceField = getStringValue("source_field");
-    valueSplit = getStringValue("value_split", valueSplit);
-    fieldSplit = getStringValue("field_split", fieldSplit);
-    valueBorders = getStringValue("value_borders");
+    sourceField = getFilterDescriptor().getSourceField();
+    valueSplit = StringUtils.defaultString(((FilterKeyValueDescriptor)getFilterDescriptor()).getValueSplit(), valueSplit);
+    fieldSplit = StringUtils.defaultString(((FilterKeyValueDescriptor)getFilterDescriptor()).getFieldSplit(), fieldSplit);
+    valueBorders = ((FilterKeyValueDescriptor)getFilterDescriptor()).getValueBorders();
 
     LOG.info("init() done. source_field=" + sourceField + ", value_split=" + valueSplit + ", " + ", field_split=" +
         fieldSplit + ", " + getShortDescription());
     if (StringUtils.isEmpty(sourceField)) {
-      LOG.fatal("source_field is not set for filter. This filter will not be applied");
+      LOG.fatal("source_field is not set for filter. Thiss filter will not be applied");
       return;
     }
   }
 
   @Override
-  public void apply(String inputStr, InputMarker inputMarker) throws LogfeederException {
+  public void apply(String inputStr, InputMarker inputMarker) throws Exception {
     apply(LogFeederUtil.toJSONObject(inputStr), inputMarker);
   }
 
   @Override
-  public void apply(Map<String, Object> jsonObj, InputMarker inputMarker) throws LogfeederException {
+  public void apply(Map<String, Object> jsonObj, InputMarker inputMarker) throws Exception {
     if (sourceField == null) {
       return;
     }
@@ -137,7 +140,7 @@ public class FilterKeyValue extends Filter {
     errorMetric.value++;
     String logMessageKey = this.getClass().getSimpleName() + "_PARSEERROR";
     LogFeederUtil.logErrorMessageByInterval(logMessageKey, "Error parsing string. length=" + inputStr.length() + ", input=" +
-        input.getShortDescription() + ". First upto 200 characters=" + StringUtils.abbreviate(inputStr, 200), null, LOG,
+        getInput().getShortDescription() + ". First upto 200 characters=" + StringUtils.abbreviate(inputStr, 200), null, LOG,
         Level.ERROR);
   }
 

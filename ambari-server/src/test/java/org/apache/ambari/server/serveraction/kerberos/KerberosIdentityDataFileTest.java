@@ -18,14 +18,15 @@
 
 package org.apache.ambari.server.serveraction.kerberos;
 
-import junit.framework.Assert;
+import java.io.File;
+import java.util.Iterator;
+import java.util.Map;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
-import java.util.Iterator;
-import java.util.Map;
+import junit.framework.Assert;
 
 /**
  * This is a test to see how well the KerberosIdentityDataFileWriter and KerberosIdentityDataFileReader
@@ -53,7 +54,7 @@ public class KerberosIdentityDataFileTest {
           "principal" + i, "principal_type" + i, "keytabFilePath" + i,
           "keytabFileOwnerName" + i, "keytabFileOwnerAccess" + i,
           "keytabFileGroupName" + i, "keytabFileGroupAccess" + i,
-          "false", "false");
+          "false");
     }
 
     // Add some odd characters
@@ -61,7 +62,7 @@ public class KerberosIdentityDataFileTest {
         "principal", "principal_type", "keytabFilePath",
         "'keytabFileOwnerName'", "<keytabFileOwnerAccess>",
         "\"keytabFileGroupName\"", "keytab,File,Group,Access",
-        "false", "false");
+        "false");
 
     writer.close();
     Assert.assertTrue(writer.isClosed());
@@ -152,7 +153,7 @@ public class KerberosIdentityDataFileTest {
         "principal", "principal_type", "keytabFilePath",
         "keytabFileOwnerName", "keytabFileOwnerAccess",
         "keytabFileGroupName", "keytabFileGroupAccess",
-        "true", "false");
+        "true");
 
     writer.close();
     Assert.assertTrue(writer.isClosed());
@@ -178,7 +179,7 @@ public class KerberosIdentityDataFileTest {
         "principal", "principal_type", "keytabFilePath",
         "keytabFileOwnerName", "keytabFileOwnerAccess",
         "keytabFileGroupName", "keytabFileGroupAccess",
-        "true", "false");
+        "true");
 
     writer.close();
     Assert.assertTrue(writer.isClosed());

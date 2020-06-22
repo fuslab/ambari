@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -41,6 +41,8 @@ import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.ambari.server.controller.utilities.BufferedThreadPoolExecutorCompletionService;
 import org.apache.ambari.server.controller.utilities.ScalingThreadPoolExecutor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
@@ -74,6 +76,8 @@ import com.google.inject.Inject;
  *
  */
 public abstract class ThreadPoolEnabledPropertyProvider extends AbstractPropertyProvider {
+
+  private static final Logger LOG = LoggerFactory.getLogger(ThreadPoolEnabledPropertyProvider.class);
 
   protected static Configuration configuration;
 
@@ -166,7 +170,7 @@ public abstract class ThreadPoolEnabledPropertyProvider extends AbstractProperty
     // configured with a boundary, then the buffered service ensures that no
     // requests are discarded.
     final CompletionService<Resource> completionService =
-        new BufferedThreadPoolExecutorCompletionService<Resource>(EXECUTOR_SERVICE);
+      new BufferedThreadPoolExecutorCompletionService<>(EXECUTOR_SERVICE);
 
     // In a large cluster we could have thousands of resources to populate here.
     // Distribute the work across multiple threads.
@@ -175,7 +179,7 @@ public abstract class ThreadPoolEnabledPropertyProvider extends AbstractProperty
           getPopulateResourceCallable(resource, request, predicate, ticket));
     }
 
-    Set<Resource> keepers = new HashSet<Resource>();
+    Set<Resource> keepers = new HashSet<>();
     try {
       for (int i = 0; i < resources.size(); ++i) {
         Future<Resource> resourceFuture = completionService.poll(COMPLETION_SERVICE_POLL_TIMEOUT,

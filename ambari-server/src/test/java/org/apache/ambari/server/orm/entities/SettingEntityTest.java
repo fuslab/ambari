@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,9 +17,9 @@
  */
 package org.apache.ambari.server.orm.entities;
 
-import org.junit.Test;
-
 import static junit.framework.Assert.assertEquals;
+
+import org.junit.Test;
 
 /**
  * SettingEntity unit tests.

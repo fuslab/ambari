@@ -18,19 +18,19 @@
 
 package org.apache.ambari.server.security.authorization;
 
-import com.google.common.base.Preconditions;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.ldap.core.DirContextAdapter;
-import org.springframework.ldap.support.LdapUtils;
+import java.util.regex.Pattern;
 
 import javax.naming.Context;
 import javax.naming.InvalidNameException;
 import javax.naming.Name;
 import javax.naming.NamingException;
 
-import java.util.regex.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.ldap.core.DirContextAdapter;
+import org.springframework.ldap.support.LdapUtils;
+
+import com.google.common.base.Preconditions;
 
 /**
  * Provides utility methods for LDAP related functionality
@@ -59,7 +59,7 @@ public class AmbariLdapUtils {
    * Determine that the full DN of an LDAP object is in/out of the base DN scope.
    *
    * @param adapter used for get the full dn from the ldap query response
-   * @param baseDn the base distinguished name
+   * @param baseDn  the base distinguished name
    * @return true if the object is out of scope; false otherwise
    */
   public static boolean isLdapObjectOutOfScopeFromBaseDn(DirContextAdapter adapter, String baseDn) {

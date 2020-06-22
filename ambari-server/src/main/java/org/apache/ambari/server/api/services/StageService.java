@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,8 @@
 
 package org.apache.ambari.server.api.services;
 
-
-import org.apache.ambari.server.api.resources.ResourceInstance;
-import org.apache.ambari.server.controller.spi.Resource;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -32,9 +31,10 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
-import java.util.HashMap;
-import java.util.Map;
 
+import org.apache.ambari.annotations.ApiIgnore;
+import org.apache.ambari.server.api.resources.ResourceInstance;
+import org.apache.ambari.server.controller.spi.Resource;
 
 /**
  * Service responsible for stage resource requests.
@@ -50,7 +50,6 @@ public class StageService extends BaseService {
    */
   private String m_requestId;
 
-
   // ----- Constructors ------------------------------------------------------
 
   /**
@@ -63,7 +62,6 @@ public class StageService extends BaseService {
     m_clusterName = clusterName;
     m_requestId = requestId;
   }
-
 
   // ----- StageService ------------------------------------------------------
 
@@ -78,7 +76,7 @@ public class StageService extends BaseService {
    *
    * @return stage resource representation
    */
-  @GET
+  @GET @ApiIgnore // until documented
   @Path("{stageId}")
   @Produces("text/plain")
   public Response getStage(String body, @Context HttpHeaders headers, @Context UriInfo ui,
@@ -97,7 +95,7 @@ public class StageService extends BaseService {
    *
    * @return stage collection resource representation
    */
-  @GET
+  @GET @ApiIgnore // until documented
   @Produces("text/plain")
   public Response getStages(String body, @Context HttpHeaders headers, @Context UriInfo ui) {
     return handleRequest(headers, body, ui, Request.Type.GET,
@@ -121,7 +119,7 @@ public class StageService extends BaseService {
    * @param ui          uri info
    * @return information regarding the created services
    */
-  @PUT
+  @PUT @ApiIgnore // until documented
   @Path("{stageId}")
   @Produces("text/plain")
   public Response updateStages(String body, @Context HttpHeaders headers, @Context UriInfo ui,
@@ -138,7 +136,7 @@ public class StageService extends BaseService {
    * @param ui          uri info
    * @return information regarding the created services
    */
-  @POST
+  @POST @ApiIgnore // until documented
   @Produces("text/plain")
   public Response createStages(String body, @Context HttpHeaders headers, @Context UriInfo ui) {
 
@@ -155,7 +153,7 @@ public class StageService extends BaseService {
    * @return a stage resource instance
    */
   ResourceInstance createStageResource(String clusterName, String requestId, String stageId) {
-    Map<Resource.Type,String> mapIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type,String> mapIds = new HashMap<>();
 
     if (clusterName != null) {
       mapIds.put(Resource.Type.Cluster, clusterName);

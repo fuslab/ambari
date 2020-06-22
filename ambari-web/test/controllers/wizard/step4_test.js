@@ -25,14 +25,14 @@ describe('App.WizardStep4Controller', function () {
 
   var services = [
     'HDFS', 'GANGLIA', 'OOZIE', 'HIVE', 'HBASE', 'PIG', 'SCOOP', 'ZOOKEEPER', 'SMARTSENSE', 'LOGSEARCH',
-    'YARN', 'MAPREDUCE2', 'FALCON', 'TEZ', 'STORM', 'AMBARI_METRICS', 'RANGER', 'SPARK', 'SLIDER', 'ATLAS', 'AMBARI_INFRA'
+    'YARN', 'MAPREDUCE2', 'FALCON', 'TEZ', 'STORM', 'AMBARI_METRICS', 'RANGER', 'SPARK', 'SLIDER', 'ATLAS', 'AMBARI_INFRA_SOLR'
   ];
   var controller;
 
   beforeEach(function() {
     controller = App.WizardStep4Controller.create();
     services.forEach(function(serviceName) {
-      controller.pushObject(Ember.Object.create({
+      controller.pushObject(App.StackService.createRecord({
         'serviceName':serviceName, 'isSelected': true, 'isHiddenOnSelectServicePage': false, 'isInstalled': false, 'isDisabled': 'HDFS' === serviceName, isDFS: 'HDFS' === serviceName
       }));
     });
@@ -43,7 +43,7 @@ describe('App.WizardStep4Controller', function () {
     modelSetup.setupStackServiceComponent();
     if (selectedServiceNames.contains('GLUSTERFS')) allServices.push('GLUSTERFS');
     allServices = allServices.map(function(serviceName) {
-      return [Ember.Object.create({
+      return [App.StackService.createRecord({
         'serviceName': serviceName,
         'isSelected': false,
         'canBeSelected': true,
@@ -51,7 +51,7 @@ describe('App.WizardStep4Controller', function () {
         isPrimaryDFS: serviceName === 'HDFS',
         isDFS: ['HDFS','GLUSTERFS'].contains(serviceName),
         isMonitoringService: ['GANGLIA'].contains(serviceName),
-        requiredServices: App.StackService.find(serviceName).get('requiredServices'),
+        requiredServices: App.StackService.find(serviceName).get('requiredServices') || [],
         displayNameOnSelectServicePage: App.format.role(serviceName, true),
         coSelectedServices: function() {
           return App.StackService.coSelected[this.get('serviceName')] || [];
@@ -78,18 +78,41 @@ describe('App.WizardStep4Controller', function () {
   });
 
   describe('#isAllChecked', function () {
-    it('should return true if all services are selected', function () {
+    it('should return true if all non DFS services are selected', function () {
       controller.setEach('isInstalled', false);
-      controller.findProperty('serviceName', 'HDFS').set('isSelected', true);
+      controller.findProperty('serviceName', 'YARN').set('isSelected', true);
+      controller.findProperty('serviceName', 'HDFS').set('isSelected', false);
       expect(controller.get('isAllChecked')).to.equal(true);
     });
 
     it('should return false if at least one service is not selected', function () {
-      controller.findProperty('serviceName', 'HDFS').set('isSelected', false);
+      controller.findProperty('serviceName', 'YARN').set('isSelected', false);
       expect(controller.get('isAllChecked')).to.equal(false);
     });
   });
 
+  describe('#fileSystems', function () {
+    beforeEach(function () {
+      controller.clear();
+      controller.set('content', generateSelectedServicesContent(['HDFS', 'GLUSTERFS', 'YARN']));
+    });
+
+    it('returns only DFS services', function () {
+      expect(controller.get('fileSystems')).to.have.length(2);
+      expect(controller.get('fileSystems').mapProperty('serviceName')).to.contain('GLUSTERFS');
+      expect(controller.get('fileSystems').mapProperty('serviceName')).to.contain('HDFS');
+    });
+
+    it('allows selecting only one DFS at a time', function () {
+      var fileSystems = controller.get('fileSystems');
+      fileSystems[0].set('isSelected', true);
+      expect(fileSystems[0].get('isSelected')).to.equal(true);
+      expect(fileSystems[1].get('isSelected')).to.equal(false);
+      fileSystems[1].set('isSelected', true);
+      expect(fileSystems[0].get('isSelected')).to.equal(false);
+      expect(fileSystems[1].get('isSelected')).to.equal(true);
+    });
+  });
   describe('#multipleDFSs()', function () {
     it('should return true if HDFS is selected and GLUSTERFS is selected', function () {
       controller.set('content', generateSelectedServicesContent(['HDFS', 'GLUSTERFS']));
@@ -167,7 +190,7 @@ describe('App.WizardStep4Controller', function () {
         beforeEach(function () {
           controller.clear();
           Object.keys(testCase.condition).forEach(function (id) {
-            controller.pushObject(Ember.Object.create({
+            controller.pushObject(App.StackService.createRecord({
               serviceName: id,
               isSelected: testCase.condition[id],
               canBeSelected: true,
@@ -251,84 +274,88 @@ describe('App.WizardStep4Controller', function () {
     var tests = [
         {
           services: ['HDFS', 'ZOOKEEPER'],
-          errorsExpected: ['ambariMetricsCheck', 'smartSenseCheck']
+          errorsExpected: ['ambariMetricsCheck', 'smartSenseCheck', 'rangerCheck', 'atlasCheck']
         },
         {
           services: ['ZOOKEEPER'],
-          errorsExpected: ['ambariMetricsCheck', 'smartSenseCheck']
+          errorsExpected: ['ambariMetricsCheck', 'smartSenseCheck', 'rangerCheck', 'atlasCheck']
         },
         {
           services: ['HDFS'],
-          errorsExpected: ['serviceCheck_ZOOKEEPER', 'ambariMetricsCheck', 'smartSenseCheck']
+          errorsExpected: ['serviceCheck_ZOOKEEPER', 'ambariMetricsCheck', 'smartSenseCheck', 'rangerCheck', 'atlasCheck']
         },
         {
           services: ['HDFS', 'TEZ', 'ZOOKEEPER'],
-          errorsExpected: ['serviceCheck_YARN', 'ambariMetricsCheck' , 'smartSenseCheck']
+          errorsExpected: ['serviceCheck_YARN', 'ambariMetricsCheck' , 'smartSenseCheck', 'rangerCheck', 'atlasCheck']
         },
         {
           services: ['HDFS', 'ZOOKEEPER', 'FALCON'],
-          errorsExpected: ['serviceCheck_OOZIE', 'ambariMetricsCheck' , 'smartSenseCheck']
+          errorsExpected: ['serviceCheck_OOZIE', 'ambariMetricsCheck' , 'smartSenseCheck', 'rangerCheck', 'atlasCheck']
         },
         {
           services: ['HDFS', 'ZOOKEEPER', 'GANGLIA', 'HIVE'],
-          errorsExpected: ['serviceCheck_YARN', 'ambariMetricsCheck' , 'smartSenseCheck']
+          errorsExpected: ['serviceCheck_YARN', 'ambariMetricsCheck' , 'smartSenseCheck', 'rangerCheck', 'atlasCheck']
         },
         {
           services: ['HDFS', 'GLUSTERFS', 'ZOOKEEPER', 'HIVE'],
-          errorsExpected: ['serviceCheck_YARN', 'multipleDFS', 'ambariMetricsCheck', 'smartSenseCheck']
+          errorsExpected: ['serviceCheck_YARN', 'multipleDFS', 'ambariMetricsCheck', 'smartSenseCheck', 'rangerCheck', 'atlasCheck']
         },
         {
           services: ['HDFS','ZOOKEEPER', 'GANGLIA'],
-          errorsExpected: ['ambariMetricsCheck', 'smartSenseCheck']
+          errorsExpected: ['ambariMetricsCheck', 'smartSenseCheck', 'rangerCheck', 'atlasCheck']
         },
         {
           services: ['HDFS','ZOOKEEPER', 'AMBARI_METRICS'],
-          errorsExpected: ['smartSenseCheck']
+          errorsExpected: ['smartSenseCheck', 'rangerCheck', 'atlasCheck']
         },
         {
           services: ['ZOOKEEPER', 'AMBARI_METRICS'],
-          errorsExpected: ['smartSenseCheck']
+          errorsExpected: ['smartSenseCheck', 'rangerCheck', 'atlasCheck']
         },
         {
           services: ['HDFS', 'AMBARI_METRICS'],
-          errorsExpected: ['serviceCheck_ZOOKEEPER', 'smartSenseCheck']
+          errorsExpected: ['serviceCheck_ZOOKEEPER', 'smartSenseCheck', 'rangerCheck', 'atlasCheck']
         },
         {
           services: ['HDFS', 'TEZ', 'ZOOKEEPER', 'AMBARI_METRICS'],
-          errorsExpected: ['serviceCheck_YARN', 'smartSenseCheck']
+          errorsExpected: ['serviceCheck_YARN', 'smartSenseCheck', 'rangerCheck', 'atlasCheck']
         },
         {
           services: ['HDFS', 'ZOOKEEPER', 'FALCON', 'AMBARI_METRICS'],
-          errorsExpected: ['serviceCheck_OOZIE', 'smartSenseCheck']
+          errorsExpected: ['serviceCheck_OOZIE', 'smartSenseCheck', 'rangerCheck', 'atlasCheck']
         },
         {
           services: ['HDFS', 'ZOOKEEPER', 'GANGLIA', 'HIVE', 'AMBARI_METRICS'],
-          errorsExpected: ['serviceCheck_YARN', 'smartSenseCheck']
+          errorsExpected: ['serviceCheck_YARN', 'smartSenseCheck', 'rangerCheck', 'atlasCheck']
         },
         {
           services: ['HDFS', 'GLUSTERFS', 'ZOOKEEPER', 'HIVE', 'AMBARI_METRICS'],
-          errorsExpected: ['serviceCheck_YARN', 'multipleDFS', 'smartSenseCheck']
+          errorsExpected: ['serviceCheck_YARN', 'multipleDFS', 'smartSenseCheck', 'rangerCheck', 'atlasCheck']
         },
         {
           services: ['HDFS','ZOOKEEPER', 'GANGLIA', 'AMBARI_METRICS'],
-          errorsExpected: ['smartSenseCheck']
+          errorsExpected: ['smartSenseCheck', 'rangerCheck', 'atlasCheck']
         },
         {
           services: ['RANGER'],
-          errorsExpected: ['ambariMetricsCheck', 'smartSenseCheck', 'rangerRequirements']
+          errorsExpected: ['ambariMetricsCheck', 'smartSenseCheck', 'atlasCheck', 'ambariRangerInfraCheck']
         },
         {
           services: ['SMARTSENSE'],
-          errorsExpected: ['ambariMetricsCheck']
+          errorsExpected: ['ambariMetricsCheck', 'rangerCheck', 'atlasCheck']
         },
         {
           services: ['ATLAS', 'AMBARI_METRICS', 'SMARTSENSE'],
-          errorsExpected: ['ambariInfraCheck']
+          errorsExpected: ['rangerCheck', 'ambariAtlasInfraCheck', 'ambariAtlasHbaseCheck']
         },
         {
           services: ['LOGSEARCH', 'AMBARI_METRICS', 'SMARTSENSE'],
-          errorsExpected: ['ambariLogsearchCheck']
-        }
+          errorsExpected: ['rangerCheck', 'atlasCheck', 'ambariLogsearchCheck']
+        },
+        {
+          services: ['ATLAS', 'AMBARI_METRICS', 'SMARTSENSE', 'RANGER'],
+          errorsExpected: ['ambariRangerInfraCheck', 'ambariAtlasInfraCheck', 'ambariAtlasHbaseCheck']
+        },
       ],
       controllerNames = ['installerController', 'addServiceController'],
       wizardNames = {
@@ -364,7 +391,7 @@ describe('App.WizardStep4Controller', function () {
       tests.forEach(function(test) {
         var errorsExpected = test.errorsExpected;
         if (name !== 'installerController') {
-          errorsExpected = test.errorsExpected.without('ambariMetricsCheck').without('smartSenseCheck');
+          errorsExpected = test.errorsExpected.without('ambariMetricsCheck').without('smartSenseCheck').without('rangerCheck').without('atlasCheck');
         }
         var message = '{0}, {1} selected validation should be {2}, errors: {3}'
           .format(wizardNames[name], test.services.join(','), errorsExpected.length ? 'passed' : 'failed',
@@ -587,22 +614,22 @@ describe('App.WizardStep4Controller', function () {
     var tests = [
       {
         services: ['HDFS'],
-        dependencies: ['ZOOKEEPER'] 
+        dependencies: ['ZOOKEEPER']
       },
       {
         services: ['STORM'],
-        dependencies: ['ZOOKEEPER'] 
+        dependencies: ['ZOOKEEPER']
       }
     ];
     tests.forEach(function(test) {
       var message = '{0} dependency should be {1}'.format(test.services.join(','), test.dependencies.join(','));
       it(message, function() {
-        
+
         controller.clear();
         controller.set('content', generateSelectedServicesContent(test.services));
-        
+
         var dependentServicesTest = [];
-        
+
         test.services.forEach(function(serviceName) {
           var service = controller.filterProperty('serviceName', serviceName);
           service.forEach(function(item) {
@@ -704,61 +731,6 @@ describe('App.WizardStep4Controller', function () {
         }
         controller.serviceValidation(Em.K, 'AMBARI_METRICS', 'ambariMetricsCheck');
         expect(controller.get('errorStack').mapProperty('id').contains('ambariMetricsCheck')).to.equal(item.isAmbariMetricsWarning);
-      });
-    });
-
-  });
-
-  describe('#rangerValidation', function () {
-
-    var cases = [
-      {
-        services: ['HDFS'],
-        isRangerWarning: false,
-        title: 'Ranger not available'
-      },
-      {
-        services: ['RANGER'],
-        isRangerSelected: false,
-        isRangerInstalled: false,
-        isRangerWarning: false,
-        title: 'Ranger not selected'
-      },
-      {
-        services: ['RANGER'],
-        isRangerSelected: true,
-        isRangerInstalled: false,
-        isRangerWarning: true,
-        title: 'Ranger selected'
-      },
-      {
-        services: ['RANGER'],
-        isRangerSelected: true,
-        isRangerInstalled: true,
-        isRangerWarning: false,
-        title: 'Ranger installed'
-      }
-    ];
-
-    beforeEach(function() {
-      controller.clear();
-      controller.set('errorStack', []);
-    });
-
-    cases.forEach(function (item) {
-      it(item.title, function () {
-        controller.set('content', generateSelectedServicesContent(item.services));
-        var ranger = controller.findProperty('serviceName', 'RANGER');
-        if (item.services.contains('RANGER')) {
-          ranger.setProperties({
-            isSelected: item.isRangerSelected,
-            isInstalled: item.isRangerInstalled
-          });
-        } else {
-          controller.removeObject(ranger);
-        }
-        controller.rangerValidation();
-        expect(controller.get('errorStack').mapProperty('id').contains('rangerRequirements')).to.equal(item.isRangerWarning);
       });
     });
 
@@ -961,7 +933,6 @@ describe('App.WizardStep4Controller', function () {
 
     Em.A([
       'serviceCheckPopup',
-      'rangerRequirementsPopup',
       'sparkWarningPopup'
     ]).forEach(function (methodName) {
 
@@ -1006,7 +977,7 @@ describe('App.WizardStep4Controller', function () {
     });
 
     it('serviceValidation should not be called when service not selected', function() {
-      controller.pushObject(Em.Object.create({
+      controller.pushObject(App.StackService.createRecord({
         serviceName: 'S1',
         isSelected: false
       }));
@@ -1016,7 +987,7 @@ describe('App.WizardStep4Controller', function () {
 
     it('serviceValidation should not be called when dependent service does not exist', function() {
       controller.pushObjects([
-        Em.Object.create({
+        App.StackService.createRecord({
           serviceName: 'S1',
           isSelected: true
         })
@@ -1027,7 +998,7 @@ describe('App.WizardStep4Controller', function () {
 
     it('serviceValidation should not be called when dependent service is selected', function() {
       controller.pushObjects([
-        Em.Object.create({
+        App.StackService.createRecord({
           serviceName: 'S1',
           isSelected: true
         }),
@@ -1042,7 +1013,7 @@ describe('App.WizardStep4Controller', function () {
 
     it('serviceValidation should be called when dependent service is not selected', function() {
       controller.pushObjects([
-        Em.Object.create({
+        App.StackService.createRecord({
           serviceName: 'S1',
           isSelected: true
         }),

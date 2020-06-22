@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,12 @@
 
 package org.apache.ambari.server.api.resources;
 
+import java.util.Iterator;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.spi.Resource;
 import org.junit.Assert;
 import org.junit.Test;
-
-import java.util.Iterator;
-import java.util.Set;
 
 /**
  * RepositoryVersionResourceDefinition tests.

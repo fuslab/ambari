@@ -106,6 +106,7 @@ public class KerberosConfigurationDescriptorTest {
         new TypeToken<List<Map<String, Object>>>() {
         }.getType());
 
+
     List<KerberosConfigurationDescriptor> configurations = new ArrayList<>();
 
     for (Map<String, Object> item : jsonData) {

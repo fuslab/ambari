@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,7 +17,6 @@
  */
 package org.apache.ambari.server.controller.internal;
 
-import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Map;
@@ -38,11 +37,18 @@ import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.apache.ambari.server.security.authorization.RoleAuthorization;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 
 /**
  * Resource provider for group resources.
  */
 public class GroupResourceProvider extends AbstractControllerResourceProvider {
+
+  private static final Logger LOG = LoggerFactory.getLogger(GroupResourceProvider.class);
 
   // ----- Property ID constants ---------------------------------------------
 
@@ -51,21 +57,29 @@ public class GroupResourceProvider extends AbstractControllerResourceProvider {
   public static final String GROUP_LDAP_GROUP_PROPERTY_ID = PropertyHelper.getPropertyId("Groups", "ldap_group");
   public static final String GROUP_GROUPTYPE_PROPERTY_ID  = PropertyHelper.getPropertyId("Groups", "group_type");
 
-  private static Set<String> pkPropertyIds =
-      new HashSet<String>(Arrays.asList(new String[]{
-          GROUP_GROUPNAME_PROPERTY_ID}));
+
+  /**
+   * The key property ids for a Group resource.
+   */
+  private static Map<Resource.Type, String> keyPropertyIds = ImmutableMap.<Resource.Type, String>builder()
+      .put(Resource.Type.Group, GROUP_GROUPNAME_PROPERTY_ID)
+      .build();
+
+  /**
+   * The property ids for a Group resource.
+   */
+  private static Set<String> propertyIds = Sets.newHashSet(
+      GROUP_GROUPNAME_PROPERTY_ID,
+      GROUP_LDAP_GROUP_PROPERTY_ID,
+      GROUP_GROUPTYPE_PROPERTY_ID);
 
   /**
    * Create a new resource provider for the given management controller.
    *
-   * @param propertyIds           the property ids
-   * @param keyPropertyIds        the key property ids
    * @param managementController  the management controller
    */
-  GroupResourceProvider(Set<String> propertyIds,
-                       Map<Resource.Type, String> keyPropertyIds,
-                       AmbariManagementController managementController) {
-    super(propertyIds, keyPropertyIds, managementController);
+  GroupResourceProvider(AmbariManagementController managementController) {
+    super(Resource.Type.Group, propertyIds, keyPropertyIds, managementController);
 
     EnumSet<RoleAuthorization> manageUserAuthorizations = EnumSet.of(RoleAuthorization.AMBARI_MANAGE_USERS);
     setRequiredCreateAuthorizations(manageUserAuthorizations);
@@ -80,7 +94,7 @@ public class GroupResourceProvider extends AbstractControllerResourceProvider {
       UnsupportedPropertyException,
       ResourceAlreadyExistsException,
       NoSuchParentResourceException {
-    final Set<GroupRequest> requests = new HashSet<GroupRequest>();
+    final Set<GroupRequest> requests = new HashSet<>();
     for (Map<String, Object> propertyMap : request.getProperties()) {
       requests.add(getRequest(propertyMap));
     }
@@ -100,7 +114,7 @@ public class GroupResourceProvider extends AbstractControllerResourceProvider {
   protected Set<Resource> getResourcesAuthorized(Request request, Predicate predicate)
       throws SystemException, UnsupportedPropertyException, NoSuchResourceException, NoSuchParentResourceException {
 
-    final Set<GroupRequest> requests = new HashSet<GroupRequest>();
+    final Set<GroupRequest> requests = new HashSet<>();
 
     if (predicate == null) {
       requests.add(getRequest(null));
@@ -117,12 +131,10 @@ public class GroupResourceProvider extends AbstractControllerResourceProvider {
       }
     });
 
-    LOG.debug("Found group responses matching get group request"
-        + ", groupRequestSize=" + requests.size() + ", groupResponseSize="
-        + responses.size());
+    LOG.debug("Found group responses matching get group request, groupRequestSize={}, groupResponseSize={}", requests.size(), responses.size());
 
     Set<String>   requestedIds = getRequestPropertyIds(request, predicate);
-    Set<Resource> resources    = new HashSet<Resource>();
+    Set<Resource> resources    = new HashSet<>();
 
     for (GroupResponse groupResponse : responses) {
       ResourceImpl resource = new ResourceImpl(Resource.Type.Group);
@@ -145,7 +157,7 @@ public class GroupResourceProvider extends AbstractControllerResourceProvider {
   @Override
   protected RequestStatus updateResourcesAuthorized(Request request, Predicate predicate)
     throws SystemException, UnsupportedPropertyException, NoSuchResourceException, NoSuchParentResourceException {
-    final Set<GroupRequest> requests = new HashSet<GroupRequest>();
+    final Set<GroupRequest> requests = new HashSet<>();
 
     for (Map<String, Object> propertyMap : getPropertyMaps(request.getProperties().iterator().next(), predicate)) {
       final GroupRequest req = getRequest(propertyMap);
@@ -166,7 +178,7 @@ public class GroupResourceProvider extends AbstractControllerResourceProvider {
   @Override
   protected RequestStatus deleteResourcesAuthorized(Request request, Predicate predicate)
       throws SystemException, UnsupportedPropertyException, NoSuchResourceException, NoSuchParentResourceException {
-    final Set<GroupRequest> requests = new HashSet<GroupRequest>();
+    final Set<GroupRequest> requests = new HashSet<>();
 
     for (Map<String, Object> propertyMap : getPropertyMaps(predicate)) {
       final GroupRequest req = getRequest(propertyMap);
@@ -186,7 +198,7 @@ public class GroupResourceProvider extends AbstractControllerResourceProvider {
 
   @Override
   protected Set<String> getPKPropertyIds() {
-    return pkPropertyIds;
+    return new HashSet<>(keyPropertyIds.values());
   }
 
   private GroupRequest getRequest(Map<String, Object> properties) {

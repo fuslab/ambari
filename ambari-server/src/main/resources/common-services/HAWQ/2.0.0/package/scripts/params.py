@@ -29,7 +29,7 @@ from resource_management.libraries.functions import get_kinit_path
 from resource_management.libraries.functions.get_not_managed_resources import get_not_managed_resources
 
 config = Script.get_config()
-config_attrs = config['configuration_attributes']
+config_attrs = config['configurationAttributes']
 
 def __get_component_host(component):
   """
@@ -41,7 +41,7 @@ def __get_component_host(component):
   return component_host
 
 
-hostname = config['hostname']
+hostname = config['agentLevelParams']['hostname']
 
 # Users and Groups
 hdfs_superuser = config['configurations']['hadoop-env']['hdfs_user']
@@ -74,6 +74,7 @@ if dfs_nameservice is None:
  dfs_nameservice = default('/configurations/hdfs-site/dfs.nameservices', None)
 
 hawq_global_rm_type = default('/configurations/hawq-site/hawq_global_rm_type', None)
+dfs_type = default("/clusterLevelParams/dfs_type", "")
 
 # HDFSResource partial function
 HdfsResource = functools.partial(HdfsResource,
@@ -86,7 +87,8 @@ HdfsResource = functools.partial(HdfsResource,
                                  hadoop_conf_dir = hadoop_conf_dir,
                                  hdfs_site=hdfs_site,
                                  default_fs=default_fs,
-                                 immutable_paths = get_not_managed_resources())
+                                 immutable_paths = get_not_managed_resources(),
+                                 dfs_type = dfs_type)
 
 # File partial function
 File = functools.partial(File,
@@ -103,7 +105,7 @@ XmlConfig = functools.partial(XmlConfig,
 
 # For service Check
 is_pxf_installed = __get_component_host("pxf_hosts") is not None
-namenode_path =  "{0}:{1}".format(__get_component_host("namenode_host"), hawq_constants.PXF_PORT) if dfs_nameservice is None else dfs_nameservice
+namenode_path =  "{0}:{1}".format(__get_component_host("namenode_hosts"), hawq_constants.PXF_PORT) if dfs_nameservice is None else dfs_nameservice
 table_definition = {
   "HAWQ": {
     "name": "ambari_hawq_test",
@@ -128,7 +130,7 @@ table_definition = {
 
 # YARN
 # Note: YARN is not mandatory for HAWQ. It is required only when the users set HAWQ to use YARN as resource manager
-rm_host = __get_component_host('rm_host')
+rm_host = __get_component_host('resourcemanager_hosts')
 is_yarn_ha_enabled = True if str(default('/configurations/yarn-site/yarn.resourcemanager.ha.enabled', False)).lower() == "true" else False
 
 # Config files

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,12 +22,11 @@ import java.util.concurrent.ConcurrentMap;
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.actionmanager.HostRoleStatus;
 import org.apache.ambari.server.agent.CommandReport;
-import org.apache.ambari.server.serveraction.AbstractServerAction;
 
 /**
  * Action that represents a manual stage.
  */
-public class ManualStageAction extends AbstractServerAction {
+public class ManualStageAction extends AbstractUpgradeServerAction {
 
   @Override
   public CommandReport execute(

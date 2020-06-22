@@ -19,9 +19,9 @@ limitations under the License.
 import os
 
 from resource_management import *
+from resource_management.libraries.functions.check_process_status import wait_process_stopped
 import re
 
-from resource_management.libraries.functions.check_process_status import wait_process_stopped
 
 def service(action=None, name=None, user=None, create_pid_dir=False,
             create_log_dir=False):

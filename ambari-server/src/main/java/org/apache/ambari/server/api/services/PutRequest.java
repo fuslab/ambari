@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,12 @@
 
 package org.apache.ambari.server.api.services;
 
+import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.UriInfo;
+
 import org.apache.ambari.server.api.handlers.RequestHandler;
 import org.apache.ambari.server.api.handlers.UpdateHandler;
 import org.apache.ambari.server.api.resources.ResourceInstance;
-
-import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.UriInfo;
 
 /**
  * A PUT request.

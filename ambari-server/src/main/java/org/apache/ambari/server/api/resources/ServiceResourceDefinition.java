@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,10 @@
 
 package org.apache.ambari.server.api.resources;
 
-import org.apache.ambari.server.controller.spi.Resource;
+import java.util.HashSet;
+import java.util.Set;
 
-import java.util.*;
+import org.apache.ambari.server.controller.spi.Resource;
 
 /**
  * Service resource definition.
@@ -47,7 +48,7 @@ public class ServiceResourceDefinition extends BaseResourceDefinition {
 
   @Override
   public Set<SubResourceDefinition> getSubResourceDefinitions() {
-    Set<SubResourceDefinition> subs = new HashSet<SubResourceDefinition>();
+    Set<SubResourceDefinition> subs = new HashSet<>();
     subs.add(new SubResourceDefinition(Resource.Type.Component));
     subs.add(new SubResourceDefinition(Resource.Type.Alert));
     //todo: dynamic sub-resource definition

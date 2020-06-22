@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,16 +19,32 @@
 
 package org.apache.ambari.server.api.handlers;
 
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.api.resources.ResourceInstance;
 import org.apache.ambari.server.api.resources.ResourceInstanceFactory;
 import org.apache.ambari.server.api.resources.ResourceInstanceFactoryImpl;
-import org.apache.ambari.server.api.services.*;
+import org.apache.ambari.server.api.services.NamedPropertySet;
 import org.apache.ambari.server.api.services.Request;
+import org.apache.ambari.server.api.services.RequestBody;
+import org.apache.ambari.server.api.services.Result;
+import org.apache.ambari.server.api.services.ResultImpl;
+import org.apache.ambari.server.api.services.ResultMetadata;
+import org.apache.ambari.server.api.services.ResultStatus;
 import org.apache.ambari.server.api.util.TreeNode;
-import org.apache.ambari.server.controller.spi.*;
+import org.apache.ambari.server.controller.spi.ClusterController;
+import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
+import org.apache.ambari.server.controller.spi.RequestStatus;
+import org.apache.ambari.server.controller.spi.RequestStatusMetaData;
+import org.apache.ambari.server.controller.spi.Resource;
+import org.apache.ambari.server.controller.spi.ResourceAlreadyExistsException;
+import org.apache.ambari.server.controller.spi.SystemException;
+import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.security.authorization.AuthorizationException;
-
-import java.util.*;
 
 /**
  * Handler for creates that are applied to the results of a query.
@@ -95,7 +111,7 @@ public class QueryCreateHandler extends BaseManagementHandler {
     Set<NamedPropertySet> setRequestProps = request.getBody().getNamedPropertySets();
 
     HashMap<Resource.Type, Set<Map<String, Object>>> mapProps =
-        new HashMap<Resource.Type, Set<Map<String, Object>>>();
+      new HashMap<>();
 
     ResourceInstance  resource            = request.getResource();
     Resource.Type     type                = resource.getResourceDefinition().getType();
@@ -112,13 +128,13 @@ public class QueryCreateHandler extends BaseManagementHandler {
         for (Map.Entry<String, Object> entry : namedProps.getProperties().entrySet()) {
           Set<Map<String, Object>> set = (Set<Map<String, Object>>) entry.getValue();
           for (Map<String, Object> map : set) {
-            Map<String, Object> mapResourceProps = new HashMap<String, Object>(map);
+            Map<String, Object> mapResourceProps = new HashMap<>(map);
             Resource.Type       createType       = getCreateType(resource, entry.getKey());
             mapResourceProps.put(controller.getSchema(createType).
                 getKeyPropertyId(resource.getResourceDefinition().getType()), keyVal);
             Set<Map<String, Object>> setCreateProps = mapProps.get(createType);
             if (setCreateProps == null) {
-              setCreateProps = new HashSet<Map<String, Object>>();
+              setCreateProps = new HashSet<>();
               mapProps.put(createType, setCreateProps);
             }
             setCreateProps.add(mapResourceProps);

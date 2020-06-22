@@ -21,7 +21,6 @@
   <target-stack>HDP-2.6</target-stack>
   <type>NON_ROLLING</type>
   <prerequisite-checks>
-    <check>org.apache.ambari.server.checks.KafkaPropertiesCheck</check>
     <check>org.apache.ambari.server.checks.RangerSSLConfigCheck</check>
     <check>org.apache.ambari.server.checks.LZOCheck</check>
     <configuration>
@@ -115,7 +114,6 @@
       <service name="SPARK2">
         <component>SPARK2_JOBHISTORYSERVER</component>
         <component>SPARK2_THRIFTSERVER</component>
-        <component>LIVY2_SERVER</component>
       </service>
 
       <service name="ZEPPELIN">
@@ -137,16 +135,6 @@
 
       <service name="MAPREDUCE2">
         <component>HISTORYSERVER</component>
-      </service>
-      
-      <service name="RANGER">
-        <component>RANGER_USERSYNC</component>
-        <component>RANGER_ADMIN</component>
-        <component>RANGER_TAGSYNC</component>
-      </service>
-
-      <service name="RANGER_KMS">
-        <component>RANGER_KMS_SERVER</component>
       </service>
     </group>
 
@@ -223,6 +211,16 @@
         <component>ZKFC</component>
         <component>JOURNALNODE</component>
         <component>NFS_GATEWAY</component>
+      </service>
+
+      <service name="RANGER">
+        <component>RANGER_USERSYNC</component>
+        <component>RANGER_ADMIN</component>
+        <component>RANGER_TAGSYNC</component>
+      </service>
+
+      <service name="RANGER_KMS">
+        <component>RANGER_KMS_SERVER</component>
       </service>
 
       <service name="ZOOKEEPER">
@@ -302,6 +300,10 @@
         <task xsi:type="configure" id="hdfs_user_agent" />
       </execute-stage>
 
+      <execute-stage service="HDFS" component="HDFS_CLIENT" title="Set properties for GCS">
+        <task xsi:type="configure" id="gcs_properties" />
+      </execute-stage>
+
       <!--YARN-->
       <execute-stage service="MAPREDUCE2" component="MAPREDUCE2_CLIENT" title="Apply config changes for Mapreduce2 client">
         <task xsi:type="server_action" class="org.apache.ambari.server.serveraction.upgrades.FixLzoCodecPath">
@@ -355,16 +357,16 @@
         </task>
       </execute-stage>
 
-      <execute-stage>
-        <task xsi:type="server_action" class="org.apache.ambari.server.serveraction.upgrades.FixCapacitySchedulerOrderingPolicy">
-          <summary>Validate Root Queue Ordering Policy</summary>
-        </task>
-      </execute-stage>
-
       <!--Yarn Apptimeline server-->
       <execute-stage service="YARN" component="APP_TIMELINE_SERVER" title="Apply config changes for App timeline server">
         <task xsi:type="server_action" class="org.apache.ambari.server.serveraction.upgrades.FixYarnWebServiceUrl">
           <summary>Fixing YARN Webservice Url</summary>
+        </task>
+      </execute-stage>
+
+      <execute-stage>
+        <task xsi:type="server_action" class="org.apache.ambari.server.serveraction.upgrades.FixCapacitySchedulerOrderingPolicy">
+          <summary>Validate Root Queue Ordering Policy</summary>
         </task>
       </execute-stage>
 
@@ -427,14 +429,13 @@
         </task>
       </execute-stage>
 
+      <execute-stage service="STORM" component="NIMBUS" title="Apply config changes for Nimbus">
+        <task xsi:type="configure" id="increase_storm_zookeeper_timeouts"/>
+      </execute-stage>
 
       <!--RANGER-->
       <execute-stage service="RANGER" component="RANGER_ADMIN" title="Apply config changes for Ranger Admin">
         <task xsi:type="configure" id="hdp_2_6_0_0_remove_bind_anonymous"/>
-      </execute-stage>
-
-      <execute-stage service="STORM" component="NIMBUS" title="Apply config changes for Storm AutoCreds">
-        <task xsi:type="configure" id="storm_nimbus_autocred_config"/>
       </execute-stage>
 
       <!--RANGER-->
@@ -524,6 +525,7 @@
         </task>
       </execute-stage>
 
+      <!--STORM-->
       <execute-stage service="STORM" component="NIMBUS" title="Apply config changes for Nimbus">
         <task xsi:type="configure" id="increase_storm_zookeeper_timeouts"/>
       </execute-stage>
@@ -699,10 +701,6 @@
       <execute-stage service="SPARK2" component="SPARK2_CLIENT" title="Apply config changes for Spark2 Client log4j">
         <task xsi:type="configure" id="hdp_2_5_0_0_spark2_client_log4j"/>
       </execute-stage>
-
-      <execute-stage service="SPARK2" component="LIVY2_SERVER" title="Set config changes for livy2 server">
-        <task xsi:type="configure" id="hdp_2_6_6_0_set_server_access_control"/>
-      </execute-stage>
     </group>
 
     <!--
@@ -725,23 +723,6 @@
       <direction>UPGRADE</direction>
       <execute-stage title="Preconfigure Kerberos-related properties">
         <task xsi:type="server_action" class="org.apache.ambari.server.serveraction.upgrades.PreconfigureKerberosAction"/>
-      </execute-stage>
-    </group>
-
-    <!--
-    Invoke "hdp-select set all" to change any components we may have missed
-    that are installed on the hosts but not known by Ambari.
-    -->
-    <group xsi:type="cluster" name="ALL_HOST_OPS" title="Set Version On All Hosts">
-      <scope>COMPLETE</scope>
-      <skippable>true</skippable>
-      <supports-auto-skip-failure>false</supports-auto-skip-failure>
-
-      <execute-stage title="Update stack to {{version}}">
-        <task xsi:type="execute">
-          <script>scripts/ru_set_all.py</script>
-          <function>actionexecute</function>
-        </task>
       </execute-stage>
     </group>
 
@@ -974,7 +955,6 @@
       <service name="SPARK2">
         <component>SPARK2_JOBHISTORYSERVER</component>
         <component>SPARK2_THRIFTSERVER</component>
-        <component>LIVY2_SERVER</component>
       </service>
     </group>
 
@@ -1252,7 +1232,7 @@
     <service name="HDFS">
       <component name="NAMENODE">
         <upgrade>
-          <task xsi:type="restart-task"/>
+          <task xsi:type="restart-task" timeout-config="upgrade.parameter.nn-restart.timeout"/>
         </upgrade>
       </component>
 
@@ -1485,11 +1465,6 @@
         </upgrade>
       </component>
       <component name="SPARK2_THRIFTSERVER">
-        <upgrade>
-          <task xsi:type="restart-task"/>
-        </upgrade>
-      </component>
-      <component name="LIVY2_SERVER">
         <upgrade>
           <task xsi:type="restart-task"/>
         </upgrade>

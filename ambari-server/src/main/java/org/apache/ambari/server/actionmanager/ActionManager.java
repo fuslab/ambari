@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.agent.CommandReport;
 import org.apache.ambari.server.controller.ExecuteActionRequest;
+import org.apache.ambari.server.security.authorization.AuthorizationHelper;
 import org.apache.ambari.server.topology.TopologyManager;
 import org.apache.ambari.server.utils.CommandUtils;
 import org.apache.ambari.server.utils.StageUtils;
@@ -43,7 +44,7 @@ import com.google.inject.Singleton;
  */
 @Singleton
 public class ActionManager {
-  private static Logger LOG = LoggerFactory.getLogger(ActionManager.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ActionManager.class);
   private final ActionScheduler scheduler;
   private final ActionDBAccessor db;
   private final AtomicLong requestCounter;
@@ -79,15 +80,16 @@ public class ActionManager {
 
   public void sendActions(List<Stage> stages, String clusterHostInfo, ExecuteActionRequest actionRequest) throws AmbariException {
     Request request = requestFactory.createNewFromStages(stages, clusterHostInfo, actionRequest);
+    request.setUserName(AuthorizationHelper.getAuthenticatedName());
     sendActions(request, actionRequest);
   }
 
   public void sendActions(Request request, ExecuteActionRequest executeActionRequest) throws AmbariException {
     if (LOG.isDebugEnabled()) {
-      LOG.debug(String.format("Persisting Request into DB: %s", request));
+      LOG.debug("Persisting Request into DB: {}", request);
 
       if (executeActionRequest != null) {
-        LOG.debug("In response to request: " + request.toString());
+        LOG.debug("In response to request: {}", request);
       }
     }
     db.persistActions(request);
@@ -147,7 +149,7 @@ public class ActionManager {
     for (CommandReport report : reports) {
       HostRoleCommand command = commands.get(report.getTaskId());
       if (LOG.isDebugEnabled()) {
-        LOG.debug("Processing command report : " + report.toString());
+        LOG.debug("Processing command report : {}", report);
       }
       if (command == null) {
         LOG.warn("The task " + report.getTaskId()
@@ -224,7 +226,7 @@ public class ActionManager {
   public List<Long> getRequestsByStatus(RequestStatus status, int maxResults, boolean ascOrder) {
     List<Long> requests = db.getRequestsByStatus(status, maxResults, ascOrder);
 
-    for (Request logicalRequest : topologyManager.getRequests(Collections.<Long>emptySet())) {
+    for (Request logicalRequest : topologyManager.getRequests(Collections.emptySet())) {
       //todo: Request.getStatus() returns HostRoleStatus and we are comparing to RequestStatus
       //todo: for now just compare the names as RequestStatus names are a subset of HostRoleStatus names
       HostRoleStatus logicalRequestStatus = logicalRequest.getStatus();
@@ -254,16 +256,8 @@ public class ActionManager {
     ActionManager.topologyManager = topologyManager;
   }
 
-  /**
-   * Resubmits tasks for execution if they were aborted.
-   *
-   * @param requestId
-   *          the ID of the request for the tasks
-   * @param taskIds
-   *          the tasks to resubmit.
-   */
-  public void resubmitTasks(long requestId, List<Long> taskIds) {
-    db.resubmitTasks(requestId, taskIds);
+  public void resubmitTasks(List<Long> taskIds) {
+    db.resubmitTasks(taskIds);
   }
 
 }

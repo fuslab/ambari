@@ -19,14 +19,12 @@
 
 package org.apache.ambari.logfeeder.metrics;
 
-import org.apache.ambari.logfeeder.util.LogFeederUtil;
-import org.apache.ambari.logfeeder.util.SSLUtil;
+import org.apache.ambari.logfeeder.conf.LogFeederSecurityConfig;
+import org.apache.ambari.logfeeder.conf.MetricsCollectorConfig;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.metrics2.sink.timeline.AbstractTimelineMetricsSink;
 import org.apache.hadoop.metrics2.sink.timeline.TimelineMetrics;
 import org.apache.log4j.Logger;
-
-import com.google.common.base.Splitter;
 
 import java.util.Collection;
 import java.util.List;
@@ -40,16 +38,16 @@ public class LogFeederAMSClient extends AbstractTimelineMetricsSink {
   private final String collectorPort;
   private final String collectorPath;
 
-  public LogFeederAMSClient() {
-    String collectorHostsString = LogFeederUtil.getStringProperty("logfeeder.metrics.collector.hosts");
+  public LogFeederAMSClient(MetricsCollectorConfig metricsCollectorConfig, LogFeederSecurityConfig securityConfig) {
+    String collectorHostsString = metricsCollectorConfig.getHostsString();
     if (!StringUtils.isBlank(collectorHostsString)) {
       collectorHostsString = collectorHostsString.trim();
       LOG.info("AMS collector Hosts=" + collectorHostsString);
       
-      collectorHosts = Splitter.on(",").splitToList(collectorHostsString);
-      collectorProtocol = LogFeederUtil.getStringProperty("logfeeder.metrics.collector.protocol");
-      collectorPort = LogFeederUtil.getStringProperty("logfeeder.metrics.collector.port");
-      collectorPath = LogFeederUtil.getStringProperty("logfeeder.metrics.collector.path");
+      collectorHosts = metricsCollectorConfig.getHosts();
+      collectorProtocol = metricsCollectorConfig.getProtocol();
+      collectorPort = metricsCollectorConfig.getPort();
+      collectorPath = metricsCollectorConfig.getPath();
     } else {
       collectorHosts = null;
       collectorProtocol = null;
@@ -57,8 +55,8 @@ public class LogFeederAMSClient extends AbstractTimelineMetricsSink {
       collectorPath = null;
     }
     
-    if (StringUtils.isNotBlank(SSLUtil.getTrustStoreLocation())) {
-      loadTruststore(SSLUtil.getTrustStoreLocation(), SSLUtil.getTrustStoreType(), SSLUtil.getTrustStorePassword());
+    if (StringUtils.isNotBlank(securityConfig.getTrustStoreLocation())) {
+      loadTruststore(securityConfig.getTrustStoreLocation(), securityConfig.getTrustStoreType(), securityConfig.getTrustStorePassword());
     }
   }
 
@@ -89,6 +87,21 @@ public class LogFeederAMSClient extends AbstractTimelineMetricsSink {
   @Override
   protected String getHostname() {
     return null;
+  }
+
+  @Override
+  protected boolean isHostInMemoryAggregationEnabled() {
+    return false;
+  }
+
+  @Override
+  protected int getHostInMemoryAggregationPort() {
+    return 0;
+  }
+
+  @Override
+  protected String getHostInMemoryAggregationProtocol() {
+    return "http";
   }
 
   @Override

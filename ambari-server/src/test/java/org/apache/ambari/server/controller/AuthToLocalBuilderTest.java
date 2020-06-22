@@ -18,20 +18,22 @@
 
 package org.apache.ambari.server.controller;
 
-import org.apache.ambari.server.utils.CollectionPresentationUtils;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import org.apache.ambari.server.utils.CollectionPresentationUtils;
+import org.junit.Test;
 
 public class AuthToLocalBuilderTest {
 
   @Test
   public void testRuleGeneration() {
-    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.<String>emptyList(), false);
+    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.emptyList(), false);
 
     builder.addRule("nn/_HOST@EXAMPLE.COM", "hdfs");
     // Duplicate principal for secondary namenode, should be filtered out...
@@ -62,7 +64,7 @@ public class AuthToLocalBuilderTest {
 
   @Test
   public void testRuleGeneration_caseInsensitiveSupport() {
-    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.<String>emptyList(), true);
+    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.emptyList(), true);
 
     builder.addRule("nn/_HOST@EXAMPLE.COM", "hdfs");
     // Duplicate principal for secondary namenode, should be filtered out...
@@ -92,7 +94,7 @@ public class AuthToLocalBuilderTest {
 
   @Test
   public void testRuleGeneration_changeToCaseInsensitiveSupport() {
-    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.<String>emptyList(), false);
+    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.emptyList(), false);
 
     builder.addRule("nn/_HOST@EXAMPLE.COM", "hdfs");
     // Duplicate principal for secondary namenode, should be filtered out...
@@ -106,7 +108,7 @@ public class AuthToLocalBuilderTest {
 
     String existingRules = builder.generate();
 
-    builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.<String>emptyList(), true);
+    builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.emptyList(), true);
     builder.addRules(existingRules);
 
     builder.addRule("nn/_HOST@EXAMPLE.COM", "hdfs");
@@ -132,7 +134,7 @@ public class AuthToLocalBuilderTest {
 
   @Test
   public void testRuleGeneration_changeToCaseSensitiveSupport() {
-    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.<String>emptyList(), true);
+    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.emptyList(), true);
 
     builder.addRule("nn/_HOST@EXAMPLE.COM", "hdfs");
     // Duplicate principal for secondary namenode, should be filtered out...
@@ -146,7 +148,7 @@ public class AuthToLocalBuilderTest {
 
     String existingRules = builder.generate();
 
-    builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.<String>emptyList(), false);
+    builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.emptyList(), false);
     builder.addRules(existingRules);
 
     builder.addRule("nn/_HOST@EXAMPLE.COM", "hdfs");
@@ -172,7 +174,7 @@ public class AuthToLocalBuilderTest {
 
   @Test
   public void testRuleGeneration_ExistingRules() {
-    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.<String>emptyList(), false);
+    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.emptyList(), false);
     // previously generated non-host specific rules
     builder.addRule("foobar@EXAMPLE.COM", "hdfs");
     // doesn't exist in latter generation
@@ -180,7 +182,7 @@ public class AuthToLocalBuilderTest {
     builder.addRule("nn/_HOST@EXAMPLE.COM", "hdfs");
     String existingRules = builder.generate();
 
-    builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.<String>emptyList(), false);
+    builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.emptyList(), false);
     // set previously existing rules
     builder.addRules(existingRules);
 
@@ -210,7 +212,7 @@ public class AuthToLocalBuilderTest {
 
   @Test
   public void testRuleGeneration_ExistingRules_existingMoreSpecificRule() {
-    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.<String>emptyList(), false);
+    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.emptyList(), false);
     // previously generated non-host specific rules
     builder.addRule("foobar@EXAMPLE.COM", "hdfs");
     builder.addRule("hm/_HOST@EXAMPLE.COM", "hbase");
@@ -221,7 +223,7 @@ public class AuthToLocalBuilderTest {
     // append default realm rule for additional realm
     existingRules += "\nRULE:[1:$1@$0](.*@OTHER_REALM.COM)s/@.*//";
 
-    builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.<String>emptyList(), false);
+    builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.emptyList(), false);
     // set previously existing rules
     builder.addRules(existingRules);
     // more specific host qualifed rule exists for dn
@@ -255,7 +257,7 @@ public class AuthToLocalBuilderTest {
 
   @Test
   public void testAddNullExistingRule() {
-    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.<String>emptyList(), false);
+    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.emptyList(), false);
     builder.addRules(null);
 
     assertEquals(
@@ -275,7 +277,7 @@ public class AuthToLocalBuilderTest {
             "RULE:[2:$1@$0](jhs@EXAMPLE.COM)s/.*/mapred/\\\\\\" +
             "RULE:[2:$1@$0](jn@EXAMPLE.COM)s/.*/hdfs/\\/\\";
 
-    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.<String>emptyList(), false);
+    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.emptyList(), false);
     builder.addRules(rules);
 
     assertEquals(
@@ -297,7 +299,7 @@ public class AuthToLocalBuilderTest {
             "RULE:[1:$1@$0](.*@\\QEXAMPLE1.COM\\E)s/@\\QEXAMPLE1.COM\\E//\n" +
             "RULE:[2:$1@$0](.*@\\QEXAMPLE1.COM\\E)s/@\\QEXAMPLE1.COM\\E//";
 
-    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.<String>emptyList(), false);
+    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.emptyList(), false);
     builder.addRules(rules);
 
     builder.addRule("nn/_HOST@EXAMPLE.COM", "hdfs");
@@ -336,7 +338,7 @@ public class AuthToLocalBuilderTest {
             "RULE:[2:$1@$0]   (jhs@EXAMPLE.COM)s/.*/mapred/\n" +
             "RULE:[2:$1@$0](jn@EXAMPLE.COM)   s/.*/hdfs/\n";
 
-    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.<String>emptyList(), false);
+    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.emptyList(), false);
     builder.addRules(rulesWithWhitespace);
 
     assertEquals(
@@ -353,7 +355,7 @@ public class AuthToLocalBuilderTest {
 
   @Test
   public void testExistingRuleWithNoRealm() {
-    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.<String>emptyList(), false);
+    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.emptyList(), false);
     builder.addRules("RULE:[1:$1](foobar)s/.*/hdfs/");
 
     assertEquals(
@@ -365,7 +367,7 @@ public class AuthToLocalBuilderTest {
 
   @Test
   public void testExistingRuleWithNoRealm2() {
-    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.<String>emptyList(), false);
+    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.emptyList(), false);
     builder.addRules("RULE:[1:$1/$2](foobar/someHost)s/.*/hdfs/");
 
     assertEquals(
@@ -377,21 +379,21 @@ public class AuthToLocalBuilderTest {
 
   @Test(expected = IllegalArgumentException.class)
   public void testAddNewRuleWithNoRealm() {
-    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.<String>emptyList(), false);
+    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.emptyList(), false);
 
     builder.addRule("someUser", "hdfs");
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testAddNewRuleWithNoRealm2() {
-    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.<String>emptyList(), false);
+    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.emptyList(), false);
 
     builder.addRule("someUser/someHost", "hdfs");
   }
 
   @Test
   public void testExistingWildcardRealm() {
-    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.<String>emptyList(), false);
+    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.emptyList(), false);
     builder.addRules("RULE:[2:$1@$0]([rn]m@.*)s/.*/yarn/\n" +
         "RULE:[2:$1@$0]([nd]n@.*)s/.*/hdfs/\n" +
         "RULE:[2:$1@$0](.*@EXAMPLE.COM)s/.*/yarn/\n" +
@@ -415,7 +417,7 @@ public class AuthToLocalBuilderTest {
 
   @Test
   public void testClone() throws CloneNotSupportedException {
-    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.<String>emptyList(), false);
+    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.emptyList(), false);
 
     builder.addRule("nn/_HOST@EXAMPLE.COM", "hdfs");
     builder.addRule("dn/_HOST@EXAMPLE.COM", "hdfs");
@@ -472,7 +474,7 @@ public class AuthToLocalBuilderTest {
 
   @Test
   public void testAdditionalRealms_Null() {
-    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.<String>emptyList(), false);
+    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.emptyList(), false);
 
     builder.addRule("nn/_HOST@EXAMPLE.COM", "hdfs");
     builder.addRule("dn/_HOST@EXAMPLE.COM", "hdfs");
@@ -564,7 +566,7 @@ public class AuthToLocalBuilderTest {
 
   @Test
   public void testCustomRuleCanBeAddedWithCaseSensitivity() {
-    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.<String>emptyList(), false)
+    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.emptyList(), false)
       .addRule("yarn/_HOST@EXAMPLE.COM", "yarn")
       .addRules(
       "RULE:[1:$1@$0](.*@HDP01.LOCAL)s/.*/ambari-qa//L\n" +
@@ -580,7 +582,7 @@ public class AuthToLocalBuilderTest {
 
   @Test
   public void testCaseSensitivityFlagIsRemovedAfterItWasAddedToAmbariRule() {
-    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.<String>emptyList(), false)
+    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.emptyList(), false)
       .addRule("yarn/_HOST@EXAMPLE.COM", "yarn")
       .addRules(
           "RULE:[2:$1@$0](yarn@EXAMPLE.COM)s/.*/yarn//L\n" +
@@ -594,7 +596,7 @@ public class AuthToLocalBuilderTest {
 
   @Test
   public void testCaseSensitivityFlagIsAddedAfterItWasFromAmbariRule() {
-    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.<String>emptyList(), true)
+    AuthToLocalBuilder builder = new AuthToLocalBuilder("EXAMPLE.COM", Collections.emptyList(), true)
       .addRule("yarn/_HOST@EXAMPLE.COM", "yarn")
       .addRules(
           "RULE:[1:$1@$0](.*@EXAMPLE.COM)s/@.*//\n" +

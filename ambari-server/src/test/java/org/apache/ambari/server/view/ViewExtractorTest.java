@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,17 +18,15 @@
 
 package org.apache.ambari.server.view;
 
-import org.apache.ambari.server.configuration.Configuration;
-import org.apache.ambari.server.orm.dao.ViewDAO;
-import org.apache.ambari.server.orm.entities.ResourceTypeEntity;
-import org.apache.ambari.server.orm.entities.ViewEntity;
-import org.apache.ambari.server.orm.entities.ViewEntityTest;
-import org.apache.ambari.server.view.configuration.ViewConfig;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import static org.easymock.EasyMock.anyObject;
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.eq;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.reset;
+import static org.easymock.EasyMock.verify;
 
-import javax.xml.bind.JAXBException;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -43,14 +41,17 @@ import java.util.Map;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 
-import static org.easymock.EasyMock.anyObject;
-import static org.easymock.EasyMock.createMock;
-import static org.easymock.EasyMock.createNiceMock;
-import static org.easymock.EasyMock.eq;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.reset;
-import static org.easymock.EasyMock.verify;
+import javax.xml.bind.JAXBException;
+
+import org.apache.ambari.server.configuration.Configuration;
+import org.apache.ambari.server.orm.dao.ViewDAO;
+import org.apache.ambari.server.orm.entities.ResourceTypeEntity;
+import org.apache.ambari.server.orm.entities.ViewEntity;
+import org.apache.ambari.server.orm.entities.ViewEntityTest;
+import org.apache.ambari.server.view.configuration.ViewConfig;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
 
 /**
  * ViewExtractor tests.
@@ -236,7 +237,7 @@ public class ViewExtractorTest {
     Map<File, ViewConfig> viewConfigs =
         Collections.singletonMap(viewArchive, viewDefinition.getConfiguration());
 
-    Map<String, File> files = new HashMap<String, File>();
+    Map<String, File> files = new HashMap<>();
 
     if (System.getProperty("os.name").contains("Windows")) {
       files.put("\\var\\lib\\ambari-server\\resources\\views\\work", extractedArchiveDir);
@@ -255,10 +256,10 @@ public class ViewExtractorTest {
       files.put("/var/lib/ambari-server/resources/views/work/MY_VIEW{1.0.0}/META-INF", metaInfDir);
     }
 
-    Map<File, FileOutputStream> outputStreams = new HashMap<File, FileOutputStream>();
+    Map<File, FileOutputStream> outputStreams = new HashMap<>();
     outputStreams.put(entryFile, fos);
 
-    Map<File, JarInputStream> jarFiles = new HashMap<File, JarInputStream>();
+    Map<File, JarInputStream> jarFiles = new HashMap<>();
     jarFiles.put(viewArchive, viewJarFile);
 
     TestViewArchiveUtility archiveUtility = new TestViewArchiveUtility(viewConfigs, files, outputStreams, jarFiles);

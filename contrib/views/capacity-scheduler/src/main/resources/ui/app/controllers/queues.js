@@ -267,6 +267,11 @@ App.QueuesController = Ember.ArrayController.extend({
    * @type {Boolean}
    */
   hasDeletedQueues: Em.computed.alias('store.hasDeletedQueues'),
+  /**
+   * !hasDeletedQueues
+   * @type {Boolean}
+   */
+  doesNotHaveDeletedQueues: Em.computed.not('store.hasDeletedQueues'),
 
 
 
@@ -331,7 +336,13 @@ App.QueuesController = Ember.ArrayController.extend({
    * check there is some changes for save
    * @type {bool}
    */
-  needSave: cmp.any('needRestart', 'needRefresh'),
+  needRestartOrRefresh: cmp.any('needRestart', 'needRefresh'),
+  /**
+   * check there is some changes for save and no deleted queues
+   * queue deletion requires Yarn Resource Manager restart
+   * @type {bool}
+   */
+  needSave: cmp.and('needRestartOrRefresh', 'doesNotHaveDeletedQueues'),
 
   /**
    * check if can save configs
@@ -407,14 +418,15 @@ App.QueuesController = Ember.ArrayController.extend({
       if(mapping.length!=3 || (mapping[0] != 'u'&& mapping[0] != 'g')) {
         hasInvalidMapping = true;
       }else{
-        hasInvalidMapping = queues.filter(function(queue){
+        //shouldn't allow if any of the leafqueue is having queue_mappings.
+        hasInvalidMapping = hasInvalidMapping || queues.filter(function(queue){
             return !queue.get("queues"); //get all leaf queues
           }).map(function(queue){
             return queue.get("name");
           }).indexOf(mapping[2]) == -1;
       }
 
-    })
+    });
 
     return hasInvalidMapping;
   }.property('scheduler.queue_mappings','content.length','content.@each.capacity'),

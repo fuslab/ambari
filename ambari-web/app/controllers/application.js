@@ -19,21 +19,19 @@
 
 var App = require('app');
 
-App.ApplicationController = Em.Controller.extend(App.UserPref, {
+App.ApplicationController = Em.Controller.extend(App.Persist, {
 
   name: 'applicationController',
 
   isPollerRunning: false,
 
-  clusterName: function () {
-    return (App.router.get('clusterController.clusterName') || 'My Cluster');
-  }.property('App.router.clusterController.clusterName'),
+  clusterName: Em.computed.alias('App.router.clusterController.clusterName'),
 
   /**
    * set ambari server version from installerController or mainController, making sure version shown up all the time
    */
   ambariVersion: function () {
-    return (App.router.get('installerController.ambariServerVersion') || App.router.get('mainController.ambariServerVersion') || Em.I18n.t('common.notAvailable'));
+    return App.router.get('installerController.ambariServerVersion') || App.router.get('mainController.ambariServerVersion') || Em.I18n.t('common.notAvailable');
   }.property('App.router.installerController.ambariServerVersion', 'App.router.mainController.ambariServerVersion'),
 
   clusterDisplayName: Em.computed.truncate('clusterName', 13, 10),
@@ -57,9 +55,17 @@ App.ApplicationController = Em.Controller.extend(App.UserPref, {
     return true;
   }.property('App.router.clusterInstallCompleted', 'isClusterDataLoaded'),
 
-  init: function(){
-    this._super();
-  },
+  /**
+   * Determines if "Manage Ambari" menu-item should be shown
+   *
+   * @type {boolean}
+   */
+  showManageAmbari: function () {
+    if (App.router.get('clusterInstallCompleted')) {
+      return this.get('isClusterDataLoaded');
+    }
+    return App.get('isPermissionDataLoaded');
+  }.property('App.router.clusterInstallCompleted', 'isClusterDataLoaded', 'App.isPermissionDataLoaded'),
 
   /**
    * Determines if upgrade label should be shown
@@ -78,24 +84,29 @@ App.ApplicationController = Em.Controller.extend(App.UserPref, {
     var isDowngrade = App.router.get('mainAdminStackAndUpgradeController.isDowngrade');
     var typeSuffix = isDowngrade ? 'downgrade' : 'upgrade';
     var hasUpgradePrivilege = App.isAuthorized('CLUSTER.UPGRADE_DOWNGRADE_STACK');
+    var wizardWatcherController = App.router.get('wizardWatcherController');
+    var isNotWizardUser;
+    var wizardUserName;
     if (upgradeInProgress) {
+      isNotWizardUser =wizardWatcherController.get('isNonWizardUser');
+      wizardUserName = wizardWatcherController.get('wizardUser');
       return {
         cls: hasUpgradePrivilege? 'upgrade-in-progress' : 'upgrade-in-progress not-allowed-cursor',
-        icon: 'icon-cog',
-        msg: Em.I18n.t('admin.stackVersions.version.' + typeSuffix + '.running')
+        icon: 'glyphicon-cog',
+        msg: isNotWizardUser ?  Em.I18n.t('admin.stackVersions.version.' + typeSuffix + '.running.nonWizard').format(wizardUserName) : Em.I18n.t('admin.stackVersions.version.' + typeSuffix + '.running')
       }
     }
     if (upgradeHolding) {
       return {
         cls: hasUpgradePrivilege? 'upgrade-holding' : 'upgrade-holding not-allowed-cursor',
-        icon: 'icon-pause',
+        icon: 'glyphicon-pause',
         msg: Em.I18n.t('admin.stackVersions.version.' + typeSuffix + '.pause')
       }
     }
     if (upgradeSuspended) {
       return {
         cls: hasUpgradePrivilege? 'upgrade-aborted' : 'upgrade-aborted not-allowed-cursor',
-        icon: 'icon-pause',
+        icon: 'glyphicon-pause',
         msg: Em.I18n.t('admin.stackVersions.version.' + typeSuffix + '.suspended')
       }
     }
@@ -121,9 +132,13 @@ App.ApplicationController = Em.Controller.extend(App.UserPref, {
     App.router.route("adminView");
   },
 
-  showAboutPopup: function() {
+  goToDashboard: function () {
+    if (this.get('enableLinks')) {
+      App.router.route("main/dashboard");
+    }
+  },
 
-    var self = this;
+  showAboutPopup: function() {
     App.ModalPopup.show({
       header: Em.I18n.t('common.aboutAmbari'),
       secondary: false,

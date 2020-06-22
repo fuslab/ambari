@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,9 +19,9 @@
 
 package org.apache.ambari.server.api.resources;
 
-import org.apache.ambari.server.controller.spi.Resource;
-
 import java.util.Map;
+
+import org.apache.ambari.server.controller.spi.Resource;
 
 /**
  * Factory for creating resource instances.
@@ -35,5 +35,5 @@ public interface ResourceInstanceFactory {
    *
    * @return  a new resource instance of the specified type
    */
-  public ResourceInstance createResource(Resource.Type type, Map<Resource.Type, String> mapIds);
+  ResourceInstance createResource(Resource.Type type, Map<Resource.Type, String> mapIds);
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -47,7 +47,7 @@ public class WorkflowResourceDefinition extends BaseResourceDefinition {
 
   @Override
   public Set<SubResourceDefinition> getSubResourceDefinitions() {
-    Set<SubResourceDefinition> setChildren = new HashSet<SubResourceDefinition>();
+    Set<SubResourceDefinition> setChildren = new HashSet<>();
     setChildren.add(new SubResourceDefinition(Resource.Type.Job));
     return setChildren;
   }

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+
 '''
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
@@ -27,24 +28,27 @@ from resource_management.libraries.functions import conf_select
 from resource_management.libraries.script import Script
 
 @patch("os.path.exists", new = MagicMock(return_value=True))
+@patch("os.path.isfile", new = MagicMock(return_value=False))
 class TestHookAfterInstall(RMFTestCase):
   CONFIG_OVERRIDES = {"serviceName":"HIVE", "role":"HIVE_SERVER"}
-
+  STACK_VERSION = '2.0.6'
   def setUp(self):
     Logger.initialize_logger()
 
     Script.config = dict()
-    Script.config.update( { "configurations" : { "cluster-env" : {} }, "hostLevelParams": {} } )
+    Script.config.update( { "configurations" : { "cluster-env" : {} }, "clusterLevelParams": {} } )
     Script.config["configurations"]["cluster-env"]["stack_packages"] = RMFTestCase.get_stack_packages()
-    Script.config["hostLevelParams"] = { "stack_name" : "HDP" }
+    Script.config["clusterLevelParams"] = { "stack_name" : "HDP" }
 
 
   def test_hook_default(self):
 
-    self.executeScript("2.0.6/hooks/after-INSTALL/scripts/hook.py",
+    self.executeScript("after-INSTALL/scripts/hook.py",
                        classname="AfterInstallHook",
                        command="hook",
                        config_file="default.json",
+                       stack_version = self.STACK_VERSION,
+                       target=RMFTestCase.TARGET_STACK_HOOKS,
                        config_overrides = self.CONFIG_OVERRIDES
     )
     self.assertResourceCalled('XmlConfig', 'core-site.xml',
@@ -52,9 +56,14 @@ class TestHookAfterInstall(RMFTestCase):
                               group = 'hadoop',
                               conf_dir = '/etc/hadoop/conf',
                               configurations = self.getConfig()['configurations']['core-site'],
-                              configuration_attributes = self.getConfig()['configuration_attributes']['core-site'],
-                              only_if="ls /etc/hadoop/conf")
-
+                              configuration_attributes = self.getConfig()['configurationAttributes']['core-site'],
+                              only_if="ls /etc/hadoop/conf",
+                              xml_include_file=None)
+    self.assertResourceCalled('Directory',
+                              '/usr/lib/ambari-logsearch-logfeeder/conf',
+                              mode = 0755,
+                              cd_access = 'a',
+                              create_parents = True)
     self.assertNoMoreResources()
 
   @patch("os.path.isdir", new = MagicMock(return_value = True))
@@ -76,11 +85,13 @@ class TestHookAfterInstall(RMFTestCase):
 
     version = '2.3.0.0-1234'
     json_content['commandParams']['version'] = version
-    json_content['hostLevelParams']['stack_version'] = "2.3"
+    json_content['clusterLevelParams']['stack_version'] = "2.3"
 
-    self.executeScript("2.0.6/hooks/after-INSTALL/scripts/hook.py",
+    self.executeScript("after-INSTALL/scripts/hook.py",
                        classname="AfterInstallHook",
                        command="hook",
+                       stack_version = self.STACK_VERSION,
+                       target=RMFTestCase.TARGET_STACK_HOOKS,
                        config_dict = json_content,
                        config_overrides = self.CONFIG_OVERRIDES)
 
@@ -93,8 +104,15 @@ class TestHookAfterInstall(RMFTestCase):
       group = 'hadoop',
       conf_dir = "/usr/hdp/2.3.0.0-1234/hadoop/conf",
       configurations = self.getConfig()['configurations']['core-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['core-site'],
-      only_if="ls /usr/hdp/2.3.0.0-1234/hadoop/conf")
+      configuration_attributes = self.getConfig()['configurationAttributes']['core-site'],
+      only_if="ls /usr/hdp/2.3.0.0-1234/hadoop/conf",
+      xml_include_file=None)
+
+    self.assertResourceCalled('Directory',
+                              '/usr/lib/ambari-logsearch-logfeeder/conf',
+                              mode = 0755,
+                              cd_access = 'a',
+                              create_parents = True)
 
     package_dirs = conf_select.get_package_dirs();
     for package, dir_defs in package_dirs.iteritems():
@@ -136,11 +154,13 @@ class TestHookAfterInstall(RMFTestCase):
 
     version = '2.3.0.0-1234'
     json_content['commandParams']['version'] = version
-    json_content['hostLevelParams']['stack_version'] = "2.3"
+    json_content['clusterLevelParams']['stack_version'] = "2.3"
 
-    self.executeScript("2.0.6/hooks/after-INSTALL/scripts/hook.py",
+    self.executeScript("after-INSTALL/scripts/hook.py",
                        classname="AfterInstallHook",
                        command="hook",
+                       stack_version = self.STACK_VERSION,
+                       target=RMFTestCase.TARGET_STACK_HOOKS,
                        config_dict = json_content,
                        config_overrides = self.CONFIG_OVERRIDES)
 
@@ -153,8 +173,15 @@ class TestHookAfterInstall(RMFTestCase):
       group = 'hadoop',
       conf_dir = "/usr/hdp/2.3.0.0-1234/hadoop/conf",
       configurations = self.getConfig()['configurations']['core-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['core-site'],
-      only_if="ls /usr/hdp/2.3.0.0-1234/hadoop/conf")
+      configuration_attributes = self.getConfig()['configurationAttributes']['core-site'],
+      only_if="ls /usr/hdp/2.3.0.0-1234/hadoop/conf",
+      xml_include_file=None)
+
+    self.assertResourceCalled('Directory',
+                              '/usr/lib/ambari-logsearch-logfeeder/conf',
+                              mode = 0755,
+                              cd_access = 'a',
+                              create_parents = True)
 
     package_dirs = conf_select.get_package_dirs();
     for package, dir_defs in package_dirs.iteritems():
@@ -200,11 +227,13 @@ class TestHookAfterInstall(RMFTestCase):
 
     version = '2.3.0.0-1234'
     json_content['commandParams']['version'] = version
-    json_content['hostLevelParams']['stack_version'] = "2.3"
+    json_content['clusterLevelParams']['stack_version'] = "2.3"
 
-    self.executeScript("2.0.6/hooks/after-INSTALL/scripts/hook.py",
+    self.executeScript("after-INSTALL/scripts/hook.py",
       classname="AfterInstallHook",
       command="hook",
+      stack_version = self.STACK_VERSION,
+      target=RMFTestCase.TARGET_STACK_HOOKS,
       config_dict = json_content,
       config_overrides = self.CONFIG_OVERRIDES)
 
@@ -230,12 +259,14 @@ class TestHookAfterInstall(RMFTestCase):
 
     version = '2.3.0.0-1234'
     json_content['commandParams']['version'] = version
-    json_content['hostLevelParams']['stack_version'] = "2.3"
+    json_content['clusterLevelParams']['stack_version'] = "2.3"
     json_content['roleParams']['upgrade_suspended'] = "true"
 
-    self.executeScript("2.0.6/hooks/after-INSTALL/scripts/hook.py",
+    self.executeScript("after-INSTALL/scripts/hook.py",
                        classname="AfterInstallHook",
                        command="hook",
+                       stack_version = self.STACK_VERSION,
+                       target=RMFTestCase.TARGET_STACK_HOOKS,
                        config_dict = json_content,
                        config_overrides = self.CONFIG_OVERRIDES)
 
@@ -246,8 +277,15 @@ class TestHookAfterInstall(RMFTestCase):
       group = 'hadoop',
       conf_dir = "/usr/hdp/2.3.0.0-1234/hadoop/conf",
       configurations = self.getConfig()['configurations']['core-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['core-site'],
-      only_if="ls /usr/hdp/2.3.0.0-1234/hadoop/conf")
+      configuration_attributes = self.getConfig()['configurationAttributes']['core-site'],
+      only_if="ls /usr/hdp/2.3.0.0-1234/hadoop/conf",
+      xml_include_file=None)
+
+    self.assertResourceCalled('Directory',
+                              '/usr/lib/ambari-logsearch-logfeeder/conf',
+                              mode = 0755,
+                              cd_access = 'a',
+                              create_parents = True)
 
     package_dirs = conf_select.get_package_dirs();
     for package, dir_defs in package_dirs.iteritems():
@@ -288,12 +326,14 @@ class TestHookAfterInstall(RMFTestCase):
 
     version = '2.3.0.0-1234'
     json_content['commandParams']['version'] = version
-    json_content['hostLevelParams']['stack_version'] = "2.3"
-    json_content['hostLevelParams']['host_sys_prepped'] = "true"
+    json_content['clusterLevelParams']['stack_version'] = "2.3"
+    json_content['ambariLevelParams']['host_sys_prepped'] = "true"
 
-    self.executeScript("2.0.6/hooks/after-INSTALL/scripts/hook.py",
+    self.executeScript("after-INSTALL/scripts/hook.py",
                        classname="AfterInstallHook",
                        command="hook",
+                       stack_version = self.STACK_VERSION,
+                       target=RMFTestCase.TARGET_STACK_HOOKS,
                        config_dict = json_content,
                        config_overrides = self.CONFIG_OVERRIDES)
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,10 +20,11 @@ package org.apache.ambari.server.state;
 import java.util.Arrays;
 import java.util.List;
 
-import nl.jqno.equalsverifier.EqualsVerifier;
-import nl.jqno.equalsverifier.Warning;
 import org.junit.Assert;
 import org.junit.Test;
+
+import nl.jqno.equalsverifier.EqualsVerifier;
+import nl.jqno.equalsverifier.Warning;
 
 /**
  * Tests desired config instances.
@@ -35,12 +36,10 @@ public class DesiredConfigTest {
     DesiredConfig dc = new DesiredConfig();
     dc.setServiceName("service");
     dc.setTag("global");
-    dc.setUser("_test");
 
     Assert.assertEquals("Expected service 'service'", "service", dc.getServiceName());
     Assert.assertEquals("Expected version 'global'", "global", dc.getTag());
     Assert.assertEquals("Expected no host overrides", 0, dc.getHostOverrides().size());
-    Assert.assertEquals("Expected user '_test'", "_test", dc.getUser());
     
 
     List<DesiredConfig.HostOverride> hosts = Arrays.asList(

@@ -16,20 +16,47 @@
 * limitations under the License.
 }}
 
-<div id="versions-filter-section">
-  {{#isAuthorized "AMBARI.MANAGE_STACK_VERSIONS"}}
-    <button class="btn btn-primary" {{action goToVersions target="view"}} id="manage-versions-link">
+{{#if view.stackVersionError}}
+  <div class="alert alert-warning" role="alert">
+    <div class="stack-error-row">
+      <div class="image-container">
+        <i class="glyphicon glyphicon-warning-sign"></i>
+      </div>
+      <div class="message-container">
+        <h4 class="display-inline">{{view.stackVersionError.title}}</h4>
+        <span class="stack-name">{{view.stackVersionError.stack}}</span>
+        <div>
+          {{view.stackVersionError.description}}
+        </div>
+      </div>
+      {{#havePermissions "AMBARI.MANAGE_STACK_VERSIONS"}}
+        <div class="btn-container">
+          <button class="btn btn-warning" {{action reinstallOutOfSyncComponents view.stackVersionError target="controller"}}>
+            {{t common.reinstall}}
+          </button>
+          <button class="btn btn-warning" {{action removeOutOfSyncComponents view.stackVersionError target="controller"}}>
+            {{t common.remove}}
+          </button>
+        </div>
+      {{/havePermissions}}
+    </div>
+  </div>
+{{/if}}
+
+<div id="versions-filter-section" class="btn-toolbar">
+  {{#havePermissions "AMBARI.MANAGE_STACK_VERSIONS"}}
+    <button class="btn btn-primary" {{action goToVersions target="view"}}  {{bindAttr disabled="App.router.wizardWatcherController.isNonWizardUser"}} id="manage-versions-link">
         <i class="icon-external-link"></i>&nbsp;{{t admin.stackVersions.manageVersions}}
     </button>
-  {{/isAuthorized}}
+  {{/havePermissions}}
   <div class="btn-group display-inline-block">
-    <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+    <button class="btn btn-default dropdown-toggle" data-toggle="dropdown" href="#">
       <span class="filters-label">{{t common.filter}}: </span>
         <span>
           {{view.selectedCategory.label}}
           <span class="caret"></span>
         </span>
-    </a>
+    </button>
     <ul class="dropdown-menu">
       {{#each category in view.categories}}
         <li>
@@ -41,9 +68,9 @@
     </ul>
   </div>
 </div>
-<div id="versions-section" class="row-fluid">
-  <div class="span2 left-menu-table">
-    <table class="table">
+<div id="versions-section" class="row col-md-12">
+  <div {{bindAttr class=":col-md-3 :left-menu-table view.hasSpecialTypeRepoVersion:has-special-type-repo-version"}}>
+    <table class="table border-extended-table">
       <thead>
       </thead>
       <tbody>
@@ -55,12 +82,12 @@
       </tbody>
     </table>
   </div>
-  <div class="span10 versions-slides">
+  <div class="col-md-9 versions-slides">
     {{#if isLoaded}}
       <div class="versions-slides-bar">
         {{#each version in view.repoVersions}}
           {{#if version.isVisible}}
-            {{view App.UpgradeVersionColumnView contentBinding="version"}}
+            {{view App.UpgradeVersionColumnView contentBinding="version" displayVersionTypeBlockBinding="view.hasSpecialTypeRepoVersion"}}
           {{/if}}
         {{/each}}
       </div>

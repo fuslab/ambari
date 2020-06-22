@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -97,7 +97,7 @@ public class StackModuleTest {
   public void serviceReposAreProcessedEvenIfNoStackRepo() throws Exception {
     StackModule sm = createStackModule("FooBar",
         "2.4",
-        Optional.<List<RepositoryInfo>>absent(),
+        Optional.absent(),
         Lists.newArrayList(repoInfo("bar", "2.0.1", "http://bar.org")));
     Set<String> repoIds = getIds(sm.getModuleInfo().getRepositories());
     assertEquals(ImmutableSet.of("bar:2.0.1"), repoIds);
@@ -112,7 +112,7 @@ public class StackModuleTest {
   public void duplicateStackServiceReposAreCheckedPerOs() throws Exception {
     StackModule sm = createStackModule("FooBar",
         "2.4",
-        Optional.<List<RepositoryInfo>>absent(),
+        Optional.absent(),
         Lists.newArrayList(repoInfo("bar", "2.0.1", "http://bar.org", "centos6")),
         Lists.newArrayList(repoInfo("bar", "2.0.1", "http://bar.org", "centos7")));
     Multiset<String> repoIds = getIdsMultiple(sm.getModuleInfo().getRepositories());
@@ -124,14 +124,26 @@ public class StackModuleTest {
   public void removedServicesInitialValue () throws Exception {
     StackModule sm = createStackModule("FooBar",
         "2.4",
-        Optional.<List<RepositoryInfo>>absent(),
+        Optional.absent(),
         Lists.newArrayList(repoInfo("bar", "2.0.1", "http://bar.org", "centos6")),
         Lists.newArrayList(repoInfo("bar", "2.0.1", "http://bar.org", "centos7")));
     List<String> removedServices = sm.getModuleInfo().getRemovedServices();
     assertEquals(removedServices.size(), 0);
   }
 
-  private StackModule createStackModule(String stackName, String stackVersion, Optional<? extends List<RepositoryInfo>> stackRepos,
+  @Test
+  public void servicesWithNoConfigsInitialValue() throws Exception {
+    StackModule sm = createStackModule("FooBar",
+        "2.4",
+        Optional.absent(),
+        Lists.newArrayList(repoInfo("bar", "2.0.1", "http://bar.org", "centos6")),
+        Lists.newArrayList(repoInfo("bar", "2.0.1", "http://bar.org", "centos7")));
+    List<String> servicesWithNoConfigs = sm.getModuleInfo().getServicesWithNoConfigs();
+    assertEquals(servicesWithNoConfigs.size(), 0);
+  }
+
+  @SafeVarargs
+  private static StackModule createStackModule(String stackName, String stackVersion, Optional<? extends List<RepositoryInfo>> stackRepos,
                                         List<RepositoryInfo>... serviceRepoLists) throws AmbariException {
     StackDirectory sd = mock(StackDirectory.class);
     List<ServiceDirectory> serviceDirectories = Lists.newArrayList();
@@ -145,7 +157,7 @@ public class StackModuleTest {
       ServiceInfo serviceInfo = mock(ServiceInfo.class);
       when(serviceInfo.isValid()).thenReturn(true);
       when(serviceInfo.getName()).thenReturn(UUID.randomUUID().toString()); // unique service names
-      when(serviceMetainfoXml.getServices()).thenReturn(Lists.<ServiceInfo>newArrayList(serviceInfo));
+      when(serviceMetainfoXml.getServices()).thenReturn(Lists.newArrayList(serviceInfo));
       when(svd.getMetaInfoFile()).thenReturn(serviceMetainfoXml);
       serviceDirectories.add(svd);
     }
@@ -161,7 +173,7 @@ public class StackModuleTest {
     StackModule sm = new StackModule(sd, ctx);
     sm.resolve(null,
         ImmutableMap.of(String.format("%s:%s", stackName, stackVersion), sm),
-        ImmutableMap.<String, ServiceModule>of(), ImmutableMap.<String, ExtensionModule>of());
+        ImmutableMap.of(), ImmutableMap.of());
     return sm;
   }
 

@@ -18,27 +18,31 @@
 
 package org.apache.ambari.server.state.theme;
 
-
-import org.codehaus.jackson.annotate.JsonIgnoreProperties;
-import org.codehaus.jackson.annotate.JsonProperty;
-import org.codehaus.jackson.map.annotate.JsonSerialize;
-
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.ambari.server.controller.ApiModel;
+import org.codehaus.jackson.annotate.JsonIgnoreProperties;
+import org.codehaus.jackson.annotate.JsonProperty;
+import org.codehaus.jackson.map.annotate.JsonSerialize;
+
+import io.swagger.annotations.ApiModelProperty;
 
 @JsonSerialize(include= JsonSerialize.Inclusion.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ThemeConfiguration{
+public class ThemeConfiguration implements ApiModel {
 	@JsonProperty("placement")
 	private Placement placement;
+
 	@JsonProperty("widgets")
 	private List<WidgetEntry> widgets;
+
 	@JsonProperty("layouts")
 	private List<Layout> layouts;
 
+  @ApiModelProperty(name = "placement")
   public Placement getPlacement() {
     return placement;
   }
@@ -47,6 +51,7 @@ public class ThemeConfiguration{
     this.placement = placement;
   }
 
+  @ApiModelProperty(name = "widgets")
   public List<WidgetEntry> getWidgets() {
     return widgets;
   }
@@ -55,6 +60,7 @@ public class ThemeConfiguration{
     this.widgets = widgets;
   }
 
+  @ApiModelProperty(name = "layouts")
   public List<Layout> getLayouts() {
     return layouts;
   }
@@ -90,7 +96,7 @@ public class ThemeConfiguration{
   }
 
   private List<Layout> mergeLayouts(List<Layout> parentLayouts, List<Layout> childLayouts) {
-    Map<String, Layout> mergedLayouts = new LinkedHashMap<String, Layout>();
+    Map<String, Layout> mergedLayouts = new LinkedHashMap<>();
 
     for (Layout parentLayout : parentLayouts) {
       mergedLayouts.put(parentLayout.getName(), parentLayout);
@@ -108,12 +114,12 @@ public class ThemeConfiguration{
       }
     }
 
-    return new ArrayList<Layout>(mergedLayouts.values());
+    return new ArrayList<>(mergedLayouts.values());
 
   }
 
   private List<WidgetEntry> mergeWidgets(List<WidgetEntry> parentWidgets, List<WidgetEntry> childWidgets) {
-    Map<String, WidgetEntry> mergedWidgets = new LinkedHashMap<String, WidgetEntry>();
+    Map<String, WidgetEntry> mergedWidgets = new LinkedHashMap<>();
     for (WidgetEntry widgetEntry : parentWidgets) {
       mergedWidgets.put(widgetEntry.getConfig(), widgetEntry);
     }
@@ -129,6 +135,6 @@ public class ThemeConfiguration{
 
     }
 
-    return new ArrayList<WidgetEntry>(mergedWidgets.values());
+    return new ArrayList<>(mergedWidgets.values());
   }
 }

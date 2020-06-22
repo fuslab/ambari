@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,12 @@
 
 package org.apache.ambari.server.view;
 
-import org.apache.ambari.server.controller.AmbariManagementController;
-import org.apache.ambari.server.controller.AmbariSessionManager;
-import org.apache.ambari.server.controller.internal.URLStreamProvider;
-import org.junit.Assert;
-import org.junit.Test;
+import static org.easymock.EasyMock.aryEq;
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.eq;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.verify;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -32,12 +33,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.easymock.EasyMock.aryEq;
-import static org.easymock.EasyMock.createNiceMock;
-import static org.easymock.EasyMock.eq;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.verify;
+import org.apache.ambari.server.controller.AmbariManagementController;
+import org.apache.ambari.server.controller.AmbariSessionManager;
+import org.apache.ambari.server.controller.internal.URLStreamProvider;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class ViewAmbariStreamProviderTest {
 
@@ -50,11 +50,11 @@ public class ViewAmbariStreamProviderTest {
     HttpURLConnection urlConnection = createNiceMock(HttpURLConnection.class);
     InputStream inputStream = createNiceMock(InputStream.class);
 
-    Map<String, String> headers = new HashMap<String, String>();
+    Map<String, String> headers = new HashMap<>();
     headers.put("header", "headerValue");
     headers.put("Cookie", "FOO=bar");
 
-    Map<String, List<String>> headerMap = new HashMap<String, List<String>>();
+    Map<String, List<String>> headerMap = new HashMap<>();
     headerMap.put("header", Collections.singletonList("headerValue"));
     headerMap.put("Cookie", Collections.singletonList("FOO=bar; AMBARISESSIONID=abcdefg"));
 
@@ -85,11 +85,11 @@ public class ViewAmbariStreamProviderTest {
 
     InputStream body = new ByteArrayInputStream("params".getBytes());
 
-    Map<String, String> headers = new HashMap<String, String>();
+    Map<String, String> headers = new HashMap<>();
     headers.put("header", "headerValue");
     headers.put("Cookie", "FOO=bar");
 
-    Map<String, List<String>> headerMap = new HashMap<String, List<String>>();
+    Map<String, List<String>> headerMap = new HashMap<>();
     headerMap.put("header", Collections.singletonList("headerValue"));
     headerMap.put("Cookie", Collections.singletonList("FOO=bar; AMBARISESSIONID=abcdefg"));
 
@@ -120,11 +120,11 @@ public class ViewAmbariStreamProviderTest {
 
     String body = null;
 
-    Map<String, String> headers = new HashMap<String, String>();
+    Map<String, String> headers = new HashMap<>();
     headers.put("header", "headerValue");
     headers.put("Cookie", "FOO=bar");
 
-    Map<String, List<String>> headerMap = new HashMap<String, List<String>>();
+    Map<String, List<String>> headerMap = new HashMap<>();
     headerMap.put("header", Collections.singletonList("headerValue"));
     headerMap.put("Cookie", Collections.singletonList("FOO=bar; AMBARISESSIONID=abcdefg"));
 
@@ -155,11 +155,11 @@ public class ViewAmbariStreamProviderTest {
 
     InputStream body = null;
 
-    Map<String, String> headers = new HashMap<String, String>();
+    Map<String, String> headers = new HashMap<>();
     headers.put("header", "headerValue");
     headers.put("Cookie", "FOO=bar");
 
-    Map<String, List<String>> headerMap = new HashMap<String, List<String>>();
+    Map<String, List<String>> headerMap = new HashMap<>();
     headerMap.put("header", Collections.singletonList("headerValue"));
     headerMap.put("Cookie", Collections.singletonList("FOO=bar; AMBARISESSIONID=abcdefg"));
 

@@ -24,12 +24,11 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.ambari.server.actionmanager.HostRoleCommand;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CommandUtils {
-  private static Logger LOG = LoggerFactory.getLogger(CommandUtils.class);
+  private static final Logger LOG = LoggerFactory.getLogger(CommandUtils.class);
 
   /**
    * Converts a collection of commands to {@code}Map{@code} from command.taskId to command.

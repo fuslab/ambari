@@ -19,7 +19,11 @@ limitations under the License.
 """
 import os
 from ambari_commons import OSConst
-from resource_management import *
+from resource_management.core.resources.system import Directory, Execute, File
+from resource_management.libraries.resources.xml_config import XmlConfig
+from resource_management.libraries.resources.template_config import TemplateConfig
+from resource_management.libraries.functions.format import format
+from resource_management.core.source import Template, InlineTemplate
 from ambari_commons.os_family_impl import OsFamilyFuncImpl, OsFamilyImpl
 
 @OsFamilyFuncImpl(os_family=OSConst.WINSRV_FAMILY)
@@ -42,7 +46,7 @@ def hbase(name=None, action = None):
   XmlConfig("hbase-site.xml",
             conf_dir = params.hbase_conf_dir,
             configurations = params.config['configurations']['ams-hbase-site'],
-            configuration_attributes=params.config['configuration_attributes']['ams-hbase-site'],
+            configuration_attributes=params.config['configurationAttributes']['ams-hbase-site'],
             owner = params.hadoop_user
   )
 
@@ -50,7 +54,7 @@ def hbase(name=None, action = None):
     XmlConfig("hbase-policy.xml",
               conf_dir = params.hbase_conf_dir,
               configurations = params.config['configurations']['ams-hbase-policy'],
-              configuration_attributes=params.config['configuration_attributes']['ams-hbase-policy'],
+              configuration_attributes=params.config['configurationAttributes']['ams-hbase-policy'],
               owner = params.hadoop_user
     )
   # Manually overriding ownership of file installed by hadoop package
@@ -139,7 +143,7 @@ def hbase(name=None # 'master' or 'regionserver' or 'client'
   XmlConfig("hbase-site.xml",
             conf_dir = params.hbase_conf_dir,
             configurations = merged_ams_hbase_site,
-            configuration_attributes=params.config['configuration_attributes']['ams-hbase-site'],
+            configuration_attributes=params.config['configurationAttributes']['ams-hbase-site'],
             owner = params.hbase_user,
             group = params.user_group
   )
@@ -159,7 +163,7 @@ def hbase(name=None # 'master' or 'regionserver' or 'client'
     XmlConfig("hbase-policy.xml",
             conf_dir = params.hbase_conf_dir,
             configurations = params.config['configurations']['ams-hbase-policy'],
-            configuration_attributes=params.config['configuration_attributes']['ams-hbase-policy'],
+            configuration_attributes=params.config['configurationAttributes']['ams-hbase-policy'],
             owner = params.hbase_user,
             group = params.user_group
     )

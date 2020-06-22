@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -50,7 +50,7 @@ import org.slf4j.LoggerFactory;
 @XmlType(name="service-check")
 public class ServiceCheckGrouping extends Grouping {
 
-  private static Logger LOG = LoggerFactory.getLogger(ServiceCheckGrouping.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ServiceCheckGrouping.class);
 
   /**
    * During a Rolling Upgrade, the priority services are ran first, then the remaining services in the cluster.
@@ -180,7 +180,7 @@ public class ServiceCheckGrouping extends Grouping {
         Service svc = clusterServices.get(service);
         if (null != svc) {
           // Services that only have clients such as Pig can still have service check scripts.
-          StackId stackId = m_cluster.getDesiredStackVersion();
+          StackId stackId = svc.getDesiredStackId();
           try {
             ServiceInfo si = m_metaInfo.getService(stackId.getStackName(), stackId.getStackVersion(), service);
             CommandScriptDefinition script = si.getCommandScript();
@@ -279,7 +279,7 @@ public class ServiceCheckGrouping extends Grouping {
     ServiceCheckStageWrapper(String service, String serviceDisplay, boolean priority) {
       super(StageWrapper.Type.SERVICE_CHECK,
           String.format("Service Check %s", serviceDisplay),
-          new TaskWrapper(service, "", Collections.<String>emptySet(), new ServiceCheckTask()));
+          new TaskWrapper(service, "", Collections.emptySet(), new ServiceCheckTask()));
 
       this.service = service;
       this.priority = priority;

@@ -309,7 +309,7 @@ App.ChartLinearTimeView = Ember.View.extend(App.ExportMetricsMixin, {
           icon.on('mouseover', function () {
             $(this).closest("[rel='ZoomInTooltip']").trigger('mouseleave');
           });
-          App.tooltip(icon.children('.icon-save'), {
+          App.tooltip(icon.children('.glyphicon-save'), {
             title: Em.I18n.t('common.export')
           });
         }
@@ -362,13 +362,8 @@ App.ChartLinearTimeView = Ember.View.extend(App.ExportMetricsMixin, {
     var fromSeconds,
       toSeconds,
       hostName = (this.get('content')) ? this.get('content.hostName') : "",
-      HDFSService = App.HDFSService.find().objectAt(0),
-      nameNodeName = "",
       YARNService = App.YARNService.find().objectAt(0),
       resourceManager = YARNService ? YARNService.get('resourceManager.hostName') : "";
-    if (HDFSService) {
-      nameNodeName = (HDFSService.get('activeNameNode')) ? HDFSService.get('activeNameNode.hostName') : HDFSService.get('nameNode.hostName');
-    }
     if (this.get('currentTimeIndex') === 8 && !Em.isNone(this.get('customStartTime')) && !Em.isNone(this.get('customEndTime'))) {
       // Custom start and end time is specified by user
       toSeconds = this.get('customEndTime') / 1000;
@@ -384,7 +379,6 @@ App.ChartLinearTimeView = Ember.View.extend(App.ExportMetricsMixin, {
       fromSeconds: fromSeconds,
       stepSeconds: 15,
       hostName: hostName,
-      nameNodeName: nameNodeName,
       resourceManager: resourceManager
     };
   },
@@ -430,7 +424,7 @@ App.ChartLinearTimeView = Ember.View.extend(App.ExportMetricsMixin, {
     var typeClass;
     switch (type) {
       case 'error':
-        typeClass = 'alert-error';
+        typeClass = 'alert-danger';
         break;
       case 'success':
         typeClass = 'alert-success';
@@ -439,7 +433,7 @@ App.ChartLinearTimeView = Ember.View.extend(App.ExportMetricsMixin, {
         typeClass = 'alert-info';
         break;
       default:
-        typeClass = '';
+        typeClass = 'alert-warning';
         break;
     }
     $(chartOverlayId + ', ' + chartOverlayY + ', ' + chartOverlayX + ', ' + chartOverlayLegend + ', ' + chartOverlayTimeline).html('');
@@ -970,11 +964,11 @@ App.ChartLinearTimeView = Ember.View.extend(App.ExportMetricsMixin, {
         didInsertElement: function () {
           var popupBody = this;
           this._super();
-          App.tooltip(this.$('.corner-icon > .icon-save'), {
+          App.tooltip(this.$('.corner-icon > .glyphicon-save'), {
             title: Em.I18n.t('common.export')
           });
           this.$().closest('.modal').on('click', function (event) {
-            if (!($(event.target).is('.corner-icon, .corner-icon span, .icon-save, .export-graph-list-container, .export-graph-list-container *'))) {
+            if (!($(event.target).is('.corner-icon, .corner-icon span, .glyphicon-save, .export-graph-list-container, .export-graph-list-container *'))) {
               popupBody.set('isExportMenuHidden', true);
             }
           });
@@ -1512,11 +1506,9 @@ App.ChartLinearTimeView.LoadAggregator = Em.Object.create({
             }, this);
           }
         }).always(function () {
-          _request.context.set('runningRequests', _request.context.get('runningRequests').reject(function (item) {
-            return item === xhr;
-          }));
+          _request.context.set('runningRequests', Em.tryInvoke(_request.context.get('runningRequests'), 'without', [xhr]));
         });
-        _request.context.get('runningRequests').push(xhr);
+        Em.tryInvoke(_request.context.get('runningRequests'), 'push', [xhr]);
       })(bulks[id]);
     }
   },

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,14 +18,14 @@
 
 package org.apache.ambari.server.orm;
 
-import javax.persistence.EntityManager;
-import javax.persistence.RollbackException;
-
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+
+import javax.persistence.EntityManager;
+import javax.persistence.RollbackException;
 
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.H2DatabaseCleaner;
@@ -273,7 +273,7 @@ public class TestOrmImpl extends Assert {
     RequestDAO requestDAO = injector.getInstance(RequestDAO.class);
 
     RequestEntity requestEntity = requestDAO.findByPK(1L);
-    List<StageEntity> stageEntities = new ArrayList<StageEntity>();
+    List<StageEntity> stageEntities = new ArrayList<>();
 
     StageEntity stageEntity = new StageEntity();
     stageEntity.setClusterId(clusterDAO.findByName("test_cluster1").getClusterId());

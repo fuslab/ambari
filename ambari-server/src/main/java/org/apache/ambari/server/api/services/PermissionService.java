@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,7 @@
 
 package org.apache.ambari.server.api.services;
 
-import org.apache.ambari.server.api.resources.ResourceInstance;
-import org.apache.ambari.server.controller.spi.Resource;
+import java.util.Collections;
 
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
@@ -32,8 +31,10 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
-import java.util.Collections;
 
+import org.apache.ambari.annotations.ApiIgnore;
+import org.apache.ambari.server.api.resources.ResourceInstance;
+import org.apache.ambari.server.controller.spi.Resource;
 
 /**
  * Service responsible for permission resource requests.
@@ -51,7 +52,7 @@ public class PermissionService extends BaseService {
    *
    * @return permission instance representation
    */
-  @GET
+  @GET @ApiIgnore // until documented
   @Path("{permissionId}")
   @Produces("text/plain")
   public Response getPermission(@Context HttpHeaders headers, @Context UriInfo ui,
@@ -69,7 +70,7 @@ public class PermissionService extends BaseService {
    *
    * @return permission collection resource representation
    */
-  @GET
+  @GET @ApiIgnore // until documented
   @Produces("text/plain")
   public Response getPermissions(@Context HttpHeaders headers, @Context UriInfo ui) {
     return handleRequest(headers, null, ui, Request.Type.GET, createPermissionResource(null));
@@ -85,7 +86,7 @@ public class PermissionService extends BaseService {
    *
    * @return information regarding the created permission
    */
-  @POST
+  @POST @ApiIgnore // until documented
   @Path("{permissionId}")
   @Produces("text/plain")
   public Response createPermission(String body, @Context HttpHeaders headers, @Context UriInfo ui,
@@ -104,7 +105,7 @@ public class PermissionService extends BaseService {
    *
    * @return information regarding the updated permission
    */
-  @PUT
+  @PUT @ApiIgnore // until documented
   @Path("{permissionId}")
   @Produces("text/plain")
   public Response updatePermission(String body, @Context HttpHeaders headers, @Context UriInfo ui,
@@ -123,7 +124,7 @@ public class PermissionService extends BaseService {
    *
    * @return information regarding the deleted permission
    */
-  @DELETE
+  @DELETE @ApiIgnore // until documented
   @Path("{permissionId}")
   @Produces("text/plain")
   public Response deletePermission(@Context HttpHeaders headers, @Context UriInfo ui,

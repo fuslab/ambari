@@ -108,7 +108,7 @@ public class AuthToLocalBuilder implements Cloneable {
     this.defaultRealm = defaultRealm;
 
     this.additionalRealms = (additionalRealms == null)
-        ? Collections.<String>emptySet()
+        ? Collections.emptySet()
         : Collections.unmodifiableSet(new HashSet<>(additionalRealms));
 
     this.caseInsensitiveUser = caseInsensitiveUserSupport;

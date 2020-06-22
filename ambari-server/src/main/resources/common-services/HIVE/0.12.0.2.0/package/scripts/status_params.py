@@ -20,7 +20,6 @@ limitations under the License.
 
 from ambari_commons import OSCheck
 
-from resource_management.core.logger import Logger
 from resource_management.libraries.functions import conf_select
 from resource_management.libraries.functions import stack_select
 from resource_management.libraries.functions import format
@@ -52,7 +51,7 @@ component_directory_interactive = Script.get_component_from_role(SERVER_ROLE_DIR
 config = Script.get_config()
 
 stack_root = Script.get_stack_root()
-stack_version_unformatted = config['hostLevelParams']['stack_version']
+stack_version_unformatted = config['clusterLevelParams']['stack_version']
 stack_version_formatted_major = format_stack_version(stack_version_unformatted)
 
 if OSCheck.is_windows_family():
@@ -62,24 +61,21 @@ if OSCheck.is_windows_family():
   webhcat_server_win_service_name = "templeton"
 else:
   hive_pid_dir = config['configurations']['hive-env']['hive_pid_dir']
-  hive_pid = 'hive-server.pid'
-  hive_interactive_pid = 'hive-interactive.pid'
-  hive_metastore_pid = 'hive.pid'
+  hive_pid = format("{hive_pid_dir}/hive-server.pid")
+  hive_interactive_pid = format("{hive_pid_dir}/hive-interactive.pid")
+  hive_metastore_pid = format("{hive_pid_dir}/hive.pid")
 
   hcat_pid_dir = config['configurations']['hive-env']['hcat_pid_dir'] #hcat_pid_dir
   webhcat_pid_file = format('{hcat_pid_dir}/webhcat.pid')
 
-  mariadb_redhat_support = default("/configurations/hive-env/mariadb_redhat_support", "false")
-  mariadb_redhat_support = str(mariadb_redhat_support)
-  Logger.info('MariaDB RedHat Support: %s' % mariadb_redhat_support)
   process_name = 'mysqld'
-
   
   SERVICE_FILE_TEMPLATES = ['/etc/init.d/{0}', '/usr/lib/systemd/system/{0}.service']
   POSSIBLE_DAEMON_NAMES = ['mysql', 'mysqld', 'mariadb']
 
+
   # Security related/required params
-  hostname = config['hostname']
+  hostname = config['agentLevelParams']['hostname']
   security_enabled = config['configurations']['cluster-env']['security_enabled']
   kinit_path_local = get_kinit_path(default('/configurations/kerberos-env/executable_search_paths', None))
   tmp_dir = Script.get_tmp_dir()
@@ -119,4 +115,4 @@ else:
   if 'role' in config and config['role'] in ["HIVE_SERVER", "HIVE_METASTORE", "HIVE_SERVER_INTERACTIVE"]:
     hive_config_dir = hive_server_conf_dir
     
-stack_name = default("/hostLevelParams/stack_name", None)
+stack_name = default("/clusterLevelParams/stack_name", None)

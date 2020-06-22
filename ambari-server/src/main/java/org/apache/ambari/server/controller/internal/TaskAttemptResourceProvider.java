@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,7 +22,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -42,15 +41,18 @@ import org.apache.ambari.server.controller.spi.ResourceAlreadyExistsException;
 import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 
 /**
  * Resource provider for task attempt resources.
  */
 public class TaskAttemptResourceProvider extends
     AbstractJDBCResourceProvider<TaskAttemptResourceProvider.TaskAttemptFields> {
-  private static Log LOG = LogFactory.getLog(TaskAttemptResourceProvider.class);
+  private static final Logger LOG = LoggerFactory.getLogger(TaskAttemptResourceProvider.class);
 
   protected static final String TASK_ATTEMPT_CLUSTER_NAME_PROPERTY_ID = PropertyHelper
       .getPropertyId("TaskAttempt", "cluster_name");
@@ -81,23 +83,41 @@ public class TaskAttemptResourceProvider extends
   protected static final String TASK_ATTEMPT_LOCALITY_PROPERTY_ID = PropertyHelper
       .getPropertyId("TaskAttempt", "locality");
 
-  private static final Set<String> pkPropertyIds = new HashSet<String>(
-      Arrays.asList(new String[] {TASK_ATTEMPT_CLUSTER_NAME_PROPERTY_ID,
-          TASK_ATTEMPT_WORKFLOW_ID_PROPERTY_ID,
-          TASK_ATTEMPT_JOB_ID_PROPERTY_ID, TASK_ATTEMPT_ID_PROPERTY_ID}));
-
   protected TaskAttemptFetcher taskAttemptFetcher;
 
   /**
-   * Create a new task attempt resource provider.
-   * 
-   * @param propertyIds
-   *          the property ids
-   * @param keyPropertyIds
-   *          the key property ids
+   * The key property ids for a TaskAttempt resource.
    */
-  protected TaskAttemptResourceProvider(Set<String> propertyIds,
-      Map<Type,String> keyPropertyIds) {
+  protected static Map<Resource.Type, String> keyPropertyIds = ImmutableMap.<Resource.Type, String>builder()
+      .put(Type.Cluster, TASK_ATTEMPT_CLUSTER_NAME_PROPERTY_ID)
+      .put(Type.Workflow, TASK_ATTEMPT_WORKFLOW_ID_PROPERTY_ID)
+      .put(Type.Job, TASK_ATTEMPT_JOB_ID_PROPERTY_ID)
+      .put(Type.TaskAttempt, TASK_ATTEMPT_ID_PROPERTY_ID)
+      .build();
+
+  /**
+   * The property ids for a TaskAttempt resource.
+   */
+  protected static Set<String> propertyIds = Sets.newHashSet(
+      TASK_ATTEMPT_CLUSTER_NAME_PROPERTY_ID,
+      TASK_ATTEMPT_WORKFLOW_ID_PROPERTY_ID,
+      TASK_ATTEMPT_JOB_ID_PROPERTY_ID,
+      TASK_ATTEMPT_ID_PROPERTY_ID,
+      TASK_ATTEMPT_TYPE_PROPERTY_ID,
+      TASK_ATTEMPT_START_TIME_PROPERTY_ID,
+      TASK_ATTEMPT_FINISH_TIME_PROPERTY_ID,
+      TASK_ATTEMPT_MAP_FINISH_TIME_PROPERTY_ID,
+      TASK_ATTEMPT_SHUFFLE_FINISH_TIME_PROPERTY_ID,
+      TASK_ATTEMPT_SORT_FINISH_TIME_PROPERTY_ID,
+      TASK_ATTEMPT_INPUT_BYTES_PROPERTY_ID,
+      TASK_ATTEMPT_OUTPUT_BYTES_PROPERTY_ID,
+      TASK_ATTEMPT_STATUS_PROPERTY_ID,
+      TASK_ATTEMPT_LOCALITY_PROPERTY_ID);
+
+  /**
+   * Create a new task attempt resource provider.
+   */
+  protected TaskAttemptResourceProvider() {
     super(propertyIds, keyPropertyIds);
     taskAttemptFetcher = new PostgresTaskAttemptFetcher(
         new JobHistoryPostgresConnectionFactory());
@@ -131,7 +151,7 @@ public class TaskAttemptResourceProvider extends
       throws SystemException, UnsupportedPropertyException,
       NoSuchResourceException, NoSuchParentResourceException {
 
-    Set<Resource> resourceSet = new HashSet<Resource>();
+    Set<Resource> resourceSet = new HashSet<>();
     Set<String> requestedIds = getRequestPropertyIds(request, predicate);
 
     Set<Map<String,Object>> predicatePropertieSet = getPropertyMaps(predicate);
@@ -166,23 +186,18 @@ public class TaskAttemptResourceProvider extends
 
   @Override
   protected Set<String> getPKPropertyIds() {
-    return pkPropertyIds;
+    return new HashSet<>(keyPropertyIds.values());
   }
 
   @Override
   public Map<Type,String> getKeyPropertyIds() {
-    Map<Type,String> keyPropertyIds = new HashMap<Type,String>();
-    keyPropertyIds.put(Type.Cluster, TASK_ATTEMPT_CLUSTER_NAME_PROPERTY_ID);
-    keyPropertyIds.put(Type.Workflow, TASK_ATTEMPT_WORKFLOW_ID_PROPERTY_ID);
-    keyPropertyIds.put(Type.Job, TASK_ATTEMPT_JOB_ID_PROPERTY_ID);
-    keyPropertyIds.put(Type.TaskAttempt, TASK_ATTEMPT_ID_PROPERTY_ID);
     return keyPropertyIds;
   }
 
   /**
    * Simple interface for fetching task attempts from db.
    */
-  public static interface TaskAttemptFetcher {
+  public interface TaskAttemptFetcher {
     /**
      * Fetch task attempt resources
      * 
@@ -198,9 +213,9 @@ public class TaskAttemptResourceProvider extends
      *          the task attempt id
      * @return a set of task attempt resources
      */
-    public Set<Resource> fetchTaskAttemptDetails(Set<String> requestedIds,
-        String clusterName, String workflowId, String jobId,
-        String taskAttemptId);
+    Set<Resource> fetchTaskAttemptDetails(Set<String> requestedIds,
+                                          String clusterName, String workflowId, String jobId,
+                                          String taskAttemptId);
   }
 
   /**
@@ -265,7 +280,7 @@ public class TaskAttemptResourceProvider extends
     public Set<Resource> fetchTaskAttemptDetails(Set<String> requestedIds,
         String clusterName, String workflowId, String jobId,
         String taskAttemptId) {
-      Set<Resource> taskAttempts = new HashSet<Resource>();
+      Set<Resource> taskAttempts = new HashSet<>();
       ResultSet rs = null;
       try {
         rs = getResultSet(requestedIds, workflowId, jobId, taskAttemptId);
@@ -318,7 +333,7 @@ public class TaskAttemptResourceProvider extends
   /**
    * Enumeration of db fields for the task attempt table.
    */
-  static enum TaskAttemptFields {
+  enum TaskAttemptFields {
     JOBID,
     TASKATTEMPTID,
     TASKTYPE,
@@ -335,7 +350,7 @@ public class TaskAttemptResourceProvider extends
 
   @Override
   protected Map<String,TaskAttemptFields> getDBFieldMap() {
-    Map<String,TaskAttemptFields> dbFields = new HashMap<String,TaskAttemptFields>();
+    Map<String,TaskAttemptFields> dbFields = new HashMap<>();
     dbFields.put(TASK_ATTEMPT_JOB_ID_PROPERTY_ID, TaskAttemptFields.JOBID);
     dbFields.put(TASK_ATTEMPT_ID_PROPERTY_ID, TaskAttemptFields.TASKATTEMPTID);
     dbFields.put(TASK_ATTEMPT_TYPE_PROPERTY_ID, TaskAttemptFields.TASKTYPE);

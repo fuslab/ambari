@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,28 +18,6 @@
 
 package org.apache.ambari.server.api.services;
 
-import org.apache.ambari.server.api.resources.ResourceInstance;
-import org.apache.ambari.server.api.services.parsers.RequestBodyParser;
-import org.apache.ambari.server.api.services.serializers.ResultSerializer;
-import org.apache.ambari.server.api.util.TreeNode;
-import org.apache.ambari.server.controller.spi.Resource;
-import org.apache.ambari.server.orm.entities.ViewInstanceEntity;
-import org.apache.ambari.server.orm.entities.ViewInstanceEntityTest;
-import org.junit.Test;
-
-import javax.ws.rs.PathParam;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriInfo;
-import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-
 import static org.easymock.EasyMock.createMock;
 import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.replay;
@@ -48,6 +26,30 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.ws.rs.PathParam;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriInfo;
+
+import org.apache.ambari.server.api.resources.ResourceInstance;
+import org.apache.ambari.server.api.services.parsers.RequestBodyParser;
+import org.apache.ambari.server.api.services.serializers.ResultSerializer;
+import org.apache.ambari.server.api.services.views.ViewSubResourceService;
+import org.apache.ambari.server.api.util.TreeNode;
+import org.apache.ambari.server.controller.spi.Resource;
+import org.apache.ambari.server.orm.entities.ViewInstanceEntity;
+import org.apache.ambari.server.orm.entities.ViewInstanceEntityTest;
+import org.junit.Test;
+
 /**
  * ViewSubResourceService tests
  */
@@ -55,7 +57,7 @@ public class ViewSubResourceServiceTest extends BaseServiceTest {
 
   @Override
   public List<ServiceTestInvocation> getTestInvocations() throws Exception {
-    List<ServiceTestInvocation> listInvocations = new ArrayList<ServiceTestInvocation>();
+    List<ServiceTestInvocation> listInvocations = new ArrayList<>();
 
     ViewInstanceEntity viewInstanceEntity = ViewInstanceEntityTest.getViewInstanceEntity();
 
@@ -106,11 +108,11 @@ public class ViewSubResourceServiceTest extends BaseServiceTest {
     child.setProperty("href", "this is an href");
 
     // resource properties
-    Map<String, Object> mapRootProps = new LinkedHashMap<String, Object>();
+    Map<String, Object> mapRootProps = new LinkedHashMap<>();
     mapRootProps.put("prop2", "value2");
     mapRootProps.put("prop1", "value1");
 
-    Map<String, Object> mapCategoryProps = new LinkedHashMap<String, Object>();
+    Map<String, Object> mapCategoryProps = new LinkedHashMap<>();
     mapCategoryProps.put("catProp1", "catValue1");
     mapCategoryProps.put("catProp2", "catValue2");
 
@@ -164,15 +166,15 @@ public class ViewSubResourceServiceTest extends BaseServiceTest {
     child.setProperty("href", "this is an href");
 
     // resource properties
-    HashMap<String, Object> mapRootProps = new HashMap<String, Object>();
+    HashMap<String, Object> mapRootProps = new HashMap<>();
     mapRootProps.put("prop1", "value1");
     mapRootProps.put("prop2", "value2");
 
-    HashMap<String, Object> mapCategoryProps = new HashMap<String, Object>();
+    HashMap<String, Object> mapCategoryProps = new HashMap<>();
     mapCategoryProps.put("catProp1", "catValue1");
     mapCategoryProps.put("catProp2", "catValue2");
 
-    Map<String, Map<String, Object>> propertyMap = new HashMap<String, Map<String, Object>>();
+    Map<String, Map<String, Object>> propertyMap = new HashMap<>();
 
     propertyMap.put(null, mapRootProps);
     propertyMap.put("category", mapCategoryProps);

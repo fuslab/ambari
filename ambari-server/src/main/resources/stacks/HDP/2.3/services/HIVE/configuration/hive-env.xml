@@ -42,6 +42,10 @@ else
   export HADOOP_HEAPSIZE={{hive_heapsize}} # Setting for HiveServer2 and Client
 fi
 
+{% if security_enabled %}
+export HADOOP_OPTS="$HADOOP_OPTS -Dzookeeper.sasl.client.username={{zk_principal_user}}"
+{% endif %}
+
 export HADOOP_CLIENT_OPTS="$HADOOP_CLIENT_OPTS  -Xmx${HADOOP_HEAPSIZE}m"
 
 # Larger heap size may be required when running queries over large number of files or partitions.
@@ -77,6 +81,38 @@ export JAVA_LIBRARY_PATH="$JAVA_LIBRARY_PATH:{{jdbc_libs_dir}}"
     </value>
     <value-attributes>
       <type>content</type>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+  <property>
+    <name>hive_database</name>
+    <value>New MySQL Database</value>
+    <display-name>Hive Database</display-name>
+    <description>
+      Property that determines whether the HIVE DB is managed by Ambari.
+    </description>
+    <value-attributes>
+      <overridable>false</overridable>
+      <type>value-list</type>
+      <entries_editable>false</entries_editable>
+      <entries>
+        <entry>
+          <value>New MySQL Database</value>
+          <label>New MySQL</label>
+        </entry>
+        <entry>
+          <value>Existing MySQL / MariaDB Database</value>
+          <label>Existing MySQL / MariaDB</label>
+        </entry>
+        <entry>
+          <value>Existing PostgreSQL Database</value>
+          <label>Existing PostgreSQL</label>
+        </entry>
+        <entry>
+          <value>Existing Oracle Database</value>
+          <label>Existing Oracle</label>
+        </entry>
+      </entries>
     </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>

@@ -29,6 +29,8 @@ App.AlertDefinitionSummary = Em.View.extend({
 
   hasMultipleCount: Em.computed.gt('content.hostCnt', 0),
 
+  isActiveDefinitionState: Em.computed.and('hasMultipleCount', 'content.enabled'),
+
   definitionState: function () {
     var content = this.get('content');
     if (!content) {
@@ -40,7 +42,7 @@ App.AlertDefinitionSummary = Em.View.extend({
     var showCounts = hostCnt > 1;
     var ret = [];
     order.forEach(function (state) {
-      var shortState = content.get('shortState')[state];
+      var shortState = App.AlertDefinition.shortState[state];
       var _stateSummary = {
         state: 'alert-state-' + state,
         count: '',

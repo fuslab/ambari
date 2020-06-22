@@ -18,6 +18,7 @@
 
 package org.apache.ambari.server.orm.entities;
 
+
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Set;

@@ -23,14 +23,17 @@ import os
 from metadata import metadata
 from resource_management import Fail
 from resource_management.libraries.functions import stack_select
-from resource_management import Execute, File, check_process_status, Script, format_stack_version
-from resource_management.libraries.functions import format
+from resource_management.core.resources.system import Execute, File
+from resource_management.libraries.script.script import Script
+from resource_management.libraries.functions.version import format_stack_version
+from resource_management.libraries.functions.check_process_status import check_process_status
+from resource_management.libraries.functions.format import format
 from resource_management.libraries.functions.security_commons import build_expectations, \
   get_params_from_filesystem, validate_security_config_properties, \
   FILE_TYPE_PROPERTIES
 from resource_management.libraries.functions.show_logs import show_logs
 from resource_management.libraries.functions.stack_features import check_stack_feature, get_stack_feature_version
-from resource_management.libraries.functions import StackFeature
+from resource_management.libraries.functions.constants import StackFeature
 from resource_management.core.resources.system import Directory
 from resource_management.core.logger import Logger
 from setup_ranger_atlas import setup_ranger_atlas
@@ -170,6 +173,10 @@ class MetadataServer(Script):
 
     return params.metadata_user
 
+
+  def get_pid_files(self):
+    import status_params
+    return [status_params.pid_file]
 
 if __name__ == "__main__":
   MetadataServer().execute()

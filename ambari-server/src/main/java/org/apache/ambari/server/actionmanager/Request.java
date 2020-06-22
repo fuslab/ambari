@@ -59,6 +59,7 @@ public class Request {
   private long startTime;
   private long endTime;
   private String clusterHostInfo;
+  private String userName;
 
   /**
    * If true, this request can not be executed in parallel with any another
@@ -72,21 +73,22 @@ public class Request {
    * As of now, this field is not used. Request status is
    * calculated at RequestResourceProvider on the fly.
    */
-  private HostRoleStatus status; // not persisted yet
+  private HostRoleStatus status = HostRoleStatus.PENDING;
+  private HostRoleStatus displayStatus = HostRoleStatus.PENDING;
   private String inputs;
   private List<RequestResourceFilter> resourceFilters;
   private RequestOperationLevel operationLevel;
   private RequestType requestType;
 
-  private Collection<Stage> stages = new ArrayList<Stage>();
+  private Collection<Stage> stages = new ArrayList<>();
 
   @Inject
   private static HostDAO hostDAO;
 
-  @AssistedInject
   /**
    * Construct new entity
    */
+  @AssistedInject
   public Request(@Assisted long requestId, @Assisted("clusterId") Long clusterId, Clusters clusters) {
     this.requestId = requestId;
     this.clusterId = clusterId.longValue();
@@ -106,10 +108,10 @@ public class Request {
     }
   }
 
-  @AssistedInject
   /**
    * Construct new entity from stages provided
    */
+  @AssistedInject
   //TODO remove when not needed
   public Request(@Assisted Collection<Stage> stages, @Assisted String clusterHostInfo, Clusters clusters){
     if (stages != null && !stages.isEmpty()) {
@@ -140,10 +142,10 @@ public class Request {
     }
   }
 
-  @AssistedInject
   /**
    * Construct new entity from stages provided
    */
+  @AssistedInject
   //TODO remove when not needed
   public Request(@Assisted Collection<Stage> stages, @Assisted String clusterHostInfo, @Assisted ExecuteActionRequest actionRequest,
                  Clusters clusters, Gson gson) throws AmbariException {
@@ -158,10 +160,10 @@ public class Request {
     }
   }
 
-  @AssistedInject
   /**
    * Load existing request from database
    */
+  @AssistedInject
   public Request(@Assisted RequestEntity entity, final StageFactory stageFactory, Clusters clusters){
     if (entity == null) {
       throw new RuntimeException("Request entity cannot be null.");
@@ -190,6 +192,7 @@ public class Request {
     this.requestType = entity.getRequestType();
     this.commandName = entity.getCommandName();
     this.status = entity.getStatus();
+    this.displayStatus = entity.getDisplayStatus();
     if (entity.getRequestScheduleEntity() != null) {
       this.requestScheduleId = entity.getRequestScheduleEntity().getScheduleId();
     }
@@ -209,7 +212,7 @@ public class Request {
   }
 
   private static List<String> getHostsList(String hosts) {
-    List<String> hostList = new ArrayList<String>();
+    List<String> hostList = new ArrayList<>();
     if (hosts != null && !hosts.isEmpty()) {
       for (String host : hosts.split(",")) {
         if (!host.trim().isEmpty()) {
@@ -245,11 +248,14 @@ public class Request {
     requestEntity.setInputs(inputs);
     requestEntity.setRequestType(requestType);
     requestEntity.setRequestScheduleId(requestScheduleId);
+    requestEntity.setStatus(status);
+    requestEntity.setDisplayStatus(displayStatus);
     requestEntity.setClusterHostInfo(clusterHostInfo);
+    requestEntity.setUserName(userName);
     //TODO set all fields
 
     if (resourceFilters != null) {
-      List<RequestResourceFilterEntity> filterEntities = new ArrayList<RequestResourceFilterEntity>();
+      List<RequestResourceFilterEntity> filterEntities = new ArrayList<>();
       for (RequestResourceFilter resourceFilter : resourceFilters) {
         RequestResourceFilterEntity filterEntity = new RequestResourceFilterEntity();
         filterEntity.setServiceName(resourceFilter.getServiceName());
@@ -375,7 +381,7 @@ public class Request {
   }
 
   public List<HostRoleCommand> getCommands() {
-    List<HostRoleCommand> commands = new ArrayList<HostRoleCommand>();
+    List<HostRoleCommand> commands = new ArrayList<>();
     for (Stage stage : stages) {
       commands.addAll(stage.getOrderedHostRoleCommands());
     }
@@ -393,6 +399,8 @@ public class Request {
         ", startTime=" + startTime +
         ", endTime=" + endTime +
         ", inputs='" + inputs + '\'' +
+        ", status='" + status + '\'' +
+        ", displayStatus='" + displayStatus + '\'' +
         ", resourceFilters='" + resourceFilters + '\'' +
         ", operationLevel='" + operationLevel + '\'' +
         ", requestType=" + requestType +
@@ -417,6 +425,20 @@ public class Request {
   }
 
   /**
+   * Returns the user name associated with the request.
+   */
+  public String getUserName() {
+    return userName;
+  }
+
+  /**
+   * Sets the user name
+   */
+  public void setUserName(String userName) {
+    this.userName = userName;
+  }
+
+  /**
    * @param entity  the request entity
    * @return a list of {@link RequestResourceFilter} from the entity, or {@code null}
    *        if none are defined
@@ -426,7 +448,7 @@ public class Request {
 
     Collection<RequestResourceFilterEntity> resourceFilterEntities = entity.getResourceFilterEntities();
     if (resourceFilterEntities != null) {
-      resourceFilters = new ArrayList<RequestResourceFilter>();
+      resourceFilters = new ArrayList<>();
       for (RequestResourceFilterEntity resourceFilterEntity : resourceFilterEntities) {
         RequestResourceFilter resourceFilter =
           new RequestResourceFilter(

@@ -29,7 +29,6 @@ from resource_management.core.resources.system import File, Execute
 from resource_management.core.resources.service import Service
 from resource_management.core.exceptions import Fail
 from resource_management.core.shell import as_user
-from resource_management.libraries.functions.hive_check import check_thrift_port_sasl
 from resource_management.libraries.functions import get_user_call_output
 from resource_management.libraries.functions.show_logs import show_logs
 from resource_management.libraries.functions import StackFeature
@@ -55,12 +54,13 @@ def hive_service(name, action='start', upgrade_type=None):
 def hive_service(name, action='start', upgrade_type=None):
 
   import params
+  import status_params
 
   if name == 'metastore':
-    pid_file = format("{hive_pid_dir}/{hive_metastore_pid}")
+    pid_file = status_params.hive_metastore_pid
     cmd = format("{start_metastore_path} {hive_log_dir}/hive.out {hive_log_dir}/hive.err {pid_file} {hive_server_conf_dir} {hive_log_dir}")
   elif name == 'hiveserver2':
-    pid_file = format("{hive_pid_dir}/{hive_pid}")
+    pid_file = status_params.hive_pid
     cmd = format("{start_hiveserver2_path} {hive_log_dir}/hive-server2.out {hive_log_dir}/hive-server2.err {pid_file} {hive_server_conf_dir} {hive_log_dir}")
 
 
@@ -72,6 +72,7 @@ def hive_service(name, action='start', upgrade_type=None):
   process_id_exists_command = format("ls {pid_file} >/dev/null 2>&1 && ps -p {pid} >/dev/null 2>&1")
 
   if action == 'start':
+
     if name == 'hiveserver2':
       check_fs_root(params.hive_server_conf_dir, params.execute_path)
 

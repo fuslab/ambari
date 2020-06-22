@@ -20,11 +20,14 @@ package org.apache.ambari.server.controller;
 
 import java.util.Map;
 
+import org.apache.ambari.server.controller.internal.HostComponentResourceProvider;
 import org.apache.ambari.server.state.HostComponentAdminState;
 import org.apache.ambari.server.state.HostConfig;
 import org.apache.ambari.server.state.UpgradeState;
 
-public class ServiceComponentHostResponse {
+import io.swagger.annotations.ApiModelProperty;
+
+public class ServiceComponentHostResponse implements ApiModel {
 
   private String clusterName; // REF
   private String serviceName;
@@ -40,6 +43,7 @@ public class ServiceComponentHostResponse {
   private String desiredRepositoryVersion;
   private String desiredState;
   private boolean staleConfig = false;
+  private boolean reloadConfig = false;
   private String adminState = null;
   private String maintenanceState = null;
   private UpgradeState upgradeState = UpgradeState.NONE;
@@ -67,6 +71,7 @@ public class ServiceComponentHostResponse {
   /**
    * @return the serviceName
    */
+  @ApiModelProperty(name = HostComponentResourceProvider.SERVICE_NAME_PROPERTY_ID)
   public String getServiceName() {
     return serviceName;
   }
@@ -81,6 +86,7 @@ public class ServiceComponentHostResponse {
   /**
    * @return the componentName
    */
+  @ApiModelProperty(name = HostComponentResourceProvider.COMPONENT_NAME_PROPERTY_ID)
   public String getComponentName() {
     return componentName;
   }
@@ -95,6 +101,7 @@ public class ServiceComponentHostResponse {
   /**
    * @return the displayName
    */
+  @ApiModelProperty(name = HostComponentResourceProvider.DISPLAY_NAME_PROPERTY_ID)
   public String getDisplayName() {
     return displayName;
   }
@@ -102,6 +109,7 @@ public class ServiceComponentHostResponse {
   /**
    * @return the hostname
    */
+  @ApiModelProperty(name = HostComponentResourceProvider.HOST_NAME_PROPERTY_ID)
   public String getHostname() {
     return hostname;
   }
@@ -116,6 +124,7 @@ public class ServiceComponentHostResponse {
   /**
    * @return the public hostname
    */
+  @ApiModelProperty(name = HostComponentResourceProvider.PUBLIC_HOST_NAME_PROPERTY_ID)
   public String getPublicHostname() {
     return publicHostname;
   }
@@ -130,6 +139,7 @@ public class ServiceComponentHostResponse {
   /**
    * @return the liveState
    */
+  @ApiModelProperty(name = HostComponentResourceProvider.STATE_PROPERTY_ID)
   public String getLiveState() {
     return liveState;
   }
@@ -144,6 +154,7 @@ public class ServiceComponentHostResponse {
   /**
    * @return the version
    */
+  @ApiModelProperty(name = HostComponentResourceProvider.VERSION_PROPERTY_ID)
   public String getVersion() {
     return version;
   }
@@ -151,6 +162,7 @@ public class ServiceComponentHostResponse {
   /**
    * @return the desiredState
    */
+  @ApiModelProperty(name = HostComponentResourceProvider.DESIRED_STATE_PROPERTY_ID)
   public String getDesiredState() {
     return desiredState;
   }
@@ -165,6 +177,7 @@ public class ServiceComponentHostResponse {
   /**
    * @return the desiredStackVersion
    */
+  @ApiModelProperty(name = HostComponentResourceProvider.DESIRED_STACK_ID_PROPERTY_ID)
   public String getDesiredStackVersion() {
     return desiredStackVersion;
   }
@@ -181,6 +194,7 @@ public class ServiceComponentHostResponse {
    *
    * @return the desired repository.
    */
+  @ApiModelProperty(name = HostComponentResourceProvider.DESIRED_REPOSITORY_VERSION_PROPERTY_ID)
   public String getDesiredRepositoryVersion() {
     return desiredRepositoryVersion;
   }
@@ -188,6 +202,8 @@ public class ServiceComponentHostResponse {
   /**
    * @return the clusterName
    */
+
+  @ApiModelProperty(name = HostComponentResourceProvider.CLUSTER_NAME_PROPERTY_ID)
   public String getClusterName() {
     return clusterName;
   }
@@ -202,6 +218,7 @@ public class ServiceComponentHostResponse {
   /**
    * @return the admin state of the host component
    */
+  @ApiModelProperty(name = HostComponentResourceProvider.DESIRED_ADMIN_STATE_PROPERTY_ID, hidden = true)
   public String getAdminState() {
     return adminState;
   }
@@ -257,6 +274,7 @@ public class ServiceComponentHostResponse {
   /**
    * @return the actual configs
    */
+  @ApiModelProperty(name = HostComponentResourceProvider.ACTUAL_CONFIGS_PROPERTY_ID)
   public Map<String, HostConfig> getActualConfigs() {
     return actualConfigs;
   }
@@ -271,6 +289,7 @@ public class ServiceComponentHostResponse {
   /**
    * @return if the configs are stale
    */
+  @ApiModelProperty(name = HostComponentResourceProvider.STALE_CONFIGS_PROPERTY_ID)
   public boolean isStaleConfig() {
     return staleConfig;
   }
@@ -283,8 +302,24 @@ public class ServiceComponentHostResponse {
   }
 
   /**
+   * @return true if configs are reloadable without RESTART command
+   */
+  @ApiModelProperty(name = HostComponentResourceProvider.RELOAD_CONFIGS_PROPERTY_ID)
+  public boolean isReloadConfig() {
+    return reloadConfig;
+  }
+
+  /**
+   * @param reloadConfig
+   */
+  public void setReloadConfig(boolean reloadConfig) {
+    this.reloadConfig = reloadConfig;
+  }
+
+  /**
    * @return the maintenance state
    */
+  @ApiModelProperty(name = HostComponentResourceProvider.MAINTENANCE_STATE_PROPERTY_ID)
   public String getMaintenanceState() {
     return maintenanceState;
   }
@@ -306,6 +341,7 @@ public class ServiceComponentHostResponse {
   /**
    * @return the upgrade state
    */
+  @ApiModelProperty(name = HostComponentResourceProvider.UPGRADE_STATE_PROPERTY_ID)
   public UpgradeState getUpgradeState() {
     return upgradeState;
   }

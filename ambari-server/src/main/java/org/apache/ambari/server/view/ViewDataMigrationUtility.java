@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,8 @@
 
 package org.apache.ambari.server.view;
 
+import java.util.Map;
+
 import org.apache.ambari.server.orm.entities.ViewInstanceEntity;
 import org.apache.ambari.view.PersistenceException;
 import org.apache.ambari.view.ViewInstanceDefinition;
@@ -26,7 +28,6 @@ import org.apache.ambari.view.migration.ViewDataMigrationException;
 import org.apache.ambari.view.migration.ViewDataMigrator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.util.Map;
 
 /**
  * Helper class for view data migration.
@@ -36,7 +37,7 @@ public class ViewDataMigrationUtility {
   /**
    * The logger.
    */
-  protected final static Logger LOG = LoggerFactory.getLogger(ViewDataMigrationUtility.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ViewDataMigrationUtility.class);
 
   /**
    * The View Registry.
@@ -84,12 +85,12 @@ public class ViewDataMigrationUtility {
     Map<String, Class> originClasses = migrationContext.getOriginEntityClasses();
     Map<String, Class> currentClasses = migrationContext.getCurrentEntityClasses();
     for (Map.Entry<String, Class> originEntity : originClasses.entrySet()) {
-      LOG.debug("Migrating persistence entity " + originEntity.getKey());
+      LOG.debug("Migrating persistence entity {}", originEntity.getKey());
       if (currentClasses.containsKey(originEntity.getKey())) {
         Class entity = currentClasses.get(originEntity.getKey());
         dataMigrator.migrateEntity(originEntity.getValue(), entity);
       } else {
-        LOG.debug("Entity " + originEntity.getKey() + " not found in target view");
+        LOG.debug("Entity {} not found in target view", originEntity.getKey());
         dataMigrator.migrateEntity(originEntity.getValue(), null);
       }
     }

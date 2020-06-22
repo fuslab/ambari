@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.ambari.server.api.query.QueryImpl;
+import org.apache.ambari.server.api.services.RootServiceComponentConfigurationService;
 import org.apache.ambari.server.controller.internal.ClusterKerberosDescriptorResourceProvider;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.utilities.ClusterControllerHelper;
@@ -49,15 +50,11 @@ public class ResourceInstanceFactoryImpl implements ResourceInstanceFactory {
    * Map of external resource definitions (added through views).
    */
   private final static Map<Resource.Type, ResourceDefinition> resourceDefinitions =
-      new HashMap<Resource.Type, ResourceDefinition>();
+    new HashMap<>();
 
 
   @Override
   public ResourceInstance createResource(Resource.Type type, Map<Resource.Type, String> mapIds) {
-
-    /**
-     * The resource definition for the specified type.
-     */
 
     // this code changes hot name to lower case
     try {
@@ -143,6 +140,10 @@ public class ResourceInstanceFactoryImpl implements ResourceInstanceFactory {
 
       case User:
         resourceDefinition = new UserResourceDefinition();
+        break;
+
+      case UserAuthenticationSource:
+        resourceDefinition = new SimpleResourceDefinition(Resource.Type.UserAuthenticationSource, "source", "sources");
         break;
 
       case Group:
@@ -241,6 +242,12 @@ public class ResourceInstanceFactoryImpl implements ResourceInstanceFactory {
         resourceDefinition = new RootServiceComponentResourceDefinition();
         break;
 
+      case RootServiceComponentConfiguration:
+        resourceDefinition = new SimpleResourceDefinition(Resource.Type.RootServiceComponentConfiguration,
+            "configuration", "configurations",
+            null, RootServiceComponentConfigurationService.DIRECTIVES_MAP);
+        break;
+
       case RootServiceHostComponent:
         resourceDefinition = new RootServiceHostComponentResourceDefinition();
         break;
@@ -266,7 +273,7 @@ public class ResourceInstanceFactoryImpl implements ResourceInstanceFactory {
         String version  = mapIds.get(Resource.Type.ViewVersion);
 
         Set<SubResourceDefinition> subResourceDefinitions = (viewName == null || version == null)  ?
-            Collections.<SubResourceDefinition>emptySet() :
+            Collections.emptySet() :
             ViewRegistry.getInstance().getSubResourceDefinitions(viewName, version);
 
         resourceDefinition = new ViewInstanceResourceDefinition(subResourceDefinitions);
@@ -357,9 +364,7 @@ public class ResourceInstanceFactoryImpl implements ResourceInstanceFactory {
         break;
 
       case CompatibleRepositoryVersion:
-        resourceDefinition = new SimpleResourceDefinition(Resource.Type.CompatibleRepositoryVersion,
-            "compatible_repository_version", "compatible_repository_versions",
-            Resource.Type.OperatingSystem);
+        resourceDefinition = new CompatibleRepositoryVersionDefinition();
         break;
 
       case HostStackVersion:

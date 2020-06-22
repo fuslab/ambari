@@ -325,6 +325,7 @@
       1: Always overcommit
       2: Don't overcommit.
       For production environments, the value of 2 is recommended and means that processes will not be killed but will receive errors upon memory allocation.
+      The default value is 1.
     </description>
     <value-attributes>
       <type>int</type>

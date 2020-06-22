@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -178,6 +178,21 @@ public class StackManagerTest {
   }
 
   @Test
+  public void testSerivcesWithNoConfigs(){
+    StackInfo stack = stackManager.getStack("HDP", "2.0.8");
+    List<String> servicesWithNoConfigs = stack.getServicesWithNoConfigs();
+    //Via inheritance, Hive should have config types
+    //Via inheritance, SystemML should still have no config types
+    assertTrue((servicesWithNoConfigs.contains("SYSTEMML")));
+    assertFalse((servicesWithNoConfigs.contains("HIVE")));
+
+    stack = stackManager.getStack("HDP", "2.0.7");
+    //Directly from the stack, SystemML should have no config types
+    servicesWithNoConfigs = stack.getServicesWithNoConfigs();
+    assertTrue((servicesWithNoConfigs.contains("SYSTEMML")));
+  }
+
+  @Test
   public void testGetStack() {
     StackInfo stack = stackManager.getStack("HDP", "0.1");
     assertNotNull(stack);
@@ -273,7 +288,8 @@ public class StackManagerTest {
     assertNotNull(si);
 
     //should include all stacks in hierarchy
-    assertEquals(17, services.size());
+    assertEquals(18, services.size());
+
     HashSet<String> expectedServices = new HashSet<>();
     expectedServices.add("GANGLIA");
     expectedServices.add("HBASE");
@@ -292,6 +308,7 @@ public class StackManagerTest {
     expectedServices.add("TEZ");
     expectedServices.add("AMBARI_METRICS");
     expectedServices.add("SPARK3");
+    expectedServices.add("SYSTEMML");
 
     ServiceInfo pigService = null;
     for (ServiceInfo service : services) {
@@ -496,7 +513,7 @@ public class StackManagerTest {
   public void testMonitoringServicePropertyInheritance() throws Exception{
     StackInfo stack = stackManager.getStack("HDP", "2.0.8");
     Collection<ServiceInfo> allServices = stack.getServices();
-    assertEquals(14, allServices.size());
+    assertEquals(15, allServices.size());
 
     boolean monitoringServiceFound = false;
 
@@ -704,14 +721,6 @@ public class StackManagerTest {
     assertTrue(customMasterStartValues.contains("ZOOKEEPER_SERVER-START"));
     assertTrue(customMasterStartValues.contains("NAMENODE-START"));
 
-  }
-
-  @Test
-  public void testInheritKerberosDescriptor() throws Exception {
-    StackInfo stack = stackManager.getStack("HDP", "2.1.1");
-    String stacksFolder = ClassLoader.getSystemClassLoader().getResource("stacks").getPath();
-    assertEquals(new File(stacksFolder, "HDP/2.0.8/kerberos.json").getAbsolutePath(),
-        stack.getKerberosDescriptorFileLocation());
   }
 
   /**
@@ -1017,5 +1026,17 @@ public class StackManagerTest {
     ArrayList<String> logsearchLogfeederBlockers = (ArrayList<String>) generalDeps.get(logsearchLogfeederRoleCommand);
     assertTrue(logsearchLogfeederRoleCommand + " should be dependent of " + infraSolrRoleCommand, logsearchLogfeederBlockers.contains(infraSolrRoleCommand));
     assertTrue(logsearchLogfeederRoleCommand + " should be dependent of " + logsearchServerRoleCommand, logsearchLogfeederBlockers.contains(logsearchServerRoleCommand));
+  }
+
+  @Test
+  public void testVersionDefinitionStackRepoUpdateLinkExists(){
+    // Get the base sqoop service
+    StackInfo stack = stackManager.getStack("HDP", "2.1.1");
+    String latestUri = stack.getRepositoryXml().getLatestURI();
+    assertTrue(latestUri != null);
+
+    stack = stackManager.getStack("HDP", "2.0.8");
+    latestUri = stack.getRepositoryXml().getLatestURI();
+    assertTrue(latestUri == null);
   }
 }

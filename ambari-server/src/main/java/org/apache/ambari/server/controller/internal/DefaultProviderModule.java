@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,23 +18,17 @@
 
 package org.apache.ambari.server.controller.internal;
 
-import java.util.Map;
-import java.util.Set;
-
-import org.apache.ambari.server.controller.AmbariManagementController;
-import org.apache.ambari.server.controller.AmbariServer;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.spi.ResourceProvider;
-import org.apache.ambari.server.controller.utilities.PropertyHelper;
-
-import com.google.inject.Inject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The default provider module implementation.
  */
 public class DefaultProviderModule extends AbstractProviderModule {
-  @Inject
-  private AmbariManagementController managementController;
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(DefaultProviderModule.class);
 
   // ----- Constructors ------------------------------------------------------
 
@@ -42,9 +36,7 @@ public class DefaultProviderModule extends AbstractProviderModule {
    * Create a default provider module.
    */
   public DefaultProviderModule() {
-    if (managementController == null) {
-      managementController = AmbariServer.getController();
-    }
+    super();
   }
 
 
@@ -52,16 +44,16 @@ public class DefaultProviderModule extends AbstractProviderModule {
 
   @Override
   protected ResourceProvider createResourceProvider(Resource.Type type) {
-    Set<String>               propertyIds    = PropertyHelper.getPropertyIds(type);
-    Map<Resource.Type,String> keyPropertyIds = PropertyHelper.getKeyPropertyIds(type);
+
+    LOGGER.debug("Creating resource provider for the type: {}", type);
 
     switch (type.getInternalType()) {
       case Workflow:
-        return new WorkflowResourceProvider(propertyIds, keyPropertyIds);
+        return new WorkflowResourceProvider();
       case Job:
-        return new JobResourceProvider(propertyIds, keyPropertyIds);
+        return new JobResourceProvider();
       case TaskAttempt:
-        return new TaskAttemptResourceProvider(propertyIds, keyPropertyIds);
+        return new TaskAttemptResourceProvider();
       case View:
         return new ViewResourceProvider();
       case ViewVersion:
@@ -69,7 +61,7 @@ public class DefaultProviderModule extends AbstractProviderModule {
       case ViewURL:
         return new ViewURLResourceProvider();
       case StackServiceComponentDependency:
-        return new StackDependencyResourceProvider(propertyIds, keyPropertyIds);
+        return new StackDependencyResourceProvider();
       case Permission:
         return new PermissionResourceProvider();
       case AmbariPrivilege:
@@ -118,10 +110,9 @@ public class DefaultProviderModule extends AbstractProviderModule {
         return new ArtifactResourceProvider(managementController);
       case RemoteCluster:
         return new RemoteClusterResourceProvider();
-
       default:
-        return AbstractControllerResourceProvider.getResourceProvider(type, propertyIds,
-            keyPropertyIds, managementController);
+        LOGGER.debug("Delegating creation of resource provider for: {} to the AbstractControllerResourceProvider", type.getInternalType());
+        return AbstractControllerResourceProvider.getResourceProvider(type, managementController);
     }
   }
 }

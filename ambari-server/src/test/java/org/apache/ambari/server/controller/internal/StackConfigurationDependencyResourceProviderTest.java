@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,14 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.verify;
+
+import java.util.HashSet;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.AmbariManagementController;
 import org.apache.ambari.server.controller.StackConfigurationDependencyResponse;
 import org.apache.ambari.server.controller.spi.Request;
@@ -26,14 +34,6 @@ import org.apache.ambari.server.controller.spi.ResourceProvider;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.junit.Assert;
 import org.junit.Test;
-
-import java.util.HashSet;
-import java.util.Set;
-
-import static org.easymock.EasyMock.createMock;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.verify;
 
 public class StackConfigurationDependencyResourceProviderTest {
 
@@ -45,7 +45,7 @@ public class StackConfigurationDependencyResourceProviderTest {
 
     AmbariManagementController managementController = createMock(AmbariManagementController.class);
 
-    Set<StackConfigurationDependencyResponse> allResponse = new HashSet<StackConfigurationDependencyResponse>();
+    Set<StackConfigurationDependencyResponse> allResponse = new HashSet<>();
     
     allResponse.add(new StackConfigurationDependencyResponse("depName", "depType"));
    
@@ -58,11 +58,9 @@ public class StackConfigurationDependencyResourceProviderTest {
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
         type,
-        PropertyHelper.getPropertyIds(type),
-        PropertyHelper.getKeyPropertyIds(type),
         managementController);
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     propertyIds.add(StackConfigurationDependencyResourceProvider.STACK_NAME_PROPERTY_ID);
     propertyIds.add(StackConfigurationDependencyResourceProvider.STACK_VERSION_PROPERTY_ID);

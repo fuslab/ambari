@@ -58,7 +58,6 @@ App.RAHighAvailabilityWizardStep4Controller = App.HighAvailabilityProgressPageCo
         urlParams.push('(type=' + siteName + '&tag=' + data.Clusters.desired_configs[siteName].tag + ')');
       }
     });
-
     App.ajax.send({
       name: 'reassign.load_configs',
       sender: this,

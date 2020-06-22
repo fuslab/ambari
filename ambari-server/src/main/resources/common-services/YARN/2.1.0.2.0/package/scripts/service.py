@@ -19,11 +19,12 @@ Ambari Agent
 
 """
 
-from resource_management import *
 from ambari_commons.os_family_impl import OsFamilyFuncImpl, OsFamilyImpl
 from ambari_commons import OSConst
 from resource_management.core.shell import as_user, as_sudo
 from resource_management.libraries.functions.show_logs import show_logs
+from resource_management.libraries.functions.format import format
+from resource_management.core.resources.system import Execute, File
 from resource_management.core.signal_utils import TerminateStrategy
 from resource_management.core.logger import Logger
 
@@ -63,6 +64,7 @@ def service(componentName, action='start', serviceName='yarn'):
   cmd = format("export HADOOP_LIBEXEC_DIR={hadoop_libexec_dir} && {daemon} --config {hadoop_conf_dir}")
 
   if action == 'start':
+
     daemon_cmd = format("{ulimit_cmd} {cmd} start {componentName}")
     check_process = as_sudo(["test", "-f", pid_file]) + " && " + as_sudo(["pgrep", "-F", pid_file])
 

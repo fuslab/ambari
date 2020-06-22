@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,15 @@
 
 package org.apache.ambari.server.api.handlers;
 
+import java.util.Set;
+
 import org.apache.ambari.server.api.query.Query;
-import org.apache.ambari.server.api.resources.*;
-import org.apache.ambari.server.api.services.*;
+import org.apache.ambari.server.api.resources.ResourceInstance;
+import org.apache.ambari.server.api.services.Request;
+import org.apache.ambari.server.api.services.RequestBody;
+import org.apache.ambari.server.api.services.Result;
+import org.apache.ambari.server.api.services.ResultImpl;
+import org.apache.ambari.server.api.services.ResultMetadata;
 import org.apache.ambari.server.api.services.persistence.PersistenceManager;
 import org.apache.ambari.server.api.services.persistence.PersistenceManagerImpl;
 import org.apache.ambari.server.api.util.TreeNode;
@@ -31,21 +37,10 @@ import org.apache.ambari.server.controller.spi.RequestStatusMetaData;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.utilities.ClusterControllerHelper;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.Set;
-
 /**
  * Base handler for operations that persist state to the back-end.
  */
 public abstract class BaseManagementHandler implements RequestHandler {
-
-  /**
-   * Logger instance.
-   */
-  protected final static Logger LOG =
-      LoggerFactory.getLogger(BaseManagementHandler.class);
 
   public static final String RESOURCES_NODE_NAME = "resources";
 

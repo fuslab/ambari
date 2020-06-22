@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,18 @@
 
 package org.apache.ambari.server.view;
 
+import java.beans.IntrospectionException;
+import java.beans.Introspector;
+import java.beans.PropertyDescriptor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.internal.AbstractResourceProvider;
 import org.apache.ambari.server.controller.internal.RequestStatusImpl;
 import org.apache.ambari.server.controller.internal.ResourceImpl;
@@ -35,18 +47,8 @@ import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.apache.ambari.server.orm.entities.ViewEntity;
 import org.apache.ambari.server.orm.entities.ViewInstanceEntity;
 import org.apache.ambari.view.ReadRequest;
-
-import java.beans.IntrospectionException;
-import java.beans.Introspector;
-import java.beans.PropertyDescriptor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An SPI resource provider implementation used to adapt a
@@ -54,6 +56,8 @@ import java.util.Set;
  * sub-resources.
  */
 public class ViewSubResourceProvider extends AbstractResourceProvider {
+
+  private static final Logger LOG = LoggerFactory.getLogger(ViewSubResourceProvider.class);
 
   private static final String VIEW_NAME_PROPERTY_ID     = "view_name";
   private static final String VIEW_VERSION_PROPERTY_ID  = "version";
@@ -85,7 +89,7 @@ public class ViewSubResourceProvider extends AbstractResourceProvider {
     super(discoverPropertyIds(clazz), getKeyPropertyIds(pkField, type));
     this.pkField        = pkField;
     this.viewDefinition = viewDefinition;
-    this.pkPropertyIds  = new HashSet<String>(getKeyPropertyIds().values());
+    this.pkPropertyIds  = new HashSet<>(getKeyPropertyIds().values());
     this.type           = type;
     this.descriptorMap  = getDescriptorMap(clazz);
   }
@@ -125,7 +129,7 @@ public class ViewSubResourceProvider extends AbstractResourceProvider {
 
     Set<String> requestedIds = getRequestPropertyIds(request, predicate);
 
-    Set<ViewInstanceEntity> instanceDefinitions = new HashSet<ViewInstanceEntity>();
+    Set<ViewInstanceEntity> instanceDefinitions = new HashSet<>();
 
     try {
 
@@ -158,7 +162,7 @@ public class ViewSubResourceProvider extends AbstractResourceProvider {
         }
       }
 
-      Set<Resource> results = new HashSet<Resource>();
+      Set<Resource> results = new HashSet<>();
       ReadRequest readRequest = new ViewReadRequest(request, requestedIds, predicate == null ? "" : predicate.toString());
       for (ViewInstanceEntity instanceDefinition : instanceDefinitions) {
 
@@ -274,7 +278,7 @@ public class ViewSubResourceProvider extends AbstractResourceProvider {
 
   // discover the property ids for the given bean class
   private static Set<String> discoverPropertyIds(Class<?> clazz) throws IntrospectionException {
-    Set<String> propertyIds = new HashSet<String>(getDescriptorMap(clazz).keySet());
+    Set<String> propertyIds = new HashSet<>(getDescriptorMap(clazz).keySet());
     propertyIds.add(INSTANCE_NAME_PROPERTY_ID);
     propertyIds.add(VIEW_NAME_PROPERTY_ID);
     propertyIds.add(VIEW_VERSION_PROPERTY_ID);
@@ -284,7 +288,7 @@ public class ViewSubResourceProvider extends AbstractResourceProvider {
 
   // get a descriptor map for the given bean class
   private static Map<String, PropertyDescriptor> getDescriptorMap(Class<?> clazz) throws IntrospectionException {
-    Map<String, PropertyDescriptor> descriptorMap = new HashMap<String, PropertyDescriptor>();
+    Map<String, PropertyDescriptor> descriptorMap = new HashMap<>();
 
     for (PropertyDescriptor pd : Introspector.getBeanInfo(clazz).getPropertyDescriptors()) {
       String name = pd.getName();
@@ -298,7 +302,7 @@ public class ViewSubResourceProvider extends AbstractResourceProvider {
   // get the key property ids for the resource
   private static Map<Resource.Type, String> getKeyPropertyIds(String pkField, Resource.Type type) {
 
-    Map<Resource.Type, String> keyPropertyIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type, String> keyPropertyIds = new HashMap<>();
 
     keyPropertyIds.put(Resource.Type.View, VIEW_NAME_PROPERTY_ID);
     keyPropertyIds.put(Resource.Type.ViewVersion, VIEW_VERSION_PROPERTY_ID);

@@ -416,8 +416,8 @@
           "is_visible": true,
           "metrics": [
             {
-              "name": "dfs.datanode.BytesRead._rate",
-              "metric_path": "metrics/dfs/datanode/bytes_read._rate",
+              "name": "dfs.datanode.BytesRead",
+              "metric_path": "metrics/dfs/datanode/bytes_read",
               "service_name": "FAKEHDFS",
               "component_name": "FAKEDATANODE"
             }
@@ -425,7 +425,7 @@
           "values": [
             {
               "name": "FAKEHDFS Bytes Read",
-              "value": "${dfs.datanode.BytesRead._rate}"
+              "value": "${dfs.datanode.BytesRead}"
             }
           ],
           "properties": {

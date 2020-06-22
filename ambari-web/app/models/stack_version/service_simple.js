@@ -32,7 +32,7 @@ App.ServiceSimple = DS.Model.extend({
 
   doNotShowAndInstall: function () {
     var skipServices = ['KERBEROS'];
-    if(!App.supports.installGanglia) {
+    if(!App.get('supports.installGanglia')) {
       skipServices.push('GANGLIA');
     }
     return skipServices.contains(this.get('name'));

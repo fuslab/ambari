@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,15 @@
 
 package org.apache.ambari.server.api.services;
 
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+
+import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriInfo;
+
 import org.apache.ambari.server.api.resources.ResourceInstance;
 import org.apache.ambari.server.api.resources.ResourceInstanceFactory;
 import org.apache.ambari.server.api.resources.ResourceInstanceFactoryImpl;
@@ -34,26 +43,55 @@ import org.eclipse.jetty.util.ajax.JSON;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriInfo;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
-
-import com.google.inject.Inject;
-
 /**
  * Provides common functionality to all services.
  */
 public abstract class BaseService {
   public final static MediaType MEDIA_TYPE_TEXT_CSV_TYPE = new MediaType("text", "csv");
 
-  /**
-   * Logger instance.
-   */
-  protected final static Logger LOG = LoggerFactory.getLogger(BaseService.class);
+  public static final String MSG_SUCCESSFUL_OPERATION = "Successful operation";
+  public static final String MSG_REQUEST_ACCEPTED = "Request is accepted, but not completely processed yet";
+  public static final String MSG_INVALID_ARGUMENTS = "Invalid arguments";
+  public static final String MSG_INVALID_REQUEST = "Invalid request";
+  public static final String MSG_CLUSTER_NOT_FOUND = "Cluster not found";
+  public static final String MSG_CLUSTER_OR_HOST_NOT_FOUND = "Cluster or host not found";
+  public static final String MSG_VIEW_NOT_FOUND = "View not found";
+  public static final String MSG_NOT_AUTHENTICATED = "Not authenticated";
+  public static final String MSG_PERMISSION_DENIED = "Not permitted to perform the operation";
+  public static final String MSG_SERVER_ERROR = "Internal server error";
+  public static final String MSG_RESOURCE_ALREADY_EXISTS = "The requested resource already exists.";
+  public static final String MSG_RESOURCE_NOT_FOUND = "The requested resource doesn't exist.";
+
+  public static final String QUERY_FIELDS = "fields";
+  public static final String QUERY_FILTER_DESCRIPTION = "Filter fields in the response (identifier fields are mandatory)";
+  public static final String QUERY_SORT = "sortBy";
+  public static final String QUERY_SORT_DESCRIPTION = "Sort resources in result by (asc | desc)";
+  public static final String QUERY_PAGE_SIZE = "page_size";
+  public static final String QUERY_PAGE_SIZE_DESCRIPTION = "The number of resources to be returned for the paged response.";
+  public static final String DEFAULT_PAGE_SIZE = "10";
+  public static final String QUERY_FROM = "from";
+  public static final String QUERY_FROM_DESCRIPTION = "The starting page resource (inclusive).  \"start\" is also accepted.";
+  public static final String QUERY_FROM_VALUES = "range[0, infinity]";
+  public static final String DEFAULT_FROM = "0";
+  public static final String QUERY_TO = "to";
+  public static final String QUERY_TO_DESCRIPTION = "The ending page resource (inclusive).  \"end\" is also accepted.";
+  public static final String QUERY_TO_TYPE = "integer";
+  public static final String QUERY_TO_VALUES = "range[1, infinity]";
+  public static final String QUERY_PREDICATE = "{predicate}";
+  public static final String QUERY_PREDICATE_DESCRIPTION = "The predicate to filter resources by. Omitting the predicate will " +
+      "match all resources.";
+
+  public static final String RESPONSE_CONTAINER_LIST = "List";
+
+  public static final String DATA_TYPE_INT = "integer";
+  public static final String DATA_TYPE_STRING = "string";
+
+  public static final String PARAM_TYPE_QUERY = "query";
+  public static final String PARAM_TYPE_BODY = "body";
+
+  public static final String FIELDS_SEPARATOR = ", ";
+
+  private final static Logger LOG = LoggerFactory.getLogger(BaseService.class);
 
   /**
    * Factory for creating resource instances.

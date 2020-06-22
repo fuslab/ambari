@@ -22,6 +22,7 @@ var InitialData = {
     'loginName': '',
     'authenticated': false,
     'configs': [],
+    'tags': [],
     'tables': {
       'filterConditions': {},
       'displayLength': {},
@@ -47,6 +48,7 @@ var InitialData = {
   'RemoveHawqStandbyWizard': {},
   'ActivateHawqStandbyWizard': {},
   'RAHighAvailabilityWizard': {},
+  'NameNodeFederationWizard': {},
   'RollbackHighAvailabilityWizard': {},
   'MainAdminStackAndUpgrade': {},
   'KerberosDisable': {},
@@ -137,6 +139,10 @@ App.db.get = function (namespace, key) {
   App.db.data = localStorage.getObject('ambari');
   Em.assert('`namespace` should be defined', !!namespace);
   checkNamespace(namespace);
+  if (key.contains('user-pref')) {
+    // username may contain "." which is the part of "user-pref-*" key so Em.set should be avoided
+    return Em.get(App.db.data, namespace)[key];
+  }
   return Em.get(Em.get(App.db.data, namespace), key);
 };
 
@@ -163,7 +169,12 @@ App.db.set = function (namespace, key, value) {
   App.db.data = localStorage.getObject('ambari');
   Em.assert('`namespace` should be defined', !!namespace);
   checkNamespace(namespace);
-  Em.set(Em.get(App.db.data, namespace), key, value);
+  if (key.contains('user-pref')) {
+    // username may contain "." which is the part of "user-pref-*" key so Em.set should be avoided
+    Em.get(App.db.data, namespace)[key] = value;
+  } else {
+    Em.set(Em.get(App.db.data, namespace), key, value);
+  }
   localStorage.setObject('ambari', App.db.data);
 };
 
@@ -221,8 +232,14 @@ App.db.setSortingStatuses = function (name, sortingConditions) {
   App.db.set('app.tables.sortingConditions', name, sortingConditions);
 };
 
-App.db.setSelectedHosts = function (name, selectedHosts) {
-  App.db.set('app.tables.selectedItems', name, selectedHosts);
+App.db.setSelectedHosts = function (selectedHosts) {
+  App.db.set('app.tables.selectedItems', 'mainHostController', selectedHosts);
+};
+
+App.db.unselectHosts = function (hostsToUnselect = []) {
+  let selectedHosts = App.db.getSelectedHosts();
+  selectedHosts = selectedHosts.filter(host => hostsToUnselect.indexOf(host) === -1);
+  App.db.setSelectedHosts(selectedHosts);
 };
 
 App.db.setMasterComponentHosts = function (masterComponentHosts) {
@@ -259,6 +276,10 @@ App.db.setLocalRepoVDFData = function (data) {
 
 App.db.setConfigs = function (configs) {
   App.db.set('app', 'configs', configs);
+};
+
+App.db.setTags = function (tags) {
+  App.db.set('app', 'tags', tags);
 };
 
 /**
@@ -401,8 +422,8 @@ App.db.getSortingStatuses = function (name) {
   return name ? App.db.get('app.tables.sortingConditions', name): null;
 };
 
-App.db.getSelectedHosts = function (name) {
-  return App.db.get('app.tables.selectedItems', name) || [];
+App.db.getSelectedHosts = function () {
+  return App.db.get('app.tables.selectedItems', 'mainHostController') || [];
 };
 
 /**
@@ -516,6 +537,10 @@ App.db.getManageJournalNodeWizardConfigTag = function (tag) {
 
 App.db.getConfigs = function () {
   return App.db.get('app', 'configs');
+};
+
+App.db.getTags = function () {
+  return App.db.get('app', 'tags');
 };
 
 App.db.getReassignMasterWizardReassignHosts = function () {

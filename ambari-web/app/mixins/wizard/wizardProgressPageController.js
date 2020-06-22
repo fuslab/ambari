@@ -459,7 +459,6 @@ App.wizardProgressPageControllerMixin = Em.Mixin.create(App.InstallComponent, {
       data.context = "Stop required services";
       data.urlParams = "ServiceInfo/service_name.in(" + servicesList + ")";
     }
-
     return App.ajax.send({
       name: 'common.services.update',
       sender: this,

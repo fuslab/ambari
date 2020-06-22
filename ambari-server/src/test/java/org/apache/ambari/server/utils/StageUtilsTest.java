@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,6 +22,7 @@ import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.expectLastCall;
 import static org.easymock.EasyMock.getCurrentArguments;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.ByteArrayInputStream;
@@ -43,45 +44,26 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
-import javax.persistence.EntityManager;
 import javax.xml.bind.JAXBException;
 
 import org.apache.ambari.server.actionmanager.ExecutionCommandWrapper;
 import org.apache.ambari.server.actionmanager.ExecutionCommandWrapperFactory;
-import org.apache.ambari.server.actionmanager.HostRoleCommandFactory;
-import org.apache.ambari.server.actionmanager.HostRoleCommandFactoryImpl;
 import org.apache.ambari.server.actionmanager.Stage;
 import org.apache.ambari.server.actionmanager.StageFactory;
-import org.apache.ambari.server.actionmanager.StageFactoryImpl;
 import org.apache.ambari.server.agent.ExecutionCommand;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
 import org.apache.ambari.server.configuration.Configuration;
-import org.apache.ambari.server.controller.AmbariManagementController;
-import org.apache.ambari.server.orm.DBAccessor;
 import org.apache.ambari.server.orm.dao.HostDAO;
-import org.apache.ambari.server.orm.dao.HostRoleCommandDAO;
-import org.apache.ambari.server.security.SecurityHelper;
-import org.apache.ambari.server.security.encryption.CredentialStoreService;
-import org.apache.ambari.server.stack.StackManagerFactory;
-import org.apache.ambari.server.stageplanner.RoleGraphFactory;
 import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.Clusters;
-import org.apache.ambari.server.state.Config;
-import org.apache.ambari.server.state.ConfigFactory;
-import org.apache.ambari.server.state.ConfigImpl;
 import org.apache.ambari.server.state.Host;
 import org.apache.ambari.server.state.HostComponentAdminState;
 import org.apache.ambari.server.state.Service;
 import org.apache.ambari.server.state.ServiceComponent;
 import org.apache.ambari.server.state.ServiceComponentHost;
-import org.apache.ambari.server.state.ServiceComponentHostFactory;
 import org.apache.ambari.server.state.UpgradeContextFactory;
-import org.apache.ambari.server.state.cluster.ClusterFactory;
-import org.apache.ambari.server.state.host.HostFactory;
-import org.apache.ambari.server.state.stack.OsFamily;
-import org.apache.ambari.server.topology.PersistedState;
+import org.apache.ambari.server.testutils.PartialNiceMockBinder;
 import org.apache.ambari.server.topology.TopologyManager;
-import org.apache.ambari.server.topology.tasks.ConfigureClusterTaskFactory;
 import org.codehaus.jackson.JsonGenerationException;
 import org.codehaus.jackson.map.JsonMappingException;
 import org.easymock.EasyMockSupport;
@@ -112,30 +94,16 @@ public class StageUtilsTest extends EasyMockSupport {
 
       @Override
       protected void configure() {
-        bind(EntityManager.class).toInstance(createNiceMock(EntityManager.class));
-        bind(DBAccessor.class).toInstance(createNiceMock(DBAccessor.class));
-        bind(ClusterFactory.class).toInstance(createNiceMock(ClusterFactory.class));
-        bind(HostFactory.class).toInstance(createNiceMock(HostFactory.class));
-        bind(SecurityHelper.class).toInstance(createNiceMock(SecurityHelper.class));
-        bind(OsFamily.class).toInstance(createNiceMock(OsFamily.class));
-        bind(CredentialStoreService.class).toInstance(createNiceMock(CredentialStoreService.class));
-        bind(TopologyManager.class).toInstance(createNiceMock(TopologyManager.class));
+
+        PartialNiceMockBinder.newBuilder(StageUtilsTest.this).addAmbariMetaInfoBinding()
+            .addDBAccessorBinding().addLdapBindings().build().configure(binder());
+
         bind(AmbariMetaInfo.class).toInstance(createMock(AmbariMetaInfo.class));
-        bind(Clusters.class).toInstance(createNiceMock(Clusters.class));
-        bind(StackManagerFactory.class).toInstance(createNiceMock(StackManagerFactory.class));
-        bind(ServiceComponentHostFactory.class).toInstance(createNiceMock(ServiceComponentHostFactory.class));
-        bind(StageFactory.class).to(StageFactoryImpl.class);
-        bind(HostRoleCommandFactory.class).to(HostRoleCommandFactoryImpl.class);
+        bind(TopologyManager.class).toInstance(createNiceMock(TopologyManager.class));
         bind(HostDAO.class).toInstance(createNiceMock(HostDAO.class));
-        bind(PersistedState.class).toInstance(createNiceMock(PersistedState.class));
-        bind(HostRoleCommandDAO.class).toInstance(createNiceMock(HostRoleCommandDAO.class));
-        bind(AmbariManagementController.class).toInstance(createNiceMock(AmbariManagementController.class));
 
         install(new FactoryModuleBuilder().build(ExecutionCommandWrapperFactory.class));
-        install(new FactoryModuleBuilder().implement(Config.class, ConfigImpl.class).build(ConfigFactory.class));
-        install(new FactoryModuleBuilder().build(ConfigureClusterTaskFactory.class));
         install(new FactoryModuleBuilder().build(UpgradeContextFactory.class));
-        install(new FactoryModuleBuilder().build(RoleGraphFactory.class));
       }
     });
 
@@ -580,10 +548,6 @@ public class StageUtilsTest extends EasyMockSupport {
     }
     assertEquals(expectedPingPorts, reindexedPorts);
 
-    assertTrue(info.containsKey("decom_tt_hosts"));
-    Set<String> decommissionedHosts = info.get("decom_tt_hosts");
-    assertEquals(2, decommissionedHosts.toString().split(",").length);
-
     // check server hostname field
     assertTrue(info.containsKey(StageUtils.AMBARI_SERVER_HOST));
     Set<String> serverHost = info.get(StageUtils.AMBARI_SERVER_HOST);
@@ -591,19 +555,19 @@ public class StageUtilsTest extends EasyMockSupport {
     assertEquals(StageUtils.getHostName(), serverHost.iterator().next());
 
     // check host role replacing by the projected topology
-    assertTrue(getDecompressedSet(info.get("hbase_rs_hosts")).contains(9));
+    assertTrue(getDecompressedSet(info.get("hbase_regionserver_hosts")).contains(9));
 
     // Validate substitutions...
     info = StageUtils.substituteHostIndexes(info);
 
-    checkServiceHostNames(info, "DATANODE", "slave_hosts", projectedTopology);
-    checkServiceHostNames(info, "NAMENODE", "namenode_host", projectedTopology);
-    checkServiceHostNames(info, "SECONDARY_NAMENODE", "snamenode_host", projectedTopology);
-    checkServiceHostNames(info, "HBASE_MASTER", "hbase_master_hosts", projectedTopology);
-    checkServiceHostNames(info, "HBASE_REGIONSERVER", "hbase_rs_hosts", projectedTopology);
-    checkServiceHostNames(info, "JOBTRACKER", "jtnode_host", projectedTopology);
-    checkServiceHostNames(info, "TASKTRACKER", "mapred_tt_hosts", projectedTopology);
-    checkServiceHostNames(info, "NONAME_SERVER", "noname_server_hosts", projectedTopology);
+    checkServiceHostNames(info, "DATANODE", projectedTopology);
+    checkServiceHostNames(info, "NAMENODE", projectedTopology);
+    checkServiceHostNames(info, "SECONDARY_NAMENODE", projectedTopology);
+    checkServiceHostNames(info, "HBASE_MASTER", projectedTopology);
+    checkServiceHostNames(info, "HBASE_REGIONSERVER", projectedTopology);
+    checkServiceHostNames(info, "JOBTRACKER", projectedTopology);
+    checkServiceHostNames(info, "TASKTRACKER", projectedTopology);
+    checkServiceHostNames(info, "NONAME_SERVER", projectedTopology);
   }
 
   private void insertTopology(Map<String, Collection<String>> projectedTopology, String componentName, Set<String> hostNames) {
@@ -621,6 +585,104 @@ public class StageUtilsTest extends EasyMockSupport {
     }
   }
 
+  @Test
+  public void testUseAmbariJdkWithoutavaHome() {
+    // GIVEN
+    Map<String, String> commandParams = new HashMap<>();
+    Configuration configuration = new Configuration();
+    // WHEN
+    StageUtils.useAmbariJdkInCommandParams(commandParams, configuration);
+    // THEN
+    assertTrue(commandParams.isEmpty());
+  }
+
+  @Test
+  public void testUseAmbariJdkWithCustomJavaHome() {
+    // GIVEN
+    Map<String, String> commandParams = new HashMap<>();
+    Configuration configuration = new Configuration();
+    configuration.setProperty("java.home", "myJavaHome");
+    // WHEN
+    StageUtils.useAmbariJdkInCommandParams(commandParams, configuration);
+    // THEN
+    assertEquals("myJavaHome", commandParams.get("ambari_java_home"));
+    assertEquals(2, commandParams.size());
+  }
+
+  @Test
+  public void testUseAmbariJdk() {
+    // GIVEN
+    Map<String, String> commandParams = new HashMap<>();
+    Configuration configuration = new Configuration();
+    configuration.setProperty("java.home", "myJavaHome");
+    configuration.setProperty("jdk.name", "myJdkName");
+    configuration.setProperty("jce.name", "myJceName");
+    // WHEN
+    StageUtils.useAmbariJdkInCommandParams(commandParams, configuration);
+    // THEN
+    assertEquals("myJavaHome", commandParams.get("ambari_java_home"));
+    assertEquals("myJdkName", commandParams.get("ambari_jdk_name"));
+    assertEquals("myJceName", commandParams.get("ambari_jce_name"));
+    assertEquals(4, commandParams.size());
+  }
+
+  @Test
+  public void testUseStackJdkIfExistsWithCustomStackJdk() {
+    // GIVEN
+    Map<String, String> hostLevelParams = new HashMap<>();
+    Configuration configuration = new Configuration();
+    configuration.setProperty("java.home", "myJavaHome");
+    configuration.setProperty("jdk.name", "myJdkName");
+    configuration.setProperty("jce.name", "myJceName");
+    configuration.setProperty("stack.java.home", "myStackJavaHome");
+    // WHEN
+    StageUtils.useStackJdkIfExists(hostLevelParams, configuration);
+    // THEN
+    assertEquals("myStackJavaHome", hostLevelParams.get("java_home"));
+    assertNull(hostLevelParams.get("jdk_name"));
+    assertNull(hostLevelParams.get("jce_name"));
+    assertEquals(4, hostLevelParams.size());
+  }
+
+  @Test
+  public void testUseStackJdkIfExists() {
+    // GIVEN
+    Map<String, String> hostLevelParams = new HashMap<>();
+    Configuration configuration = new Configuration();
+    configuration.setProperty("java.home", "myJavaHome");
+    configuration.setProperty("jdk.name", "myJdkName");
+    configuration.setProperty("jce.name", "myJceName");
+    configuration.setProperty("stack.java.home", "myStackJavaHome");
+    configuration.setProperty("stack.jdk.name", "myStackJdkName");
+    configuration.setProperty("stack.jce.name", "myStackJceName");
+    configuration.setProperty("stack.java.version", "7");
+    // WHEN
+    StageUtils.useStackJdkIfExists(hostLevelParams, configuration);
+    // THEN
+    assertEquals("myStackJavaHome", hostLevelParams.get("java_home"));
+    assertEquals("myStackJdkName", hostLevelParams.get("jdk_name"));
+    assertEquals("myStackJceName", hostLevelParams.get("jce_name"));
+    assertEquals("7", hostLevelParams.get("java_version"));
+    assertEquals(4, hostLevelParams.size());
+  }
+
+  @Test
+  public void testUseStackJdkIfExistsWithoutStackJdk() {
+    // GIVEN
+    Map<String, String> hostLevelParams = new HashMap<>();
+    Configuration configuration = new Configuration();
+    configuration.setProperty("java.home", "myJavaHome");
+    configuration.setProperty("jdk.name", "myJdkName");
+    configuration.setProperty("jce.name", "myJceName");
+    // WHEN
+    StageUtils.useStackJdkIfExists(hostLevelParams, configuration);
+    // THEN
+    assertEquals("myJavaHome", hostLevelParams.get("java_home"));
+    assertEquals("myJdkName", hostLevelParams.get("jdk_name"));
+    assertEquals("myJceName", hostLevelParams.get("jce_name"));
+    assertEquals(4, hostLevelParams.size());
+  }
+
   private void checkServiceHostIndexes(Map<String, Set<String>> info, String componentName, String mappedComponentName,
                                        Map<String, Collection<String>> serviceTopology, List<String> hostList) {
     Set<Integer> expectedHostsList = new HashSet<>();
@@ -634,7 +696,7 @@ public class StageUtilsTest extends EasyMockSupport {
     }
 
     // Determine the actual hosts for a given component...
-    Set<String> hosts = info.get(mappedComponentName);
+    Set<String> hosts = info.get(StageUtils.getClusterHostInfoKey(componentName));
     if (hosts != null) {
       actualHostsList.addAll(getDecompressedSet(hosts));
     }
@@ -642,7 +704,7 @@ public class StageUtilsTest extends EasyMockSupport {
     assertEquals(expectedHostsList, actualHostsList);
   }
 
-  private void checkServiceHostNames(Map<String, Set<String>> info, String componentName, String mappedComponentName,
+  private void checkServiceHostNames(Map<String, Set<String>> info, String componentName,
                                      Map<String, Collection<String>> serviceTopology) {
     Set<String> expectedHostsList = new HashSet<>();
     Set<String> actualHostsList = new HashSet<>();
@@ -655,7 +717,7 @@ public class StageUtilsTest extends EasyMockSupport {
     }
 
     // Determine the actual hosts for a given component...
-    Set<String> hosts = info.get(mappedComponentName);
+    Set<String> hosts = info.get(StageUtils.getClusterHostInfoKey(componentName));
     if (hosts != null) {
       actualHostsList.addAll(hosts);
     }
@@ -709,7 +771,7 @@ public class StageUtilsTest extends EasyMockSupport {
       String rangeTokens = split[1];
 
       Set<String> rangeTokensSet =
-          new HashSet<>(Arrays.asList(rangeTokens.split(",")));
+        new HashSet<>(Arrays.asList(rangeTokens.split(",")));
 
       Set<Integer> decompressedSet = getDecompressedSet(rangeTokensSet);
 

@@ -21,6 +21,10 @@ var App = require('app');
 module.exports = App.WizardRoute.extend({
   route: '/highAvailability/Hawq/remove',
 
+  breadcrumbs: {
+    label: Em.I18n.t('admin.removeHawqStandby.wizard.header')
+  },
+
   enter: function (router, transition) {
     var removeHawqStandbyWizardController = router.get('removeHawqStandbyWizardController');
     removeHawqStandbyWizardController.dataLoading().done(function () {
@@ -29,7 +33,8 @@ module.exports = App.WizardRoute.extend({
     Em.run.next(function() {
       App.router.get('updateController').set('isWorking', false);
       var popup = App.ModalPopup.show({
-        classNames: ['full-width-modal'],
+        classNames: ['wizard-modal-wrapper'],
+        modalDialogClasses: ['modal-xlg'],
         header: Em.I18n.t('admin.removeHawqStandby.wizard.header'),
         bodyClass: App.RemoveHawqStandbyWizardView.extend({
           controller: removeHawqStandbyWizardController

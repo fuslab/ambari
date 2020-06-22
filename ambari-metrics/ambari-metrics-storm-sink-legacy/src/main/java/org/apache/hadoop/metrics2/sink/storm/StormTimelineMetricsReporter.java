@@ -39,22 +39,25 @@ import backtype.storm.utils.NimbusClient;
 import backtype.storm.utils.Utils;
 
 public class StormTimelineMetricsReporter extends AbstractTimelineMetricsSink
-  implements IClusterReporter {
+    implements IClusterReporter {
 
   public static final String METRICS_COLLECTOR_CATEGORY = "metrics_collector";
   public static final String APP_ID = "appId";
 
   private String hostname;
   private String collectorUri;
-  private NimbusClient nimbusClient;
-  private String applicationId;
-  private int timeoutSeconds;
   private String port;
   private Collection<String> collectorHosts;
   private String zkQuorum;
   private String protocol;
   private boolean setInstanceId;
   private String instanceId;
+  private NimbusClient nimbusClient;
+  private String applicationId;
+  private int timeoutSeconds;
+  private boolean hostInMemoryAggregationEnabled;
+  private int hostInMemoryAggregationPort;
+  private String hostInMemoryAggregationProtocol;
 
   public StormTimelineMetricsReporter() {
 
@@ -62,7 +65,7 @@ public class StormTimelineMetricsReporter extends AbstractTimelineMetricsSink
 
   @Override
   protected String getCollectorUri(String host) {
-    return this.collectorUri;
+    return constructTimelineMetricUri(protocol, host, port);
   }
 
   @Override
@@ -96,12 +99,27 @@ public class StormTimelineMetricsReporter extends AbstractTimelineMetricsSink
   }
 
   @Override
+  protected boolean isHostInMemoryAggregationEnabled() {
+    return hostInMemoryAggregationEnabled;
+  }
+
+  @Override
+  protected int getHostInMemoryAggregationPort() {
+    return hostInMemoryAggregationPort;
+  }
+
+  @Override
+  protected String getHostInMemoryAggregationProtocol() {
+    return hostInMemoryAggregationProtocol;
+  }
+
+  @Override
   public void prepare(Map conf) {
     LOG.info("Preparing Storm Metrics Reporter");
     try {
       try {
         hostname = InetAddress.getLocalHost().getHostName();
-        //If not FQDN , call  DNS
+        // If not FQDN , call  DNS
         if ((hostname == null) || (!hostname.contains("."))) {
           hostname = InetAddress.getLocalHost().getCanonicalHostName();
         }
@@ -124,27 +142,34 @@ public class StormTimelineMetricsReporter extends AbstractTimelineMetricsSink
         zkQuorum = cf.get(ZOOKEEPER_QUORUM) != null ? cf.get(ZOOKEEPER_QUORUM).toString() : null;
       }
 
-      if (collectorUri.toLowerCase().startsWith("https://")) {
-        String trustStorePath = cf.get(SSL_KEYSTORE_PATH_PROPERTY).toString().trim();
-        String trustStoreType = cf.get(SSL_KEYSTORE_TYPE_PROPERTY).toString().trim();
-        String trustStorePwd = cf.get(SSL_KEYSTORE_PASSWORD_PROPERTY).toString().trim();
-        loadTruststore(trustStorePath, trustStoreType, trustStorePwd);
-      }
-
       timeoutSeconds = cf.get(METRICS_POST_TIMEOUT_SECONDS) != null ?
-        Integer.parseInt(cf.get(METRICS_POST_TIMEOUT_SECONDS).toString()) :
-        DEFAULT_POST_TIMEOUT_SECONDS;
+          Integer.parseInt(cf.get(METRICS_POST_TIMEOUT_SECONDS).toString()) :
+          DEFAULT_POST_TIMEOUT_SECONDS;
       applicationId = cf.get(APP_ID).toString();
       if (cf.containsKey(SET_INSTANCE_ID_PROPERTY)) {
         setInstanceId = Boolean.getBoolean(cf.get(SET_INSTANCE_ID_PROPERTY).toString());
         instanceId = cf.get(INSTANCE_ID_PROPERTY).toString();
       }
+      hostInMemoryAggregationEnabled = Boolean.valueOf(cf.get(HOST_IN_MEMORY_AGGREGATION_ENABLED_PROPERTY) != null ?
+        cf.get(HOST_IN_MEMORY_AGGREGATION_ENABLED_PROPERTY).toString() : "false");
+      hostInMemoryAggregationPort = Integer.valueOf(cf.get(HOST_IN_MEMORY_AGGREGATION_PORT_PROPERTY) != null ?
+        cf.get(HOST_IN_MEMORY_AGGREGATION_PORT_PROPERTY).toString() : "61888");
+      hostInMemoryAggregationProtocol = cf.get(HOST_IN_MEMORY_AGGREGATION_PROTOCOL_PROPERTY) != null ?
+        cf.get(HOST_IN_MEMORY_AGGREGATION_PROTOCOL_PROPERTY).toString() : "http";
 
+      collectorUri = constructTimelineMetricUri(protocol, findPreferredCollectHost(), port);
+      if (protocol.contains("https") || hostInMemoryAggregationProtocol.contains("https")) {
+        String trustStorePath = cf.get(SSL_KEYSTORE_PATH_PROPERTY).toString().trim();
+        String trustStoreType = cf.get(SSL_KEYSTORE_TYPE_PROPERTY).toString().trim();
+        String trustStorePwd = cf.get(SSL_KEYSTORE_PASSWORD_PROPERTY).toString().trim();
+        loadTruststore(trustStorePath, trustStoreType, trustStorePwd);
+      }
     } catch (Exception e) {
       LOG.warn("Could not initialize metrics collector, please specify " +
-        "protocol, host, port under $STORM_HOME/conf/config.yaml ", e);
+          "protocol, host, port under $STORM_HOME/conf/config.yaml ", e);
     }
-
+    // Initialize the collector write strategy
+    super.init();
   }
 
   @Override
@@ -153,9 +178,9 @@ public class StormTimelineMetricsReporter extends AbstractTimelineMetricsSink
     ClusterSummary cs = this.nimbusClient.getClient().getClusterInfo();
     long currentTimeMillis = System.currentTimeMillis();
     totalMetrics.add(createTimelineMetric(currentTimeMillis,
-      applicationId, "Supervisors", String.valueOf(cs.get_supervisors_size())));
+        applicationId, "Supervisors", String.valueOf(cs.get_supervisors_size())));
     totalMetrics.add(createTimelineMetric(currentTimeMillis,
-      applicationId, "Topologies", String.valueOf(cs.get_topologies_size())));
+        applicationId, "Topologies", String.valueOf(cs.get_topologies_size())));
 
     List<SupervisorSummary> sups = cs.get_supervisors();
     int totalSlots = 0;
@@ -167,11 +192,11 @@ public class StormTimelineMetricsReporter extends AbstractTimelineMetricsSink
     int freeSlots = totalSlots - usedSlots;
 
     totalMetrics.add(createTimelineMetric(currentTimeMillis,
-      applicationId, "Total Slots", String.valueOf(totalSlots)));
+        applicationId, "Total Slots", String.valueOf(totalSlots)));
     totalMetrics.add(createTimelineMetric(currentTimeMillis,
-      applicationId, "Used Slots", String.valueOf(usedSlots)));
+        applicationId, "Used Slots", String.valueOf(usedSlots)));
     totalMetrics.add(createTimelineMetric(currentTimeMillis,
-      applicationId, "Free Slots", String.valueOf(freeSlots)));
+        applicationId, "Free Slots", String.valueOf(freeSlots)));
 
     List<TopologySummary> topos = cs.get_topologies();
     int totalExecutors = 0;
@@ -182,9 +207,9 @@ public class StormTimelineMetricsReporter extends AbstractTimelineMetricsSink
     }
 
     totalMetrics.add(createTimelineMetric(currentTimeMillis,
-      applicationId, "Total Executors", String.valueOf(totalExecutors)));
+        applicationId, "Total Executors", String.valueOf(totalExecutors)));
     totalMetrics.add(createTimelineMetric(currentTimeMillis,
-      applicationId, "Total Tasks", String.valueOf(totalTasks)));
+        applicationId, "Total Tasks", String.valueOf(totalTasks)));
 
     TimelineMetrics timelineMetrics = new TimelineMetrics();
     timelineMetrics.setMetrics(totalMetrics);

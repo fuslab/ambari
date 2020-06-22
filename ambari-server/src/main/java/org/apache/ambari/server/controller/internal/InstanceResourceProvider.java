@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,13 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.ivory.Instance;
 import org.apache.ambari.server.controller.ivory.IvoryService;
 import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
@@ -31,13 +38,8 @@ import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 
 /**
  * DR instance resource provider.
@@ -54,21 +56,34 @@ public class InstanceResourceProvider extends AbstractDRResourceProvider {
   protected static final String INSTANCE_DETAILS_PROPERTY_ID    = PropertyHelper.getPropertyId("Instance", "details");
   protected static final String INSTANCE_LOG_PROPERTY_ID        = PropertyHelper.getPropertyId("Instance", "log");
 
-  private static Set<String> pkPropertyIds =
-      new HashSet<String>(Arrays.asList(new String[]{
-          INSTANCE_FEED_NAME_PROPERTY_ID,
-          INSTANCE_ID_PROPERTY_ID }));
+
+
+  /**
+   * The key property ids for a Instance resource.
+   */
+  private static Map<Resource.Type, String> keyPropertyIds = ImmutableMap.<Resource.Type, String>builder()
+      .put(Resource.Type.DRInstance, INSTANCE_FEED_NAME_PROPERTY_ID)
+      .put(Resource.Type.Workflow, INSTANCE_ID_PROPERTY_ID)
+      .build();
+
+  /**
+   * The property ids for a Instance resource.
+   */
+  private static Set<String> propertyIds = Sets.newHashSet(
+      INSTANCE_FEED_NAME_PROPERTY_ID,
+      INSTANCE_ID_PROPERTY_ID,
+      INSTANCE_STATUS_PROPERTY_ID,
+      INSTANCE_START_TIME_PROPERTY_ID,
+      INSTANCE_END_TIME_PROPERTY_ID,
+      INSTANCE_DETAILS_PROPERTY_ID,
+      INSTANCE_LOG_PROPERTY_ID);
 
   /**
    * Construct a provider.
    *
    * @param ivoryService    the ivory service
-   * @param propertyIds     the properties associated with this provider
-   * @param keyPropertyIds  the key property ids
    */
-  public InstanceResourceProvider(IvoryService ivoryService,
-                                  Set<String> propertyIds,
-                                  Map<Resource.Type, String> keyPropertyIds) {
+  public InstanceResourceProvider(IvoryService ivoryService) {
     super(propertyIds, keyPropertyIds, ivoryService);
   }
 
@@ -84,8 +99,8 @@ public class InstanceResourceProvider extends AbstractDRResourceProvider {
       UnsupportedPropertyException, NoSuchResourceException, NoSuchParentResourceException {
 
     Set<String>   requestedIds = getRequestPropertyIds(request, predicate);
-    Set<Resource> resources    = new HashSet<Resource>();
-    List<String>  feedNames    = new LinkedList<String>();
+    Set<Resource> resources    = new HashSet<>();
+    List<String>  feedNames    = new LinkedList<>();
 
     IvoryService service = getService();
     if (predicate == null) {
@@ -180,7 +195,7 @@ public class InstanceResourceProvider extends AbstractDRResourceProvider {
 
   @Override
   protected Set<String> getPKPropertyIds() {
-    return pkPropertyIds;
+    return new HashSet<>(keyPropertyIds.values());
   }
 
 

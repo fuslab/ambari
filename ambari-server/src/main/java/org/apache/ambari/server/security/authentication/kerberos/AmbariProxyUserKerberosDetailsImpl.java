@@ -19,6 +19,7 @@
 package org.apache.ambari.server.security.authentication.kerberos;
 
 import org.apache.ambari.server.security.authentication.AmbariProxyUserDetailsImpl;
+import org.apache.ambari.server.security.authorization.UserAuthenticationType;
 
 /**
  * AmbariProxyUserKerberosDetailsImpl is a {@link AmbariProxyUserDetailsImpl} implementation that
@@ -29,7 +30,7 @@ public class AmbariProxyUserKerberosDetailsImpl extends AmbariProxyUserDetailsIm
   private final String principalName;
 
   public AmbariProxyUserKerberosDetailsImpl(String principalName, String localUsername) {
-    super(localUsername);
+    super(localUsername, UserAuthenticationType.KERBEROS);
     this.principalName = principalName;
   }
 

@@ -20,7 +20,11 @@ package org.apache.ambari.server.controller;
 
 import java.util.List;
 
-public class HostRequest {
+import org.apache.ambari.server.controller.internal.HostResourceProvider;
+
+import io.swagger.annotations.ApiModelProperty;
+
+public class HostRequest implements ApiModel {
 
   private String hostname;
   private String publicHostname;
@@ -36,6 +40,7 @@ public class HostRequest {
     this.clusterName = clusterName;
   }
 
+  @ApiModelProperty(name = HostResourceProvider.HOST_NAME_PROPERTY_ID)
   public String getHostname() {
     return hostname;
   }
@@ -44,6 +49,7 @@ public class HostRequest {
     this.hostname = hostname;
   }
 
+  @ApiModelProperty(hidden = true)
   public String getClusterName() {
     return clusterName;
   }
@@ -52,26 +58,29 @@ public class HostRequest {
     this.clusterName = clusterName;
   }
 
+  @ApiModelProperty(name = HostResourceProvider.RACK_INFO_PROPERTY_ID)
   public String getRackInfo() {
     return rackInfo;
   }
-
+  
   public void setRackInfo(String info) {
     rackInfo = info;
   }
 
+  @ApiModelProperty(name = HostResourceProvider.PUBLIC_NAME_PROPERTY_ID)
   public String getPublicHostName() {
     return publicHostname;
   }
-
+  
   public void setPublicHostName(String name) {
     publicHostname = name;
   }
-
+  
   public void setDesiredConfigs(List<ConfigurationRequest> request) {
     desiredConfigs = request;
   }
 
+  @ApiModelProperty(name = HostResourceProvider.DESIRED_CONFIGS_PROPERTY_ID)
   public List<ConfigurationRequest> getDesiredConfigs() {
     return desiredConfigs;
   }
@@ -80,6 +89,7 @@ public class HostRequest {
     maintenanceState = state;
   }
 
+  @ApiModelProperty(name = HostResourceProvider.MAINTENANCE_STATE_PROPERTY_ID)
   public String getMaintenanceState() {
     return maintenanceState;
   }
@@ -88,6 +98,7 @@ public class HostRequest {
     blueprint = blueprintName;
   }
 
+  @ApiModelProperty(name = HostResourceProvider.BLUEPRINT_PROPERTY_ID)
   public String getBlueprintName() {
     return blueprint;
   }
@@ -96,11 +107,11 @@ public class HostRequest {
     hostGroup = hostGroupName;
   }
 
+  @ApiModelProperty(name = HostResourceProvider.HOST_GROUP_PROPERTY_ID)
   public String getHostGroupName() {
     return hostGroup;
   }
 
-  @Override
   public String toString() {
     return "{ hostname=" + hostname + ", clusterName=" + clusterName + " }";
   }

@@ -50,8 +50,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.google.common.collect.ImmutableMap;
-
 /**
  * Unit tests for ScaleClusterRequest.
  */
@@ -66,15 +64,14 @@ public class ScaleClusterRequestTest {
   private static final String GROUP2_NAME = "group2";
   private static final String GROUP3_NAME = "group3";
   private static final String PREDICATE = "test/prop=foo";
-  private static final String RACK_A = "/rack/a";
 
   private static final BlueprintFactory blueprintFactory = createStrictMock(BlueprintFactory.class);
   private static final Blueprint blueprint = createNiceMock(Blueprint.class);
   private static final ResourceProvider hostResourceProvider = createMock(ResourceProvider.class);
   private static final HostGroup hostGroup1 = createNiceMock(HostGroup.class);
   private static final Configuration blueprintConfig = new Configuration(
-      Collections.<String, Map<String, String>>emptyMap(),
-      Collections.<String, Map<String, Map<String, String>>>emptyMap());
+      Collections.emptyMap(),
+      Collections.emptyMap());
 
   @Before
   public void setUp() throws Exception {
@@ -92,7 +89,7 @@ public class ScaleClusterRequestTest {
     expect(blueprint.getHostGroup(GROUP3_NAME)).andReturn(hostGroup1).anyTimes();
     expect(blueprint.getName()).andReturn(BLUEPRINT_NAME).anyTimes();
     expect(hostResourceProvider.checkPropertyIds(Collections.singleton("test/prop"))).
-        andReturn(Collections.<String>emptySet()).once();
+        andReturn(Collections.emptySet()).once();
 
     replay(blueprintFactory, blueprint, hostResourceProvider, hostGroup1);
   }
@@ -133,14 +130,6 @@ public class ScaleClusterRequestTest {
     assertTrue(group1Info.getHostNames().contains(HOST1_NAME));
     assertEquals(1, group1Info.getRequestedHostCount());
     assertNull(group1Info.getPredicate());
-    assertEquals(ImmutableMap.of(HOST1_NAME, RACK_A), group1Info.getHostRackInfo());
-  }
-
-  @Test
-  public void acceptsRackInfo() throws Exception {
-    Map<String, Object> props = createScaleClusterPropertiesGroup1_HostName(CLUSTER_NAME, BLUEPRINT_NAME);
-    addSingleHostByName(props);
-    addSingleHostByName(replaceWithPlainRackInfoKey(props));
   }
 
   @Test
@@ -318,7 +307,7 @@ public class ScaleClusterRequestTest {
   public void test_NoHostNameOrHostCount() throws Exception {
     Map<String, Object> properties = createScaleClusterPropertiesGroup1_HostName(CLUSTER_NAME, BLUEPRINT_NAME);
     // remove host name
-    properties.remove("Hosts/host_name");
+    properties.remove(HostResourceProvider.HOST_HOST_NAME_PROPERTY_ID);
 
     // reset default host resource provider expectations to none
     reset(hostResourceProvider);
@@ -361,7 +350,6 @@ public class ScaleClusterRequestTest {
     properties.put(HostResourceProvider.BLUEPRINT_PROPERTY_ID, blueprintName);
     properties.put(HostResourceProvider.HOST_GROUP_PROPERTY_ID, GROUP1_NAME);
     properties.put(HostResourceProvider.HOST_HOST_NAME_PROPERTY_ID, HOST1_NAME);
-    properties.put(HostResourceProvider.HOST_RACK_INFO_PROPERTY_ID, RACK_A);
 
     return properties;
   }
@@ -370,13 +358,6 @@ public class ScaleClusterRequestTest {
   private static Map<String, Object> replaceWithPlainHostNameKey(Map<String, Object> properties) {
     Object value = properties.remove(HostResourceProvider.HOST_HOST_NAME_PROPERTY_ID);
     properties.put(HostResourceProvider.HOST_NAME_PROPERTY_ID, value);
-    return properties;
-  }
-
-  // include rack info under "rack_info" key instead of "Hosts/rack_info"
-  private static Map<String, Object> replaceWithPlainRackInfoKey(Map<String, Object> properties) {
-    Object value = properties.remove(HostResourceProvider.HOST_RACK_INFO_PROPERTY_ID);
-    properties.put(HostResourceProvider.RACK_INFO_PROPERTY_ID, value);
     return properties;
   }
 

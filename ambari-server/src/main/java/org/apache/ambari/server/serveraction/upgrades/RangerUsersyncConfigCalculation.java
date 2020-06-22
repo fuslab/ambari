@@ -21,34 +21,29 @@ package org.apache.ambari.server.serveraction.upgrades;
 import java.text.MessageFormat;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Collectors;
 
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.actionmanager.HostRoleStatus;
 import org.apache.ambari.server.agent.CommandReport;
-import org.apache.ambari.server.serveraction.AbstractServerAction;
 import org.apache.ambari.server.state.Cluster;
-import org.apache.ambari.server.state.Clusters;
 import org.apache.ambari.server.state.Config;
-
-import com.google.inject.Inject;
+import org.apache.ambari.server.state.Host;
 
 /**
  * Computes Ranger Usersync ldap grouphierarchylevels property. This class is only used when upgrading from
  * HDP-2.6.x to HDP-2.6.y.
  */
 
-public class RangerUsersyncConfigCalculation extends AbstractServerAction {
+public class RangerUsersyncConfigCalculation extends AbstractUpgradeServerAction {
   private static final String RANGER_USERSYNC_CONFIG_TYPE = "ranger-ugsync-site";
   private static final String RANGER_ENV_CONFIG_TYPE = "ranger-env";
-
-  @Inject
-  private Clusters m_clusters;
 
   @Override
   public CommandReport execute(ConcurrentMap<String, Object> requestSharedDataContext) throws AmbariException, InterruptedException {
 
   String clusterName = getExecutionCommand().getClusterName();
-  Cluster cluster = m_clusters.getCluster(clusterName);
+  Cluster cluster = getClusters().getCluster(clusterName);
   String outputMsg = "";
 
   Config rangerUsersyncConfig = cluster.getDesiredConfigByType(RANGER_USERSYNC_CONFIG_TYPE);
@@ -88,6 +83,7 @@ public class RangerUsersyncConfigCalculation extends AbstractServerAction {
   targetRangerEnvConfig.put("is_nested_groupsync_enabled", enableSyncNestedGroup);
   rangerEnvConfig.setProperties(targetRangerEnvConfig);
   rangerEnvConfig.save();
+  agentConfigsHolder.updateData(cluster.getClusterId(), cluster.getHosts().stream().map(Host::getHostId).collect(Collectors.toList()));
 
   outputMsg = outputMsg + MessageFormat.format("Successfully updated {0} config type.\n", RANGER_ENV_CONFIG_TYPE);
 

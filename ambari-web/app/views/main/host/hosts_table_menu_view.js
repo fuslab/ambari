@@ -24,6 +24,8 @@ var O = Em.Object;
  */
 App.HostTableMenuView = Em.View.extend({
 
+  classNames: ['btn-group', 'pull-right', 'bulk-menu'],
+
   templateName: require('templates/main/host/bulk_operation_menu'),
 
   controllerBinding: 'App.router.bulkOperationsController',
@@ -44,10 +46,10 @@ App.HostTableMenuView = Em.View.extend({
     });
   }.property(),
 
-  getBulkMenuItemsPerServiceComponent: function(){
+  getBulkMenuItemsPerServiceComponent: function () {
     var menuItems = [];
     App.StackServiceComponent.find().forEach(function (stackComponent) {
-      if(stackComponent.get('hasBulkCommandsDefinition')){
+      if (stackComponent.get('hasBulkCommandsDefinition')) {
         var menuItem = O.create({
           serviceName: stackComponent.get('serviceName'),
           componentName: stackComponent.get('componentName'),
@@ -68,8 +70,7 @@ App.HostTableMenuView = Em.View.extend({
   slaveItemView: Em.View.extend({
 
     tagName: 'li',
-
-    classNames: ['dropdown-submenu'],
+    classNames: ['dropdown-submenu', 'submenu-left'],
 
     /**
      * Get third-level menu items ingo for slave components
@@ -136,6 +137,17 @@ App.HostTableMenuView = Em.View.extend({
               serviceName: content.serviceName,
               componentNameFormatted: content.componentNameFormatted
             })
+          }),
+          O.create({
+            label: Em.I18n.t('common.delete'),
+            delete: true,
+            operationData: O.create({
+              action: 'DELETE',
+              message: Em.I18n.t('common.delete'),
+              componentName: content.componentName,
+              serviceName: content.serviceName,
+              componentNameFormatted: content.componentNameFormatted
+            })
           })
         ])
       }
@@ -197,16 +209,18 @@ App.HostTableMenuView = Em.View.extend({
       }.property('App.router.mainServiceController.content.@each', 'content'),
 
       tooltipMsg: function () {
-        return (this.get('disabledElement') == 'disabled') ?
-          Em.I18n.t('hosts.decommission.tooltip.warning').format(this.get('content.message'), App.format.role(this.get('content.componentName'), false)) : '';
+        var displayName = App.format.role(this.get('content.componentName'), false);
+        return (this.get('disabledElement') === 'disabled')
+          ? Em.I18n.t('hosts.decommission.tooltip.warning').format(this.get('content.message'), displayName)
+          : '';
       }.property('disabledElement', 'content.componentName'),
 
       disabledElement: function () {
-        return this.get('service.workStatus') == 'STARTED' ? '' : 'disabled';
+        return this.get('service.workStatus') === 'STARTED' ? '' : 'disabled';
       }.property('service.workStatus'),
 
       click: function () {
-        if (this.get('disabledElement') == 'disabled') {
+        if (this.get('disabledElement') === 'disabled') {
           return;
         }
         this.get('controller').bulkOperationConfirm(this.get('content'), this.get('selection'));
@@ -226,8 +240,7 @@ App.HostTableMenuView = Em.View.extend({
   hostItemView: Em.View.extend({
 
     tagName: 'li',
-
-    classNames: ['dropdown-submenu'],
+    classNames: ['dropdown-submenu', 'submenu-left'],
 
     label: Em.I18n.t('common.hosts'),
 
@@ -306,7 +319,7 @@ App.HostTableMenuView = Em.View.extend({
           message: Em.I18n.t('hosts.host.details.setRackId').format('hosts')
         })
       }));
-      if (App.get('supports.enableBulkDeleteHosts') && App.isAuthorized("HOST.ADD_DELETE_HOSTS")) {
+      if (App.isAuthorized("HOST.ADD_DELETE_HOSTS")) {
         result = result.concat(O.create({
           label: Em.I18n.t('hosts.host.details.deleteHosts'),
           operationData: O.create({

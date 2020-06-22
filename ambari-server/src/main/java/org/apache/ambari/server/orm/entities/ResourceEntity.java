@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,21 @@
 
 package org.apache.ambari.server.orm.entities;
 
-import javax.persistence.*;
 import java.util.Collection;
 import java.util.HashSet;
+
+import javax.persistence.CascadeType;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinColumns;
+import javax.persistence.ManyToOne;
+import javax.persistence.OneToMany;
+import javax.persistence.Table;
+import javax.persistence.TableGenerator;
 
 /**
  * Represents a resource.
@@ -57,7 +69,7 @@ public class ResourceEntity {
    * The list of privileges.
    */
   @OneToMany(cascade = CascadeType.ALL, mappedBy = "resource")
-  private Collection<PrivilegeEntity> privileges = new HashSet<PrivilegeEntity>();
+  private Collection<PrivilegeEntity> privileges = new HashSet<>();
 
 
   // ----- ResourceEntity ---------------------------------------------------

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
 package org.apache.ambari.server.controller.internal;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -41,10 +40,13 @@ import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.apache.ambari.server.orm.dao.HostRoleCommandDAO;
 import org.apache.ambari.server.orm.entities.HostRoleCommandEntity;
-import org.apache.ambari.server.utils.StageUtils;
 import org.apache.ambari.server.topology.TopologyManager;
+import org.apache.ambari.server.utils.StageUtils;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 
 /**
@@ -52,6 +54,8 @@ import com.google.inject.Inject;
  */
 @StaticallyInject
 public class TaskResourceProvider extends AbstractControllerResourceProvider {
+
+  private static final Logger LOG = LoggerFactory.getLogger(TaskResourceProvider.class);
 
   // ----- Property ID constants ---------------------------------------------
 
@@ -75,15 +79,13 @@ public class TaskResourceProvider extends AbstractControllerResourceProvider {
   public static final String TASK_ATTEMPT_CNT_PROPERTY_ID  = PropertyHelper.getPropertyId("Tasks", "attempt_cnt");
   public static final String TASK_COMMAND_DET_PROPERTY_ID  = PropertyHelper.getPropertyId("Tasks", "command_detail");
   public static final String TASK_CUST_CMD_NAME_PROPERTY_ID  = PropertyHelper.getPropertyId("Tasks", "custom_command_name");
+  public static final String TASK_COMMAND_OPS_DISPLAY_NAME  = PropertyHelper.getPropertyId("Tasks", "ops_display_name");
 
-  private static Set<String> pkPropertyIds =
-      new HashSet<String>(Arrays.asList(new String[]{
-          TASK_ID_PROPERTY_ID}));
 
   /**
    * The property ids for a task resource.
    */
-  static final Set<String> PROPERTY_IDS = new HashSet<String>();
+  static final Set<String> PROPERTY_IDS = new HashSet<>();
 
   // These are static so that they can be referenced by other classes such as UpgradeSummaryResourceProvider.java
   static {
@@ -107,7 +109,20 @@ public class TaskResourceProvider extends AbstractControllerResourceProvider {
     PROPERTY_IDS.add(TASK_ATTEMPT_CNT_PROPERTY_ID);
     PROPERTY_IDS.add(TASK_COMMAND_DET_PROPERTY_ID);
     PROPERTY_IDS.add(TASK_CUST_CMD_NAME_PROPERTY_ID);
+    PROPERTY_IDS.add(TASK_COMMAND_OPS_DISPLAY_NAME);
   }
+
+  /**
+   * The key property ids for a task resource.
+   */
+  private static Map<Resource.Type, String> keyPropertyIds = ImmutableMap.<Resource.Type, String>builder()
+      .put(Resource.Type.Cluster, TASK_CLUSTER_NAME_PROPERTY_ID)
+      .put(Resource.Type.Request, TASK_REQUEST_ID_PROPERTY_ID)
+      .put(Resource.Type.Upgrade, TASK_REQUEST_ID_PROPERTY_ID)
+      .put(Resource.Type.Stage, TASK_STAGE_ID_PROPERTY_ID)
+      .put(Resource.Type.UpgradeItem, TASK_STAGE_ID_PROPERTY_ID)
+      .put(Resource.Type.Task, TASK_ID_PROPERTY_ID)
+      .build();
 
   /**
    * Used for querying tasks.
@@ -134,14 +149,10 @@ public class TaskResourceProvider extends AbstractControllerResourceProvider {
   /**
    * Create a  new resource provider for the given management controller.
    *
-   * @param propertyIds           the property ids
-   * @param keyPropertyIds        the key property ids
    * @param managementController  the management controller
    */
-  TaskResourceProvider(Set<String> propertyIds,
-                       Map<Resource.Type, String> keyPropertyIds,
-                       AmbariManagementController managementController) {
-    super(propertyIds, keyPropertyIds, managementController);
+  TaskResourceProvider(AmbariManagementController managementController) {
+    super(Resource.Type.Task, PROPERTY_IDS, keyPropertyIds, managementController);
   }
 
   // ----- ResourceProvider ------------------------------------------------
@@ -158,7 +169,7 @@ public class TaskResourceProvider extends AbstractControllerResourceProvider {
   public Set<Resource> getResources(Request request, Predicate predicate)
       throws SystemException, UnsupportedPropertyException, NoSuchResourceException, NoSuchParentResourceException {
 
-    Set<Resource> results = new LinkedHashSet<Resource>();
+    Set<Resource> results = new LinkedHashSet<>();
     Set<String> requestedIds = getRequestPropertyIds(request, predicate);
 
     List<HostRoleCommandEntity> entities = s_dao.findAll(request, predicate);
@@ -230,6 +241,7 @@ public class TaskResourceProvider extends AbstractControllerResourceProvider {
         setResourceProperty(resource, TASK_COMMAND_DET_PROPERTY_ID, hostRoleCommand.getCommandDetail(), requestedIds);
       }
 
+      setResourceProperty(resource, TASK_COMMAND_OPS_DISPLAY_NAME, hostRoleCommand.getOpsDisplayName(), requestedIds);
       results.add(resource);
     }
 
@@ -277,7 +289,7 @@ public class TaskResourceProvider extends AbstractControllerResourceProvider {
 
   @Override
   protected Set<String> getPKPropertyIds() {
-    return pkPropertyIds;
+    return new HashSet<>(keyPropertyIds.values());
   }
 
   /**

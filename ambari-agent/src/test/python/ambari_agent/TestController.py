@@ -41,11 +41,10 @@ from ambari_agent.ExitHelper import ExitHelper
 from ambari_agent.AmbariConfig import AmbariConfig
 from ambari_agent.Facter import FacterLinux
 import ambari_commons
-from ambari_commons import subprocess32
 
 @not_for_platform(PLATFORM_WINDOWS)
 @patch.object(OSCheck, "os_distribution", new = MagicMock(return_value = os_distro_value))
-class TestController(unittest.TestCase):
+class TestController:#(unittest.TestCase):
 
   logger = logging.getLogger()
 
@@ -190,7 +189,7 @@ class TestController(unittest.TestCase):
     self.assertTrue(process_status_commands.called)
 
 
-  @patch.object(subprocess32, "Popen")
+  @patch("subprocess.Popen")
   @patch.object(Hardware, "_chk_writable_mount", new = MagicMock(return_value=True))
   @patch.object(FacterLinux, "facterInfo", new = MagicMock(return_value={}))
   @patch.object(FacterLinux, "__init__", new = MagicMock(return_value = None))
@@ -232,7 +231,7 @@ class TestController(unittest.TestCase):
     self.assertTrue(aq.start.called)
 
 
-  @patch.object(subprocess32, "Popen")
+  @patch("subprocess.Popen")
   @patch.object(Hardware, "_chk_writable_mount", new = MagicMock(return_value=True))
   @patch.object(FacterLinux, "facterInfo", new = MagicMock(return_value={}))
   @patch.object(FacterLinux, "__init__", new = MagicMock(return_value = None))
@@ -417,6 +416,20 @@ class TestController(unittest.TestCase):
                         exceptionMessage, str(e))
 
 
+  def test_getVersion(self):
+    self.controller.version = "1.2.3.4_MyAgent"
+    version = self.controller.get_version()
+    self.assertEquals('1.2.3.4', version)
+    self.controller.version = "1.2.3-MyAgent"
+    version = self.controller.get_version()
+    self.assertEquals('1.2.3', version)
+    self.controller.version = "11.2.3-MyAgent"
+    version = self.controller.get_version()
+    self.assertEquals('11.2.3', version)
+    self.controller.version = "11.2.13.10_MyAgent"
+    version = self.controller.get_version()
+    self.assertEquals('11.2.13.10', version)
+
   @patch.object(ExitHelper, "exit")
   @patch.object(threading._Event, "wait")
   @patch("time.sleep")
@@ -434,7 +447,7 @@ class TestController(unittest.TestCase):
     self.controller.sendRequest = sendRequest
 
     self.controller.responseId = 1
-    response = {"responseId":"2", "restartAgent":"false"}
+    response = {"responseId":"2", "restartAgent":False}
     sendRequest.return_value = response
 
     def one_heartbeat(*args, **kwargs):
@@ -508,7 +521,7 @@ class TestController(unittest.TestCase):
 
     # wrong responseId => restart
     self.controller.responseId = 2
-    response = {"responseId":"2", "restartAgent":"false"}
+    response = {"responseId":"2", "restartAgent":False}
 
     restartAgent = MagicMock(name="restartAgent")
     self.controller.restartAgent = restartAgent
@@ -540,7 +553,7 @@ class TestController(unittest.TestCase):
     # restartAgent command
     self.controller.responseId = 1
     self.controller.DEBUG_STOP_HEARTBEATING = False
-    response["restartAgent"] = "true"
+    response["restartAgent"] = True
     restartAgent = MagicMock(name="restartAgent")
     self.controller.restartAgent = restartAgent
     self.controller.heartbeatWithServer()
@@ -551,7 +564,7 @@ class TestController(unittest.TestCase):
     self.controller.responseId = 1
     self.controller.DEBUG_STOP_HEARTBEATING = False
     actionQueue.isIdle.return_value = False
-    response["restartAgent"] = "false"
+    response["restartAgent"] = False
     self.controller.heartbeatWithServer()
 
 

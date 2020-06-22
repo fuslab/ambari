@@ -18,8 +18,6 @@
 
 package org.apache.ambari.server.audit.request.creator;
 
-import junit.framework.Assert;
-
 import java.util.HashMap;
 import java.util.Map;
 
@@ -35,6 +33,8 @@ import org.apache.ambari.server.controller.internal.PrivilegeResourceProvider;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.junit.Test;
 
+import junit.framework.Assert;
+
 public class PrivilegeEventCreatorTest extends AuditEventCreatorTestBase{
 
   @Test
@@ -42,9 +42,9 @@ public class PrivilegeEventCreatorTest extends AuditEventCreatorTestBase{
     PrivilegeEventCreator creator = new PrivilegeEventCreator();
 
     Map<String,Object> properties = new HashMap<>();
-    properties.put(PrivilegeResourceProvider.PRINCIPAL_TYPE_PROPERTY_ID, "USER");
-    properties.put(PrivilegeResourceProvider.PERMISSION_NAME_PROPERTY_ID, "Permission2");
-    properties.put(PrivilegeResourceProvider.PRINCIPAL_NAME_PROPERTY_ID, userName + "2");
+    properties.put(PrivilegeResourceProvider.PRINCIPAL_TYPE, "USER");
+    properties.put(PrivilegeResourceProvider.PERMISSION_NAME, "Permission2");
+    properties.put(PrivilegeResourceProvider.PRINCIPAL_NAME, userName + "2");
 
     NamedPropertySet nps = new NamedPropertySet("1",properties);
 
@@ -68,19 +68,19 @@ public class PrivilegeEventCreatorTest extends AuditEventCreatorTestBase{
     PrivilegeEventCreator creator = new PrivilegeEventCreator();
 
     Map<String,Object> properties = new HashMap<>();
-    properties.put(PrivilegeResourceProvider.PRINCIPAL_TYPE_PROPERTY_ID, "USER");
-    properties.put(PrivilegeResourceProvider.PERMISSION_NAME_PROPERTY_ID, "Permission1");
-    properties.put(PrivilegeResourceProvider.PRINCIPAL_NAME_PROPERTY_ID, userName);
+    properties.put(PrivilegeResourceProvider.PRINCIPAL_TYPE, "USER");
+    properties.put(PrivilegeResourceProvider.PERMISSION_NAME, "Permission1");
+    properties.put(PrivilegeResourceProvider.PRINCIPAL_NAME, userName);
 
     Map<String,Object> properties2 = new HashMap<>();
-    properties2.put(PrivilegeResourceProvider.PRINCIPAL_TYPE_PROPERTY_ID, "USER");
-    properties2.put(PrivilegeResourceProvider.PERMISSION_NAME_PROPERTY_ID, "Permission2");
-    properties2.put(PrivilegeResourceProvider.PRINCIPAL_NAME_PROPERTY_ID, userName + "2");
+    properties2.put(PrivilegeResourceProvider.PRINCIPAL_TYPE, "USER");
+    properties2.put(PrivilegeResourceProvider.PERMISSION_NAME, "Permission2");
+    properties2.put(PrivilegeResourceProvider.PRINCIPAL_NAME, userName + "2");
 
     Map<String,Object> properties3 = new HashMap<>();
-    properties3.put(PrivilegeResourceProvider.PRINCIPAL_TYPE_PROPERTY_ID, "GROUP");
-    properties3.put(PrivilegeResourceProvider.PERMISSION_NAME_PROPERTY_ID, "Permission1");
-    properties3.put(PrivilegeResourceProvider.PRINCIPAL_NAME_PROPERTY_ID, "testgroup");
+    properties3.put(PrivilegeResourceProvider.PRINCIPAL_TYPE, "GROUP");
+    properties3.put(PrivilegeResourceProvider.PERMISSION_NAME, "Permission1");
+    properties3.put(PrivilegeResourceProvider.PRINCIPAL_NAME, "testgroup");
 
     NamedPropertySet nps = new NamedPropertySet("1",properties);
     NamedPropertySet nps2 = new NamedPropertySet("2",properties2);
@@ -96,12 +96,12 @@ public class PrivilegeEventCreatorTest extends AuditEventCreatorTestBase{
     AuditEvent event = AuditEventCreatorTestHelper.getEvent(creator, request, result);
 
     String actual = event.getAuditMessage();
-    String expected = "User(" + userName + "), RemoteIp(1.2.3.4), Operation(Role change), RequestType(PUT), url(http://example.com:8080/api/v1/test), ResultStatus(200 OK), Roles(\n" +
-      "Permission1: \n" +
-      "  Users: " + userName + "\n" +
-      "  Groups: testgroup\n" +
-      "Permission2: \n" +
-      "  Users: " + userName + "2)";
+    String expected = "User(" + userName + "), RemoteIp(1.2.3.4), Operation(Role change), RequestType(PUT), url(http://example.com:8080/api/v1/test), ResultStatus(200 OK), Roles(" +
+      "Permission1: [" +
+      "Users: " + userName + ";" +
+      "Groups: testgroup]" +
+      " Permission2: [" +
+      "Users: " + userName + "2] )";
 
     Assert.assertTrue("Class mismatch", event instanceof ClusterPrivilegeChangeRequestAuditEvent);
     Assert.assertEquals(expected, actual);

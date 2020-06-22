@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,16 +19,14 @@ package org.apache.ambari.server.serveraction.upgrades;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Collectors;
 
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.actionmanager.HostRoleStatus;
 import org.apache.ambari.server.agent.CommandReport;
-import org.apache.ambari.server.serveraction.AbstractServerAction;
 import org.apache.ambari.server.state.Cluster;
-import org.apache.ambari.server.state.Clusters;
 import org.apache.ambari.server.state.Config;
-
-import com.google.inject.Inject;
+import org.apache.ambari.server.state.Host;
 
 /**
  * yarn.log.server.web-service.url is added in HDP 2.6
@@ -36,7 +34,7 @@ import com.google.inject.Inject;
  * and takes value from yarn.timeline-service.webapp.https.address if the yarn.http.policy is HTTPS_ONLY.
  * This class is used when moving from HDP-2.3/HDP-2.4/HDP-2.5 to HDP2.6
  */
-public class FixYarnWebServiceUrl extends AbstractServerAction {
+public class FixYarnWebServiceUrl extends AbstractUpgradeServerAction {
     private static final String SOURCE_CONFIG_TYPE = "yarn-site";
     private static final String YARN_TIMELINE_WEBAPP_HTTPADDRESS = "yarn.timeline-service.webapp.address";
     private static final String YARN_TIMELINE_WEBAPP_HTTPSADDRESS = "yarn.timeline-service.webapp.https.address";
@@ -45,15 +43,12 @@ public class FixYarnWebServiceUrl extends AbstractServerAction {
     private static final String HTTP = "HTTP_ONLY";
     private static final String HTTPS = "HTTPS_ONLY";
 
-    @Inject
-    private Clusters clusters;
-
     @Override
     public CommandReport execute(ConcurrentMap<String, Object> requestSharedDataContext)
             throws AmbariException, InterruptedException{
 
         String clusterName = getExecutionCommand().getClusterName();
-        Cluster cluster = clusters.getCluster(clusterName);
+        Cluster cluster = getClusters().getCluster(clusterName);
         Config config = cluster.getDesiredConfigByType(SOURCE_CONFIG_TYPE);
 
         if (config == null) {
@@ -96,6 +91,7 @@ public class FixYarnWebServiceUrl extends AbstractServerAction {
 
         config.setProperties(properties);
         config.save();
+        agentConfigsHolder.updateData(cluster.getClusterId(), cluster.getHosts().stream().map(Host::getHostId).collect(Collectors.toList()));
 
         return createCommandReport(0, HostRoleStatus.COMPLETED, "{}",
                 String.format("The %s/%s property was changed based on %s. ", SOURCE_CONFIG_TYPE, YARN_LOGSERVER_WEBSERVICE_URL, YARN_HTTP_POLICY),"");

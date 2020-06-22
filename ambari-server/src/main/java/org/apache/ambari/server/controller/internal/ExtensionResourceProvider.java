@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,16 +18,29 @@
 
 package org.apache.ambari.server.controller.internal;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.controller.AmbariManagementController;
-import org.apache.ambari.server.controller.RequestStatusResponse;
 import org.apache.ambari.server.controller.ExtensionRequest;
 import org.apache.ambari.server.controller.ExtensionResponse;
-import org.apache.ambari.server.controller.spi.*;
+import org.apache.ambari.server.controller.RequestStatusResponse;
+import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
+import org.apache.ambari.server.controller.spi.NoSuchResourceException;
+import org.apache.ambari.server.controller.spi.Predicate;
+import org.apache.ambari.server.controller.spi.Request;
+import org.apache.ambari.server.controller.spi.RequestStatus;
+import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.spi.Resource.Type;
+import org.apache.ambari.server.controller.spi.SystemException;
+import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
+
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 
 /**
  * An extension version is like a stack version but it contains custom services.  Linking an extension
@@ -39,13 +52,22 @@ public class ExtensionResourceProvider extends ReadOnlyResourceProvider {
   public static final String EXTENSION_NAME_PROPERTY_ID = PropertyHelper
       .getPropertyId("Extensions", "extension_name");
 
-  private static Set<String> pkPropertyIds = new HashSet<String>(
-      Arrays.asList(new String[] { EXTENSION_NAME_PROPERTY_ID }));
 
-  protected ExtensionResourceProvider(Set<String> propertyIds,
-      Map<Type, String> keyPropertyIds,
-      AmbariManagementController managementController) {
-    super(propertyIds, keyPropertyIds, managementController);
+  /**
+   * The key property ids for a Extension resource.
+   */
+  private static Map<Resource.Type, String> keyPropertyIds = ImmutableMap.<Resource.Type, String>builder()
+      .put(Type.Extension, EXTENSION_NAME_PROPERTY_ID)
+      .build();
+
+  /**
+   * The property ids for a Extension resource.
+   */
+  private static Set<String> propertyIds = Sets.newHashSet(
+      EXTENSION_NAME_PROPERTY_ID);
+
+  protected ExtensionResourceProvider(AmbariManagementController managementController) {
+    super(Type.Extension, propertyIds, keyPropertyIds, managementController);
   }
 
 
@@ -54,10 +76,10 @@ public class ExtensionResourceProvider extends ReadOnlyResourceProvider {
       throws SystemException, UnsupportedPropertyException,
       NoSuchResourceException, NoSuchParentResourceException {
 
-    final Set<ExtensionRequest> requests = new HashSet<ExtensionRequest>();
+    final Set<ExtensionRequest> requests = new HashSet<>();
 
     if (predicate == null) {
-      requests.add(getRequest(Collections.<String, Object>emptyMap()));
+      requests.add(getRequest(Collections.emptyMap()));
     } else {
       for (Map<String, Object> propertyMap : getPropertyMaps(predicate)) {
         requests.add(getRequest(propertyMap));
@@ -73,7 +95,7 @@ public class ExtensionResourceProvider extends ReadOnlyResourceProvider {
       }
     });
 
-    Set<Resource> resources = new HashSet<Resource>();
+    Set<Resource> resources = new HashSet<>();
 
     for (ExtensionResponse response : responses) {
       Resource resource = new ResourceImpl(Resource.Type.Extension);
@@ -116,6 +138,6 @@ public class ExtensionResourceProvider extends ReadOnlyResourceProvider {
 
   @Override
   protected Set<String> getPKPropertyIds() {
-    return pkPropertyIds;
+    return new HashSet<>(keyPropertyIds.values());
   }
 }

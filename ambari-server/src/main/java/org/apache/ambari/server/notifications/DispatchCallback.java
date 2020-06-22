@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,7 +36,7 @@ public interface DispatchCallback {
    *          a list of unique IDs that the caller can use to identify the
    *          {@link Notification} that was dispatched.
    */
-  public void onSuccess(List<String> callbackIds);
+  void onSuccess(List<String> callbackIds);
 
   /**
    * Invoked when a {@link Notification} failed to be dispatched.
@@ -45,6 +45,6 @@ public interface DispatchCallback {
    *          a list of unique IDs that the caller can use to identify the
    *          {@link Notification} that was dispatched.
    */
-  public void onFailure(List<String> callbackIds);
+  void onFailure(List<String> callbackIds);
 
 }

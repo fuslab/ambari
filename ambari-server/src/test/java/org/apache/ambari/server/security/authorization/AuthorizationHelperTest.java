@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,9 +17,24 @@
  */
 package org.apache.ambari.server.security.authorization;
 
-import com.google.common.collect.Lists;
-import com.google.inject.AbstractModule;
-import com.google.inject.Provider;
+import static org.easymock.EasyMock.eq;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.reset;
+import static org.easymock.EasyMock.verify;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.Set;
+
 import org.apache.ambari.server.orm.dao.PrivilegeDAO;
 import org.apache.ambari.server.orm.dao.ViewInstanceDAO;
 import org.apache.ambari.server.orm.entities.PermissionEntity;
@@ -29,8 +44,9 @@ import org.apache.ambari.server.orm.entities.PrivilegeEntity;
 import org.apache.ambari.server.orm.entities.ResourceEntity;
 import org.apache.ambari.server.orm.entities.ResourceTypeEntity;
 import org.apache.ambari.server.orm.entities.RoleAuthorizationEntity;
-import org.apache.ambari.server.orm.entities.ViewInstanceEntity;
 import org.apache.ambari.server.orm.entities.UserEntity;
+import org.apache.ambari.server.security.authentication.AmbariUserAuthentication;
+import org.apache.ambari.server.security.authentication.AmbariUserDetailsImpl;
 import org.easymock.EasyMockRule;
 import org.easymock.EasyMockSupport;
 import org.easymock.Mock;
@@ -49,23 +65,7 @@ import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.HashSet;
-import java.util.Set;
-
-import static org.easymock.EasyMock.eq;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.expectLastCall;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.reset;
-import static org.easymock.EasyMock.verify;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import com.google.inject.Provider;
 
 public class AuthorizationHelperTest  extends EasyMockSupport {
 
@@ -89,7 +89,7 @@ public class AuthorizationHelperTest  extends EasyMockSupport {
 
   @Test
   public void testConvertPrivilegesToAuthorities() throws Exception {
-    Collection<PrivilegeEntity> privilegeEntities = new ArrayList<PrivilegeEntity>();
+    Collection<PrivilegeEntity> privilegeEntities = new ArrayList<>();
 
     ResourceTypeEntity resourceTypeEntity = new ResourceTypeEntity();
     resourceTypeEntity.setId(1);
@@ -138,7 +138,7 @@ public class AuthorizationHelperTest  extends EasyMockSupport {
 
     assertEquals("Wrong number of authorities", 2, authorities.size());
 
-    Set<String> authorityNames = new HashSet<String>();
+    Set<String> authorityNames = new HashSet<>();
 
     for (GrantedAuthority authority : authorities) {
       authorityNames.add(authority.getAuthority());
@@ -170,7 +170,7 @@ public class AuthorizationHelperTest  extends EasyMockSupport {
     userEntity.setUserId(1);
     userEntity.setPrincipal(principalEntity);
     User user = new User(userEntity);
-    Authentication auth = new AmbariUserAuthentication(null, user, null);
+    Authentication auth = new AmbariUserAuthentication(null, new AmbariUserDetailsImpl(user, null, null));
     SecurityContextHolder.getContext().setAuthentication(auth);
 
     userId = AuthorizationHelper.getAuthenticatedId();
@@ -184,29 +184,6 @@ public class AuthorizationHelperTest  extends EasyMockSupport {
 
     Integer userId = AuthorizationHelper.getAuthenticatedId();
     Assert.assertEquals(Integer.valueOf(-1), userId);
-  }
-
-  @Test
-  public void testLoginAliasAuthName() throws Exception {
-
-    reset(servletRequestAttributes);
-
-    RequestContextHolder.setRequestAttributes(servletRequestAttributes);
-    expect(servletRequestAttributes.getAttribute(eq("user1@domain.com"), eq(RequestAttributes.SCOPE_SESSION)))
-      .andReturn("user1").atLeastOnce(); // user1@domain.com is a login alias for user1
-
-    replay(servletRequestAttributes);
-
-    Authentication auth = new UsernamePasswordAuthenticationToken("user1@domain.com", null);
-    SecurityContextHolder.getContext().setAuthentication(new AmbariAuthentication(auth, 0));
-
-    String user = AuthorizationHelper.getAuthenticatedName();
-    Assert.assertEquals("user1", user);
-
-    SecurityContextHolder.getContext().setAuthentication(null); // clean up security context
-
-    verify(servletRequestAttributes);
-
   }
 
   @Test

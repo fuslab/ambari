@@ -18,25 +18,14 @@
 
 {{#if view.isLoaded}}
   <div id="host-details">
-    <div class="host-details-header">
-      <div class="status-info">
-        <span rel="HealthTooltip" {{bindAttr class="view.content.healthClass view.content.healthIconClass"}} data-placement="bottom" {{bindAttr data-original-title="view.content.healthToolTip" }}></span><span
-              class='host-title'>{{unbound view.content.hostName}}</span>
-        {{#unless view.isActive}}
-          <span class="host-maintenance-notice pull-right"><span class="icon-medkit"></span> {{t hosts.host.passive.mode}}</span>
-        {{/unless}}
-      </div>
-      <div><a href="javascript:void(null)" id="host-details-back-btn" data-toggle="modal" {{action back}}><i
-              class="icon-arrow-left"></i>&nbsp;{{t common.back}}</a></div>
-    </div>
-    <div class="content">
+       <div class="content">
       {{view App.MainHostMenuView hostBinding="view.content"}}
         <div class="service-button">
           <div class="btn-group display-inline-block">
-            <a href="javascript:void(null)" {{bindAttr class=":btn :dropdown-toggle"}} id="host-details-action-btn" data-toggle="dropdown">
+            <button href="javascript:void(null)" {{bindAttr class=":btn :btn-default :dropdown-toggle"}} id="host-details-action-btn" data-toggle="dropdown">
               {{t hosts.host.details.hostActions}}
               <span class="caret"></span>
-            </a>
+            </button>
             <ul class="dropdown-menu pull-right">
               <!-- dropdown menu links -->
               {{#each option in view.maintenance}}
@@ -47,7 +36,7 @@
               {{/each}}
               {{#if view.clients}}
                 <li class="dropdown-submenu submenu-left">
-                  <a><i class="icon-download-alt"></i> {{t services.service.actions.downloadClientConfigs}}</a>
+                  <a><i class="glyphicon glyphicon-download-alt"></i> {{t services.service.actions.downloadClientConfigs}}</a>
 
                   <div class="dropdown-menu-wrap">
                     <ul class="dropdown-menu">

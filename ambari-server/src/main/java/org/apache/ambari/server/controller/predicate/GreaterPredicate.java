@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -52,6 +52,6 @@ public class GreaterPredicate<T> extends ComparisonPredicate<T> {
 
   @Override
   public ComparisonPredicate<T> copy(String propertyId) {
-    return new GreaterPredicate<T>(propertyId, getValue());
+    return new GreaterPredicate<>(propertyId, getValue());
   }
 }

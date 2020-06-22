@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -46,9 +46,9 @@ import org.apache.ambari.server.orm.entities.AlertHistoryEntity;
 import org.apache.ambari.server.orm.entities.AlertNoticeEntity;
 import org.apache.ambari.server.orm.entities.AlertTargetEntity;
 import org.apache.ambari.server.orm.entities.ClusterEntity;
+import org.apache.commons.lang.StringUtils;
 
 import com.google.inject.Inject;
-import org.apache.commons.lang.StringUtils;
 
 /**
  * ResourceProvider for Alert History
@@ -65,8 +65,8 @@ public class AlertNoticeResourceProvider extends AbstractControllerResourceProvi
   public static final String ALERT_NOTICE_HISTORY_ID = "AlertNotice/history_id";
   public static final String ALERT_NOTICE_CLUSTER_NAME = "AlertNotice/cluster_name";
 
-  private static final Set<String> PK_PROPERTY_IDS = new HashSet<String>(
-      Arrays.asList(ALERT_NOTICE_ID));
+  private static final Set<String> PK_PROPERTY_IDS = new HashSet<>(
+    Arrays.asList(ALERT_NOTICE_ID));
 
   /**
    * Used for querying alert history.
@@ -77,13 +77,13 @@ public class AlertNoticeResourceProvider extends AbstractControllerResourceProvi
   /**
    * The property ids for an alert history resource.
    */
-  private static final Set<String> PROPERTY_IDS = new HashSet<String>();
+  private static final Set<String> PROPERTY_IDS = new HashSet<>();
 
   /**
    * The key property ids for an alert history resource.
    */
   private static final Map<Resource.Type, String> KEY_PROPERTY_IDS =
-      new HashMap<Resource.Type, String>();
+    new HashMap<>();
 
   static {
     // properties
@@ -105,7 +105,7 @@ public class AlertNoticeResourceProvider extends AbstractControllerResourceProvi
    * Constructor.
    */
   AlertNoticeResourceProvider(AmbariManagementController managementController) {
-    super(PROPERTY_IDS, KEY_PROPERTY_IDS, managementController);
+    super(Resource.Type.AlertNotice, PROPERTY_IDS, KEY_PROPERTY_IDS, managementController);
   }
 
   /**
@@ -175,7 +175,7 @@ public class AlertNoticeResourceProvider extends AbstractControllerResourceProvi
     }
 
     Set<String> requestPropertyIds = getRequestPropertyIds(request, predicate);
-    Set<Resource> results = new LinkedHashSet<Resource>();
+    Set<Resource> results = new LinkedHashSet<>();
 
     AlertNoticeRequest noticeRequest = new AlertNoticeRequest();
     noticeRequest.Predicate  = predicate;

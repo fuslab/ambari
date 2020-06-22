@@ -21,8 +21,11 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.ambari.server.configuration.Configuration.DatabaseType;
+import org.apache.commons.lang.builder.EqualsBuilder;
+import org.apache.commons.lang.builder.HashCodeBuilder;
 import org.eclipse.jdt.internal.compiler.ast.FieldDeclaration;
 import org.eclipse.persistence.internal.databaseaccess.FieldTypeDefinition;
 import org.eclipse.persistence.sessions.DatabaseSession;
@@ -370,16 +373,33 @@ public interface DBAccessor {
    * Execute select {@code columnName} from {@code tableName}
    * where {@code columnNames} values = {@code values}
    *
-   * @param tableName
-   * @param columnName
-   * @param columnNames
-   * @param values
-   * @param ignoreFailure
-   * @return
+   * @param tableName            the table name
+   * @param columnName           the name of the column with the data to select
+   * @param conditionColumnNames an array of column names to use in the where clause
+   * @param conditionValues      an array of value to pair with the column names in conditionColumnNames
+   * @param ignoreFailure        true to ignore failures executing the query; false otherwise (errors building the query will be thrown, however)
+   * @return a list of integers
    * @throws SQLException
    */
-  List<Integer> getIntColumnValues(String tableName, String columnName, String[] columnNames,
-                                   String[] values, boolean ignoreFailure) throws SQLException;
+  List<Integer> getIntColumnValues(String tableName, String columnName, String[] conditionColumnNames,
+                                   String[] conditionValues, boolean ignoreFailure) throws SQLException;
+
+  /**
+   * Execute select {@code keyColumnName}, {@code valueColumnName} from {@code tableName}
+   * where {@code columnNames} values = {@code values}
+   *
+   * @param tableName            the table name
+   * @param keyColumnName        the name of the column with the key data to select
+   * @param valueColumnName      the name of the column with the value data to select
+   * @param conditionColumnNames an array of column names to use in the where clause
+   * @param conditionValues      an array of value to pair with the column names in conditionColumnNames
+   * @param ignoreFailure        true to ignore failures executing the query; false otherwise (errors building the query will be thrown, however)
+   * @return a map of key to values
+   * @throws SQLException
+   */
+  Map<Long, String> getKeyToStringColumnMap(String tableName, String keyColumnName, String valueColumnName,
+                                            String[] conditionColumnNames, String[] conditionValues,
+                                            boolean ignoreFailure) throws SQLException;
 
   /**
    * Drop table from schema
@@ -590,9 +610,8 @@ public interface DBAccessor {
    *          the name of the table (not {@code null}).
    * @param columnName
    *          the name of the column to retrieve type for (not {@code null}).
-   * @return the integer representation of the column type from {@link Types}.
+   * @return the integer representation of the column type
    * @throws SQLException
-   * @see {@link Types}
    */
   int getColumnType(String tableName, String columnName)
       throws SQLException;
@@ -643,6 +662,16 @@ public interface DBAccessor {
    * @throws SQLException
    */
   void changeColumnType(String tableName, String columnName, Class fromType, Class toType) throws SQLException;
+
+
+  /**
+   * Obtain column metadata information by given table and column name
+   * @param tableName name of the table
+   * @param columnName name of the column
+   * @return column information
+   * @throws SQLException
+   */
+  DBColumnInfo getColumnInfo(String tableName, String columnName) throws SQLException;
 
   /**
    * Queries the database to determine the name of the primary key constraint on
@@ -731,15 +760,17 @@ public interface DBAccessor {
 
   /**
    * Remove all rows from the table
+   *
    * @param tableName name of the table
    */
   void clearTable(String tableName) throws SQLException;
 
   /**
    * Reset all rows with {@code value} for {@code columnName} column
-   * @param tableName name of the table
+   *
+   * @param tableName  name of the table
    * @param columnName name of the column name to be update
-   * @param value data to use for update
+   * @param value      data to use for update
    */
   void clearTableColumn(String tableName, String columnName, Object value) throws SQLException;
 
@@ -851,6 +882,33 @@ public interface DBAccessor {
 
     public void setDbType(FieldTypeDefinition dbType) {
       this.dbType = dbType;
+    }
+
+    @Override
+    public int hashCode() {
+      return new HashCodeBuilder(17, 37)
+          .append(name)
+          .append(type)
+          .append(length)
+          .append(isNullable)
+          .append(defaultValue)
+          .append(dbType)
+          .toHashCode();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      DBColumnInfo that = (DBColumnInfo) o;
+      return new EqualsBuilder()
+          .append(name, that.name)
+          .append(type, that.type)
+          .append(length, that.length)
+          .append(isNullable, that.isNullable)
+          .append(defaultValue, that.defaultValue)
+          .append(dbType, that.dbType)
+          .isEquals();
     }
   }
 

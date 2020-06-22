@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,26 +18,7 @@
 
 package org.apache.ambari.server.controller.internal;
 
-import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.AGENT_STACK_RETRY_COUNT;
-import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.AGENT_STACK_RETRY_ON_UNAVAILABILITY;
-import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.DB_NAME;
-import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.GPL_LICENSE_ACCEPTED;
-import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.GROUP_LIST;
-import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.HOST_SYS_PREPPED;
-import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.JAVA_HOME;
-import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.JAVA_VERSION;
-import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.JCE_NAME;
-import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.JDK_LOCATION;
-import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.JDK_NAME;
-import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.MYSQL_JDBC_URL;
-import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.NOT_MANAGED_HDFS_PATH_LIST;
-import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.ORACLE_JDBC_URL;
 import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.PACKAGE_LIST;
-import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.SERVICE_REPO_INFO;
-import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.STACK_NAME;
-import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.STACK_VERSION;
-import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.USER_GROUPS;
-import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.USER_LIST;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -52,6 +33,7 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -69,6 +51,7 @@ import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
 import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.controller.AmbariManagementController;
+import org.apache.ambari.server.controller.AmbariManagementControllerImpl;
 import org.apache.ambari.server.controller.MaintenanceStateHelper;
 import org.apache.ambari.server.controller.ServiceComponentHostRequest;
 import org.apache.ambari.server.controller.ServiceComponentHostResponse;
@@ -82,6 +65,7 @@ import org.apache.ambari.server.controller.spi.ResourceAlreadyExistsException;
 import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
+import org.apache.ambari.server.security.authorization.RoleAuthorization;
 import org.apache.ambari.server.state.ClientConfigFileDefinition;
 import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.Clusters;
@@ -90,6 +74,8 @@ import org.apache.ambari.server.state.Config;
 import org.apache.ambari.server.state.ConfigHelper;
 import org.apache.ambari.server.state.DesiredConfig;
 import org.apache.ambari.server.state.PropertyInfo.PropertyType;
+import org.apache.ambari.server.state.Service;
+import org.apache.ambari.server.state.ServiceComponent;
 import org.apache.ambari.server.state.ServiceInfo;
 import org.apache.ambari.server.state.ServiceOsSpecific;
 import org.apache.ambari.server.state.StackId;
@@ -105,6 +91,8 @@ import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
@@ -125,11 +113,24 @@ public class ClientConfigResourceProvider extends AbstractControllerResourceProv
 
   private final Gson gson;
 
-  private static Set<String> pkPropertyIds =
-          new HashSet<>(Arrays.asList(new String[]{
-                  COMPONENT_CLUSTER_NAME_PROPERTY_ID,
-                  COMPONENT_SERVICE_NAME_PROPERTY_ID,
-                  COMPONENT_COMPONENT_NAME_PROPERTY_ID}));
+  /**
+   * The key property ids for a ClientConfig resource.
+   */
+  private static Map<Resource.Type, String> keyPropertyIds = ImmutableMap.<Resource.Type, String>builder()
+      .put(Resource.Type.Cluster, COMPONENT_CLUSTER_NAME_PROPERTY_ID)
+      .put(Resource.Type.Service, COMPONENT_SERVICE_NAME_PROPERTY_ID)
+      .put(Resource.Type.Component, COMPONENT_COMPONENT_NAME_PROPERTY_ID)
+      .put(Resource.Type.Host, HOST_COMPONENT_HOST_NAME_PROPERTY_ID)
+      .build();
+
+  /**
+   * The property ids for a ClientConfig resource.
+   */
+  private static Set<String> propertyIds = Sets.newHashSet(
+      COMPONENT_CLUSTER_NAME_PROPERTY_ID,
+      COMPONENT_SERVICE_NAME_PROPERTY_ID,
+      COMPONENT_COMPONENT_NAME_PROPERTY_ID,
+      HOST_COMPONENT_HOST_NAME_PROPERTY_ID);
 
   private MaintenanceStateHelper maintenanceStateHelper;
   private static final Logger LOG = LoggerFactory.getLogger(ClientConfigResourceProvider.class);
@@ -139,16 +140,14 @@ public class ClientConfigResourceProvider extends AbstractControllerResourceProv
   /**
    * Create a  new resource provider for the given management controller.
    *
-   * @param propertyIds          the property ids
-   * @param keyPropertyIds       the key property ids
    * @param managementController the management controller
    */
   @AssistedInject
-  ClientConfigResourceProvider(@Assisted Set<String> propertyIds,
-                               @Assisted Map<Resource.Type, String> keyPropertyIds,
-                               @Assisted AmbariManagementController managementController) {
-    super(propertyIds, keyPropertyIds, managementController);
+  ClientConfigResourceProvider(@Assisted AmbariManagementController managementController) {
+    super(Resource.Type.ClientConfig, propertyIds, keyPropertyIds, managementController);
     gson = new Gson();
+
+    setRequiredGetAuthorizations(EnumSet.of(RoleAuthorization.HOST_VIEW_CONFIGS, RoleAuthorization.SERVICE_VIEW_CONFIGS, RoleAuthorization.CLUSTER_VIEW_CONFIGS));
   }
 
   // ----- ResourceProvider ------------------------------------------------
@@ -164,7 +163,7 @@ public class ClientConfigResourceProvider extends AbstractControllerResourceProv
   }
 
   @Override
-  public Set<Resource> getResources(Request request, Predicate predicate)
+  public Set<Resource> getResourcesAuthorized(Request request, Predicate predicate)
           throws SystemException, UnsupportedPropertyException, NoSuchResourceException, NoSuchParentResourceException {
 
     Set<Resource> resources = new HashSet<>();
@@ -223,7 +222,6 @@ public class ClientConfigResourceProvider extends AbstractControllerResourceProv
       try {
         cluster = clusters.getCluster(response.getClusterName());
 
-        StackId stackId = cluster.getCurrentStackVersion();
         String serviceName = response.getServiceName();
         String componentName = response.getComponentName();
         String hostName = response.getHostname();
@@ -231,8 +229,13 @@ public class ClientConfigResourceProvider extends AbstractControllerResourceProv
         ComponentInfo componentInfo = null;
         String packageFolder = null;
 
+        Service service = cluster.getService(serviceName);
+        ServiceComponent component = service.getServiceComponent(componentName);
+        StackId stackId = component.getDesiredStackId();
+
         componentInfo = managementController.getAmbariMetaInfo().
           getComponent(stackId.getStackName(), stackId.getStackVersion(), serviceName, componentName);
+
         packageFolder = managementController.getAmbariMetaInfo().
           getService(stackId.getStackName(), stackId.getStackVersion(), serviceName).getServicePackageFolder();
 
@@ -243,7 +246,7 @@ public class ClientConfigResourceProvider extends AbstractControllerResourceProv
           if (componentMap.size() == 1) {
             throw new SystemException("No configuration files defined for the component " + componentInfo.getName());
           } else {
-            LOG.debug(String.format("No configuration files defined for the component %s",componentInfo.getName()));
+            LOG.debug("No configuration files defined for the component {}", componentInfo.getName());
             continue;
           }
         }
@@ -356,30 +359,13 @@ public class ClientConfigResourceProvider extends AbstractControllerResourceProv
         }
         osFamily = clusters.getHost(hostName).getOsFamily();
 
-        TreeMap<String, String> hostLevelParams = new TreeMap<>();
-        hostLevelParams.put(JDK_LOCATION, managementController.getJdkResourceUrl());
-        hostLevelParams.put(JAVA_HOME, managementController.getJavaHome());
-        hostLevelParams.put(JAVA_VERSION, String.valueOf(configs.getJavaVersion()));
-        hostLevelParams.put(JDK_NAME, managementController.getJDKName());
-        hostLevelParams.put(JCE_NAME, managementController.getJCEName());
-        hostLevelParams.put(STACK_NAME, stackId.getStackName());
-        hostLevelParams.put(STACK_VERSION, stackId.getStackVersion());
-        hostLevelParams.put(DB_NAME, managementController.getServerDB());
-        hostLevelParams.put(MYSQL_JDBC_URL, managementController.getMysqljdbcUrl());
-        hostLevelParams.put(ORACLE_JDBC_URL, managementController.getOjdbcUrl());
-        hostLevelParams.put(HOST_SYS_PREPPED, configs.areHostsSysPrepped());
-        hostLevelParams.putAll(managementController.getRcaParameters());
-        hostLevelParams.put(AGENT_STACK_RETRY_ON_UNAVAILABILITY, configs.isAgentStackRetryOnInstallEnabled());
-        hostLevelParams.put(AGENT_STACK_RETRY_COUNT, configs.getAgentStackRetryOnInstallCount());
-        hostLevelParams.put(GPL_LICENSE_ACCEPTED, configs.getGplLicenseAccepted().toString());
-
         // Write down os specific info for the service
         ServiceOsSpecific anyOs = null;
         if (serviceInfo.getOsSpecifics().containsKey(AmbariMetaInfo.ANY_OS)) {
           anyOs = serviceInfo.getOsSpecifics().get(AmbariMetaInfo.ANY_OS);
         }
 
-        ServiceOsSpecific hostOs = populateServicePackagesInfo(serviceInfo, hostLevelParams, osFamily);
+        ServiceOsSpecific hostOs = populateServicePackagesInfo(serviceInfo, osFamily);
 
         // Build package list that is relevant for host
         List<ServiceOsSpecific.Package> packages =
@@ -392,26 +378,6 @@ public class ClientConfigResourceProvider extends AbstractControllerResourceProv
           packages.addAll(hostOs.getPackages());
         }
         String packageList = gson.toJson(packages);
-        hostLevelParams.put(PACKAGE_LIST, packageList);
-
-        Set<String> userSet = configHelper.getPropertyValuesWithPropertyType(stackId, PropertyType.USER, cluster, desiredClusterConfigs);
-        String userList = gson.toJson(userSet);
-        hostLevelParams.put(USER_LIST, userList);
-
-        //Create a user_group mapping and send it as part of the hostLevelParams
-        Map<String, Set<String>> userGroupsMap = configHelper.createUserGroupsMap(
-          stackId, cluster, desiredClusterConfigs);
-        String userGroups = gson.toJson(userGroupsMap);
-        hostLevelParams.put(USER_GROUPS,userGroups);
-
-        Set<String> groupSet = configHelper.getPropertyValuesWithPropertyType(stackId, PropertyType.GROUP, cluster, desiredClusterConfigs);
-        String groupList = gson.toJson(groupSet);
-        hostLevelParams.put(GROUP_LIST, groupList);
-
-        Map<org.apache.ambari.server.state.PropertyInfo, String> notManagedHdfsPathMap = configHelper.getPropertiesWithPropertyType(stackId, PropertyType.NOT_MANAGED_HDFS_PATH, cluster, desiredClusterConfigs);
-        Set<String> notManagedHdfsPathSet = configHelper.filterInvalidPropertyValues(notManagedHdfsPathMap, NOT_MANAGED_HDFS_PATH_LIST);
-        String notManagedHdfsPathList = gson.toJson(notManagedHdfsPathSet);
-        hostLevelParams.put(NOT_MANAGED_HDFS_PATH_LIST, notManagedHdfsPathList);
 
         String jsonConfigurations = null;
         Map<String, Object> commandParams = new HashMap<>();
@@ -432,6 +398,18 @@ public class ClientConfigResourceProvider extends AbstractControllerResourceProv
           }
         }
 
+        TreeMap<String, String> clusterLevelParams = null;
+        TreeMap<String, String> ambariLevelParams = null;
+        if (getManagementController() instanceof AmbariManagementControllerImpl){
+          AmbariManagementControllerImpl controller = ((AmbariManagementControllerImpl)getManagementController());
+          clusterLevelParams = controller.getMetadataClusterLevelParams(cluster, stackId);
+          ambariLevelParams = controller.getMetadataAmbariLevelParams();
+        }
+        TreeMap<String, String> agentLevelParams = new TreeMap<>();
+        agentLevelParams.put("hostname", hostName);
+        agentLevelParams.put("public_hostname", publicHostName);
+
+        commandParams.put(PACKAGE_LIST, packageList);
         commandParams.put("xml_configs_list", xmlConfigs);
         commandParams.put("env_configs_list", envConfigs);
         commandParams.put("properties_configs_list", propertiesConfigs);
@@ -439,10 +417,12 @@ public class ClientConfigResourceProvider extends AbstractControllerResourceProv
 
         Map<String, Object> jsonContent = new TreeMap<>();
         jsonContent.put("configurations", configurations);
-        jsonContent.put("configuration_attributes", configurationAttributes);
+        jsonContent.put("configurationAttributes", configurationAttributes);
         jsonContent.put("commandParams", commandParams);
         jsonContent.put("clusterHostInfo", clusterHostInfo);
-        jsonContent.put("hostLevelParams", hostLevelParams);
+        jsonContent.put("ambariLevelParams", ambariLevelParams);
+        jsonContent.put("clusterLevelParams", clusterLevelParams);
+        jsonContent.put("agentLevelParams", agentLevelParams);
         jsonContent.put("hostname", hostName);
         jsonContent.put("public_hostname", publicHostName);
         jsonContent.put("clusterName", cluster.getClusterName());
@@ -485,8 +465,6 @@ public class ClientConfigResourceProvider extends AbstractControllerResourceProv
         commandFiles.add(jsonFile);
         pythonCompressFilesCmds.add(cmd);
 
-      } catch (AmbariException e) {
-        throw new SystemException("Controller error ", e);
       } catch (IOException e) {
         throw new SystemException("Controller error ", e);
       }
@@ -838,6 +816,8 @@ public class ClientConfigResourceProvider extends AbstractControllerResourceProv
         BufferedOutputStream bOut = new BufferedOutputStream(fOut);
         GzipCompressorOutputStream gzOut = new GzipCompressorOutputStream(bOut);
         TarArchiveOutputStream tOut = new TarArchiveOutputStream(gzOut);
+        tOut.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX);
+        tOut.setBigNumberMode(TarArchiveOutputStream.BIGNUMBER_POSIX);
 
         try {
           for (ServiceComponentHostResponse schResponse : serviceComponentHostResponses) {
@@ -895,7 +875,7 @@ public class ClientConfigResourceProvider extends AbstractControllerResourceProv
 
   @Override
   protected Set<String> getPKPropertyIds() {
-    return pkPropertyIds;
+    return new HashSet<>(keyPropertyIds.values());
   }
 
 
@@ -918,19 +898,12 @@ public class ClientConfigResourceProvider extends AbstractControllerResourceProv
   }
 
 
-  protected ServiceOsSpecific populateServicePackagesInfo(ServiceInfo serviceInfo, Map<String, String> hostParams,
-                                                          String osFamily) {
+  protected ServiceOsSpecific populateServicePackagesInfo(ServiceInfo serviceInfo, String osFamily) {
     ServiceOsSpecific hostOs = new ServiceOsSpecific(osFamily);
     List<ServiceOsSpecific> foundedOSSpecifics = getOSSpecificsByFamily(serviceInfo.getOsSpecifics(), osFamily);
     if (!foundedOSSpecifics.isEmpty()) {
       for (ServiceOsSpecific osSpecific : foundedOSSpecifics) {
         hostOs.addPackages(osSpecific.getPackages());
-      }
-      // Choose repo that is relevant for host
-      ServiceOsSpecific.Repo serviceRepo = hostOs.getRepo();
-      if (serviceRepo != null) {
-        String serviceRepoInfo = gson.toJson(serviceRepo);
-        hostParams.put(SERVICE_REPO_INFO, serviceRepoInfo);
       }
     }
 

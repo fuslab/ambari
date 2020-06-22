@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -42,7 +42,7 @@ public class ComponentStackVersionResourceDefinition extends BaseResourceDefinit
 
   @Override
   public Set<SubResourceDefinition> getSubResourceDefinitions() {
-    final Set<SubResourceDefinition> subResourceDefintions = new HashSet<SubResourceDefinition>();
+    final Set<SubResourceDefinition> subResourceDefintions = new HashSet<>();
     subResourceDefintions.add(new SubResourceDefinition(Resource.Type.RepositoryVersion));
     return subResourceDefintions;
   }

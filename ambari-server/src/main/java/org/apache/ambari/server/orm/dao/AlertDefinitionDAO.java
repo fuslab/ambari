@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,12 +25,17 @@ import javax.persistence.EntityManager;
 import javax.persistence.TypedQuery;
 
 import org.apache.ambari.server.AmbariException;
-import org.apache.ambari.server.controller.RootServiceResponseFactory;
+import org.apache.ambari.server.agent.stomp.dto.AlertGroupUpdate;
+import org.apache.ambari.server.controller.RootComponent;
+import org.apache.ambari.server.controller.RootService;
 import org.apache.ambari.server.controller.internal.AlertDefinitionResourceProvider;
 import org.apache.ambari.server.events.AlertDefinitionChangedEvent;
 import org.apache.ambari.server.events.AlertDefinitionDeleteEvent;
 import org.apache.ambari.server.events.AlertDefinitionRegistrationEvent;
+import org.apache.ambari.server.events.AlertGroupsUpdateEvent;
+import org.apache.ambari.server.events.UpdateEventType;
 import org.apache.ambari.server.events.publishers.AmbariEventPublisher;
+import org.apache.ambari.server.events.publishers.STOMPUpdatePublisher;
 import org.apache.ambari.server.orm.RequiresSession;
 import org.apache.ambari.server.orm.entities.AlertDefinitionEntity;
 import org.apache.ambari.server.orm.entities.AlertGroupEntity;
@@ -55,7 +60,7 @@ public class AlertDefinitionDAO {
   /**
    * Logger.
    */
-  private static Logger LOG = LoggerFactory.getLogger(AlertDefinitionDAO.class);
+  private static final Logger LOG = LoggerFactory.getLogger(AlertDefinitionDAO.class);
 
   /**
    * JPA entity manager
@@ -99,6 +104,9 @@ public class AlertDefinitionDAO {
    */
   @Inject
   private AlertDefinitionFactory alertDefinitionFactory;
+
+  @Inject
+  private STOMPUpdatePublisher STOMPUpdatePublisher;
 
   /**
    * Gets an alert definition with the specified ID.
@@ -223,7 +231,7 @@ public class AlertDefinitionDAO {
 
   /**
    * Gets all alert definitions for the specified services that do not have a
-   * component. These definitions are assumed to be run on the master hosts.
+   * component and do not belong to AGGREGATE source type. These definitions are assumed to be run on the master hosts.
    *
    * @param clusterId
    *          the ID of the cluster.
@@ -300,10 +308,10 @@ public class AlertDefinitionDAO {
     query.setParameter("clusterId", clusterId);
 
     query.setParameter("serviceName",
-        RootServiceResponseFactory.Services.AMBARI.name());
+        RootService.AMBARI.name());
 
     query.setParameter("componentName",
-        RootServiceResponseFactory.Components.AMBARI_AGENT.name());
+        RootComponent.AMBARI_AGENT.name());
 
     return daoUtils.selectList(query);
   }
@@ -346,6 +354,10 @@ public class AlertDefinitionDAO {
     }
 
     group.addAlertDefinition(alertDefinition);
+    AlertGroupsUpdateEvent alertGroupsUpdateEvent = new AlertGroupsUpdateEvent(Collections.singletonList(
+        new AlertGroupUpdate(group)),
+        UpdateEventType.UPDATE);
+    STOMPUpdatePublisher.publish(alertGroupsUpdateEvent);
     dispatchDao.merge(group);
 
     // publish the alert definition registration
@@ -353,7 +365,6 @@ public class AlertDefinitionDAO {
     if (null != coerced) {
       AlertDefinitionRegistrationEvent event = new AlertDefinitionRegistrationEvent(
           alertDefinition.getClusterId(), coerced);
-
       eventPublisher.publish(event);
     } else {
       LOG.warn("Unable to broadcast alert registration event for {}",

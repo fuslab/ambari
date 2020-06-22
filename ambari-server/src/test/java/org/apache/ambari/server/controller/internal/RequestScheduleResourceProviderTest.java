@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,7 +17,21 @@
  */
 package org.apache.ambari.server.controller.internal;
 
-import junit.framework.Assert;
+import static org.easymock.EasyMock.capture;
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.verify;
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.AmbariManagementController;
 import org.apache.ambari.server.controller.RequestScheduleResponse;
 import org.apache.ambari.server.controller.RequestStatusResponse;
@@ -35,23 +49,11 @@ import org.apache.ambari.server.state.scheduler.RequestExecution;
 import org.apache.ambari.server.state.scheduler.RequestExecutionFactory;
 import org.apache.ambari.server.state.scheduler.Schedule;
 import org.easymock.Capture;
+import org.easymock.EasyMock;
 import org.easymock.IAnswer;
 import org.junit.Test;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import static org.easymock.EasyMock.capture;
-import static org.easymock.EasyMock.createMock;
-import static org.easymock.EasyMock.createNiceMock;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.verify;
+import junit.framework.Assert;
 
 public class RequestScheduleResourceProviderTest {
 
@@ -63,8 +65,6 @@ public class RequestScheduleResourceProviderTest {
     return (RequestScheduleResourceProvider)
       AbstractControllerResourceProvider.getResourceProvider(
         type,
-        PropertyHelper.getPropertyIds(type),
-        PropertyHelper.getKeyPropertyIds(type),
         managementController
       );
   }
@@ -90,9 +90,9 @@ public class RequestScheduleResourceProviderTest {
     expect(managementController.getAuthName()).andReturn("admin").anyTimes();
     expect(managementController.getAuthId()).andReturn(1).anyTimes();
 
-    Capture<Cluster> clusterCapture = new Capture<Cluster>();
-    Capture<Batch> batchCapture = new Capture<Batch>();
-    Capture<Schedule> scheduleCapture = new Capture<Schedule>();
+    Capture<Cluster> clusterCapture = EasyMock.newCapture();
+    Capture<Batch> batchCapture = EasyMock.newCapture();
+    Capture<Schedule> scheduleCapture = EasyMock.newCapture();
 
     expect(executionFactory.createNew(capture(clusterCapture),
       capture(batchCapture), capture(scheduleCapture))).andReturn(requestExecution);
@@ -103,60 +103,60 @@ public class RequestScheduleResourceProviderTest {
     RequestScheduleResourceProvider resourceProvider = getResourceProvider
       (managementController);
 
-    Set<Map<String, Object>> propertySet = new LinkedHashSet<Map<String, Object>>();
-    Map<String, Object> properties = new LinkedHashMap<String, Object>();
+    Set<Map<String, Object>> propertySet = new LinkedHashSet<>();
+    Map<String, Object> properties = new LinkedHashMap<>();
 
     properties.put(RequestScheduleResourceProvider
-      .REQUEST_SCHEDULE_CLUSTER_NAME_PROPERTY_ID, "Cluster100");
+      .CLUSTER_NAME, "Cluster100");
     properties.put(RequestScheduleResourceProvider
-      .REQUEST_SCHEDULE_DESC_PROPERTY_ID, "some description");
+      .DESCRIPTION, "some description");
     properties.put(RequestScheduleResourceProvider
-      .SCHEDULE_DAY_OF_WEEK_PROPERTY_ID, "MON");
+      .DAY_OF_WEEK, "MON");
     properties.put(RequestScheduleResourceProvider
-      .SCHEDULE_MINUTES_PROPERTY_ID, "2");
+      .MINUTES, "2");
     properties.put(RequestScheduleResourceProvider
-      .SCHEDULE_END_TIME_PROPERTY_ID, "2013-11-18T14:29:29-08:00");
+      .END_TIME, "2013-11-18T14:29:29-08:00");
     properties.put(RequestScheduleResourceProvider
-      .SCHEDULE_DAYS_OF_MONTH_PROPERTY_ID, "*");
+      .DAYS_OF_MONTH, "*");
 
-    HashSet<Map<String, Object>> batch = new HashSet<Map<String, Object>>();
-    Map<String, Object> batchSettings = new HashMap<String, Object>();
+    HashSet<Map<String, Object>> batch = new HashSet<>();
+    Map<String, Object> batchSettings = new HashMap<>();
     batchSettings.put(RequestScheduleResourceProvider
-      .REQUEST_SCHEDULE_BATCH_SEPARATION_PROPERTY_ID, "15");
+      .BATCH_SEPARATION_IN_SECONDS, "15");
 
-    Map<String, Object> batchRequests = new HashMap<String, Object>();
-    HashSet<Map<String, Object>> requestSet = new HashSet<Map<String, Object>>();
+    Map<String, Object> batchRequests = new HashMap<>();
+    HashSet<Map<String, Object>> requestSet = new HashSet<>();
 
-    Map<String, Object> request1 = new HashMap<String, Object>();
-    Map<String, Object> request2 = new HashMap<String, Object>();
+    Map<String, Object> request1 = new HashMap<>();
+    Map<String, Object> request2 = new HashMap<>();
 
     request1.put(RequestScheduleResourceProvider
-      .BATCH_REQUEST_TYPE_PROPERTY_ID, BatchRequest.Type.PUT.name());
+      .TYPE, BatchRequest.Type.PUT.name());
     request1.put(RequestScheduleResourceProvider
-      .BATCH_REQUEST_ORDER_ID_PROPERTY_ID, "20");
+      .ORDER_ID, "20");
     request1.put(RequestScheduleResourceProvider
-      .BATCH_REQUEST_URI_PROPERTY_ID, "SomeUpdateUri");
+      .URI, "SomeUpdateUri");
     request1.put(RequestScheduleResourceProvider
-      .BATCH_REQUEST_BODY_PROPERTY_ID, "data1");
+      .BODY, "data1");
 
     request2.put(RequestScheduleResourceProvider
-      .BATCH_REQUEST_TYPE_PROPERTY_ID, BatchRequest.Type.DELETE.name());
+      .TYPE, BatchRequest.Type.DELETE.name());
     request2.put(RequestScheduleResourceProvider
-      .BATCH_REQUEST_ORDER_ID_PROPERTY_ID, "22");
+      .ORDER_ID, "22");
     request2.put(RequestScheduleResourceProvider
-      .BATCH_REQUEST_URI_PROPERTY_ID, "SomeDeleteUri");
+      .URI, "SomeDeleteUri");
 
     requestSet.add(request1);
     requestSet.add(request2);
 
     batchRequests.put(RequestScheduleResourceProvider
-      .REQUEST_SCHEDULE_BATCH_REQUESTS_PROPERTY_ID, requestSet);
+      .REQUESTS, requestSet);
 
     batch.add(batchSettings);
     batch.add(batchRequests);
 
     properties.put(RequestScheduleResourceProvider
-      .REQUEST_SCHEDULE_BATCH_PROPERTY_ID, batch);
+      .BATCH, batch);
 
     propertySet.add(properties);
     Request request = PropertyHelper.getCreateRequest(propertySet, null);
@@ -213,8 +213,7 @@ public class RequestScheduleResourceProviderTest {
     expect(cluster.getAllRequestExecutions()).andStubAnswer(new IAnswer<Map<Long, RequestExecution>>() {
       @Override
       public Map<Long, RequestExecution> answer() throws Throwable {
-        Map<Long, RequestExecution> requestExecutionMap = new HashMap<Long,
-          RequestExecution>();
+        Map<Long, RequestExecution> requestExecutionMap = new HashMap<>();
         requestExecutionMap.put(requestExecution.getId(), requestExecution);
         return requestExecutionMap;
       }
@@ -226,68 +225,68 @@ public class RequestScheduleResourceProviderTest {
     RequestScheduleResourceProvider resourceProvider = getResourceProvider
       (managementController);
 
-    Map<String, Object> properties = new LinkedHashMap<String, Object>();
+    Map<String, Object> properties = new LinkedHashMap<>();
 
     properties.put(RequestScheduleResourceProvider
-      .REQUEST_SCHEDULE_CLUSTER_NAME_PROPERTY_ID, "Cluster100");
+      .CLUSTER_NAME, "Cluster100");
     properties.put(RequestScheduleResourceProvider
-      .REQUEST_SCHEDULE_DESC_PROPERTY_ID, "some description");
+      .DESCRIPTION, "some description");
     properties.put(RequestScheduleResourceProvider
-      .SCHEDULE_DAY_OF_WEEK_PROPERTY_ID, "MON");
+      .DAY_OF_WEEK, "MON");
     properties.put(RequestScheduleResourceProvider
-      .SCHEDULE_MINUTES_PROPERTY_ID, "2");
+      .MINUTES, "2");
     properties.put(RequestScheduleResourceProvider
-      .SCHEDULE_END_TIME_PROPERTY_ID, "2013-11-18T14:29:29-08:00");
+      .END_TIME, "2013-11-18T14:29:29-08:00");
     properties.put(RequestScheduleResourceProvider
-      .SCHEDULE_DAYS_OF_MONTH_PROPERTY_ID, "*");
+      .DAYS_OF_MONTH, "*");
 
-    HashSet<Map<String, Object>> batch = new HashSet<Map<String, Object>>();
-    Map<String, Object> batchSettings = new HashMap<String, Object>();
+    HashSet<Map<String, Object>> batch = new HashSet<>();
+    Map<String, Object> batchSettings = new HashMap<>();
     batchSettings.put(RequestScheduleResourceProvider
-      .REQUEST_SCHEDULE_BATCH_SEPARATION_PROPERTY_ID, "15");
+      .BATCH_SEPARATION_IN_SECONDS, "15");
 
-    Map<String, Object> batchRequests = new HashMap<String, Object>();
-    HashSet<Map<String, Object>> requestSet = new HashSet<Map<String, Object>>();
+    Map<String, Object> batchRequests = new HashMap<>();
+    HashSet<Map<String, Object>> requestSet = new HashSet<>();
 
-    Map<String, Object> request1 = new HashMap<String, Object>();
-    Map<String, Object> request2 = new HashMap<String, Object>();
+    Map<String, Object> request1 = new HashMap<>();
+    Map<String, Object> request2 = new HashMap<>();
 
     request1.put(RequestScheduleResourceProvider
-      .BATCH_REQUEST_TYPE_PROPERTY_ID, BatchRequest.Type.PUT.name());
+      .TYPE, BatchRequest.Type.PUT.name());
     request1.put(RequestScheduleResourceProvider
-      .BATCH_REQUEST_ORDER_ID_PROPERTY_ID, "20");
+      .ORDER_ID, "20");
     request1.put(RequestScheduleResourceProvider
-      .BATCH_REQUEST_URI_PROPERTY_ID, "SomeUpdateUri");
+      .URI, "SomeUpdateUri");
     request1.put(RequestScheduleResourceProvider
-      .BATCH_REQUEST_BODY_PROPERTY_ID, "data1");
+      .BODY, "data1");
 
     request2.put(RequestScheduleResourceProvider
-      .BATCH_REQUEST_TYPE_PROPERTY_ID, BatchRequest.Type.DELETE.name());
+      .TYPE, BatchRequest.Type.DELETE.name());
     request2.put(RequestScheduleResourceProvider
-      .BATCH_REQUEST_ORDER_ID_PROPERTY_ID, "22");
+      .ORDER_ID, "22");
     request2.put(RequestScheduleResourceProvider
-      .BATCH_REQUEST_URI_PROPERTY_ID, "SomeDeleteUri");
+      .URI, "SomeDeleteUri");
 
     requestSet.add(request1);
     requestSet.add(request2);
 
     batchRequests.put(RequestScheduleResourceProvider
-      .REQUEST_SCHEDULE_BATCH_REQUESTS_PROPERTY_ID, requestSet);
+      .REQUESTS, requestSet);
 
     batch.add(batchSettings);
     batch.add(batchRequests);
 
     properties.put(RequestScheduleResourceProvider
-      .REQUEST_SCHEDULE_BATCH_PROPERTY_ID, batch);
+      .BATCH, batch);
 
-    Map<String, String> mapRequestProps = new HashMap<String, String>();
+    Map<String, String> mapRequestProps = new HashMap<>();
     mapRequestProps.put("context", "Called from a test");
 
     Request request = PropertyHelper.getUpdateRequest(properties, mapRequestProps);
     Predicate predicate = new PredicateBuilder().property
-      (RequestScheduleResourceProvider.REQUEST_SCHEDULE_CLUSTER_NAME_PROPERTY_ID)
+      (RequestScheduleResourceProvider.CLUSTER_NAME)
       .equals("Cluster100").and().property(RequestScheduleResourceProvider
-        .REQUEST_SCHEDULE_ID_PROPERTY_ID).equals(25L).toPredicate();
+        .ID).equals(25L).toPredicate();
 
     resourceProvider.updateResources(request, predicate);
 
@@ -323,8 +322,7 @@ public class RequestScheduleResourceProviderTest {
     expect(cluster.getAllRequestExecutions()).andStubAnswer(new IAnswer<Map<Long, RequestExecution>>() {
       @Override
       public Map<Long, RequestExecution> answer() throws Throwable {
-        Map<Long, RequestExecution> requestExecutionMap = new HashMap<Long,
-          RequestExecution>();
+        Map<Long, RequestExecution> requestExecutionMap = new HashMap<>();
         requestExecutionMap.put(requestExecution.getId(), requestExecution);
         return requestExecutionMap;
       }
@@ -336,44 +334,44 @@ public class RequestScheduleResourceProviderTest {
     RequestScheduleResourceProvider resourceProvider = getResourceProvider
       (managementController);
 
-    Map<String, Object> properties = new LinkedHashMap<String, Object>();
+    Map<String, Object> properties = new LinkedHashMap<>();
 
     properties.put(RequestScheduleResourceProvider
-      .REQUEST_SCHEDULE_CLUSTER_NAME_PROPERTY_ID, "Cluster100");
+      .CLUSTER_NAME, "Cluster100");
     properties.put(RequestScheduleResourceProvider
-      .REQUEST_SCHEDULE_DESC_PROPERTY_ID, "some description");
+      .DESCRIPTION, "some description");
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
     propertyIds.add(RequestScheduleResourceProvider
-      .REQUEST_SCHEDULE_CLUSTER_NAME_PROPERTY_ID);
+      .CLUSTER_NAME);
     propertyIds.add(RequestScheduleResourceProvider
-      .REQUEST_SCHEDULE_ID_PROPERTY_ID);
+      .ID);
 
     Request request = PropertyHelper.getReadRequest(propertyIds);
 
     // Read by id
     Predicate predicate = new PredicateBuilder().property
-      (RequestScheduleResourceProvider.REQUEST_SCHEDULE_CLUSTER_NAME_PROPERTY_ID)
+      (RequestScheduleResourceProvider.CLUSTER_NAME)
       .equals("Cluster100").and().property(RequestScheduleResourceProvider
-        .REQUEST_SCHEDULE_ID_PROPERTY_ID).equals(25L).toPredicate();
+        .ID).equals(25L).toPredicate();
 
     Set<Resource> resources = resourceProvider.getResources(request,
       predicate);
 
     Assert.assertEquals(1, resources.size());
     Assert.assertEquals(25L, resources.iterator().next().getPropertyValue
-      (RequestScheduleResourceProvider.REQUEST_SCHEDULE_ID_PROPERTY_ID));
+      (RequestScheduleResourceProvider.ID));
 
     // Read all
     predicate = new PredicateBuilder().property
-      (RequestScheduleResourceProvider.REQUEST_SCHEDULE_CLUSTER_NAME_PROPERTY_ID)
+      (RequestScheduleResourceProvider.CLUSTER_NAME)
       .equals("Cluster100").toPredicate();
 
     resources = resourceProvider.getResources(request, predicate);
 
     Assert.assertEquals(1, resources.size());
     Assert.assertEquals(25L, resources.iterator().next().getPropertyValue
-      (RequestScheduleResourceProvider.REQUEST_SCHEDULE_ID_PROPERTY_ID));
+      (RequestScheduleResourceProvider.ID));
 
     verify(managementController, clusters, cluster, requestExecution,
       response, requestScheduleResponse);
@@ -388,8 +386,7 @@ public class RequestScheduleResourceProviderTest {
     ExecutionScheduleManager executionScheduleManager = createNiceMock
       (ExecutionScheduleManager.class);
 
-    Map<Long, RequestExecution> requestExecutionMap = new HashMap<Long,
-      RequestExecution>();
+    Map<Long, RequestExecution> requestExecutionMap = new HashMap<>();
     requestExecutionMap.put(1L, requestExecution);
 
     expect(managementController.getAuthName()).andReturn("admin").anyTimes();
@@ -410,9 +407,9 @@ public class RequestScheduleResourceProviderTest {
     ((ObservableResourceProvider) resourceProvider).addObserver(observer);
 
     Predicate predicate = new PredicateBuilder().property
-      (RequestScheduleResourceProvider.REQUEST_SCHEDULE_CLUSTER_NAME_PROPERTY_ID)
+      (RequestScheduleResourceProvider.CLUSTER_NAME)
       .equals("Cluster100").and().property(RequestScheduleResourceProvider
-        .REQUEST_SCHEDULE_ID_PROPERTY_ID).equals(1L).toPredicate();
+        .ID).equals(1L).toPredicate();
 
     resourceProvider.deleteResources(new RequestImpl(null, null, null, null), predicate);
 

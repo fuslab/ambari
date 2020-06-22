@@ -63,11 +63,11 @@ smoke_user = 'ambari-qa'
 manage_identities = 'true'
 
 artifact_dir = format("{tmp_dir}/AMBARI-artifacts/")
-jce_policy_zip = default("/hostLevelParams/jce_name", None) # None when jdk is already installed by user
-jce_location = config['hostLevelParams']['jdk_location']
-jdk_name = default("/hostLevelParams/jdk_name", None)
-java_home = config['hostLevelParams']['java_home']
-java_version = expect("/hostLevelParams/java_version", int)
+jce_policy_zip = default("/ambariLevelParams/jce_name", None) # None when jdk is already installed by user
+jce_location = config['ambariLevelParams']['jdk_location']
+jdk_name = default("/ambariLevelParams/jdk_name", None)
+java_home = config['ambariLevelParams']['java_home']
+java_version = expect("/ambariLevelParams/java_version", int)
 
 security_enabled = config['configurations']['cluster-env']['security_enabled']
 
@@ -112,6 +112,7 @@ if config is not None:
     test_keytab_file = None
     encryption_types = None
     manage_krb5_conf = "true"
+    force_tcp = "false"
     krb5_conf_template = None
 
     krb5_conf_data = get_property_value(configurations, 'krb5-conf')
@@ -145,6 +146,7 @@ if config is not None:
       krb5_conf_path = krb5_conf_dir + '/' + krb5_conf_file
 
       manage_krb5_conf = get_property_value(krb5_conf_data, 'manage_krb5_conf', "true")
+      force_tcp = get_property_value(krb5_conf_data, 'force_tcp', "false")
 
     # For backward compatibility, ensure that kdc_host exists. This may be needed if the krb5.conf
     # template in krb5-conf/content had not be updated during the Ambari upgrade to 2.4.0 - which

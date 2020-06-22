@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -139,7 +139,7 @@ public class AlertDefinitionFactory {
       IOUtils.closeQuietly(reader);
     }
 
-    Set<AlertDefinition> definitions = new HashSet<AlertDefinition>();
+    Set<AlertDefinition> definitions = new HashSet<>();
 
     // it's OK if the service doesn't have any definitions; this can happen if
     // 2 services are defined in a single metainfo.xml and only 1 service has
@@ -190,6 +190,8 @@ public class AlertDefinitionFactory {
     definition.setHelpURL(entity.getHelpURL());
     definition.setDescription(entity.getDescription());
     definition.setUuid(entity.getHash());
+    definition.setRepeatTolerance(entity.getRepeatTolerance());
+    definition.setRepeatToleranceEnabled(entity.isRepeatToleranceEnabled());
 
     try{
       String sourceJson = entity.getSource();

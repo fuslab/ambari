@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -47,6 +47,7 @@ import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.spi.ResourceAlreadyExistsException;
 import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
+import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.apache.ambari.server.security.authorization.AuthorizationException;
 import org.apache.ambari.server.security.authorization.AuthorizationHelper;
 import org.apache.ambari.server.security.authorization.ResourceType;
@@ -60,10 +61,14 @@ import org.apache.ambari.server.state.ServiceComponentFactory;
 import org.apache.ambari.server.state.ServiceComponentHost;
 import org.apache.ambari.server.state.StackId;
 import org.apache.ambari.server.state.State;
+import org.apache.ambari.server.topology.STOMPComponentsDeleteHandler;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.Validate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Sets;
+import com.google.inject.Inject;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 import com.google.inject.persist.Transactional;
@@ -73,33 +78,58 @@ import com.google.inject.persist.Transactional;
  */
 public class ComponentResourceProvider extends AbstractControllerResourceProvider {
 
-  // ----- Property ID constants ---------------------------------------------
+  private static final Logger LOG = LoggerFactory.getLogger(ComponentResourceProvider.class);
+
+  public static final String SERVICE_COMPONENT_INFO = "ServiceComponentInfo";
+
+  public static final String CLUSTER_NAME_PROPERTY_ID = "cluster_name";
+  public static final String SERVICE_NAME_PROPERTY_ID = "service_name";
+  public static final String COMPONENT_NAME_PROPERTY_ID  = "component_name";
+  public static final String DISPLAY_NAME_PROPERTY_ID = "display_name";
+  public static final String STATE_PROPERTY_ID = "state";
+  public static final String CATEGORY_PROPERTY_ID = "category";
+  public static final String TOTAL_COUNT_PROPERTY_ID = "total_count";
+  public static final String STARTED_COUNT_PROPERTY_ID = "started_count";
+  public static final String INSTALLED_COUNT_PROPERTY_ID = "installed_count";
+  public static final String INSTALLED_AND_MAINTENANCE_OFF_COUNT_PROPERTY_ID = "installed_and_maintenance_off_count";
+  public static final String INIT_COUNT_PROPERTY_ID = "init_count";
+  public static final String UNKNOWN_COUNT_PROPERTY_ID = "unknown_count";
+  public static final String INSTALL_FAILED_COUNT_PROPERTY_ID = "install_failed_count";
+  public static final String RECOVERY_ENABLED_PROPERTY_ID = "recovery_enabled";
+  public static final String DESIRED_STACK_PROPERTY_ID = "desired_stack";
+  public static final String DESIRED_VERSION_PROPERTY_ID = "desired_version";
+  public static final String REPOSITORY_STATE_PROPERTY_ID = "repository_state";
 
   // Components
-  protected static final String COMPONENT_CLUSTER_NAME_PROPERTY_ID    = "ServiceComponentInfo/cluster_name";
-  protected static final String COMPONENT_SERVICE_NAME_PROPERTY_ID    = "ServiceComponentInfo/service_name";
-  protected static final String COMPONENT_COMPONENT_NAME_PROPERTY_ID  = "ServiceComponentInfo/component_name";
-  protected static final String COMPONENT_DISPLAY_NAME_PROPERTY_ID    = "ServiceComponentInfo/display_name";
-  protected static final String COMPONENT_STATE_PROPERTY_ID           = "ServiceComponentInfo/state";
-  protected static final String COMPONENT_CATEGORY_PROPERTY_ID        = "ServiceComponentInfo/category";
-  protected static final String COMPONENT_TOTAL_COUNT_PROPERTY_ID     = "ServiceComponentInfo/total_count";
-  protected static final String COMPONENT_STARTED_COUNT_PROPERTY_ID   = "ServiceComponentInfo/started_count";
-  protected static final String COMPONENT_INSTALLED_COUNT_PROPERTY_ID = "ServiceComponentInfo/installed_count";
-  protected static final String COMPONENT_INIT_COUNT_PROPERTY_ID      = "ServiceComponentInfo/init_count";
-  protected static final String COMPONENT_UNKNOWN_COUNT_PROPERTY_ID   = "ServiceComponentInfo/unknown_count";
-  protected static final String COMPONENT_INSTALL_FAILED_COUNT_PROPERTY_ID = "ServiceComponentInfo/install_failed_count";
-  protected static final String COMPONENT_RECOVERY_ENABLED_ID         = "ServiceComponentInfo/recovery_enabled";
-  protected static final String COMPONENT_DESIRED_STACK               = "ServiceComponentInfo/desired_stack";
-  protected static final String COMPONENT_DESIRED_VERSION             = "ServiceComponentInfo/desired_version";
-  protected static final String COMPONENT_REPOSITORY_STATE            = "ServiceComponentInfo/repository_state";
+  public static final String CLUSTER_NAME = SERVICE_COMPONENT_INFO + PropertyHelper.EXTERNAL_PATH_SEP + CLUSTER_NAME_PROPERTY_ID;
+  public static final String SERVICE_NAME = SERVICE_COMPONENT_INFO + PropertyHelper.EXTERNAL_PATH_SEP + SERVICE_NAME_PROPERTY_ID;
+  public static final String COMPONENT_NAME = SERVICE_COMPONENT_INFO + PropertyHelper.EXTERNAL_PATH_SEP + COMPONENT_NAME_PROPERTY_ID;
+  public static final String DISPLAY_NAME = SERVICE_COMPONENT_INFO + PropertyHelper.EXTERNAL_PATH_SEP + DISPLAY_NAME_PROPERTY_ID;
+  public static final String STATE = SERVICE_COMPONENT_INFO + PropertyHelper.EXTERNAL_PATH_SEP + STATE_PROPERTY_ID;
+  public static final String CATEGORY = SERVICE_COMPONENT_INFO + PropertyHelper.EXTERNAL_PATH_SEP + CATEGORY_PROPERTY_ID;
+  public static final String TOTAL_COUNT = SERVICE_COMPONENT_INFO + PropertyHelper.EXTERNAL_PATH_SEP + TOTAL_COUNT_PROPERTY_ID;
+  public static final String STARTED_COUNT = SERVICE_COMPONENT_INFO + PropertyHelper.EXTERNAL_PATH_SEP + STARTED_COUNT_PROPERTY_ID;
+  public static final String INSTALLED_COUNT = SERVICE_COMPONENT_INFO + PropertyHelper.EXTERNAL_PATH_SEP + INSTALLED_COUNT_PROPERTY_ID;
+  public static final String INSTALLED_AND_MAINTENANCE_OFF_COUNT =
+          SERVICE_COMPONENT_INFO + PropertyHelper.EXTERNAL_PATH_SEP + INSTALLED_AND_MAINTENANCE_OFF_COUNT_PROPERTY_ID;
+  public static final String INIT_COUNT = SERVICE_COMPONENT_INFO + PropertyHelper.EXTERNAL_PATH_SEP + INIT_COUNT_PROPERTY_ID;
+  public static final String UNKNOWN_COUNT = SERVICE_COMPONENT_INFO + PropertyHelper.EXTERNAL_PATH_SEP + UNKNOWN_COUNT_PROPERTY_ID;
+  public static final String INSTALL_FAILED_COUNT = SERVICE_COMPONENT_INFO + PropertyHelper.EXTERNAL_PATH_SEP + INSTALL_FAILED_COUNT_PROPERTY_ID;
+  public static final String RECOVERY_ENABLED = SERVICE_COMPONENT_INFO + PropertyHelper.EXTERNAL_PATH_SEP + RECOVERY_ENABLED_PROPERTY_ID;
+  public static final String DESIRED_STACK = SERVICE_COMPONENT_INFO + PropertyHelper.EXTERNAL_PATH_SEP + DESIRED_STACK_PROPERTY_ID;
+  public static final String DESIRED_VERSION = SERVICE_COMPONENT_INFO + PropertyHelper.EXTERNAL_PATH_SEP + DESIRED_VERSION_PROPERTY_ID;
+  public static final String REPOSITORY_STATE = SERVICE_COMPONENT_INFO + PropertyHelper.EXTERNAL_PATH_SEP + REPOSITORY_STATE_PROPERTY_ID;
 
+  
   private static final String TRUE = "true";
 
   //Parameters from the predicate
   private static final String QUERY_PARAMETERS_RUN_SMOKE_TEST_ID = "params/run_smoke_test";
 
-  private static Set<String> pkPropertyIds = Sets.newHashSet(COMPONENT_CLUSTER_NAME_PROPERTY_ID,
-      COMPONENT_SERVICE_NAME_PROPERTY_ID, COMPONENT_COMPONENT_NAME_PROPERTY_ID);
+  private static Set<String> pkPropertyIds = Sets.newHashSet(
+          CLUSTER_NAME,
+          SERVICE_NAME,
+          COMPONENT_NAME);
 
   /**
    * The property ids for an servce resource.
@@ -113,41 +143,41 @@ public class ComponentResourceProvider extends AbstractControllerResourceProvide
 
   static {
     // properties
-    PROPERTY_IDS.add(COMPONENT_CLUSTER_NAME_PROPERTY_ID);
-    PROPERTY_IDS.add(COMPONENT_SERVICE_NAME_PROPERTY_ID);
-    PROPERTY_IDS.add(COMPONENT_COMPONENT_NAME_PROPERTY_ID);
-    PROPERTY_IDS.add(COMPONENT_DISPLAY_NAME_PROPERTY_ID);
-    PROPERTY_IDS.add(COMPONENT_STATE_PROPERTY_ID);
-    PROPERTY_IDS.add(COMPONENT_CATEGORY_PROPERTY_ID);
-    PROPERTY_IDS.add(COMPONENT_TOTAL_COUNT_PROPERTY_ID);
-    PROPERTY_IDS.add(COMPONENT_STARTED_COUNT_PROPERTY_ID);
-    PROPERTY_IDS.add(COMPONENT_INSTALLED_COUNT_PROPERTY_ID);
-
-    PROPERTY_IDS.add(COMPONENT_INIT_COUNT_PROPERTY_ID);
-    PROPERTY_IDS.add(COMPONENT_UNKNOWN_COUNT_PROPERTY_ID);
-    PROPERTY_IDS.add(COMPONENT_INSTALL_FAILED_COUNT_PROPERTY_ID);
-    PROPERTY_IDS.add(COMPONENT_RECOVERY_ENABLED_ID);
-    PROPERTY_IDS.add(COMPONENT_DESIRED_STACK);
-    PROPERTY_IDS.add(COMPONENT_DESIRED_VERSION);
-    PROPERTY_IDS.add(COMPONENT_REPOSITORY_STATE);
-
+    PROPERTY_IDS.add(CLUSTER_NAME);
+    PROPERTY_IDS.add(SERVICE_NAME);
+    PROPERTY_IDS.add(COMPONENT_NAME);
+    PROPERTY_IDS.add(DISPLAY_NAME);
+    PROPERTY_IDS.add(STATE);
+    PROPERTY_IDS.add(CATEGORY);
+    PROPERTY_IDS.add(TOTAL_COUNT);
+    PROPERTY_IDS.add(STARTED_COUNT);
+    PROPERTY_IDS.add(INSTALLED_COUNT);
+    PROPERTY_IDS.add(INSTALLED_AND_MAINTENANCE_OFF_COUNT);
+    PROPERTY_IDS.add(INIT_COUNT);
+    PROPERTY_IDS.add(UNKNOWN_COUNT);
+    PROPERTY_IDS.add(INSTALL_FAILED_COUNT);
+    PROPERTY_IDS.add(RECOVERY_ENABLED);
+    PROPERTY_IDS.add(DESIRED_STACK);
+    PROPERTY_IDS.add(DESIRED_VERSION);
+    PROPERTY_IDS.add(REPOSITORY_STATE);
     PROPERTY_IDS.add(QUERY_PARAMETERS_RUN_SMOKE_TEST_ID);
 
     // keys
-    KEY_PROPERTY_IDS.put(Resource.Type.Component, COMPONENT_COMPONENT_NAME_PROPERTY_ID);
-    KEY_PROPERTY_IDS.put(Resource.Type.Service, COMPONENT_SERVICE_NAME_PROPERTY_ID);
-    KEY_PROPERTY_IDS.put(Resource.Type.Cluster, COMPONENT_CLUSTER_NAME_PROPERTY_ID);
+    KEY_PROPERTY_IDS.put(Resource.Type.Component, COMPONENT_NAME);
+    KEY_PROPERTY_IDS.put(Resource.Type.Service, SERVICE_NAME);
+    KEY_PROPERTY_IDS.put(Resource.Type.Cluster, CLUSTER_NAME);
   }
 
   private MaintenanceStateHelper maintenanceStateHelper;
+
+  @Inject
+  private STOMPComponentsDeleteHandler STOMPComponentsDeleteHandler;
 
   // ----- Constructors ----------------------------------------------------
 
   /**
    * Create a new resource provider for the given management controller.
    *
-   * @param propertyIds           the property ids
-   * @param keyPropertyIds        the key property ids
    * @param managementController  the management controller
    */
   @AssistedInject
@@ -211,22 +241,24 @@ public class ComponentResourceProvider extends AbstractControllerResourceProvide
 
     for (ServiceComponentResponse response : responses) {
       Resource resource = new ResourceImpl(Resource.Type.Component);
-      setResourceProperty(resource, COMPONENT_CLUSTER_NAME_PROPERTY_ID, response.getClusterName(), requestedIds);
-      setResourceProperty(resource, COMPONENT_SERVICE_NAME_PROPERTY_ID, response.getServiceName(), requestedIds);
-      setResourceProperty(resource, COMPONENT_COMPONENT_NAME_PROPERTY_ID, response.getComponentName(), requestedIds);
-      setResourceProperty(resource, COMPONENT_DISPLAY_NAME_PROPERTY_ID, response.getDisplayName(), requestedIds);
-      setResourceProperty(resource, COMPONENT_STATE_PROPERTY_ID, response.getDesiredState(), requestedIds);
-      setResourceProperty(resource, COMPONENT_CATEGORY_PROPERTY_ID, response.getCategory(), requestedIds);
-      setResourceProperty(resource, COMPONENT_TOTAL_COUNT_PROPERTY_ID, response.getServiceComponentStateCount().get("totalCount"), requestedIds);
-      setResourceProperty(resource, COMPONENT_STARTED_COUNT_PROPERTY_ID, response.getServiceComponentStateCount().get("startedCount"), requestedIds);
-      setResourceProperty(resource, COMPONENT_INSTALLED_COUNT_PROPERTY_ID, response.getServiceComponentStateCount().get("installedCount"), requestedIds);
-      setResourceProperty(resource, COMPONENT_INSTALL_FAILED_COUNT_PROPERTY_ID, response.getServiceComponentStateCount().get("installFailedCount"), requestedIds);
-      setResourceProperty(resource, COMPONENT_INIT_COUNT_PROPERTY_ID, response.getServiceComponentStateCount().get("initCount"), requestedIds);
-      setResourceProperty(resource, COMPONENT_UNKNOWN_COUNT_PROPERTY_ID, response.getServiceComponentStateCount().get("unknownCount"), requestedIds);
-      setResourceProperty(resource, COMPONENT_RECOVERY_ENABLED_ID, String.valueOf(response.isRecoveryEnabled()), requestedIds);
-      setResourceProperty(resource, COMPONENT_DESIRED_STACK, response.getDesiredStackId(), requestedIds);
-      setResourceProperty(resource, COMPONENT_DESIRED_VERSION, response.getDesiredVersion(), requestedIds);
-      setResourceProperty(resource, COMPONENT_REPOSITORY_STATE, response.getRepositoryState(), requestedIds);
+      setResourceProperty(resource, CLUSTER_NAME, response.getClusterName(), requestedIds);
+      setResourceProperty(resource, SERVICE_NAME, response.getServiceName(), requestedIds);
+      setResourceProperty(resource, COMPONENT_NAME, response.getComponentName(), requestedIds);
+      setResourceProperty(resource, DISPLAY_NAME, response.getDisplayName(), requestedIds);
+      setResourceProperty(resource, STATE, response.getDesiredState(), requestedIds);
+      setResourceProperty(resource, CATEGORY, response.getCategory(), requestedIds);
+      setResourceProperty(resource, TOTAL_COUNT, response.getServiceComponentStateCount().get("totalCount"), requestedIds);
+      setResourceProperty(resource, STARTED_COUNT, response.getServiceComponentStateCount().get("startedCount"), requestedIds);
+      setResourceProperty(resource, INSTALLED_COUNT, response.getServiceComponentStateCount().get("installedCount"), requestedIds);
+      setResourceProperty(resource, INSTALLED_AND_MAINTENANCE_OFF_COUNT, response.getServiceComponentStateCount().get("installedAndMaintenanceOffCount"), requestedIds);
+      setResourceProperty(resource, INSTALL_FAILED_COUNT, response.getServiceComponentStateCount().get("installFailedCount"), requestedIds);
+      setResourceProperty(resource, INIT_COUNT, response.getServiceComponentStateCount().get("initCount"), requestedIds);
+      setResourceProperty(resource, UNKNOWN_COUNT, response.getServiceComponentStateCount().get("unknownCount"), requestedIds);
+      setResourceProperty(resource, RECOVERY_ENABLED, String.valueOf(response.isRecoveryEnabled()), requestedIds);
+      setResourceProperty(resource, DESIRED_STACK, response.getDesiredStackId(), requestedIds);
+      setResourceProperty(resource, DESIRED_VERSION, response.getDesiredVersion(), requestedIds);
+      setResourceProperty(resource, REPOSITORY_STATE, response.getRepositoryState(), requestedIds);
+
       resources.add(resource);
     }
     return resources;
@@ -295,12 +327,12 @@ public class ComponentResourceProvider extends AbstractControllerResourceProvide
    */
   private ServiceComponentRequest getRequest(Map<String, Object> properties) {
     return new ServiceComponentRequest(
-        (String) properties.get(COMPONENT_CLUSTER_NAME_PROPERTY_ID),
-        (String) properties.get(COMPONENT_SERVICE_NAME_PROPERTY_ID),
-        (String) properties.get(COMPONENT_COMPONENT_NAME_PROPERTY_ID),
-        (String) properties.get(COMPONENT_STATE_PROPERTY_ID),
-        (String) properties.get(COMPONENT_RECOVERY_ENABLED_ID),
-        (String) properties.get(COMPONENT_CATEGORY_PROPERTY_ID));
+        (String) properties.get(CLUSTER_NAME),
+        (String) properties.get(SERVICE_NAME),
+        (String) properties.get(COMPONENT_NAME),
+        (String) properties.get(STATE),
+        (String) properties.get(RECOVERY_ENABLED),
+        (String) properties.get(CATEGORY));
   }
 
   // Create the components for the given requests.
@@ -330,11 +362,12 @@ public class ComponentResourceProvider extends AbstractControllerResourceProvide
       debug("Received a createComponent request: {}", request);
 
       if (!componentNames.containsKey(request.getClusterName())) {
-        componentNames.put(request.getClusterName(), new HashMap<String, Set<String>>());
+        componentNames.put(request.getClusterName(), new HashMap<>());
       }
+
       Map<String, Set<String>> serviceComponents = componentNames.get(request.getClusterName());
       if (!serviceComponents.containsKey(request.getServiceName())) {
-        serviceComponents.put(request.getServiceName(), new HashSet<String>());
+        serviceComponents.put(request.getServiceName(), new HashSet<>());
       }
 
       if (serviceComponents.get(request.getServiceName()).contains(request.getComponentName())) {
@@ -367,7 +400,7 @@ public class ComponentResourceProvider extends AbstractControllerResourceProvide
           stackId.getStackVersion(), s.getName(), request.getComponentName())) {
         throw new IllegalArgumentException("Unsupported or invalid component"
             + " in stack stackInfo=" + stackId.getStackId()
-            + " request=" + request.toString());
+            + " request=" + request);
       }
     }
 
@@ -396,7 +429,7 @@ public class ComponentResourceProvider extends AbstractControllerResourceProvide
         sc.setDesiredState(s.getDesiredState());
       }
 
-      /**
+      /*
        * If request does not have recovery_enabled field,
        * then get the default from the stack definition.
        */
@@ -410,7 +443,7 @@ public class ComponentResourceProvider extends AbstractControllerResourceProvide
                 stackId.getStackVersion(), s.getName(), request.getComponentName());
         if (componentInfo == null) {
             throw new AmbariException("Could not get component information from stack definition: Stack=" +
-                stackId.toString() + ", Service=" + s.getName() + ", Component=" + request.getComponentName());
+              stackId + ", Service=" + s.getName() + ", Component=" + request.getComponentName());
         }
         sc.setRecoveryEnabled(componentInfo.isRecoveryEnabled());
         LOG.info("Component: {}, recovery_enabled from stack definition:{}", componentInfo.getName(),
@@ -438,6 +471,7 @@ public class ComponentResourceProvider extends AbstractControllerResourceProvide
     return response;
   }
 
+  // Get the components for the given request.
   private Set<ServiceComponentResponse> getComponents(ServiceComponentRequest request) throws AmbariException {
 
     final AmbariMetaInfo ambariMetaInfo = getManagementController().getAmbariMetaInfo();
@@ -565,10 +599,10 @@ public class ComponentResourceProvider extends AbstractControllerResourceProvide
       Validate.isTrue(clusterNames.size() == 1, "Updates to multiple clusters is not supported");
 
       if (!componentNames.containsKey(clusterName)) {
-        componentNames.put(clusterName, new HashMap<String, Set<String>>());
+        componentNames.put(clusterName, new HashMap<>());
       }
       if (!componentNames.get(clusterName).containsKey(serviceName)) {
-        componentNames.get(clusterName).put(serviceName, new HashSet<String>());
+        componentNames.get(clusterName).put(serviceName, new HashSet<>());
       }
       if (componentNames.get(clusterName).get(serviceName).contains(componentName)){
         // throw error later for dup
@@ -639,7 +673,7 @@ public class ComponentResourceProvider extends AbstractControllerResourceProvide
         }
 
         if (!changedComps.containsKey(newState)) {
-          changedComps.put(newState, new ArrayList<ServiceComponent>());
+          changedComps.put(newState, new ArrayList<>());
         }
         debug("Handling update to ServiceComponent"
               + ", clusterName=" + clusterName
@@ -706,10 +740,10 @@ public class ComponentResourceProvider extends AbstractControllerResourceProvide
               + ", newDesiredState=" + newState);
         }
         if (!changedScHosts.containsKey(sc.getName())) {
-          changedScHosts.put(sc.getName(), new HashMap<State, List<ServiceComponentHost>>());
+          changedScHosts.put(sc.getName(), new HashMap<>());
         }
         if (!changedScHosts.get(sc.getName()).containsKey(newState)) {
-          changedScHosts.get(sc.getName()).put(newState, new ArrayList<ServiceComponentHost>());
+          changedScHosts.get(sc.getName()).put(newState, new ArrayList<>());
         }
 
         debug("Handling update to ServiceComponentHost"
@@ -749,6 +783,7 @@ public class ComponentResourceProvider extends AbstractControllerResourceProvide
   protected RequestStatusResponse deleteComponents(Set<ServiceComponentRequest> requests) throws AmbariException, AuthorizationException {
     Clusters clusters = getManagementController().getClusters();
     AmbariMetaInfo ambariMetaInfo = getManagementController().getAmbariMetaInfo();
+    DeleteHostComponentStatusMetaData deleteMetaData = new DeleteHostComponentStatusMetaData();
 
     for (ServiceComponentRequest request : requests) {
       Validate.notEmpty(request.getComponentName(), "component name should be non-empty");
@@ -761,28 +796,32 @@ public class ComponentResourceProvider extends AbstractControllerResourceProvide
       ServiceComponent sc = s.getServiceComponent(request.getComponentName());
 
       if (sc != null) {
-        deleteHostComponentsForServiceComponent(sc, request);
+        deleteHostComponentsForServiceComponent(sc, request, deleteMetaData);
+        STOMPComponentsDeleteHandler.processDeleteByMetaDataException(deleteMetaData);
         sc.setDesiredState(State.DISABLED);
-        s.deleteServiceComponent(request.getComponentName());
+        s.deleteServiceComponent(request.getComponentName(), deleteMetaData);
+        STOMPComponentsDeleteHandler.processDeleteByMetaDataException(deleteMetaData);
       }
     }
+    STOMPComponentsDeleteHandler.processDeleteByMetaData(deleteMetaData);
     return null;
   }
 
-  private void deleteHostComponentsForServiceComponent(ServiceComponent sc, ServiceComponentRequest request) throws AmbariException {
+  private void deleteHostComponentsForServiceComponent(ServiceComponent sc, ServiceComponentRequest request,
+                                                       DeleteHostComponentStatusMetaData deleteMetaData) throws AmbariException {
     for (ServiceComponentHost sch : sc.getServiceComponentHosts().values()) {
       if (!sch.getDesiredState().isRemovableState()) {
-        throw new AmbariException("Found non removable host component when trying to delete service component." +
+        deleteMetaData.setAmbariException(new AmbariException("Found non removable host component when trying to delete service component." +
             " To remove host component, it must be in DISABLED/INIT/INSTALLED/INSTALL_FAILED/UNKNOWN" +
             "/UNINSTALLED/INSTALLING state."
             + ", request=" + request.toString()
-            + ", current state=" + sc.getDesiredState() + ".");
-
+            + ", current state=" + sc.getDesiredState() + "."));
+        return;
       }
     }
 
     for (ServiceComponentHost sch : sc.getServiceComponentHosts().values()) {
-      sch.delete();
+      sch.delete(deleteMetaData);
     }
   }
   private Cluster getClusterForRequest(final ServiceComponentRequest request, final Clusters clusters) throws AmbariException {
@@ -827,17 +866,17 @@ public class ComponentResourceProvider extends AbstractControllerResourceProvide
                                       final Cluster cluster,
                                       final AmbariMetaInfo ambariMetaInfo) throws AmbariException {
     if (StringUtils.isEmpty(request.getServiceName())) {
-      StackId stackId = cluster.getDesiredStackVersion();
+
       String componentName = request.getComponentName();
-      String serviceName = ambariMetaInfo.getComponentToService(stackId.getStackName(),
-              stackId.getStackVersion(), componentName);
+
+      String serviceName = getManagementController().findServiceName(cluster, componentName);
+
       debug("Looking up service name for component, componentName={}, serviceName={}", componentName, serviceName);
 
       if (StringUtils.isEmpty(serviceName)) {
         throw new AmbariException("Could not find service for component"
                 + ", componentName=" + request.getComponentName()
-                + ", clusterName=" + cluster.getClusterName()
-                + ", stackInfo=" + stackId.getStackId());
+                + ", clusterName=" + cluster.getClusterName());
       }
       request.setServiceName(serviceName);
     }

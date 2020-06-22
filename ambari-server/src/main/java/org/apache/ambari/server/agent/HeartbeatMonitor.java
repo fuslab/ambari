@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -40,6 +40,8 @@ import org.apache.ambari.server.actionmanager.ActionManager;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
 import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.controller.AmbariManagementController;
+import org.apache.ambari.server.events.MessageNotDelivered;
+import org.apache.ambari.server.events.publishers.AmbariEventPublisher;
 import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.Clusters;
 import org.apache.ambari.server.state.CommandScriptDefinition;
@@ -58,18 +60,18 @@ import org.apache.ambari.server.state.StackInfo;
 import org.apache.ambari.server.state.State;
 import org.apache.ambari.server.state.fsm.InvalidStateTransitionException;
 import org.apache.ambari.server.state.host.HostHeartbeatLostEvent;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import com.google.common.eventbus.Subscribe;
 import com.google.inject.Injector;
 
 /**
  * Monitors the node state and heartbeats.
  */
 public class HeartbeatMonitor implements Runnable {
-  private static Log LOG = LogFactory.getLog(HeartbeatMonitor.class);
+  private static final Logger LOG = LoggerFactory.getLogger(HeartbeatMonitor.class);
   private Clusters clusters;
-  private ActionQueue actionQueue;
   private ActionManager actionManager;
   private final int threadWakeupInterval; //1 minute
   private volatile boolean shouldRun = true;
@@ -79,11 +81,11 @@ public class HeartbeatMonitor implements Runnable {
   private final AmbariManagementController ambariManagementController;
   private final Configuration configuration;
   private final AgentRequests agentRequests;
+  private final AmbariEventPublisher ambariEventPublisher;
 
-  public HeartbeatMonitor(Clusters clusters, ActionQueue aq, ActionManager am,
+  public HeartbeatMonitor(Clusters clusters, ActionManager am,
                           int threadWakeupInterval, Injector injector) {
     this.clusters = clusters;
-    actionQueue = aq;
     actionManager = am;
     this.threadWakeupInterval = threadWakeupInterval;
     configHelper = injector.getInstance(ConfigHelper.class);
@@ -92,6 +94,8 @@ public class HeartbeatMonitor implements Runnable {
             AmbariManagementController.class);
     configuration = injector.getInstance(Configuration.class);
     agentRequests = new AgentRequests();
+    ambariEventPublisher = injector.getInstance(AmbariEventPublisher.class);
+    ambariEventPublisher.register(this);
   }
 
   public void shutdown() {
@@ -120,8 +124,7 @@ public class HeartbeatMonitor implements Runnable {
     while (shouldRun) {
       try {
         doWork();
-        LOG.trace("Putting monitor to sleep for " + threadWakeupInterval + " " +
-          "milliseconds");
+        LOG.trace("Putting monitor to sleep for {} milliseconds", threadWakeupInterval);
         Thread.sleep(threadWakeupInterval);
       } catch (InterruptedException ex) {
         LOG.warn("Scheduler thread is interrupted going to stop", ex);
@@ -145,42 +148,17 @@ public class HeartbeatMonitor implements Runnable {
         //do not check if host already known be lost
         continue;
       }
-      String host = hostObj.getHostName();
+      Long hostId = hostObj.getHostId();
       HostState hostState = hostObj.getState();
-      String hostname = hostObj.getHostName();
 
       long lastHeartbeat = 0;
       try {
-        lastHeartbeat = clusters.getHost(host).getLastHeartbeatTime();
+        lastHeartbeat = clusters.getHostById(hostId).getLastHeartbeatTime();
       } catch (AmbariException e) {
         LOG.warn("Exception in getting host object; Is it fatal?", e);
       }
       if (lastHeartbeat + 2 * threadWakeupInterval < now) {
-        LOG.warn("Heartbeat lost from host " + host);
-        //Heartbeat is expired
-        hostObj.handleEvent(new HostHeartbeatLostEvent(host));
-
-        // mark all components that are not clients with unknown status
-        for (Cluster cluster : clusters.getClustersForHost(hostObj.getHostName())) {
-          for (ServiceComponentHost sch : cluster.getServiceComponentHosts(hostObj.getHostName())) {
-            Service s = cluster.getService(sch.getServiceName());
-            ServiceComponent sc = s.getServiceComponent(sch.getServiceComponentName());
-            if (!sc.isClientComponent() &&
-              !sch.getState().equals(State.INIT) &&
-              !sch.getState().equals(State.INSTALLING) &&
-              !sch.getState().equals(State.INSTALL_FAILED) &&
-              !sch.getState().equals(State.UNINSTALLED) &&
-              !sch.getState().equals(State.DISABLED)) {
-              LOG.warn("Setting component state to UNKNOWN for component " + sc.getName() + " on " + host);
-              sch.setState(State.UNKNOWN);
-            }
-          }
-        }
-
-        //Purge action queue
-        actionQueue.dequeueAll(host);
-        //notify action manager
-        actionManager.handleLostHost(host);
+        handleHeartbeatLost(hostId);
       }
       if (hostState == HostState.WAITING_FOR_HOST_STATUS_UPDATES) {
         long timeSpentInState = hostObj.getTimeInState();
@@ -188,18 +166,6 @@ public class HeartbeatMonitor implements Runnable {
           //Go back to init, the agent will be asked to register again in the next heartbeat
           LOG.warn("timeSpentInState + 5*threadWakeupInterval < now, Go back to init");
           hostObj.setState(HostState.INIT);
-        }
-      }
-
-      // Get status of service components
-      List<StatusCommand> cmds = generateStatusCommands(hostname);
-      LOG.trace("Generated " + cmds.size() + " status commands for host: " +
-        hostname);
-      if (cmds.isEmpty()) {
-        // Nothing to do
-      } else {
-        for (StatusCommand command : cmds) {
-          actionQueue.enqueue(hostname, command);
         }
       }
     }
@@ -240,7 +206,9 @@ public class HeartbeatMonitor implements Runnable {
       ServiceComponentHost sch, Map<String, DesiredConfig> desiredConfigs) throws AmbariException {
     String serviceName = sch.getServiceName();
     String componentName = sch.getServiceComponentName();
-    StackId stackId = cluster.getDesiredStackVersion();
+
+    StackId stackId = sch.getDesiredStackId();
+
     ServiceInfo serviceInfo = ambariMetaInfo.getService(stackId.getStackName(),
         stackId.getStackVersion(), serviceName);
     ComponentInfo componentInfo = ambariMetaInfo.getComponent(
@@ -340,7 +308,7 @@ public class HeartbeatMonitor implements Runnable {
     commandParams.put(COMMAND_TIMEOUT, commandTimeout);
     commandParams.put(SERVICE_PACKAGE_FOLDER,
        serviceInfo.getServicePackageFolder());
-    commandParams.put(HOOKS_FOLDER, stackInfo.getStackHooksFolder());
+    commandParams.put(HOOKS_FOLDER, configuration.getProperty(Configuration.HOOKS_FOLDER));
     // Fill host level params
     Map<String, String> hostLevelParams = statusCmd.getHostLevelParams();
     hostLevelParams.put(JDK_LOCATION, ambariManagementController.getJdkResourceUrl());
@@ -350,9 +318,53 @@ public class HeartbeatMonitor implements Runnable {
     if (statusCmd.getPayloadLevel() == StatusCommand.StatusCommandPayload.EXECUTION_COMMAND) {
       ExecutionCommand ec = ambariManagementController.getExecutionCommand(cluster, sch, RoleCommand.START);
       statusCmd.setExecutionCommand(ec);
-      LOG.debug(componentName + " has more payload for execution command");
+      LOG.debug("{} has more payload for execution command", componentName);
     }
 
     return statusCmd;
+  }
+
+  private void handleHeartbeatLost(Long hostId) throws AmbariException, InvalidStateTransitionException {
+    Host hostObj = clusters.getHostById(hostId);
+    String host = hostObj.getHostName();
+    LOG.warn("Heartbeat lost from host " + host);
+    //Heartbeat is expired
+    hostObj.handleEvent(new HostHeartbeatLostEvent(host));
+
+    // mark all components that are not clients with unknown status
+    for (Cluster cluster : clusters.getClustersForHost(hostObj.getHostName())) {
+      for (ServiceComponentHost sch : cluster.getServiceComponentHosts(hostObj.getHostName())) {
+        Service s = cluster.getService(sch.getServiceName());
+        ServiceComponent sc = s.getServiceComponent(sch.getServiceComponentName());
+        if (!sc.isClientComponent() &&
+            !sch.getState().equals(State.INIT) &&
+            !sch.getState().equals(State.INSTALLING) &&
+            !sch.getState().equals(State.INSTALL_FAILED) &&
+            !sch.getState().equals(State.UNINSTALLED) &&
+            !sch.getState().equals(State.DISABLED)) {
+          LOG.warn("Setting component state to UNKNOWN for component " + sc.getName() + " on " + host);
+          State oldState = sch.getState();
+          sch.setState(State.UNKNOWN);
+        }
+      }
+    }
+
+    //Purge action queue
+    //notify action manager
+    actionManager.handleLostHost(host);
+  }
+
+  @Subscribe
+  public void onMessageNotDelivered(MessageNotDelivered messageNotDelivered) {
+    try {
+      Host hostObj = clusters.getHostById(messageNotDelivered.getHostId());
+      if (hostObj.getState() == HostState.HEARTBEAT_LOST) {
+        //do not check if host already known be lost
+        return;
+      }
+      handleHeartbeatLost(messageNotDelivered.getHostId());
+    } catch (Exception e) {
+      LOG.error("Error during host to heartbeat lost moving", e);
+    }
   }
 }

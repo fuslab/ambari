@@ -16,14 +16,11 @@
  */
 
 var App = require('app');
-var date = require('utils/date/date');
 var sort = require('views/common/sort_view');
 require('views/main/service/info/metrics/flume/flume_agent_metrics_section');
 
 App.MainDashboardServiceFlumeView = App.TableView.extend(App.MainDashboardServiceViewWrapper, {
   templateName: require('templates/main/service/services/flume'),
-
-  isFullWidth: true,
 
   pagination: false,
 
@@ -40,10 +37,7 @@ App.MainDashboardServiceFlumeView = App.TableView.extend(App.MainDashboardServic
       content.push(
         Em.Object.create({
           hostName: hostName,
-          agents: agents,
-          rowspan: agents.length,
-          firtstAgent: agents[0],
-          otherAgents: agents.without(agents[0])
+          agents: agents
         })
       );
     });
@@ -54,29 +48,11 @@ App.MainDashboardServiceFlumeView = App.TableView.extend(App.MainDashboardServic
     var agentCount = App.FlumeService.find().objectAt(0).get('agents.length'),
       hostCount = this.get('service.flumeHandlersTotal');
     return this.t("dashboard.services.flume.summary.title")
-      .format(hostCount, (hostCount > 1 ? "s" : ""), agentCount, (agentCount > 1 ? "s" : ""));
+      .format(hostCount, hostCount > 1 ? 's' : '', agentCount, agentCount > 1 ? 's' : '');
   }.property('service.agents', 'service.hostComponents.length'),
 
   flumeHandlerComponent: Em.Object.create({
     componentName: 'FLUME_HANDLER'
-  }),
-
-  agentView: Em.View.extend({
-    content: null,
-    tagName: 'tr',
-
-    click: function (e) {
-      var numberOfAgents = this.get('content.agents').length;
-      if ($(e.target).attr('class') == "agent-host-name" || $(e.target).attr('class') == "agent-host-link") {
-        var currentTargetRow = $(e.currentTarget);
-        if ($(e.target).attr('class') == "agent-host-link") {
-          currentTargetRow = currentTargetRow.parent(".agent-host-name").parent();
-        }
-        currentTargetRow.parents("table:first").find('tr').removeClass('highlight');
-        currentTargetRow.addClass('highlight').nextAll("tr").slice(0, numberOfAgents - 1).addClass('highlight');
-        this.get('parentView').showAgentInfo(this.get('content'));
-      }
-    }
   }),
 
   sortView: sort.wrapperView,
@@ -90,9 +66,17 @@ App.MainDashboardServiceFlumeView = App.TableView.extend(App.MainDashboardServic
   didInsertElement: function () {
     var self = this;
     this.filter();
-    this.$().on('click', '.flume-agents-actions .dropdown-toggle', function (e) {
+    this.$().on('click', '.flume-agents-actions .dropdown-toggle', function () {
       self.setDropdownPosition(this);
     });
+  },
+
+  selectHost: function (e) {
+    var host = e && e.context;
+    this.get('pageContent').setEach('isActive', false);
+    if (host) {
+      this.showAgentInfo(host);
+    }
   },
 
   /**
@@ -134,6 +118,7 @@ App.MainDashboardServiceFlumeView = App.TableView.extend(App.MainDashboardServic
    * @param {object} host
    */
   showAgentInfo: function (host) {
+    Em.set(host, 'isActive', true);
     this.set('selectedHost', host);
     this.setAgentMetrics(host);
   },

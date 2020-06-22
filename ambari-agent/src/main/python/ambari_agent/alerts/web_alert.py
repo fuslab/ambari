@@ -21,9 +21,7 @@ limitations under the License.
 import logging
 import time
 import urllib2
-import ssl
 
-from functools import wraps
 from urllib2 import HTTPError
 
 from tempfile import gettempdir
@@ -33,7 +31,7 @@ from resource_management.libraries.functions.get_port_from_url import get_port_f
 from resource_management.libraries.functions.get_path_from_url import get_path_from_url
 from resource_management.libraries.functions.curl_krb_request import curl_krb_request
 from ambari_commons import OSCheck
-from ambari_commons.inet_utils import resolve_address, ensure_ssl_using_protocol
+from ambari_commons.inet_utils import resolve_address, ensure_ssl_using_protocol, get_host_from_url
 from ambari_commons.constants import AGENT_TMP_DIR
 from ambari_agent.AmbariConfig import AmbariConfig
 
@@ -78,7 +76,7 @@ class WebAlert(BaseAlert):
       raise Exception("Could not determine result. URL(s) were not defined.")
 
     # use the URI lookup keys to get a final URI value to query
-    alert_uri = self._get_uri_from_structure(self.uri_property_keys)      
+    alert_uri = self._get_uri_from_structure(self.uri_property_keys)
 
     logger.debug("[Alert][{0}] Calculated web URI to be {1} (ssl={2})".format(
       self.get_name(), alert_uri.uri, str(alert_uri.is_ssl_enabled)))
@@ -124,7 +122,7 @@ class WebAlert(BaseAlert):
       uri_path = get_path_from_url(string_uri)
 
     # start building the URL manually
-    host = BaseAlert.get_host_from_url(alert_uri.uri)
+    host = get_host_from_url(alert_uri.uri)
     if host is None:
       host = self.host_name
 
@@ -163,8 +161,10 @@ class WebAlert(BaseAlert):
       kerberos_keytab = None
       kerberos_principal = None
 
+      configurations = self.configuration_builder.get_configuration(self.cluster_id, None, None)
+
       if self.uri_property_keys.kerberos_principal is not None:
-        kerberos_principal = self._get_configuration_value(
+        kerberos_principal = self._get_configuration_value(configurations,
           self.uri_property_keys.kerberos_principal)
 
         if kerberos_principal is not None:
@@ -172,10 +172,10 @@ class WebAlert(BaseAlert):
           kerberos_principal = kerberos_principal.replace('_HOST', self.host_name)
 
       if self.uri_property_keys.kerberos_keytab is not None:
-        kerberos_keytab = self._get_configuration_value(self.uri_property_keys.kerberos_keytab)
+        kerberos_keytab = self._get_configuration_value(configurations, self.uri_property_keys.kerberos_keytab)
 
-      security_enabled = self._get_configuration_value('{{cluster-env/security_enabled}}')
-      
+      security_enabled = self._get_configuration_value(configurations, '{{cluster-env/security_enabled}}')
+
       if kerberos_principal is not None and kerberos_keytab is not None \
         and security_enabled is not None and security_enabled.lower() == "true":
 
@@ -184,8 +184,8 @@ class WebAlert(BaseAlert):
           tmp_dir = gettempdir()
 
         # Get the configured Kerberos executables search paths, if any
-        kerberos_executable_search_paths = self._get_configuration_value('{{kerberos-env/executable_search_paths}}')
-        smokeuser = self._get_configuration_value('{{cluster-env/smokeuser}}')
+        kerberos_executable_search_paths = self._get_configuration_value(configurations, '{{kerberos-env/executable_search_paths}}')
+        smokeuser = self._get_configuration_value(configurations, '{{cluster-env/smokeuser}}')
 
         response_code, error_msg, time_millis = curl_krb_request(tmp_dir, kerberos_keytab, kerberos_principal, url,
           "web_alert", kerberos_executable_search_paths, True, self.get_name(), smokeuser,

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,6 +25,6 @@ import java.io.InputStream;
  * A provider of input stream from a property source.
  */
 public interface StreamProvider {
-  public InputStream readFrom(String spec) throws IOException;
-  public InputStream readFrom(String spec, String requestMethod, String params) throws IOException;
+  InputStream readFrom(String spec) throws IOException;
+  InputStream readFrom(String spec, String requestMethod, String params) throws IOException;
 }

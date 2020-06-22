@@ -19,8 +19,11 @@ limitations under the License.
 """
 
 import os
-from resource_management import *
 from resource_management.libraries.functions import get_unique_id_and_date
+from resource_management.libraries.functions.format import format
+from resource_management.libraries.resources.execute_hadoop import ExecuteHadoop
+from resource_management.core.source import StaticFile
+from resource_management.core.resources.system import Execute, File
 from ambari_commons.os_family_impl import OsFamilyFuncImpl, OsFamilyImpl
 from ambari_commons import OSConst
 
@@ -29,7 +32,7 @@ def hcat_service_check():
   import params
   smoke_cmd = os.path.join(params.stack_root, "Run-SmokeTests.cmd")
   service = "HCatalog"
-  Execute(format("cmd /C {smoke_cmd} {service}"), user=params.hcat_user, logoutput=True)
+  Execute(format("cmd /C {smoke_cmd} {service}"), user=params.webhcat_user, logoutput=True)
 
 
 @OsFamilyFuncImpl(os_family=OsFamilyImpl.DEFAULT)

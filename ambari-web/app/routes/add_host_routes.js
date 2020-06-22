@@ -33,7 +33,8 @@ module.exports = App.WizardRoute.extend({
         var addHostController = router.get('addHostController');
         App.router.get('updateController').set('isWorking', false);
         var popup = App.ModalPopup.show({
-          classNames: ['full-width-modal'],
+          classNames: ['wizard-modal-wrapper'],
+          modalDialogClasses: ['modal-xlg'],
           header: Em.I18n.t('hosts.add.header'),
           bodyClass: App.AddHostView.extend({
             controllerBinding: 'App.router.addHostController'
@@ -226,7 +227,15 @@ module.exports = App.WizardRoute.extend({
       });
     },
     backTransition: function (router) {
-      router.transitionTo('step3');
+      var goToPreviousStep = function() {
+        router.transitionTo('step3');
+      };
+      var wizardStep7Controller = router.get('wizardStep7Controller');
+      if (wizardStep7Controller.hasChanges()) {
+        wizardStep7Controller.showChangesWarningPopup(goToPreviousStep);
+      } else {
+        goToPreviousStep();
+      }
     },
     nextTransition: function (router) {
       var addHostController = router.get('addHostController');

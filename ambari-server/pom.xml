@@ -8,11 +8,11 @@
   the specific language governing permissions and limitations under the License.
   See accompanying LICENSE file. -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/maven-v4_0_0.xsd">
   <parent>
     <groupId>org.apache.ambari</groupId>
     <artifactId>ambari-project</artifactId>
-    <version>2.6.2.0.0</version>
+    <version>2.7.3.0.0</version>
     <relativePath>../ambari-project</relativePath>
   </parent>
   <modelVersion>4.0.0</modelVersion>
@@ -20,7 +20,7 @@
   <artifactId>ambari-server</artifactId>
   <packaging>${packagingFormat}</packaging>
   <name>Ambari Server</name>
-  <version>2.6.2.0.0</version>
+  <version>2.7.3.0.0</version>
   <description>Ambari Server</description>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -28,12 +28,15 @@
     <!-- On centos the python xml's are inside python package -->
     <deb.architecture>amd64</deb.architecture>
     <custom.tests>false</custom.tests>
-    <hdpUrlForCentos6>http://public-repo-1.hortonworks.com/HDP/centos6/2.x/updates/2.1.1.0</hdpUrlForCentos6>
-    <hdpLatestUrl>http://public-repo-1.hortonworks.com/HDP/hdp_urlinfo.json</hdpLatestUrl>
+    <python.test.mask>[Tt]est*.py</python.test.mask>
+    <hdpUrlForCentos6>https://public-repo-1.hortonworks.com/HDP/centos6/2.x/updates/2.1.1.0</hdpUrlForCentos6>
+    <hdpLatestUrl>https://public-repo-1.hortonworks.com/HDP/hdp_urlinfo.json</hdpLatestUrl>
     <ambari_commons.install.dir>/usr/lib/ambari-server/lib/ambari_commons</ambari_commons.install.dir>
     <resource_management.install.dir>/usr/lib/ambari-server/lib/resource_management</resource_management.install.dir>
     <jinja.install.dir>/usr/lib/ambari-server/lib/ambari_jinja2</jinja.install.dir>
     <simplejson.install.dir>/usr/lib/ambari-server/lib/ambari_simplejson</simplejson.install.dir>
+    <swagger.spec.dir>${basedir}/docs/api/generated/</swagger.spec.dir>
+    <swagger.generated.resources.dir>${project.build.directory}/generated-sources/swagger/</swagger.generated.resources.dir>
     <ambari-web-dir>${basedir}/../ambari-web/public</ambari-web-dir>
     <ambari-admin-dir>${basedir}/../ambari-admin</ambari-admin-dir>
     <contrib-views-dir>${basedir}/../contrib/views</contrib-views-dir>
@@ -41,16 +44,15 @@
     <customActionsRoot>src/main/resources/custom_actions</customActionsRoot>
     <ambariProperties>conf/unix/ambari.properties</ambariProperties>
     <commonServicesSrcLocation>src/main/resources/common-services</commonServicesSrcLocation>
+    <stackHooksLocation>src/main/resources/stack-hooks</stackHooksLocation>
     <stacksSrcLocation>src/main/resources/stacks/${stack.distribution}</stacksSrcLocation>
-
-    <!-- Additional stack to include in the server and agent paths. -->
-    <supplementalDistribution>src/main/resources/stacks/${supplemental.distribution}</supplementalDistribution>
-
     <tarballResourcesFolder>src/main/resources</tarballResourcesFolder>
     <skipPythonTests>false</skipPythonTests>
     <hadoop.version>2.7.2</hadoop.version>
     <empty.dir>src/main/package</empty.dir> <!-- any directory in project with not very big amount of files (not to waste-load them) -->
     <el.log>ALL</el.log> <!-- log level for EclipseLink eclipselink-staticweave-maven-plugin -->
+    <xlint>none</xlint> <!-- passed to Java compiler -Xlint: flag -->
+    <jdk.version>1.8</jdk.version>
   </properties>
   <build>
     <plugins>
@@ -111,7 +113,14 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.2</version>
         <configuration>
+          <source>${jdk.version}</source>
+          <target>${jdk.version}</target>
           <useIncrementalCompilation>false</useIncrementalCompilation>
+          <compilerArgs>
+            <arg>-Xlint:${xlint}</arg>
+            <arg>-Xmaxwarns</arg>
+            <arg>50000</arg>
+          </compilerArgs>
         </configuration>
       </plugin>
       <plugin>
@@ -166,6 +175,30 @@
             </configuration>
           </execution>
           <execution>
+            <id>clean-sample-upgrade-check-jar</id>
+            <phase>process-test-classes</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <delete dir="target/test-classes/checks" includeemptydirs="true"/>
+              </target>
+            </configuration>
+          </execution>
+          <execution>
+            <id>generate-test-oozie2-checks-dir</id>
+            <phase>process-test-classes</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <mkdir dir="target/test-classes/extensions/EXT/0.1/services/OOZIE2/checks/tmp"/>
+              </target>
+            </configuration>
+          </execution>
+          <execution>
             <id>generate-test-oozie2-server-actions-dir</id>
             <phase>process-test-classes</phase>
             <goals>
@@ -203,7 +236,7 @@
         <executions>
           <execution>
             <id>copy-resources</id>
-            <phase>generate-test-resources</phase>
+            <phase>process-resources</phase>
             <goals>
               <goal>copy-resources</goal>
             </goals>
@@ -264,6 +297,24 @@
               </resources>
             </configuration>
           </execution>
+          <execution>
+            <id>copy-swagger-spec</id>
+            <phase>compile</phase>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${ambari-web-dir}/api-docs</outputDirectory>
+              <resources>
+                <resource>
+                  <directory>${swagger.generated.resources.dir}</directory>
+                  <includes>
+                    <include>swagger.json</include>
+                  </includes>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
         </executions>
       </plugin>
       <plugin>
@@ -292,7 +343,6 @@
             <exclude>pass.txt</exclude>
             <exclude>src/test/resources/version</exclude>
             <exclude>src/test/resources/users.ldif</exclude>
-            <exclude>src/test/resources/gsInstaller-hosts.txt</exclude>
             <exclude>src/test/resources/temporal_ganglia_data.txt</exclude>
             <exclude>src/test/resources/users.ldif</exclude>
             <exclude>src/test/resources/mpacks_replay.log</exclude>
@@ -307,24 +357,16 @@
             <exclude>src/main/windows/ambari-server.cmd</exclude>
             <exclude>src/main/windows/ambari-server.ps1</exclude>
             <exclude>src/main/package/choco/ambari-server.nuspec</exclude>
-            <exclude>src/main/resources/common-services/AMBARI_METRICS/0.1.0/package/templates/smoketest_metrics.json.j2</exclude>
-            <exclude>src/main/resources/common-services/AMBARI_METRICS/0.1.0/package/files/service-metrics/*.txt</exclude>
-            <exclude>src/main/resources/common-services/HDFS/2.1.0.2.0/package/scripts/balancer-emulator/balancer-err.log</exclude>
-            <exclude>src/main/resources/common-services/HDFS/2.1.0.2.0/package/scripts/balancer-emulator/balancer.log</exclude>
-            <exclude>src/main/resources/stacks/BIGTOP/0.8/services/HDFS/package/scripts/balancer-emulator/balancer.log</exclude>
-            <exclude>src/main/resources/stacks/BIGTOP/0.8/services/HDFS/package/scripts/balancer-emulator/balancer-err.log</exclude>
-            <exclude>src/main/resources/stacks/PHD/3.0.0.0/services/HDFS/package/scripts/balancer-emulator/balancer.log</exclude>
-            <exclude>src/main/resources/stacks/PHD/3.0.0.0/services/HDFS/package/scripts/balancer-emulator/balancer-err.log</exclude>
-            <exclude>src/main/resources/stacks/BigInsights/4.0/services/AMBARI_METRICS/package/templates/smoketest_metrics.json.j2</exclude>
-            <exclude>src/main/resources/stacks/BigInsights/4.0/services/AMBARI_METRICS/package/files/service-metrics/*.txt</exclude>
-            <exclude>src/main/resources/stacks/BigInsights/4.2/services/AMBARI_METRICS/package/templates/smoketest_metrics.json.j2</exclude>
-            <exclude>src/main/resources/stacks/BigInsights/4.2/services/AMBARI_METRICS/package/files/service-metrics/*.txt</exclude>
+            <exclude>**/smoketest_metrics.json.j2</exclude>
+            <exclude>**/service-metrics/*.txt</exclude>
+            <exclude>**/balancer.log</exclude>
+            <exclude>**/balancer-err.log</exclude>
+            <exclude>${swagger.spec.dir}/**</exclude>
             <exclude>**/SMARTSENSE/**</exclude>
             <exclude>conf/unix/ca.config</exclude>
             <exclude>conf/unix/krb5JAASLogin.conf</exclude>
             <exclude>conf/windows/ca.config</exclude>
             <exclude>conf/windows/krb5JAASLogin.conf</exclude>
-            <exclude>**/*.iml</exclude>
             <exclude>**/*.json</exclude>
             <exclude>**/*.sql</exclude>
             <exclude>**/repo_suse_rhel.j2</exclude>
@@ -363,6 +405,79 @@
         </executions>
       </plugin>
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>enforce-maven</id>
+            <phase>validate</phase>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <requireMavenVersion>
+                  <version>[3.3.9,)</version>
+                </requireMavenVersion>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>com.github.kongchen</groupId>
+        <artifactId>swagger-maven-plugin</artifactId>
+        <configuration>
+          <apiSources>
+            <apiSource>
+              <swaggerApiReader>org.apache.ambari.swagger.AmbariSwaggerReader</swaggerApiReader>
+              <springmvc>false</springmvc>
+              <locations>org.apache.ambari.server.api.services</locations>
+              <schemes></schemes>
+              <basePath>/api/v1</basePath>
+              <info>
+                <title>Swagger spec for Ambari REST API</title>
+                <version>v1</version>
+                <description>Ambari REST APIs has inherent support for querying, sorting and pagination</description>
+                <license>
+                  <url>http://www.apache.org/licenses/LICENSE-2.0</url>
+                  <name>Apache License, Version 2.0</name>
+                </license>
+              </info>
+              <swaggerDirectory>${swagger.generated.resources.dir}</swaggerDirectory>
+            </apiSource>
+          </apiSources>
+          <skipSwaggerGeneration>${swagger.skip}</skipSwaggerGeneration>
+        </configuration>
+        <executions>
+          <execution>
+            <phase>compile</phase>
+            <goals>
+              <goal>generate</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>io.swagger</groupId>
+        <artifactId>swagger-codegen-maven-plugin</artifactId>
+        <version>2.2.2</version>
+        <executions>
+          <execution>
+            <id>generate-swagger-html2</id>
+            <phase>process-classes</phase>
+            <goals>
+              <goal>generate</goal>
+            </goals>
+            <configuration>
+              <inputSpec>${swagger.spec.dir}/swagger.json</inputSpec>
+              <language>html2</language>
+              <output>${swagger.generated.resources.dir}</output>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
         <artifactId>eclipselink-staticweave-maven-plugin</artifactId>
         <groupId>au.com.alderaan</groupId>
         <version>1.0.4</version>
@@ -382,7 +497,7 @@
           <dependency>
             <groupId>org.eclipse.persistence</groupId>
             <artifactId>eclipselink</artifactId>
-            <version>2.6.2</version>
+            <version>${eclipselink.version}</version>
           </dependency>
         </dependencies>
       </plugin>
@@ -417,7 +532,7 @@
           </execution>
         </executions>
         <configuration>
-          <copyright>2012, Apache Software Foundation</copyright>
+          <license>2012, Apache Software Foundation</license>
           <group>Development</group>
           <description>Maven Recipe: RPM Package.</description>
           <autoRequires>no</autoRequires>
@@ -441,6 +556,10 @@
             <scriptFile>src/main/package/rpm/posttrans_server.sh</scriptFile>
             <fileEncoding>utf-8</fileEncoding>
           </posttransScriptlet>
+          <postremoveScriptlet>
+            <scriptFile>src/main/package/rpm/postremove.sh</scriptFile>
+            <fileEncoding>utf-8</fileEncoding>
+          </postremoveScriptlet>
           <needarch>x86_64</needarch>
           <mappings>
             <mapping>
@@ -511,7 +630,7 @@
       <plugin>
         <groupId>org.vafer</groupId>
         <artifactId>jdeb</artifactId>
-        <version>1.4</version>
+        <version>1.7</version>
         <executions>
           <execution>
             <!-- unbinds rpm creation from maven lifecycle -->
@@ -547,6 +666,7 @@
           <failOnError>false</failOnError>
           <threshold>Low</threshold>
           <findbugsXmlOutputDirectory>${project.basedir}/target/findbugs</findbugsXmlOutputDirectory>
+          <excludeFilterFile>${project.basedir}/findbugs.exclude.xml</excludeFilterFile>
         </configuration>
         <executions>
           <execution>
@@ -573,6 +693,12 @@
           <transformationSets>
             <transformationSet>
               <dir>${project.basedir}/target/findbugs</dir>
+              <includes>
+                <include>*.xml</include>
+              </includes>
+              <excludes>
+                <exclude>findbugs.exclude.xml</exclude>
+              </excludes>
               <outputDir>${project.basedir}/target/findbugs</outputDir>
               <stylesheet>fancy-hist.xsl</stylesheet>
               <fileMappers>
@@ -605,25 +731,6 @@
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-antrun-plugin</artifactId>
-        <version>1.7</version>
-        <executions>
-          <execution>
-            <id>clean-sample-upgrade-check-jar</id>
-            <phase>process-test-classes</phase>
-            <goals>
-              <goal>run</goal>
-            </goals>
-            <configuration>
-              <target>
-                <delete dir="target/test-classes/checks" includeemptydirs="true"/>
-              </target>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
         <version>3.0.2</version>
         <executions>
@@ -640,26 +747,8 @@
         </executions>
       </plugin>
       <plugin>
-        <artifactId>maven-antrun-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>generate-test-oozie2-checks-dir</id>
-            <phase>process-test-classes</phase>
-            <goals>
-              <goal>run</goal>
-            </goals>
-            <configuration>
-              <target>
-                <mkdir dir="target/test-classes/extensions/EXT/0.1/services/OOZIE2/checks/tmp"/>
-              </target>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
-        <version>1.2.1</version>
         <executions>
           <execution>
             <configuration>
@@ -668,6 +757,7 @@
               <arguments>
                 <argument>unitTests.py</argument>
                 <argument>${custom.tests}</argument>
+                <argument>${python.test.mask}</argument>
               </arguments>
               <environmentVariables>
                   <PYTHONPATH>${path.python.1}${pathsep}$PYTHONPATH</PYTHONPATH>
@@ -693,6 +783,20 @@
               <goal>exec</goal>
             </goals>
           </execution>
+          <execution>
+            <id>configuration-markdown</id>
+            <phase>site</phase>
+            <goals>
+              <goal>java</goal>
+            </goals>
+            <configuration>
+              <mainClass>org.apache.ambari.server.configuration.Configuration</mainClass>
+              <arguments>
+                <argument>-output</argument>
+                <argument>${basedir}/../ambari-server/docs/configuration/index.md</argument>
+              </arguments>
+            </configuration>
+          </execution>
         </executions>
       </plugin>
       <plugin>
@@ -707,7 +811,7 @@
         <artifactId>buildnumber-maven-plugin</artifactId>
         <version>${buildnumber-maven-plugin-version}</version>
         <configuration>
-          <urlScm>scm:git:https://git-wip-us.apache.org/repos/asf/incubator-ambari.git</urlScm>
+          <urlScm>scm:git:https://gitbox.apache.org/repos/asf/ambari.git</urlScm>
         </configuration>
         <executions>
           <execution>
@@ -723,30 +827,13 @@
         <artifactId>jetty-maven-plugin</artifactId>
         <version>${jetty.version}</version>
       </plugin>
+      <!-- Checkstyle binds to phase "validate" by default.
+      Run independently as, cd ambari-server ; mvn checkstyle:checkstyle
+      Or can skip as, mvn ... -Dcheckstyle.skip
+      -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
-      </plugin>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>exec-maven-plugin</artifactId>
-        <version>1.2.1</version>
-        <executions>
-          <execution>
-            <id>configuration-markdown</id>
-            <phase>site</phase>
-            <goals>
-              <goal>java</goal>
-            </goals>
-          </execution>
-        </executions>
-        <configuration>
-          <mainClass>org.apache.ambari.server.configuration.Configuration</mainClass>
-          <arguments>
-            <argument>-output</argument>
-            <argument>${basedir}/../ambari-server/docs/configuration/index.md</argument>
-          </arguments>
-        </configuration>
       </plugin>
     </plugins>
     <resources>
@@ -803,6 +890,41 @@
       <properties>
         <skipPythonTests>true</skipPythonTests>
       </properties>
+    </profile>
+    <profile>
+      <id>copy-swagger-generated-resources</id>
+      <activation>
+        <property><name>generate.swagger.resources</name></property>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-resources-plugin</artifactId>
+            <version>2.6</version>
+            <executions>
+              <execution>
+                <id>copy-swagger-generated-html</id>
+                <phase>process-classes</phase>
+                <goals>
+                  <goal>copy-resources</goal>
+                </goals>
+                <configuration>
+                  <outputDirectory>${swagger.spec.dir}</outputDirectory>
+                  <resources>
+                    <resource>
+                      <directory>${swagger.generated.resources.dir}/</directory>
+                      <includes>
+                        <include>index.html</include>
+                        <include>swagger.json</include>
+                      </includes>
+                    </resource>
+                  </resources>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
     <profile>
       <id>windows</id>
@@ -886,7 +1008,6 @@
           <plugin>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>exec-maven-plugin</artifactId>
-            <version>1.2.1</version>
             <executions>
               <execution>
                 <id>build-choco-package</id>
@@ -948,6 +1069,7 @@
         <ambariProperties>target/pluggable-stack-definition/conf/unix/ambari.properties</ambariProperties>
         <resourceManagementSrcLocation>target/pluggable-stack-definition/python/resource_management</resourceManagementSrcLocation>
         <commonServicesSrcLocation>target/pluggable-stack-definition/common-services</commonServicesSrcLocation>
+        <stackHooksLocation>target/pluggable-stack-definition/stack-hooks</stackHooksLocation>
         <stacksSrcLocation>target/pluggable-stack-definition/stacks/${stack.distribution}</stacksSrcLocation>
         <resourcesSrcLocation>src/main/resources</resourcesSrcLocation>
         <tarballResourcesFolder>target/pluggable-stack-definition</tarballResourcesFolder>
@@ -960,7 +1082,6 @@
           <plugin>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>exec-maven-plugin</artifactId>
-            <version>1.2.1</version>
             <executions>
               <execution>
                 <configuration>
@@ -1002,7 +1123,6 @@
           <plugin>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>exec-maven-plugin</artifactId>
-            <version>1.2.1</version>
             <executions>
               <execution>
                 <configuration>
@@ -1038,9 +1158,12 @@
       <artifactId>commons-collections</artifactId>
     </dependency>
     <dependency>
+      <groupId>commons-beanutils</groupId>
+      <artifactId>commons-beanutils</artifactId>
+    </dependency>
+    <dependency>
       <groupId>commons-io</groupId>
       <artifactId>commons-io</artifactId>
-      <version>2.4</version>
     </dependency>
     <dependency>
       <groupId>org.apache.commons</groupId>
@@ -1057,8 +1180,20 @@
       <version>1.9.2</version>
     </dependency>
     <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.google.inject</groupId>
+      <artifactId>guice</artifactId>
+    </dependency>
+    <dependency>
       <groupId>com.google.inject.extensions</groupId>
       <artifactId>guice-assistedinject</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.google.inject.extensions</groupId>
+      <artifactId>guice-multibindings</artifactId>
     </dependency>
     <dependency>
       <groupId>com.google.inject.extensions</groupId>
@@ -1067,11 +1202,6 @@
     <dependency>
       <groupId>com.google.inject.extensions</groupId>
       <artifactId>guice-servlet</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.google.inject.extensions</groupId>
-      <artifactId>guice-multibindings</artifactId>
-      <version>3.0</version>
     </dependency>
     <dependency>
       <groupId>com.h2database</groupId>
@@ -1096,7 +1226,11 @@
     </dependency>
     <dependency>
       <groupId>org.springframework</groupId>
-      <artifactId>spring-mock</artifactId>
+      <artifactId>spring-jdbc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-test</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -1108,101 +1242,20 @@
       <artifactId>spring-ldap-core</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.apache.directory.server</groupId>
-      <artifactId>apacheds-server-annotations</artifactId>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>commons-collections</groupId>
-          <artifactId>commons-collections</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>net.sf.ehcache</groupId>
-          <artifactId>ehcache-core</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.directory.server</groupId>
-      <artifactId>apacheds-core-integ</artifactId>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>commons-collections</groupId>
-          <artifactId>commons-collections</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>net.sf.ehcache</groupId>
-          <artifactId>ehcache-core</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.directory.server</groupId>
-      <artifactId>apacheds-server-integ</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.directory.server</groupId>
-      <artifactId>apacheds-jdbm</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.directory.server</groupId>
-      <artifactId>apacheds-kerberos-codec</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>commons-collections</groupId>
-          <artifactId>commons-collections</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>net.sf.ehcache</groupId>
-          <artifactId>ehcache-core</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.directory.server</groupId>
-      <artifactId>apacheds-core</artifactId>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>commons-collections</groupId>
-          <artifactId>commons-collections</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>net.sf.ehcache</groupId>
-          <artifactId>ehcache-core</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.directory.server</groupId>
-      <artifactId>apacheds-protocol-ldap</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.directory.server</groupId>
-      <artifactId>kerberos-client</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.directory.shared</groupId>
-      <artifactId>shared-ldap</artifactId>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>commons-collections</groupId>
-          <artifactId>commons-collections</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-log4j12</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>jul-to-slf4j</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>jcl-over-slf4j</artifactId>
     </dependency>
     <dependency>
       <groupId>log4j</groupId>
@@ -1217,6 +1270,16 @@
       <artifactId>eclipselink</artifactId>
     </dependency>
     <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest-all</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.awaitility</groupId>
+      <artifactId>awaitility</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
       <scope>test</scope>
@@ -1224,22 +1287,22 @@
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-security</artifactId>
-      <version>${jetty.version}</version>
     </dependency>
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-servlet</artifactId>
-      <version>${jetty.version}</version>
     </dependency>
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-servlets</artifactId>
-      <version>${jetty.version}</version>
     </dependency>
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-webapp</artifactId>
-      <version>${jetty.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-util-ajax</artifactId>
     </dependency>
     <dependency>
       <groupId>org.mortbay.jetty</groupId>
@@ -1248,6 +1311,12 @@
     <dependency>
       <groupId>org.mortbay.jetty</groupId>
       <artifactId>jsp-2.1-glassfish</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>ant</groupId>
+          <artifactId>ant</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.apache.ant</groupId>
@@ -1257,11 +1326,14 @@
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-server</artifactId>
-      <version>${jetty.version}</version>
     </dependency>
     <dependency>
-      <groupId>commons-logging</groupId>
-      <artifactId>commons-logging</artifactId>
+      <groupId>org.eclipse.jetty.websocket</groupId>
+      <artifactId>websocket-servlet</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.jetty.websocket</groupId>
+      <artifactId>websocket-server</artifactId>
     </dependency>
     <dependency>
       <groupId>commons-codec</groupId>
@@ -1270,6 +1342,12 @@
     <dependency>
       <groupId>commons-lang</groupId>
       <artifactId>commons-lang</artifactId>
+      <version>2.6</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>3.9</version>
     </dependency>
     <dependency>
       <groupId>commons-net</groupId>
@@ -1317,7 +1395,6 @@
     <dependency>
       <groupId>org.codehaus.jackson</groupId>
       <artifactId>jackson-mapper-asl</artifactId>
-      <version>1.9.2</version>
     </dependency>
     <dependency>
       <groupId>org.codehaus.jackson</groupId>
@@ -1328,6 +1405,35 @@
       <artifactId>jackson-jaxrs</artifactId>
     </dependency>
     <dependency>
+      <groupId>io.swagger</groupId>
+      <artifactId>swagger-annotations</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.swagger</groupId>
+      <artifactId>swagger-core</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-databind</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>io.swagger</groupId>
+      <artifactId>swagger-jaxrs</artifactId>
+      <exclusions>
+        <exclusion>
+          <!-- Because it is already in the jersey one and causes the shade plugin to be confused -->
+          <groupId>javax.ws.rs</groupId>
+          <artifactId>jsr311-api</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>io.swagger</groupId>
+      <artifactId>swagger-models</artifactId>
+    </dependency>
+    <dependency>
       <groupId>org.codehaus.jackson</groupId>
       <artifactId>jackson-xc</artifactId>
     </dependency>
@@ -1335,6 +1441,76 @@
       <groupId>com.sun.jersey.jersey-test-framework</groupId>
       <artifactId>jersey-test-framework-core</artifactId>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-aop</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-core</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-context</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-web</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-websocket</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-messaging</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-webmvc</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-expression</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.sun.jersey.contribs</groupId>
+      <artifactId>jersey-spring</artifactId>
+      <version>1.19</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.springframework</groupId>
+          <artifactId>spring</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.springframework</groupId>
+          <artifactId>spring-core</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.springframework</groupId>
+          <artifactId>spring-web</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.springframework</groupId>
+          <artifactId>spring-beans</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.springframework</groupId>
+          <artifactId>spring-context</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.springframework</groupId>
+          <artifactId>spring-aop</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>com.sun.jersey.jersey-test-framework</groupId>
@@ -1354,7 +1530,6 @@
     <dependency>
       <groupId>org.easymock</groupId>
       <artifactId>easymock</artifactId>
-      <version>3.4</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -1396,17 +1571,7 @@
     <dependency>
       <groupId>cglib</groupId>
       <artifactId>cglib</artifactId>
-      <version>2.2.2</version>
-    </dependency>
-    <dependency>
-      <groupId>asm</groupId>
-      <artifactId>asm</artifactId>
-      <version>3.3.1</version>
-    </dependency>
-    <dependency>
-      <groupId>com.google.inject</groupId>
-      <artifactId>guice</artifactId>
-      <version>3.0</version>
+      <version>3.2.4</version>
     </dependency>
     <dependency>
       <groupId>com.google.code.gson</groupId>
@@ -1416,7 +1581,6 @@
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
-      <version>9.3-1101-jdbc4</version>
     </dependency>
     <dependency>
       <groupId>org.apache.httpcomponents</groupId>
@@ -1451,7 +1615,7 @@
         <exclusion>
           <groupId>commons-collections</groupId>
           <artifactId>commons-collections</artifactId>
-        </exclusion>
+          </exclusion>
       </exclusions>
     </dependency>
     <dependency>
@@ -1470,17 +1634,22 @@
       <version>1.10.1</version>
     </dependency>
     <dependency>
+      <groupId>com.esotericsoftware.yamlbeans</groupId>
+      <artifactId>yamlbeans</artifactId>
+      <version>1.13</version>
+    </dependency>
+    <dependency>
       <groupId>org.apache.ambari</groupId>
       <artifactId>ambari-metrics-common</artifactId>
       <version>${project.version}</version>
       <exclusions>
         <exclusion>
-          <groupId>org.apache.curator</groupId>
-          <artifactId>curator-framework</artifactId>
-        </exclusion>
-        <exclusion>
           <groupId>org.apache.httpcomponents</groupId>
           <artifactId>httpclient</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.curator</groupId>
+          <artifactId>curator-framework</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -1500,7 +1669,7 @@
     <dependency>
       <groupId>com.nimbusds</groupId>
       <artifactId>nimbus-jose-jwt</artifactId>
-      <version>3.9</version>
+      <version>5.9</version>
       <scope>compile</scope>
       <exclusions>
         <exclusion>
@@ -1515,12 +1684,16 @@
       <version>${hadoop.version}</version>
       <exclusions>
         <exclusion>
-          <groupId>org.apache.zookeeper</groupId>
-          <artifactId>zookeeper</artifactId>
+          <groupId>org.apache.directory.server</groupId>
+          <artifactId>apacheds-kerberos-codec</artifactId>
         </exclusion>
         <exclusion>
           <groupId>org.apache.httpcomponents</groupId>
           <artifactId>httpclient</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.zookeeper</groupId>
+          <artifactId>zookeeper</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -1530,16 +1703,24 @@
       <version>${hadoop.version}</version>
       <exclusions>
         <exclusion>
-          <groupId>org.apache.zookeeper</groupId>
-          <artifactId>zookeeper</artifactId>
+          <groupId>commons-collections</groupId>
+          <artifactId>commons-collections</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>commons-beanutils</groupId>
+          <artifactId>commons-beanutils</artifactId>
         </exclusion>
         <exclusion>
           <groupId>commons-beanutils</groupId>
           <artifactId>commons-beanutils-core</artifactId>
         </exclusion>
         <exclusion>
-          <groupId>commons-collections</groupId>
-          <artifactId>commons-collections</artifactId>
+          <groupId>org.apache.httpcomponents</groupId>
+          <artifactId>httpclient</artifactId>
+        </exclusion>
+         <exclusion>
+          <groupId>commons-httpclient</groupId>
+          <artifactId>commons-httpclient</artifactId>
         </exclusion>
         <exclusion>
           <groupId>javax.servlet</groupId>
@@ -1550,59 +1731,37 @@
           <artifactId>jetty-util</artifactId>
         </exclusion>
         <exclusion>
-          <groupId>org.apache.httpcomponents</groupId>
-          <artifactId>httpclient</artifactId>
+          <groupId>org.mortbay.jetty</groupId>
+          <artifactId>jetty</artifactId>
         </exclusion>
-         <exclusion>
-          <groupId>commons-httpclient</groupId>
-          <artifactId>commons-httpclient</artifactId>
+        <exclusion>
+          <groupId>org.apache.zookeeper</groupId>
+          <artifactId>zookeeper</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.jcraft</groupId>
+          <artifactId>jsch</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>com.jcraft</groupId>
+      <artifactId>jsch</artifactId>
+      <version>0.1.54</version>
     </dependency>
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-util</artifactId>
-      <version>${jetty.version}</version>
     </dependency>
     <dependency>
       <groupId>commons-cli</groupId>
       <artifactId>commons-cli</artifactId>
-      <version>1.3.1</version>
     </dependency>
     <dependency>
       <groupId>com.mchange</groupId>
       <artifactId>c3p0</artifactId>
-      <version>[0.9.5.2]</version>
+      <version>[0.9.5.4]</version>
       <scope>compile</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>jul-to-slf4j</artifactId>
-      <version>1.7.2</version>
-    </dependency>
-
-    <!-- Dependency in order to annotate unit tests with a category. -->
-    <dependency>
-      <groupId>utility</groupId>
-      <artifactId>utility</artifactId>
-      <version>1.0.0.0-SNAPSHOT</version>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>commons-collections</groupId>
-          <artifactId>commons-collections</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.kohsuke</groupId>
-      <artifactId>libpam4j</artifactId>
-      <version>1.8</version>
-    </dependency>
-    <dependency>
-      <groupId>net.java.dev.jna</groupId>
-      <artifactId>jna</artifactId>
-      <version>4.2.2</version>
     </dependency>
     <dependency>
       <groupId>io.dropwizard.metrics</groupId>
@@ -1614,6 +1773,76 @@
       <artifactId>metrics-jvm</artifactId>
       <version>3.1.0</version>
     </dependency>
+
+    <dependency>
+      <groupId>org.apache.ambari</groupId>
+      <artifactId>ambari-serviceadvisor</artifactId>
+      <version>1.0.0.0-SNAPSHOT</version>
+      <exclusions>
+        <exclusion>
+          <groupId>commons-httpclient</groupId>
+          <artifactId>commons-httpclient</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <!-- Dependency in order to annotate unit tests with a category. -->
+    <dependency>
+      <groupId>org.apache.ambari</groupId>
+      <artifactId>ambari-utility</artifactId>
+      <version>1.0.0.0-SNAPSHOT</version>
+      <scope>provided</scope> <!-- for @ApiIgnore -->
+      <exclusions>
+        <exclusion>
+          <groupId>commons-collections</groupId>
+          <artifactId>commons-collections</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>commons-beanutils</groupId>
+          <artifactId>commons-beanutils</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.kohsuke</groupId>
+      <artifactId>libpam4j</artifactId>
+      <version>1.10</version>
+    </dependency>
+    <dependency>
+      <groupId>net.java.dev.jna</groupId>
+      <artifactId>jna</artifactId>
+      <version>4.2.2</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.directory.api</groupId>
+      <artifactId>api-ldap-model</artifactId>
+      <version>2.0.0.AM1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.directory.api</groupId>
+      <artifactId>api-ldap-client-api</artifactId>
+      <version>2.0.0.AM1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.directory.server</groupId>
+      <artifactId>apacheds-kerberos-codec</artifactId>
+      <version>2.0.0-M24</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.directory.server</groupId>
+      <artifactId>kerberos-client</artifactId>
+      <version>2.0.0-M24</version>
+      <exclusions>
+        <exclusion>
+          <groupId>commons-collections</groupId>
+          <artifactId>commons-collections</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.directory.api</groupId>
+          <artifactId>api-ldap-model</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
     <dependency>
       <groupId>com.networknt</groupId>
       <artifactId>json-schema-validator</artifactId>
@@ -1621,14 +1850,10 @@
       <scope>test</scope>
       <exclusions>
         <exclusion>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-databind</artifactId>
         </exclusion>
       </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>jline</groupId>
-      <artifactId>jline</artifactId>
     </dependency>
   </dependencies>
 

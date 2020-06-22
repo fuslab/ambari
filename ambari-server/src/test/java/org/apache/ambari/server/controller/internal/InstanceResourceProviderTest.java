@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,19 @@
 package org.apache.ambari.server.controller.internal;
 
 
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.verify;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.ivory.Instance;
 import org.apache.ambari.server.controller.ivory.IvoryService;
 import org.apache.ambari.server.controller.spi.Predicate;
@@ -29,19 +42,6 @@ import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import static org.easymock.EasyMock.createMock;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.verify;
-
 /**
  * Tests for InstanceResourceProvider.
  */
@@ -50,20 +50,18 @@ public class InstanceResourceProviderTest {
   public void testCreateResources() throws Exception {
     IvoryService service = createMock(IvoryService.class);
 
-    Set<Map<String, Object>> propertySet = new HashSet<Map<String, Object>>();
+    Set<Map<String, Object>> propertySet = new HashSet<>();
 
-    Map<String, Object> properties = new HashMap<String, Object>();
+    Map<String, Object> properties = new HashMap<>();
 
     // replay
     replay(service);
 
     propertySet.add(properties);
 
-    Request request = PropertyHelper.getCreateRequest(propertySet, Collections.<String,String>emptyMap());
+    Request request = PropertyHelper.getCreateRequest(propertySet, Collections.emptyMap());
 
-    InstanceResourceProvider provider = new InstanceResourceProvider(service,
-        PropertyHelper.getPropertyIds(Resource.Type.DRInstance),
-        PropertyHelper.getKeyPropertyIds(Resource.Type.DRInstance));
+    InstanceResourceProvider provider = new InstanceResourceProvider(service);
 
     try {
       provider.createResources(request);
@@ -81,11 +79,11 @@ public class InstanceResourceProviderTest {
   public void testGetResources() throws Exception {
     IvoryService service = createMock(IvoryService.class);
 
-    Set<Map<String, Object>> propertySet = new HashSet<Map<String, Object>>();
+    Set<Map<String, Object>> propertySet = new HashSet<>();
 
-    Map<String, Object> properties = new HashMap<String, Object>();
+    Map<String, Object> properties = new HashMap<>();
 
-    List<Instance> instances = new LinkedList<Instance>();
+    List<Instance> instances = new LinkedList<>();
 
     Instance instance1 = new Instance("Feed1", "Instance1", "s", "st", "et", "d", "l");
     Instance instance2 = new Instance("Feed1", "Instance2", "s", "st", "et", "d", "l");
@@ -104,11 +102,9 @@ public class InstanceResourceProviderTest {
 
     propertySet.add(properties);
 
-    Request request = PropertyHelper.getCreateRequest(propertySet, Collections.<String,String>emptyMap());
+    Request request = PropertyHelper.getCreateRequest(propertySet, Collections.emptyMap());
 
-    InstanceResourceProvider provider = new InstanceResourceProvider(service,
-        PropertyHelper.getPropertyIds(Resource.Type.DRInstance),
-        PropertyHelper.getKeyPropertyIds(Resource.Type.DRInstance));
+    InstanceResourceProvider provider = new InstanceResourceProvider(service);
 
     Set<Resource> resources = provider.getResources(request, null);
 
@@ -122,9 +118,9 @@ public class InstanceResourceProviderTest {
   public void testUpdateResources() throws Exception {
     IvoryService service = createMock(IvoryService.class);
 
-    Set<Map<String, Object>> propertySet = new HashSet<Map<String, Object>>();
+    Set<Map<String, Object>> propertySet = new HashSet<>();
 
-    Map<String, Object> properties = new HashMap<String, Object>();
+    Map<String, Object> properties = new HashMap<>();
 
     properties.put(InstanceResourceProvider.INSTANCE_FEED_NAME_PROPERTY_ID, "Feed1");
     properties.put(InstanceResourceProvider.INSTANCE_ID_PROPERTY_ID, "Instance1");
@@ -134,7 +130,7 @@ public class InstanceResourceProviderTest {
     properties.put(InstanceResourceProvider.INSTANCE_DETAILS_PROPERTY_ID, "DETAILS");
     properties.put(InstanceResourceProvider.INSTANCE_LOG_PROPERTY_ID, "log");
 
-    List<Instance> instances = new LinkedList<Instance>();
+    List<Instance> instances = new LinkedList<>();
 
     // set expectations
     expect(service.getFeedNames()).andReturn(Collections.singletonList("Feed1"));
@@ -145,11 +141,9 @@ public class InstanceResourceProviderTest {
 
     propertySet.add(properties);
 
-    Request request = PropertyHelper.getCreateRequest(propertySet, Collections.<String,String>emptyMap());
+    Request request = PropertyHelper.getCreateRequest(propertySet, Collections.emptyMap());
 
-    InstanceResourceProvider provider = new InstanceResourceProvider(service,
-        PropertyHelper.getPropertyIds(Resource.Type.DRInstance),
-        PropertyHelper.getKeyPropertyIds(Resource.Type.DRInstance));
+    InstanceResourceProvider provider = new InstanceResourceProvider(service);
 
     provider.updateResources(request, null);
 
@@ -171,9 +165,7 @@ public class InstanceResourceProviderTest {
     // replay
     replay(service);
 
-    InstanceResourceProvider provider = new InstanceResourceProvider(service,
-        PropertyHelper.getPropertyIds(Resource.Type.DRInstance),
-        PropertyHelper.getKeyPropertyIds(Resource.Type.DRInstance));
+    InstanceResourceProvider provider = new InstanceResourceProvider(service);
 
     Predicate predicate = new PredicateBuilder().property(InstanceResourceProvider.INSTANCE_ID_PROPERTY_ID).equals("Instance1").toPredicate();
 
@@ -181,18 +173,5 @@ public class InstanceResourceProviderTest {
 
     // verify
     verify(service);
-  }
-
-  @Test
-  public void testGetKeyPropertyIds() throws Exception {
-    IvoryService service = createMock(IvoryService.class);
-
-    Map<Resource.Type, String> keyPropertyIds = PropertyHelper.getKeyPropertyIds(Resource.Type.DRInstance);
-
-    InstanceResourceProvider provider = new InstanceResourceProvider(service,
-        PropertyHelper.getPropertyIds(Resource.Type.DRInstance),
-        keyPropertyIds);
-
-    Assert.assertEquals(keyPropertyIds, provider.getKeyPropertyIds());
   }
 }

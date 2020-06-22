@@ -16,5 +16,10 @@
 * limitations under the License.
 }}
 
-{{t installer.controls.slaveComponentGroups}}&#58;&nbsp;
-{{view Em.Select contentBinding="view.parentView.configGroups" optionLabelPath="content.displayName" selectionBinding="view.parentView.selectedConfigGroup"}}
+<span>{{t installer.controls.slaveComponentGroups}}&#58;&nbsp;</span>
+{{view App.DropdownView
+       contentBinding="view.parentView.configGroups"
+       optionLabelPath="displayName"
+       selectionBinding="view.parentView.selectedConfigGroup"
+       class="display-inline-block" }}
+

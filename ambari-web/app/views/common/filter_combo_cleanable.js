@@ -26,7 +26,7 @@ var App = require('app');
 App.FilterComboCleanableView = Ember.View.extend({
   templateName: require('templates/common/filter_combo_cleanable'),
 
-  classNames: ['filter-combobox', 'input-append'],
+  classNames: ['filter-combobox', 'input-group'],
 
   didInsertElement: function() {
     App.popover(this.$("input[type=text]"), {
@@ -49,7 +49,9 @@ App.FilterComboCleanableView = Ember.View.extend({
    */
   selectFilterColumn: function(event){
     var column = event.context;
-    column.set('selected', !column.get('selected'));
+    if (!column.get('isDisabled')) {
+      column.set('selected', !column.get('selected'));
+    }
   },
 
   filterNotEmpty: Em.computed.gt('filter.length', 0),
@@ -66,7 +68,9 @@ App.FilterComboCleanableView = Ember.View.extend({
    * @method clearFilterColumn
    */
   clearFilterColumn: function() {
-    this.get('columns').setEach('selected', false);
+    this.get('columns').filter(function (column) {
+      return !column.get('isDisabled');
+    }).setEach('selected', false);
   },
 
   /**

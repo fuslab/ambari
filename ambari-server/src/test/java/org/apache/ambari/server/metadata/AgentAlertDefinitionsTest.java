@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,7 +22,7 @@ import java.util.List;
 import javax.persistence.EntityManager;
 
 import org.apache.ambari.server.H2DatabaseCleaner;
-import org.apache.ambari.server.controller.RootServiceResponseFactory.Components;
+import org.apache.ambari.server.controller.RootComponent;
 import org.apache.ambari.server.orm.GuiceJpaInitializer;
 import org.apache.ambari.server.orm.InMemoryDefaultTestModule;
 import org.apache.ambari.server.state.alert.AlertDefinition;
@@ -60,10 +60,10 @@ public class AgentAlertDefinitionsTest {
   public void testLoadingAgentHostAlerts() {
     AmbariServiceAlertDefinitions ambariServiceAlertDefinitions = m_injector.getInstance(AmbariServiceAlertDefinitions.class);
     List<AlertDefinition> definitions = ambariServiceAlertDefinitions.getAgentDefinitions();
-    Assert.assertEquals(2, definitions.size());
+    Assert.assertEquals(3, definitions.size());
 
     for( AlertDefinition definition : definitions){
-      Assert.assertEquals(Components.AMBARI_AGENT.name(),
+      Assert.assertEquals(RootComponent.AMBARI_AGENT.name(),
           definition.getComponentName());
 
       Assert.assertEquals("AMBARI", definition.getServiceName());
@@ -80,7 +80,7 @@ public class AgentAlertDefinitionsTest {
     Assert.assertEquals(4, definitions.size());
 
     for (AlertDefinition definition : definitions) {
-      Assert.assertEquals(Components.AMBARI_SERVER.name(),
+      Assert.assertEquals(RootComponent.AMBARI_SERVER.name(),
           definition.getComponentName());
 
       Assert.assertEquals("AMBARI", definition.getServiceName());

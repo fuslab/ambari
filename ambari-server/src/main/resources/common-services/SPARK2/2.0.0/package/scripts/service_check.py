@@ -18,7 +18,6 @@ limitations under the License.
 from ambari_commons import subprocess32
 import time
 
-from resource_management import *
 from resource_management.libraries.script.script import Script
 from resource_management.libraries.functions.format import format
 from resource_management.core.resources.system import Execute

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,13 +18,14 @@
 
 package org.apache.ambari.server.view.validation;
 
-import junit.framework.Assert;
-import org.apache.ambari.view.validation.ValidationResult;
-import org.junit.Test;
-
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+
+import org.apache.ambari.view.validation.ValidationResult;
+import org.junit.Test;
+
+import junit.framework.Assert;
 
 /**
  * InstanceValidationResultImpl tests.
@@ -34,7 +35,7 @@ public class InstanceValidationResultImplTest {
   @Test
   public void testGetPropertyResults() throws Exception {
     ValidationResult result = new ValidationResultImpl(true, "detail");
-    Map<String, ValidationResult> propertyResults = new HashMap<String, ValidationResult>();
+    Map<String, ValidationResult> propertyResults = new HashMap<>();
 
     propertyResults.put("foo", new ValidationResultImpl(true, "foo detail"));
     propertyResults.put("bar", new ValidationResultImpl(false, "bar detail"));

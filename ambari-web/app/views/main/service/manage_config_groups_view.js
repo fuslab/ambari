@@ -85,7 +85,7 @@ App.MainServiceManageConfigGroupView = Em.View.extend({
     if (!selectedConfigGroup.get('isDefault') && selectedConfigGroup.get('isAddHostsDisabled')) {
       return Em.I18n.t('services.service.config_groups_popup.addHostDisabled');
     } else {
-      return  Em.I18n.t('services.service.config_groups_popup.addHost');
+      return Em.I18n.t('services.service.config_groups_popup.addHost');
     }
   }.property('controller.selectedConfigGroup.isDefault', 'controller.selectedConfigGroup.isAddHostsDisabled'),
 
@@ -101,7 +101,7 @@ App.MainServiceManageConfigGroupView = Em.View.extend({
   showTooltip: function () {
     if (!this.get('controller.isLoaded')) return false;
     Em.run.next(function(){
-      App.tooltip($('.properties-link'));
+      App.tooltip($('.properties-link'), {html: true});
       App.tooltip($("[rel='button-info']"));
       App.tooltip($("[rel='button-info-dropdown']"), {placement: 'left'});
     });

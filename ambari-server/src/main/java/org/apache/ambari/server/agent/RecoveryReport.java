@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,11 +17,11 @@
  */
 package org.apache.ambari.server.agent;
 
-import org.codehaus.jackson.annotate.JsonProperty;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
+import org.codehaus.jackson.annotate.JsonProperty;
 
 
 public class RecoveryReport {
@@ -30,25 +30,29 @@ public class RecoveryReport {
    * One of DISABLED, RECOVERABLE, UNRECOVERABLE, PARTIALLY_RECOVERABLE
    */
   private String summary = "DISABLED";
-  private List<ComponentRecoveryReport> componentReports = new ArrayList<ComponentRecoveryReport>();
+  private List<ComponentRecoveryReport> componentReports = new ArrayList<>();
 
 
   @JsonProperty("summary")
+  @com.fasterxml.jackson.annotation.JsonProperty("summary")
   public String getSummary() {
     return summary;
   }
 
   @JsonProperty("summary")
+  @com.fasterxml.jackson.annotation.JsonProperty("summary")
   public void setSummary(String summary) {
     this.summary = summary;
   }
 
   @JsonProperty("component_reports")
+  @com.fasterxml.jackson.annotation.JsonProperty("component_reports")
   public List<ComponentRecoveryReport> getComponentReports() {
     return componentReports;
   }
 
   @JsonProperty("component_reports")
+  @com.fasterxml.jackson.annotation.JsonProperty("component_reports")
   public void setComponentReports(List<ComponentRecoveryReport> componentReports) {
     this.componentReports = componentReports;
   }

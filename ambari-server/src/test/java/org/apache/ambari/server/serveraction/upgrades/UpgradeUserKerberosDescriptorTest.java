@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,12 +36,17 @@ import org.apache.ambari.server.agent.ExecutionCommand;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
 import org.apache.ambari.server.orm.dao.ArtifactDAO;
 import org.apache.ambari.server.orm.entities.ArtifactEntity;
+import org.apache.ambari.server.orm.entities.RepositoryVersionEntity;
+import org.apache.ambari.server.orm.entities.UpgradeEntity;
 import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.Clusters;
 import org.apache.ambari.server.state.StackId;
+import org.apache.ambari.server.state.UpgradeContext;
+import org.apache.ambari.server.state.UpgradeContextFactory;
 import org.apache.ambari.server.state.kerberos.KerberosDescriptor;
 import org.apache.ambari.server.state.kerberos.KerberosDescriptorFactory;
 import org.apache.ambari.server.state.kerberos.KerberosDescriptorUpdateHelper;
+import org.apache.ambari.server.state.stack.upgrade.Direction;
 import org.easymock.Capture;
 import org.easymock.EasyMock;
 import org.junit.Before;
@@ -59,27 +64,34 @@ import org.powermock.modules.junit4.PowerMockRunner;
 public class UpgradeUserKerberosDescriptorTest {
   private Clusters clusters;
   private Cluster cluster;
+  private UpgradeEntity upgrade;
+  private UpgradeContext upgradeContext;
   private AmbariMetaInfo ambariMetaInfo;
   private KerberosDescriptorFactory kerberosDescriptorFactory;
   private ArtifactDAO artifactDAO;
+  private UpgradeContextFactory upgradeContextFactory;
 
   private TreeMap<String, Field> fields = new TreeMap<>();
   private StackId HDP_24 = new StackId("HDP", "2.4");
-  private StackId HDP_25 = new StackId("HDP", "2.5");
 
   @Before
   public void setup() throws Exception {
     clusters = EasyMock.createMock(Clusters.class);
     cluster = EasyMock.createMock(Cluster.class);
+    upgrade = EasyMock.createNiceMock(UpgradeEntity.class);
     kerberosDescriptorFactory = EasyMock.createNiceMock(KerberosDescriptorFactory.class);
     ambariMetaInfo = EasyMock.createMock(AmbariMetaInfo.class);
     artifactDAO = EasyMock.createNiceMock(ArtifactDAO.class);
+    upgradeContextFactory = EasyMock.createNiceMock(UpgradeContextFactory.class);
+    upgradeContext = EasyMock.createNiceMock(UpgradeContext.class);
 
     expect(clusters.getCluster((String) anyObject())).andReturn(cluster).anyTimes();
     expect(cluster.getClusterId()).andReturn(1l).atLeastOnce();
     expect(cluster.getCurrentStackVersion()).andReturn(HDP_24).atLeastOnce();
-    expect(cluster.getDesiredStackVersion()).andReturn(HDP_25).atLeastOnce();
-    replay(clusters, cluster);
+    expect(cluster.getUpgradeInProgress()).andReturn(upgrade).atLeastOnce();
+    expect(upgradeContextFactory.create(cluster, upgrade)).andReturn(upgradeContext).atLeastOnce();
+
+    replay(clusters, cluster, upgradeContextFactory, upgrade);
 
     prepareFields();
 
@@ -87,10 +99,16 @@ public class UpgradeUserKerberosDescriptorTest {
 
   @Test
   public void testUpgrade() throws Exception {
+    StackId stackId = new StackId("HDP", "2.5");
+    RepositoryVersionEntity repositoryVersion = EasyMock.createNiceMock(RepositoryVersionEntity.class);
+    expect(repositoryVersion.getStackId()).andReturn(stackId).atLeastOnce();
+
+    expect(upgradeContext.getDirection()).andReturn(Direction.UPGRADE).atLeastOnce();
+    expect(upgradeContext.getRepositoryVersion()).andReturn(repositoryVersion).atLeastOnce();
+    replay(repositoryVersion, upgradeContext);
 
     Map<String, String> commandParams = new HashMap<>();
     commandParams.put("clusterName", "c1");
-    commandParams.put("upgrade_direction", "UPGRADE");
 
     ExecutionCommand executionCommand = new ExecutionCommand();
     executionCommand.setCommandParams(commandParams);
@@ -122,7 +140,7 @@ public class UpgradeUserKerberosDescriptorTest {
     PowerMockito.when(KerberosDescriptorUpdateHelper.updateUserKerberosDescriptor(previousDescriptor, newDescriptor, userDescriptor)).thenReturn(updatedKerberosDescriptor);
     expect(kerberosDescriptorFactory.createInstance((Map)null)).andReturn(userDescriptor).atLeastOnce();
     expect(ambariMetaInfo.getKerberosDescriptor("HDP","2.5", false)).andReturn(newDescriptor).atLeastOnce();
-    expect(ambariMetaInfo.getKerberosDescriptor("HDP","2.4", false)).andReturn(previousDescriptor).atLeastOnce();
+    expect(ambariMetaInfo.getKerberosDescriptor("HDP","2.4",false)).andReturn(previousDescriptor).atLeastOnce();
 
 
     expect(updatedKerberosDescriptor.toMap()).andReturn(null).once();
@@ -143,10 +161,16 @@ public class UpgradeUserKerberosDescriptorTest {
 
   @Test
   public void testDowngrade() throws Exception {
+    StackId stackId = new StackId("HDP", "2.5");
+    RepositoryVersionEntity repositoryVersion = EasyMock.createNiceMock(RepositoryVersionEntity.class);
+    expect(repositoryVersion.getStackId()).andReturn(stackId).atLeastOnce();
+
+    expect(upgradeContext.getDirection()).andReturn(Direction.DOWNGRADE).atLeastOnce();
+    expect(upgradeContext.getRepositoryVersion()).andReturn(repositoryVersion).atLeastOnce();
+    replay(repositoryVersion, upgradeContext);
 
     Map<String, String> commandParams = new HashMap<>();
     commandParams.put("clusterName", "c1");
-    commandParams.put("upgrade_direction", "DOWNGRADE");
 
     ExecutionCommand executionCommand = new ExecutionCommand();
     executionCommand.setCommandParams(commandParams);
@@ -189,18 +213,26 @@ public class UpgradeUserKerberosDescriptorTest {
   }
 
   private void prepareFields() throws NoSuchFieldException {
-    String[] fieldsNames = {"artifactDAO","clusters","ambariMetaInfo","kerberosDescriptorFactory"};
-    for(String fieldName : fieldsNames)
-    {
-      Field clustersField = UpgradeUserKerberosDescriptor.class.getDeclaredField(fieldName);
-      clustersField.setAccessible(true);
-      fields.put(fieldName, clustersField);
+    String[] fieldsNames = { "artifactDAO", "m_clusters", "ambariMetaInfo",
+        "kerberosDescriptorFactory", "m_upgradeContextFactory" };
+
+    for (String fieldName : fieldsNames) {
+      try {
+        Field clustersField = UpgradeUserKerberosDescriptor.class.getDeclaredField(fieldName);
+        clustersField.setAccessible(true);
+        fields.put(fieldName, clustersField);
+      } catch( NoSuchFieldException noSuchFieldException ){
+        Field clustersField = UpgradeUserKerberosDescriptor.class.getSuperclass().getDeclaredField(fieldName);
+        clustersField.setAccessible(true);
+        fields.put(fieldName, clustersField);
+      }
     }
   }
   private void injectFields(UpgradeUserKerberosDescriptor action) throws IllegalAccessException {
     fields.get("artifactDAO").set(action, artifactDAO);
-    fields.get("clusters").set(action, clusters);
+    fields.get("m_clusters").set(action, clusters);
     fields.get("ambariMetaInfo").set(action, ambariMetaInfo);
     fields.get("kerberosDescriptorFactory").set(action, kerberosDescriptorFactory);
+    fields.get("m_upgradeContextFactory").set(action, upgradeContextFactory);
   }
 }

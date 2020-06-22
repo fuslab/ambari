@@ -22,24 +22,23 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Collectors;
 
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.actionmanager.HostRoleStatus;
 import org.apache.ambari.server.agent.CommandReport;
-import org.apache.ambari.server.serveraction.AbstractServerAction;
 import org.apache.ambari.server.state.Cluster;
-import org.apache.ambari.server.state.Clusters;
 import org.apache.ambari.server.state.Config;
+import org.apache.ambari.server.state.Host;
 import org.apache.commons.lang.StringUtils;
 
-import com.google.inject.Inject;
 
 /**
  * During stack upgrade, update lzo codec path in mapreduce.application.classpath and
  * at tez.cluster.additional.classpath.prefix to look like
  * /usr/hdp/${hdp.version}/hadoop/lib/hadoop-lzo-0.6.0.${hdp.version}.jar
  */
-public class FixLzoCodecPath extends AbstractServerAction {
+public class FixLzoCodecPath extends AbstractUpgradeServerAction {
 
   /**
    * Lists config types and properties that may contain lzo codec path
@@ -49,14 +48,11 @@ public class FixLzoCodecPath extends AbstractServerAction {
     put("tez-site", new String [] {"tez.cluster.additional.classpath.prefix"});
   }};
 
-  @Inject
-  private Clusters clusters;
-
   @Override
   public CommandReport execute(ConcurrentMap<String, Object> requestSharedDataContext)
     throws AmbariException, InterruptedException {
     String clusterName = getExecutionCommand().getClusterName();
-    Cluster cluster = clusters.getCluster(clusterName);
+    Cluster cluster = getClusters().getCluster(clusterName);
 
     ArrayList<String> modifiedProperties = new ArrayList<>();
 
@@ -77,6 +73,7 @@ public class FixLzoCodecPath extends AbstractServerAction {
       }
       config.setProperties(properties);
       config.save();
+      agentConfigsHolder.updateData(cluster.getClusterId(), cluster.getHosts().stream().map(Host::getHostId).collect(Collectors.toList()));
     }
     if (modifiedProperties.isEmpty()) {
       return createCommandReport(0, HostRoleStatus.COMPLETED, "{}",

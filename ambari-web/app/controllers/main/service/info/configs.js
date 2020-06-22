@@ -46,12 +46,37 @@ App.MainServiceInfoConfigsController = Em.Controller.extend(App.AddSecurityConfi
   groupsStore: App.ServiceConfigGroup.find(),
 
   /**
+   * Configs tab for current service
+   *
+   * @type {App.Tab[]}
+   */
+  activeServiceTabs: function () {
+    var selectedServiceName = this.get('selectedService.serviceName');
+    return selectedServiceName ? App.Tab.find().rejectProperty('isCategorized').filterProperty('serviceName', selectedServiceName) : [];
+  }.property('selectedService.serviceName'),
+
+  /**
+   * Currently opened configs tab
+   *
+   * @type {App.Tab}
+   */
+  activeTab: Em.computed.findBy('activeServiceTabs', 'isActive', true),
+
+  /**
    * config groups for current service
    * @type {App.ConfigGroup[]}
    */
   configGroups: function() {
     return this.get('groupsStore').filterProperty('serviceName', this.get('content.serviceName'));
   }.property('content.serviceName', 'groupsStore.@each.serviceName'),
+
+  defaultGroup: function() {
+    return this.get('configGroups').findProperty('isDefault');
+  }.property('configGroups'),
+
+  isNonDefaultGroupSelectedInCompare: function() {
+    return this.get('isCompareMode') && this.get('selectedConfigGroup') && !this.get('selectedConfigGroup.isDefault');
+  }.property('selectedConfigGroup', 'isCompareMode'),
 
   dependentConfigGroups: function() {
     if (this.get('dependentServiceNames.length') === 0) return [];
@@ -81,6 +106,15 @@ App.MainServiceInfoConfigsController = Em.Controller.extend(App.AddSecurityConfi
    * version selected to view
    */
   selectedVersion: null,
+
+  /**
+   * currently displayed service config version
+   * @type {App.ServiceConfigVersion}
+   */
+  selectedVersionRecord: function() {
+    const id = App.serviceConfigVersionsMapper.makeId(this.get('content.serviceName'), this.get('selectedVersion'));
+    return App.ServiceConfigVersion.find(id);
+  }.property('selectedVersion'),
 
   /**
    * note passed on configs save
@@ -129,7 +163,7 @@ App.MainServiceInfoConfigsController = Em.Controller.extend(App.AddSecurityConfi
    */
   errorsCount: function() {
     return this.get('selectedService.configsWithErrors').filter(function(c) {
-      return Em.isNone(c.get('widget'));
+      return Em.isNone(c.get('isInDefaultTheme'));
     }).length;
   }.property('selectedService.configsWithErrors'),
 
@@ -165,7 +199,9 @@ App.MainServiceInfoConfigsController = Em.Controller.extend(App.AddSecurityConfi
     {
       attributeName: 'isOverridden',
       attributeValue: true,
-      caption: 'common.combobox.dropdown.overridden'
+      caption: 'common.combobox.dropdown.overridden',
+      dependentOn: 'isNonDefaultGroupSelectedInCompare',
+      disabledOnCondition: 'isNonDefaultGroupSelectedInCompare'
     },
     {
       attributeName: 'isFinal',
@@ -176,7 +212,8 @@ App.MainServiceInfoConfigsController = Em.Controller.extend(App.AddSecurityConfi
       attributeName: 'hasCompareDiffs',
       attributeValue: true,
       caption: 'common.combobox.dropdown.changed',
-      dependentOn: 'isCompareMode'
+      dependentOn: 'isCompareMode',
+      canBeExcluded: true
     },
     {
       attributeName: 'hasIssues',
@@ -193,17 +230,19 @@ App.MainServiceInfoConfigsController = Em.Controller.extend(App.AddSecurityConfi
     var filterColumns = [];
 
     this.get('propertyFilters').forEach(function(filter) {
-      if (Em.isNone(filter.dependentOn) || this.get(filter.dependentOn)) {
-        filterColumns.push(Ember.Object.create({
-          attributeName: filter.attributeName,
-          attributeValue: filter.attributeValue,
-          name: this.t(filter.caption),
-          selected: filter.dependentOn ? this.get(filter.dependentOn) : false
-        }));
+      if (filter.canBeExcluded && !(Em.isNone(filter.dependentOn) || this.get(filter.dependentOn))) {
+        return; // exclude column
       }
+      filterColumns.push(Ember.Object.create({
+        attributeName: filter.attributeName,
+        attributeValue: filter.attributeValue,
+        name: this.t(filter.caption),
+        selected: filter.dependentOn ? this.get(filter.dependentOn) : false,
+        isDisabled: filter.disabledOnCondition ? this.get(filter.disabledOnCondition) : false
+      }));
     }, this);
     return filterColumns;
-  }.property('propertyFilters', 'isCompareMode'),
+  }.property('propertyFilters', 'isCompareMode', 'isNonDefaultGroupSelectedInCompare'),
 
   /**
    * Detects of some of the `password`-configs has not default value
@@ -313,7 +352,6 @@ App.MainServiceInfoConfigsController = Em.Controller.extend(App.AddSecurityConfi
    */
   loadStep: function () {
     var serviceName = this.get('content.serviceName'), self = this;
-    App.router.get('mainController').stopPolling();
     this.clearStep();
     this.set('dependentServiceNames', this.getServicesDependencies(serviceName));
     this.trackRequestChain(this.loadConfigTheme(serviceName).always(function () {
@@ -325,16 +363,13 @@ App.MainServiceInfoConfigsController = Em.Controller.extend(App.AddSecurityConfi
       self.trackRequest(self.loadServiceConfigVersions());
     }));
   },
-
-  /**
-   * Turn on polling when all requests are finished
-   */
-  trackRequestsDidChange: function() {
-    var allCompleted = this.get('requestsInProgress').everyProperty('completed', true);
-    if (this.get('requestsInProgress').length && allCompleted) {
-      App.router.get('mainController').startPolling();
-    }
-  }.observes('requestsInProgress.@each.completed'),
+  
+  saveConfigs: function() {
+    const newVersionToBeCreated = Math.max.apply(null, App.ServiceConfigVersion.find().mapProperty('version')) + 1;
+    const isDefault = this.get('selectedConfigGroup.name') === App.ServiceConfigGroup.defaultGroupName;
+    this.set('currentDefaultVersion', isDefault ? newVersionToBeCreated : this.get('currentDefaultVersion'));
+    this._super();
+  },
 
   /**
    * Generate "finger-print" for current <code>stepConfigs[0]</code>
@@ -375,12 +410,12 @@ App.MainServiceInfoConfigsController = Em.Controller.extend(App.AddSecurityConfi
   },
 
   parseConfigData: function(data) {
-    var self = this;
-    this.loadKerberosIdentitiesConfigs().done(function(identityConfigs) {
-      self.prepareConfigObjects(data, identityConfigs);
-      self.loadCompareVersionConfigs(self.get('allConfigs')).done(function() {
-        self.addOverrides(data, self.get('allConfigs'));
-        self.onLoadOverrides(self.get('allConfigs'));
+    this.loadKerberosIdentitiesConfigs().done(identityConfigs => {
+      this.prepareConfigObjects(data, identityConfigs);
+      this.loadCompareVersionConfigs(this.get('allConfigs')).done(() => {
+        this.addOverrides(data, this.get('allConfigs'));
+        this.onLoadOverrides(this.get('allConfigs'));
+        this.updateAttributesFromTheme(this.get('content.serviceName'));
       });
     });
   },
@@ -688,6 +723,8 @@ App.MainServiceInfoConfigsController = Em.Controller.extend(App.AddSecurityConfi
    */
   doCancel: function () {
     this.set('preSelectedConfigVersion', null);
+    App.set('componentToBeAdded', {});
+    App.set('componentToBeDeleted', {});
     this.clearRecommendations();
     this.loadSelectedVersion(this.get('selectedVersion'), this.get('selectedConfigGroup'));
   },

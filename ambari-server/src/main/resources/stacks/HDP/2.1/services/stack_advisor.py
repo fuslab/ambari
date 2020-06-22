@@ -17,7 +17,88 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+# Python imports
+import socket
+
+# Local Imports
+
+try:
+  from stack_advisor_hdp206 import *
+except ImportError:
+  #Ignore ImportError
+  print("stack_advisor_hdp206 not found")
+
 class HDP21StackAdvisor(HDP206StackAdvisor):
+
+  def __init__(self):
+    super(HDP21StackAdvisor, self).__init__()
+    self.initialize_logger("HDP21StackAdvisor")
+
+    self.modifyMastersWithMultipleInstances()
+    self.modifyCardinalitiesDict()
+    self.modifyHeapSizeProperties()
+    self.modifyNotValuableComponents()
+    self.modifyComponentsNotPreferableOnServer()
+    self.modifyComponentLayoutSchemes()
+
+  def modifyMastersWithMultipleInstances(self):
+    """
+    Modify the set of masters with multiple instances.
+    Must be overriden in child class.
+    """
+    self.mastersWithMultipleInstances |= set(['ZOOKEEPER_SERVER', 'HBASE_MASTER'])
+
+  def modifyCardinalitiesDict(self):
+    """
+    Modify the dictionary of cardinalities.
+    Must be overriden in child class.
+    """
+    self.cardinalitiesDict.update(
+      {
+        'ZOOKEEPER_SERVER': {"min": 3},
+        'HBASE_MASTER': {"min": 1},
+      }
+    )
+
+  def modifyHeapSizeProperties(self):
+    """
+    Modify the dictionary of heap size properties.
+    Must be overriden in child class.
+    """
+    # Nothing to do
+    pass
+
+  def modifyNotValuableComponents(self):
+    """
+    Modify the set of components whose host assignment is based on other services.
+    Must be overriden in child class.
+    """
+    self.notValuableComponents |= set(['JOURNALNODE', 'ZKFC', 'GANGLIA_MONITOR', 'APP_TIMELINE_SERVER'])
+
+  def modifyComponentsNotPreferableOnServer(self):
+    """
+    Modify the set of components that are not preferable on the server.
+    Must be overriden in child class.
+    """
+    self.notPreferableOnServerComponents |= set(['STORM_UI_SERVER', 'DRPC_SERVER', 'STORM_REST_API', 'NIMBUS', 'GANGLIA_SERVER', 'METRICS_COLLECTOR'])
+
+  def modifyComponentLayoutSchemes(self):
+    """
+    Modify layout scheme dictionaries for components.
+
+    The scheme dictionary basically maps the number of hosts to
+    host index where component should exist.
+
+    Must be overriden in child class.
+    """
+
+    # since old stack advisors are extending each other they should call parent method first
+    super(HDP21StackAdvisor, self).modifyComponentLayoutSchemes()
+
+    self.componentLayoutSchemes.update({
+      'APP_TIMELINE_SERVER': {31: 1, "else": 2},
+      'FALCON_SERVER': {6: 1, 31: 2, "else": 3}
+    })
 
   def getServiceConfigurationRecommenderDict(self):
     parentRecommendConfDict = super(HDP21StackAdvisor, self).getServiceConfigurationRecommenderDict()
@@ -48,8 +129,8 @@ class HDP21StackAdvisor(HDP206StackAdvisor):
   def recommendOozieConfigurations(self, configurations, clusterData, services, hosts):
     super(HDP21StackAdvisor, self).recommendOozieConfigurations(configurations, clusterData, services, hosts)
 
-    oozieSiteProperties = getSiteProperties(services['configurations'], 'oozie-site')
-    oozieEnvProperties = getSiteProperties(services['configurations'], 'oozie-env')
+    oozieSiteProperties = self.getSiteProperties(services['configurations'], 'oozie-site')
+    oozieEnvProperties = self.getSiteProperties(services['configurations'], 'oozie-env')
     putOozieProperty = self.putProperty(configurations, "oozie-site", services)
     putOozieEnvProperty = self.putProperty(configurations, "oozie-env", services)
 
@@ -61,7 +142,7 @@ class HDP21StackAdvisor(HDP206StackAdvisor):
         if falconUser is not None:
           putOozieSiteProperty("oozie.service.ProxyUserService.proxyuser.{0}.groups".format(falconUser) , "*")
           putOozieSiteProperty("oozie.service.ProxyUserService.proxyuser.{0}.hosts".format(falconUser) , "*")
-        falconUserOldValue = getOldValue(self, services, "falcon-env", "falcon_user")
+        falconUserOldValue = self.getOldValue(services, "falcon-env", "falcon_user")
         if falconUserOldValue is not None:
           if 'forced-configurations' not in services:
             services["forced-configurations"] = []
@@ -85,7 +166,7 @@ class HDP21StackAdvisor(HDP206StackAdvisor):
       oozieServerHost = self.getHostWithComponent('OOZIE', 'OOZIE_SERVER', services, hosts)
       oozieDBConnectionURL = oozieSiteProperties['oozie.service.JPAService.jdbc.url']
       protocol = self.getProtocol(oozieEnvProperties['oozie_database'])
-      oldSchemaName = getOldValue(self, services, "oozie-site", "oozie.db.schema.name")
+      oldSchemaName = self.getOldValue(services, "oozie-site", "oozie.db.schema.name")
       # under these if constructions we are checking if oozie server hostname available,
       # if schema name was changed or if protocol according to current db type differs with protocol in db connection url(db type was changed)
       if oozieServerHost is not None:
@@ -94,8 +175,8 @@ class HDP21StackAdvisor(HDP206StackAdvisor):
           putOozieProperty('oozie.service.JPAService.jdbc.url', dbConnection)
 
   def recommendHiveConfigurations(self, configurations, clusterData, services, hosts):
-    hiveSiteProperties = getSiteProperties(services['configurations'], 'hive-site')
-    hiveEnvProperties = getSiteProperties(services['configurations'], 'hive-env')
+    hiveSiteProperties = self.getSiteProperties(services['configurations'], 'hive-site')
+    hiveEnvProperties = self.getSiteProperties(services['configurations'], 'hive-env')
     containerSize = clusterData['mapMemory'] if clusterData['mapMemory'] > 2048 else int(clusterData['reduceMemory'])
     containerSize = min(clusterData['containers'] * clusterData['ramPerContainer'], containerSize)
     container_size_bytes = int(containerSize)*1024*1024
@@ -115,8 +196,8 @@ class HDP21StackAdvisor(HDP206StackAdvisor):
       hiveServerHost = self.getHostWithComponent('HIVE', 'HIVE_SERVER', services, hosts)
       hiveDBConnectionURL = hiveSiteProperties['javax.jdo.option.ConnectionURL']
       protocol = self.getProtocol(hiveEnvProperties['hive_database'])
-      oldSchemaName = getOldValue(self, services, "hive-site", "ambari.hive.db.schema.name")
-      oldDBType = getOldValue(self, services, "hive-env", "hive_database")
+      oldSchemaName = self.getOldValue(services, "hive-site", "ambari.hive.db.schema.name")
+      oldDBType = self.getOldValue(services, "hive-env", "hive_database")
       # under these if constructions we are checking if hive server hostname available,
       # if it's default db connection url with "localhost" or if schema name was changed or if db type was changed (only for db type change from default mysql to existing mysql)
       # or if protocol according to current db type differs with protocol in db connection url(other db types changes)
@@ -156,22 +237,6 @@ class HDP21StackAdvisor(HDP206StackAdvisor):
     if recommended_tez_queue is not None:
       putTezProperty("tez.queue.name", recommended_tez_queue)
 
-
-  def getNotPreferableOnServerComponents(self):
-    return ['STORM_UI_SERVER', 'DRPC_SERVER', 'STORM_REST_API', 'NIMBUS', 'GANGLIA_SERVER', 'METRICS_COLLECTOR']
-
-  def getNotValuableComponents(self):
-    return ['JOURNALNODE', 'ZKFC', 'GANGLIA_MONITOR', 'APP_TIMELINE_SERVER']
-
-  def getComponentLayoutSchemes(self):
-    parentSchemes = super(HDP21StackAdvisor, self).getComponentLayoutSchemes()
-    childSchemes = {
-        'APP_TIMELINE_SERVER': {31: 1, "else": 2},
-        'FALCON_SERVER': {6: 1, 31: 2, "else": 3}
-    }
-    parentSchemes.update(childSchemes)
-    return parentSchemes
-
   def getServiceConfigurationValidators(self):
     parentValidators = super(HDP21StackAdvisor, self).getServiceConfigurationValidators()
     childValidators = {
@@ -185,10 +250,10 @@ class HDP21StackAdvisor(HDP206StackAdvisor):
     validationItems = [ {"config-name": 'hive.tez.container.size', "item": self.validatorLessThenDefaultValue(properties, recommendedDefaults, 'hive.tez.container.size')},
                         {"config-name": 'hive.tez.java.opts', "item": self.validateXmxValue(properties, recommendedDefaults, 'hive.tez.java.opts')},
                         {"config-name": 'hive.auto.convert.join.noconditionaltask.size', "item": self.validatorLessThenDefaultValue(properties, recommendedDefaults, 'hive.auto.convert.join.noconditionaltask.size')} ]
-    yarnSiteProperties = getSiteProperties(configurations, "yarn-site")
+    yarnSiteProperties = self.getSiteProperties(configurations, "yarn-site")
     if yarnSiteProperties:
-      yarnSchedulerMaximumAllocationMb = to_number(yarnSiteProperties["yarn.scheduler.maximum-allocation-mb"])
-      hiveTezContainerSize = to_number(properties['hive.tez.container.size'])
+      yarnSchedulerMaximumAllocationMb = self.to_number(yarnSiteProperties["yarn.scheduler.maximum-allocation-mb"])
+      hiveTezContainerSize = self.to_number(properties['hive.tez.container.size'])
       if hiveTezContainerSize is not None and yarnSchedulerMaximumAllocationMb is not None and hiveTezContainerSize > yarnSchedulerMaximumAllocationMb:
         validationItems.append({"config-name": 'hive.tez.container.size', "item": self.getWarnItem("hive.tez.container.size is greater than the maximum container size specified in yarn.scheduler.maximum-allocation-mb")})
     return self.toConfigurationValidationProblems(validationItems, "hive-site")

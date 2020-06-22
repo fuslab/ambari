@@ -27,6 +27,7 @@ import socket
 import tempfile
 import ConfigParser
 import ambari_agent.hostname as hostname
+import resource
 
 from ambari_commons import OSCheck
 from ambari_commons.os_family_impl import OsFamilyFuncImpl, OsFamilyImpl
@@ -35,7 +36,7 @@ from mock.mock import MagicMock, patch, ANY, Mock, call
 
 with patch.object(OSCheck, "os_distribution", new = MagicMock(return_value = os_distro_value)):
   from ambari_agent import NetUtil, security
-  from ambari_agent import ProcessHelper, main
+  from ambari_agent import main
   from ambari_agent.AmbariConfig import AmbariConfig
   from ambari_agent.PingPortListener import PingPortListener
   from ambari_agent.Controller import Controller
@@ -45,7 +46,7 @@ with patch.object(OSCheck, "os_distribution", new = MagicMock(return_value = os_
   from ambari_agent.ExitHelper import ExitHelper
 
 
-class TestMain(unittest.TestCase):
+class TestMain:#(unittest.TestCase):
 
   def setUp(self):
     # disable stdout
@@ -61,8 +62,7 @@ class TestMain(unittest.TestCase):
   @patch("ambari_agent.HeartbeatHandlers.HeartbeatStopHandlersLinux")
   @patch("sys.exit")
   @patch("os.getpid")
-  @patch.object(ProcessHelper, "stopAgent")
-  def test_signal_handler(self, stopAgent_mock, os_getpid_mock, sys_exit_mock, heartbeat_handler_mock):
+  def test_signal_handler(self,os_getpid_mock, sys_exit_mock, heartbeat_handler_mock):
     # testing exit of children
     main.agentPid = 4444
     os_getpid_mock.return_value = 5555
@@ -127,6 +127,21 @@ class TestMain(unittest.TestCase):
     config.set('agent', 'loglevel', 'WRONG')
     main.update_log_level(config)
     setLevel_mock.assert_called_with(logging.INFO)
+
+  # Set open files ulimit hard limit
+  def test_update_open_files_ulimit(self):
+    # get the current soft and hard limits
+    (soft_limit, hard_limit) = resource.getrlimit(resource.RLIMIT_NOFILE)
+    # update will be successful only if the new value is >= soft limit
+    if hard_limit != resource.RLIM_INFINITY: 
+      open_files_ulimit = soft_limit + (hard_limit - soft_limit) / 2
+    else:
+      open_files_ulimit = soft_limit
+    config = AmbariConfig()
+    config.set_ulimit_open_files(open_files_ulimit)
+    main.update_open_files_ulimit(config)
+    (soft_limit, hard_limit) = resource.getrlimit(resource.RLIMIT_NOFILE)
+    self.assertEquals(hard_limit, open_files_ulimit)
 
   @not_for_platform(PLATFORM_WINDOWS)
   @patch("signal.signal")
@@ -208,14 +223,14 @@ class TestMain(unittest.TestCase):
   def test_daemonize_and_stop(self, exists_mock, sleep_mock):
     from ambari_commons.shell import shellRunnerLinux
 
-    oldpid = ProcessHelper.pidfile
+    oldpid = main.agent_pidfile
     pid = str(os.getpid())
     _, tmpoutfile = tempfile.mkstemp()
-    ProcessHelper.pidfile = tmpoutfile
+    main.agent_pidfile = tmpoutfile
 
     # Test daemonization
     main.daemonize()
-    saved = open(ProcessHelper.pidfile, 'r').read()
+    saved = open(main.agent_pidfile, 'r').read()
     self.assertEqual(pid, saved)
 
     main.GRACEFUL_STOP_TRIES = 1
@@ -253,7 +268,7 @@ class TestMain(unittest.TestCase):
                                   call(['ambari-sudo.sh', 'kill', '-9', pid])])
 
     # Restore
-    ProcessHelper.pidfile = oldpid
+    main.pidfile = oldpid
     os.remove(tmpoutfile)
 
   @patch("os.rmdir")

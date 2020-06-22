@@ -18,8 +18,6 @@
 
 package org.apache.ambari.server.audit.request.creator;
 
-import junit.framework.Assert;
-
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -38,6 +36,8 @@ import org.apache.ambari.server.controller.internal.RepositoryResourceProvider;
 import org.apache.ambari.server.controller.internal.RepositoryVersionResourceProvider;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.junit.Test;
+
+import junit.framework.Assert;
 
 public class RepositoryVersionEventCreatorTest extends AuditEventCreatorTestBase{
 
@@ -59,11 +59,11 @@ public class RepositoryVersionEventCreatorTest extends AuditEventCreatorTestBase
     AuditEvent event = AuditEventCreatorTestHelper.getEvent(creator, request, result);
 
     String actual = event.getAuditMessage();
-    String expected = "User(" + userName + "), RemoteIp(1.2.3.4), Operation(Repository version addition), RequestType(POST), url(http://example.com:8080/api/v1/test), ResultStatus(200 OK), Stack(StackName), Stack version(1.9), Display name(MyStack), Repo version(1.2-56), Repositories(\n" +
-      "Operating system: redhat6\n" +
-      "    Repository ID(2), Repository name(MyRepo6), Base url(http://example6.com)\n" +
-      "Operating system: redhat7\n" +
-      "    Repository ID(1), Repository name(MyRepo), Base url(http://example.com)\n" +
+    String expected = "User(" + userName + "), RemoteIp(1.2.3.4), Operation(Repository version addition), RequestType(POST), url(http://example.com:8080/api/v1/test), ResultStatus(200 OK), Stack(StackName), Stack version(1.9), Display name(MyStack), Repo version(1.2-56), Repositories(" +
+      "Operating system: redhat6(" +
+      "Repository ID(2), Repository name(MyRepo6), Base url(http://example6.com))" +
+      "Operating system: redhat7(" +
+      "Repository ID(1), Repository name(MyRepo), Base url(http://example.com))" +
       ")";
 
     Assert.assertTrue("Class mismatch", event instanceof AddRepositoryVersionRequestAuditEvent);
@@ -89,11 +89,11 @@ public class RepositoryVersionEventCreatorTest extends AuditEventCreatorTestBase
     AuditEvent event = AuditEventCreatorTestHelper.getEvent(creator, request, result);
 
     String actual = event.getAuditMessage();
-    String expected = "User(" + userName + "), RemoteIp(1.2.3.4), Operation(Repository version change), RequestType(PUT), url(http://example.com:8080/api/v1/test), ResultStatus(200 OK), Stack(StackName), Stack version(1.9), Display name(MyStack), Repo version(1.2-56), Repositories(\n" +
-      "Operating system: redhat6\n" +
-      "    Repository ID(2), Repository name(MyRepo6), Base url(http://example6.com)\n" +
-      "Operating system: redhat7\n" +
-      "    Repository ID(1), Repository name(MyRepo), Base url(http://example.com)\n" +
+    String expected = "User(" + userName + "), RemoteIp(1.2.3.4), Operation(Repository version change), RequestType(PUT), url(http://example.com:8080/api/v1/test), ResultStatus(200 OK), Stack(StackName), Stack version(1.9), Display name(MyStack), Repo version(1.2-56), Repositories(" +
+      "Operating system: redhat6(" +
+      "Repository ID(2), Repository name(MyRepo6), Base url(http://example6.com))" +
+      "Operating system: redhat7(" +
+      "Repository ID(1), Repository name(MyRepo), Base url(http://example.com))" +
       ")";
 
     Assert.assertTrue("Class mismatch", event instanceof ChangeRepositoryVersionRequestAuditEvent);
@@ -135,8 +135,6 @@ public class RepositoryVersionEventCreatorTest extends AuditEventCreatorTestBase
     Map<String, String> repository = new HashMap<>();
     repository.put(RepositoryResourceProvider.REPOSITORY_REPO_ID_PROPERTY_ID, "1");
     repository.put(RepositoryResourceProvider.REPOSITORY_REPO_NAME_PROPERTY_ID, "MyRepo");
-    repository.put(RepositoryResourceProvider.REPOSITORY_DISTRIBUTION_PROPERTY_ID, "testDist");
-    repository.put(RepositoryResourceProvider.REPOSITORY_COMPONENTS_PROPERTY_ID, "testComponentName");
     repository.put(RepositoryResourceProvider.REPOSITORY_BASE_URL_PROPERTY_ID, "http://example.com");
     repositories.add(repository);
 
@@ -150,8 +148,6 @@ public class RepositoryVersionEventCreatorTest extends AuditEventCreatorTestBase
     Map<String, String> repository2 = new HashMap<>();
     repository2.put(RepositoryResourceProvider.REPOSITORY_REPO_ID_PROPERTY_ID, "2");
     repository2.put(RepositoryResourceProvider.REPOSITORY_REPO_NAME_PROPERTY_ID, "MyRepo6");
-    repository2.put(RepositoryResourceProvider.REPOSITORY_DISTRIBUTION_PROPERTY_ID, "testDist6");
-    repository2.put(RepositoryResourceProvider.REPOSITORY_COMPONENTS_PROPERTY_ID, "testComponentName6");
     repository2.put(RepositoryResourceProvider.REPOSITORY_BASE_URL_PROPERTY_ID, "http://example6.com");
     repositories2.add(repository2);
 

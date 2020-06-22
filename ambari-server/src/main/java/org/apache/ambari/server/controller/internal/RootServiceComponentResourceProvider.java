@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,16 +18,16 @@
 
 package org.apache.ambari.server.controller.internal;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.controller.AmbariManagementController;
+import org.apache.ambari.server.controller.RootComponent;
 import org.apache.ambari.server.controller.RootServiceComponentRequest;
 import org.apache.ambari.server.controller.RootServiceComponentResponse;
-import org.apache.ambari.server.controller.RootServiceResponseFactory.Components;
 import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
 import org.apache.ambari.server.controller.spi.NoSuchResourceException;
 import org.apache.ambari.server.controller.spi.Predicate;
@@ -38,31 +38,46 @@ import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 
-public class RootServiceComponentResourceProvider extends
-    ReadOnlyResourceProvider {
-  
-  public static final String SERVICE_NAME_PROPERTY_ID = PropertyHelper
-      .getPropertyId("RootServiceComponents", "service_name");
-  
-  public static final String COMPONENT_NAME_PROPERTY_ID = PropertyHelper
-      .getPropertyId("RootServiceComponents", "component_name");
-  
-  public static final String COMPONENT_VERSION_PROPERTY_ID = PropertyHelper
-      .getPropertyId("RootServiceComponents", "component_version");
-  
-  public static final String PROPERTIES_PROPERTY_ID = PropertyHelper
-      .getPropertyId("RootServiceComponents", "properties");
-  
-  public static final String PROPERTIES_SERVER_CLOCK = PropertyHelper
-      .getPropertyId("RootServiceComponents", "server_clock");
-  
-  private Set<String> pkPropertyIds = new HashSet<String>(
-      Arrays.asList(new String[] { SERVICE_NAME_PROPERTY_ID, COMPONENT_NAME_PROPERTY_ID }));
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 
-  protected RootServiceComponentResourceProvider(Set<String> propertyIds,
-      Map<Type, String> keyPropertyIds,
-      AmbariManagementController managementController) {
-    super(propertyIds, keyPropertyIds, managementController);
+public class RootServiceComponentResourceProvider extends ReadOnlyResourceProvider {
+
+  public static final String RESPONSE_KEY = "RootServiceComponents";
+  public static final String ALL_PROPERTIES = RESPONSE_KEY + PropertyHelper.EXTERNAL_PATH_SEP + "*";
+
+  public static final String SERVICE_NAME = "service_name";
+  public static final String COMPONENT_NAME = "component_name";
+  public static final String COMPONENT_VERSION = "component_version";
+  public static final String PROPERTIES = "properties";
+  public static final String SERVER_CLOCK = "server_clock";
+
+  public static final String SERVICE_NAME_PROPERTY_ID = RESPONSE_KEY + PropertyHelper.EXTERNAL_PATH_SEP + SERVICE_NAME;
+  public static final String COMPONENT_NAME_PROPERTY_ID = RESPONSE_KEY + PropertyHelper.EXTERNAL_PATH_SEP + COMPONENT_NAME;
+  public static final String COMPONENT_VERSION_PROPERTY_ID = RESPONSE_KEY + PropertyHelper.EXTERNAL_PATH_SEP + COMPONENT_VERSION;
+  public static final String PROPERTIES_PROPERTY_ID = RESPONSE_KEY + PropertyHelper.EXTERNAL_PATH_SEP + PROPERTIES;
+  public static final String SERVER_CLOCK_PROPERTY_ID = RESPONSE_KEY + PropertyHelper.EXTERNAL_PATH_SEP + SERVER_CLOCK;
+
+  /**
+   * The key property ids for a RootServiceComponent resource.
+   */
+  private static Map<Resource.Type, String> keyPropertyIds = ImmutableMap.<Resource.Type, String>builder()
+      .put(Type.RootService, SERVICE_NAME_PROPERTY_ID)
+      .put(Type.RootServiceComponent, COMPONENT_NAME_PROPERTY_ID)
+      .build();
+
+  /**
+   * The property ids for a RootServiceComponent resource.
+   */
+  private static Set<String> propertyIds = Sets.newHashSet(
+      SERVICE_NAME_PROPERTY_ID,
+      COMPONENT_NAME_PROPERTY_ID,
+      COMPONENT_VERSION_PROPERTY_ID,
+      PROPERTIES_PROPERTY_ID,
+      SERVER_CLOCK_PROPERTY_ID);
+
+  protected RootServiceComponentResourceProvider(AmbariManagementController managementController) {
+    super(Type.RootServiceComponent, propertyIds, keyPropertyIds, managementController);
   }
   
   @Override
@@ -70,10 +85,10 @@ public class RootServiceComponentResourceProvider extends
       throws SystemException, UnsupportedPropertyException,
       NoSuchResourceException, NoSuchParentResourceException {
 
-    final Set<RootServiceComponentRequest> requests = new HashSet<RootServiceComponentRequest>();
+    final Set<RootServiceComponentRequest> requests = new HashSet<>();
 
     if (predicate == null) {
-      requests.add(getRequest(Collections.<String, Object>emptyMap()));
+      requests.add(getRequest(Collections.emptyMap()));
     } else {
       for (Map<String, Object> propertyMap : getPropertyMaps(predicate)) {
         requests.add(getRequest(propertyMap));
@@ -89,26 +104,18 @@ public class RootServiceComponentResourceProvider extends
       }
     });
 
-    Set<Resource> resources = new HashSet<Resource>();
+    Set<Resource> resources = new HashSet<>();
 
     for (RootServiceComponentResponse response : responses) {
       Resource resource = new ResourceImpl(Resource.Type.RootServiceComponent);
 
-      setResourceProperty(resource, SERVICE_NAME_PROPERTY_ID,
-          response.getServiceName(), requestedIds);
+      setResourceProperty(resource, SERVICE_NAME_PROPERTY_ID, response.getServiceName(), requestedIds);
+      setResourceProperty(resource, COMPONENT_NAME_PROPERTY_ID, response.getComponentName(), requestedIds);
+      setResourceProperty(resource, PROPERTIES_PROPERTY_ID, response.getProperties(), requestedIds);
+      setResourceProperty(resource, COMPONENT_VERSION_PROPERTY_ID, response.getComponentVersion(), requestedIds);
       
-      setResourceProperty(resource, COMPONENT_NAME_PROPERTY_ID,
-          response.getComponentName(), requestedIds);
-      
-      setResourceProperty(resource, PROPERTIES_PROPERTY_ID,
-          response.getProperties(), requestedIds);
-      
-      setResourceProperty(resource, COMPONENT_VERSION_PROPERTY_ID,
-          response.getComponentVersion(), requestedIds);
-      
-      if(response.getComponentName().equals(Components.AMBARI_SERVER.name())){
-        setResourceProperty(resource, PROPERTIES_SERVER_CLOCK,
-            System.currentTimeMillis() / 1000L, requestedIds);
+      if (RootComponent.AMBARI_SERVER.name().equals(response.getComponentName())) {
+        setResourceProperty(resource, SERVER_CLOCK_PROPERTY_ID, response.getServerClock(), requestedIds);
       }      
 
       resources.add(resource);
@@ -124,7 +131,7 @@ public class RootServiceComponentResourceProvider extends
 
   @Override
   protected Set<String> getPKPropertyIds() {
-    return pkPropertyIds;
+    return new HashSet<>(keyPropertyIds.values());
   }
 
 }

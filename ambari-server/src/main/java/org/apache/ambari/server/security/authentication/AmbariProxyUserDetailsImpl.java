@@ -18,22 +18,33 @@
 
 package org.apache.ambari.server.security.authentication;
 
+import org.apache.ambari.server.security.authorization.UserAuthenticationType;
+
 /**
  * AmbariProxyUserDetailsImpl is a general implementation of a {@link AmbariProxyUserDetails}.
  */
 public class AmbariProxyUserDetailsImpl implements AmbariProxyUserDetails {
   private final String username;
+  private final UserAuthenticationType authenticationType;
 
   /**
    * Constructor
+   *
    * @param username           the local username
+   * @param authenticationType the {@link UserAuthenticationType}
    */
-  public AmbariProxyUserDetailsImpl(String username) {
+  public AmbariProxyUserDetailsImpl(String username, UserAuthenticationType authenticationType) {
     this.username = username;
+    this.authenticationType = authenticationType;
   }
 
   @Override
   public String getUsername() {
     return username;
+  }
+
+  @Override
+  public UserAuthenticationType getAuthenticationType() {
+    return authenticationType;
   }
 }

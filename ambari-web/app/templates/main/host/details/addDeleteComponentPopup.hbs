@@ -17,16 +17,20 @@
 }}
 
 {{#if view.lastComponent}}
-  <div class="alert-error row-fluid">
-    <div class='tinyspan tinyoffset'>{{view Ember.Checkbox checkedBinding="view.parentView.isChecked"}}</div>
-    <div class="span10">{{{view.lastComponentError}}}</div>
+  <div class="alert alert-danger">
+    <div class="row row-no-pad">
+      <div class="col-md-1 checkbox-colored-background">{{view App.CheckboxView checkedBinding="view.parentView.isChecked"}}</div>
+      <div class="col-md-11">{{{view.lastComponentError}}}</div>
+    </div>
   </div>
 {{/if}}
 {{#if view.anyHostsWithoutComponent}}
-  {{#if view.hasHostsSelect}}
+  {{#if view.fromServiceSummary}}
     <div>{{view.selectHostMsg}}</div>
-    <div>
-      {{view Ember.Select contentBinding="view.hostsWithoutComponent" selectionBinding="view.selectedHost"}}
+    <div class="row">
+      <div class="col-md-12">
+        {{view Ember.Select contentBinding="view.hostsWithoutComponent" selectionBinding="view.selectedHost" classNames="form-control"}}
+      </div>
     </div>
   {{/if}}
   {{#if controller.isReconfigureRequired}}

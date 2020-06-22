@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,10 +17,11 @@
  */
 package org.apache.ambari.server.state;
 
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
+
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.apache.commons.lang.builder.HashCodeBuilder;
-
-import javax.xml.bind.annotation.*;
 
 /**
  * Represents the customCommand tag at service/component metainfo
@@ -29,8 +30,10 @@ import javax.xml.bind.annotation.*;
 public class CustomCommandDefinition {
 
   private String name;
+  private String opsDisplayName;
   private CommandScriptDefinition commandScript;
   private boolean background = false;
+  private boolean hidden = false;
 
   public String getName() {
     return name;
@@ -38,6 +41,18 @@ public class CustomCommandDefinition {
   
   public boolean isBackground() {
     return background;
+  }
+
+  public boolean isHidden() {
+    return hidden;
+  }
+
+  public void setHidden(boolean hidden) {
+    this.hidden = hidden;
+  }
+
+  public String getOpsDisplayName() {
+    return opsDisplayName;
   }
 
   public CommandScriptDefinition getCommandScript() {

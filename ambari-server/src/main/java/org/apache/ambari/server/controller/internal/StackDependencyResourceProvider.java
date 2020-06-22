@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,13 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
 import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
@@ -31,15 +38,11 @@ import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.apache.ambari.server.state.AutoDeployInfo;
+import org.apache.ambari.server.state.DependencyConditionInfo;
 import org.apache.ambari.server.state.DependencyInfo;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 
 /**
  * Resource provider for Stack Dependency resource.
@@ -62,15 +65,38 @@ public class StackDependencyResourceProvider extends AbstractResourceProvider {
       PropertyHelper.getPropertyId("Dependencies", "component_name");
   protected static final String SCOPE_ID =
       PropertyHelper.getPropertyId("Dependencies", "scope");
+  protected static final String CONDITIONS_ID = PropertyHelper
+    .getPropertyId("Dependencies","conditions");
   protected static final String AUTO_DEPLOY_ENABLED_ID = PropertyHelper
       .getPropertyId("auto_deploy", "enabled");
   protected static final String AUTO_DEPLOY_LOCATION_ID = PropertyHelper
       .getPropertyId("auto_deploy", "location");
 
-  // Primary Key Fields
-  private static Set<String> pkPropertyIds =
-      new HashSet<String>(Arrays.asList(new String[]{
-          SERVICE_NAME_ID, COMPONENT_NAME_ID}));
+  /**
+   * The key property ids for a StackDependency resource.
+   */
+  private static Map<Resource.Type, String> keyPropertyIds = ImmutableMap.<Resource.Type, String>builder()
+      .put(Resource.Type.Stack, STACK_NAME_ID)
+      .put(Resource.Type.StackVersion, STACK_VERSION_ID)
+      .put(Resource.Type.StackService, DEPENDENT_SERVICE_NAME_ID)
+      .put(Resource.Type.StackServiceComponent, DEPENDENT_COMPONENT_NAME_ID)
+      .put(Resource.Type.StackServiceComponentDependency, COMPONENT_NAME_ID)
+      .build();
+
+  /**
+   * The property ids for a StackDependency resource.
+   */
+  private static Set<String> propertyIds = Sets.newHashSet(
+      STACK_NAME_ID,
+      STACK_VERSION_ID,
+      DEPENDENT_SERVICE_NAME_ID,
+      DEPENDENT_COMPONENT_NAME_ID,
+      SERVICE_NAME_ID,
+      COMPONENT_NAME_ID,
+      SCOPE_ID,
+      CONDITIONS_ID,
+      AUTO_DEPLOY_ENABLED_ID,
+      AUTO_DEPLOY_LOCATION_ID);
 
   /**
    * Provides stack information
@@ -82,12 +108,8 @@ public class StackDependencyResourceProvider extends AbstractResourceProvider {
 
   /**
    * Constructor.
-   *
-   * @param propertyIds    the property ids
-   * @param keyPropertyIds the key property ids
    */
-  protected StackDependencyResourceProvider(Set<String> propertyIds,
-                                            Map<Resource.Type, String> keyPropertyIds) {
+  protected StackDependencyResourceProvider() {
     super(propertyIds, keyPropertyIds);
   }
 
@@ -105,7 +127,7 @@ public class StackDependencyResourceProvider extends AbstractResourceProvider {
 
   @Override
   protected Set<String> getPKPropertyIds() {
-    return pkPropertyIds;
+    return new HashSet<>(keyPropertyIds.values());
   }
 
   @Override
@@ -113,18 +135,14 @@ public class StackDependencyResourceProvider extends AbstractResourceProvider {
       throws SystemException, UnsupportedPropertyException,
              NoSuchResourceException, NoSuchParentResourceException {
 
-    Set<Resource> resources = new HashSet<Resource>();
+    Set<Resource> resources = new HashSet<>();
     Set<Map<String, Object>> requestProps = getPropertyMaps(predicate);
 
     for (Map<String, Object> properties : requestProps) {
       try {
         resources.addAll(getDependencyResources(properties,
             getRequestPropertyIds(request, predicate)));
-      } catch (NoSuchResourceException e) {
-        if (requestProps.size() == 1) {
-          throw e;
-        }
-      } catch (NoSuchParentResourceException e) {
+      } catch (NoSuchResourceException | NoSuchParentResourceException e) {
         if (requestProps.size() == 1) {
           throw e;
         }
@@ -184,7 +202,7 @@ public class StackDependencyResourceProvider extends AbstractResourceProvider {
     final String dependentComponent = (String)  properties.get(DEPENDENT_COMPONENT_NAME_ID);
     final String dependencyName = (String) properties.get(COMPONENT_NAME_ID);
 
-    List<DependencyInfo> dependencies = new ArrayList<DependencyInfo>();
+    List<DependencyInfo> dependencies = new ArrayList<>();
     if (dependencyName != null) {
       dependencies.add(getResources(new Command<DependencyInfo>() {
         @Override
@@ -203,7 +221,7 @@ public class StackDependencyResourceProvider extends AbstractResourceProvider {
       }));
     }
 
-    Collection<Resource> resources = new ArrayList<Resource>();
+    Collection<Resource> resources = new ArrayList<>();
     for (DependencyInfo dependency : dependencies) {
       if (dependency != null) {
         resources.add(toResource(dependency, stackName, version, dependentService,
@@ -248,6 +266,11 @@ public class StackDependencyResourceProvider extends AbstractResourceProvider {
         setResourceProperty(resource, AUTO_DEPLOY_LOCATION_ID,
             autoDeployInfo.getCoLocate(), requestedIds);
       }
+    }
+    List<DependencyConditionInfo> dependencyConditionsInfo = dependency.getDependencyConditions();
+    if(dependencyConditionsInfo != null){
+      setResourceProperty(resource, CONDITIONS_ID,
+        dependencyConditionsInfo, requestedIds);
     }
     return resource;
   }

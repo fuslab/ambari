@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,16 +29,33 @@ import org.apache.ambari.server.orm.entities.HostComponentDesiredStateEntity;
 import org.apache.ambari.server.orm.entities.HostComponentStateEntity;
 import org.apache.ambari.server.orm.entities.HostEntity;
 import org.apache.ambari.server.state.State;
+import org.codehaus.jackson.annotate.JsonProperty;
 
 import com.google.inject.Inject;
 
+/**
+ * The {@link HostComponentSum1mary} class provides a concise representation of
+ * the state of a component on a given host. Some of its fields are serializable
+ * to JSON.
+ */
 @StaticallyInject
 public class HostComponentSummary {
+  @JsonProperty("service_name")
   private String serviceName;
+
+  @JsonProperty("component_name")
   private String componentName;
+
+  @JsonProperty("host_id")
   private Long hostId;
+
+  @JsonProperty("host_name")
   private String hostName;
+
+  @JsonProperty("desired_state")
   private State desiredState;
+
+  @JsonProperty("current_state")
   private State currentState;
 
   @Inject
@@ -81,7 +98,7 @@ public class HostComponentSummary {
   }
 
   public static List<HostComponentSummary> getHostComponentSummaries(String serviceName, String componentName) {
-    List<HostComponentSummary> hostComponentSummaries = new ArrayList<HostComponentSummary>();
+    List<HostComponentSummary> hostComponentSummaries = new ArrayList<>();
     List<HostComponentStateEntity> hostComponentStates = hostComponentStateDao.findByServiceAndComponent(serviceName, componentName);
 
     if (hostComponentStates != null) {

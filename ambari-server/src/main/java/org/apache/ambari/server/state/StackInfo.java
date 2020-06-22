@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import org.apache.ambari.server.controller.StackVersionResponse;
 import org.apache.ambari.server.stack.Validable;
@@ -42,7 +43,7 @@ import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimaps;
 import com.google.common.io.Files;
 
-public class StackInfo implements Comparable<StackInfo>, Validable{
+public class StackInfo implements Comparable<StackInfo>, Validable {
   private String minJdk;
   private String maxJdk;
   private String name;
@@ -84,6 +85,13 @@ public class StackInfo implements Comparable<StackInfo>, Validable{
    * List of services removed from current stack
    * */
   private List<String> removedServices = new ArrayList<>();
+
+  /**
+  * List of services withnot configurations
+  * */
+  private List<String> servicesWithNoConfigs = new ArrayList<>();
+
+  private RefreshCommandConfiguration refreshCommandConfiguration = new RefreshCommandConfiguration();
 
   public String getMinJdk() {
     return minJdk;
@@ -215,9 +223,7 @@ public class StackInfo implements Comparable<StackInfo>, Validable{
     Collection<ExtensionInfo> extensions = getExtensions();
     extensions.add(extension);
     Collection<ServiceInfo> services = getServices();
-    for (ServiceInfo service : extension.getServices()) {
-      services.add(service);
-    }
+    services.addAll(extension.getServices());
   }
 
   public void removeExtension(ExtensionInfo extension) {
@@ -245,7 +251,7 @@ public class StackInfo implements Comparable<StackInfo>, Validable{
    */
   public synchronized Map<String, Map<String, Map<String, String>>> getConfigTypeAttributes() {
     return configTypes == null ?
-        Collections.<String, Map<String, Map<String, String>>>emptyMap() :
+        Collections.emptyMap() :
         Collections.unmodifiableMap(configTypes);
   }
 
@@ -293,7 +299,7 @@ public class StackInfo implements Comparable<StackInfo>, Validable{
       sb.append("\n\t\tRepositories:");
       for (RepositoryInfo repository : repositories) {
         sb.append("\t\t");
-        sb.append(repository.toString());
+        sb.append(repository);
       }
     }
 
@@ -320,9 +326,6 @@ public class StackInfo implements Comparable<StackInfo>, Validable{
 
   public StackVersionResponse convertToResponse() {
 
-    // Get the stack-level Kerberos descriptor file path
-    String stackDescriptorFileFilePath = getKerberosDescriptorFileLocation();
-
     // Collect the services' Kerberos descriptor files
     Collection<ServiceInfo> serviceInfos = getServices();
     // The collection of service descriptor files. A Set is being used because some Kerberos descriptor
@@ -340,9 +343,8 @@ public class StackInfo implements Comparable<StackInfo>, Validable{
 
     return new StackVersionResponse(getVersion(), getMinUpgradeVersion(),
         isActive(), getParentStackVersion(), getConfigTypeAttributes(),
-        (stackDescriptorFileFilePath == null) ? null : new File(stackDescriptorFileFilePath),
         serviceDescriptorFiles,
-        null == upgradePacks ? Collections.<String>emptySet() : upgradePacks.keySet(),
+        null == upgradePacks ? Collections.emptySet() : upgradePacks.keySet(),
         isValid(), getErrors(), getMinJdk(), getMaxJdk());
   }
 
@@ -387,25 +389,6 @@ public class StackInfo implements Comparable<StackInfo>, Validable{
   }
 
   /**
-   * Gets the path to the stack-level Kerberos descriptor file
-   *
-   * @return a String containing the path to the stack-level Kerberos descriptor file
-   */
-  public String getKerberosDescriptorFileLocation() {
-    return kerberosDescriptorFileLocation;
-  }
-
-  /**
-   * Sets the path to the stack-level Kerberos descriptor file
-   *
-   * @param kerberosDescriptorFileLocation a String containing the path to the stack-level Kerberos
-   *                                       descriptor file
-   */
-  public void setKerberosDescriptorFileLocation(String kerberosDescriptorFileLocation) {
-    this.kerberosDescriptorFileLocation = kerberosDescriptorFileLocation;
-  }
-
-  /**
    * Gets the path to the stack-level Kerberos descriptor pre-configuration file
    *
    * @return a String containing the path to the stack-level Kerberos descriptor pre-configuration file
@@ -422,22 +405,6 @@ public class StackInfo implements Comparable<StackInfo>, Validable{
    */
   public void setKerberosDescriptorPreConfigurationFileLocation(String kerberosDescriptorPreConfigurationFileLocation) {
     this.kerberosDescriptorPreConfigurationFileLocation = kerberosDescriptorPreConfigurationFileLocation;
-  }
-
-  public String getWidgetsDescriptorFileLocation() {
-    return widgetsDescriptorFileLocation;
-  }
-
-  public void setWidgetsDescriptorFileLocation(String widgetsDescriptorFileLocation) {
-    this.widgetsDescriptorFileLocation = widgetsDescriptorFileLocation;
-  }
-
-  public String getStackHooksFolder() {
-    return stackHooksFolder;
-  }
-
-  public void setStackHooksFolder(String stackHooksFolder) {
-    this.stackHooksFolder = stackHooksFolder;
   }
 
   /**
@@ -532,7 +499,7 @@ public class StackInfo implements Comparable<StackInfo>, Validable{
             Set<PropertyInfo.PropertyType> types = propertyInfo.getPropertyTypes();
             for (PropertyInfo.PropertyType propertyType : types) {
               if (!propertiesTypes.containsKey(propertyType))
-                propertiesTypes.put(propertyType, new HashSet<String>());
+                propertiesTypes.put(propertyType, new HashSet<>());
               propertiesTypes.get(propertyType).add(propertyInfo.getName());
             }
           }
@@ -568,10 +535,10 @@ public class StackInfo implements Comparable<StackInfo>, Validable{
         String hidden = pi.getPropertyValueAttributes().getHidden();
         if(hidden != null){
           if(!result.containsKey(propertyConfigType)){
-            result.put(propertyConfigType, new HashMap<String, Map<String, String>>());
+            result.put(propertyConfigType, new HashMap<>());
           }
           if(!result.get(propertyConfigType).containsKey("hidden")){
-            result.get(propertyConfigType).put("hidden", new HashMap<String, String>());
+            result.get(propertyConfigType).put("hidden", new HashMap<>());
           }
           result.get(propertyConfigType).get("hidden").put(propertyName, hidden);
         }
@@ -617,6 +584,14 @@ public class StackInfo implements Comparable<StackInfo>, Validable{
     this.removedServices = removedServices;
   }
 
+  public List<String> getServicesWithNoConfigs() {
+    return servicesWithNoConfigs;
+  }
+
+  public void setServicesWithNoConfigs(List<String> servicesWithNoConfigs) {
+    this.servicesWithNoConfigs = servicesWithNoConfigs;
+  }
+
   /**
    * @param xml the version definition parsed from {@link LatestRepoCallable}
    */
@@ -629,5 +604,20 @@ public class StackInfo implements Comparable<StackInfo>, Validable{
    */
   public VersionDefinitionXml getLatestVersionDefinition() {
     return latestVersion;
+  }
+
+  public RefreshCommandConfiguration getRefreshCommandConfiguration() {
+    return refreshCommandConfiguration;
+  }
+
+  public void setRefreshCommandConfiguration(RefreshCommandConfiguration refreshCommandConfiguration) {
+    this.refreshCommandConfiguration = refreshCommandConfiguration;
+  }
+
+  /**
+   * @return names of each service in the stack
+   */
+  public Set<String> getServiceNames() {
+    return getServices().stream().map(ServiceInfo::getName).collect(Collectors.toSet());
   }
 }

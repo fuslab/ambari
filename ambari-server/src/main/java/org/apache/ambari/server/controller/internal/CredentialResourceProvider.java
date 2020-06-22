@@ -18,9 +18,13 @@
 
 package org.apache.ambari.server.controller.internal;
 
-import com.google.inject.Inject;
-import com.google.inject.assistedinject.Assisted;
-import com.google.inject.assistedinject.AssistedInject;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.StaticallyInject;
 import org.apache.ambari.server.controller.AmbariManagementController;
@@ -41,19 +45,20 @@ import org.apache.ambari.server.security.credential.PrincipalKeyCredential;
 import org.apache.ambari.server.security.encryption.CredentialStoreService;
 import org.apache.ambari.server.security.encryption.CredentialStoreType;
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import com.google.inject.Inject;
+import com.google.inject.assistedinject.Assisted;
+import com.google.inject.assistedinject.AssistedInject;
 
 /**
  * A write-only resource provider for securely stored credentials
  */
 @StaticallyInject
 public class CredentialResourceProvider extends AbstractControllerResourceProvider {
+
+  private static final Logger LOG = LoggerFactory.getLogger(CredentialResourceProvider.class);
 
   // ----- Property ID constants ---------------------------------------------
 
@@ -69,12 +74,12 @@ public class CredentialResourceProvider extends AbstractControllerResourceProvid
 
   static {
     Set<String> set;
-    set = new HashSet<String>();
+    set = new HashSet<>();
     set.add(CREDENTIAL_CLUSTER_NAME_PROPERTY_ID);
     set.add(CREDENTIAL_ALIAS_PROPERTY_ID);
     PK_PROPERTY_IDS = Collections.unmodifiableSet(set);
 
-    set = new HashSet<String>();
+    set = new HashSet<>();
     set.add(CREDENTIAL_CLUSTER_NAME_PROPERTY_ID);
     set.add(CREDENTIAL_ALIAS_PROPERTY_ID);
     set.add(CREDENTIAL_PRINCIPAL_PROPERTY_ID);
@@ -82,7 +87,7 @@ public class CredentialResourceProvider extends AbstractControllerResourceProvid
     set.add(CREDENTIAL_TYPE_PROPERTY_ID);
     PROPERTY_IDS = Collections.unmodifiableSet(set);
 
-    HashMap<Type, String> map = new HashMap<Type, String>();
+    HashMap<Type, String> map = new HashMap<>();
     map.put(Type.Cluster, CREDENTIAL_CLUSTER_NAME_PROPERTY_ID);
     map.put(Type.Credential, CREDENTIAL_ALIAS_PROPERTY_ID);
     KEY_PROPERTY_IDS = Collections.unmodifiableMap(map);
@@ -100,7 +105,7 @@ public class CredentialResourceProvider extends AbstractControllerResourceProvid
    */
   @AssistedInject
   public CredentialResourceProvider(@Assisted AmbariManagementController managementController) {
-    super(PROPERTY_IDS, KEY_PROPERTY_IDS, managementController);
+    super(Type.Credential, PROPERTY_IDS, KEY_PROPERTY_IDS, managementController);
 
     EnumSet<RoleAuthorization> authorizations = EnumSet.of(
         RoleAuthorization.CLUSTER_MANAGE_CREDENTIALS,
@@ -129,7 +134,7 @@ public class CredentialResourceProvider extends AbstractControllerResourceProvid
       throws SystemException, UnsupportedPropertyException, NoSuchResourceException, NoSuchParentResourceException {
 
     Set<String> requestedIds = getRequestPropertyIds(request, predicate);
-    Set<Resource> resources = new HashSet<Resource>();
+    Set<Resource> resources = new HashSet<>();
     boolean sendNotFoundErrorIfEmpty = false;
 
     for (Map<String, Object> propertyMap : getPropertyMaps(predicate)) {
@@ -397,7 +402,7 @@ public class CredentialResourceProvider extends AbstractControllerResourceProvid
       if (credential instanceof PrincipalKeyCredential) {
         PrincipalKeyCredential principalKeyCredential = (PrincipalKeyCredential) credential;
 
-        Map<String, Object> credentialProperties = new HashMap<String, Object>();
+        Map<String, Object> credentialProperties = new HashMap<>();
 
         // Make sure the credential to update is removed from the persisted or temporary store... the
         // updated data may change the persistence type.

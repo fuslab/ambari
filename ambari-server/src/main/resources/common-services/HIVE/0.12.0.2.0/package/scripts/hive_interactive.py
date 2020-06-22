@@ -31,13 +31,12 @@ from resource_management.libraries.functions import StackFeature
 from resource_management.libraries.functions.stack_features import check_stack_feature
 from resource_management.libraries.functions.version import compare_versions
 from resource_management.core.resources.service import ServiceConfig
-from resource_management.core.resources.system import File, Execute, Directory
-from resource_management.core.source import StaticFile, Template, DownloadSource, InlineTemplate
+from resource_management.core.resources.system import File, Directory
+from resource_management.core.source import Template, DownloadSource, InlineTemplate
 from resource_management.core.shell import as_user
 from resource_management.libraries.functions.is_empty import is_empty
 from resource_management.libraries.resources.xml_config import XmlConfig
 from resource_management.libraries.functions.format import format
-from resource_management.core.exceptions import Fail
 from resource_management.core.shell import as_sudo
 from resource_management.core.shell import quote_bash_args
 from resource_management.core.logger import Logger
@@ -168,7 +167,7 @@ def hive_interactive(name=None):
   XmlConfig("tez-site.xml",
             conf_dir = params.tez_interactive_config_dir,
             configurations = merged_tez_interactive_site,
-            configuration_attributes=params.config['configuration_attributes']['tez-interactive-site'],
+            configuration_attributes=params.config['configurationAttributes']['tez-interactive-site'],
             owner = params.tez_interactive_user,
             group = params.user_group,
             mode = 0664)
@@ -210,7 +209,7 @@ def hive_interactive(name=None):
         XmlConfig("hive-site.xml",
                   conf_dir=conf_dir,
                   configurations=merged_hive_interactive_site_copy,
-                  configuration_attributes=params.config['configuration_attributes']['hive-interactive-site'],
+                  configuration_attributes=params.config['configurationAttributes']['hive-interactive-site'],
                   owner=params.hive_user,
                   group=params.user_group,
                   mode=0644)
@@ -224,14 +223,14 @@ def hive_interactive(name=None):
         XmlConfig("hive-site.xml",
                   conf_dir=conf_dir,
                   configurations=merged_hive_interactive_site,
-                  configuration_attributes=params.config['configuration_attributes']['hive-interactive-site'],
+                  configuration_attributes=params.config['configurationAttributes']['hive-interactive-site'],
                   owner=params.hive_user,
                   group=params.user_group,
                   mode=0600)
       XmlConfig("hiveserver2-site.xml",
                 conf_dir=conf_dir,
                 configurations=merged_hiveserver2_interactive_site,
-                configuration_attributes=params.config['configuration_attributes']['hiveserver2-interactive-site'],
+                configuration_attributes=params.config['configurationAttributes']['hiveserver2-interactive-site'],
                 owner=params.hive_user,
                 group=params.user_group,
                 mode=mode_identified)

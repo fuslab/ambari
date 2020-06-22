@@ -18,6 +18,15 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.controller.AmbariManagementController;
 import org.apache.ambari.server.controller.KerberosHelper;
@@ -37,15 +46,6 @@ import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.Clusters;
 import org.apache.ambari.server.state.kerberos.KerberosDescriptor;
 import org.apache.commons.lang.StringUtils;
-
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * A read-only resource provider to get a the Kerberos Descriptor relevant to the cluster.
@@ -90,18 +90,18 @@ public class ClusterKerberosDescriptorResourceProvider extends ReadOnlyResourceP
 
   static {
     Set<String> set;
-    set = new HashSet<String>();
+    set = new HashSet<>();
     set.add(CLUSTER_KERBEROS_DESCRIPTOR_CLUSTER_NAME_PROPERTY_ID);
     set.add(CLUSTER_KERBEROS_DESCRIPTOR_TYPE_PROPERTY_ID);
     PK_PROPERTY_IDS = Collections.unmodifiableSet(set);
 
-    set = new HashSet<String>();
+    set = new HashSet<>();
     set.add(CLUSTER_KERBEROS_DESCRIPTOR_CLUSTER_NAME_PROPERTY_ID);
     set.add(CLUSTER_KERBEROS_DESCRIPTOR_TYPE_PROPERTY_ID);
     set.add(CLUSTER_KERBEROS_DESCRIPTOR_DESCRIPTOR_PROPERTY_ID);
     PROPERTY_IDS = Collections.unmodifiableSet(set);
 
-    HashMap<Type, String> map = new HashMap<Type, String>();
+    HashMap<Type, String> map = new HashMap<>();
     map.put(Type.Cluster, CLUSTER_KERBEROS_DESCRIPTOR_CLUSTER_NAME_PROPERTY_ID);
     map.put(Type.ClusterKerberosDescriptor, CLUSTER_KERBEROS_DESCRIPTOR_TYPE_PROPERTY_ID);
     KEY_PROPERTY_IDS = Collections.unmodifiableMap(map);
@@ -111,7 +111,7 @@ public class ClusterKerberosDescriptorResourceProvider extends ReadOnlyResourceP
    * Create a new resource provider.
    */
   public ClusterKerberosDescriptorResourceProvider(AmbariManagementController managementController) {
-    super(PROPERTY_IDS, KEY_PROPERTY_IDS, managementController);
+    super(Type.ClusterKerberosDescriptor, PROPERTY_IDS, KEY_PROPERTY_IDS, managementController);
   }
 
   @Override
@@ -122,7 +122,7 @@ public class ClusterKerberosDescriptorResourceProvider extends ReadOnlyResourceP
     AuthorizationHelper.verifyAuthorization(ResourceType.CLUSTER, null, REQUIRED_GET_AUTHORIZATIONS);
 
     Set<String> requestedIds = getRequestPropertyIds(request, predicate);
-    Set<Resource> resources = new HashSet<Resource>();
+    Set<Resource> resources = new HashSet<>();
 
     AmbariManagementController managementController = getManagementController();
     Clusters clusters = managementController.getClusters();
@@ -158,7 +158,7 @@ public class ClusterKerberosDescriptorResourceProvider extends ReadOnlyResourceP
           kerberosDescriptor = kerberosHelper.getKerberosDescriptor(kerberosDescriptorType,
               cluster,
               getEvaluateWhen(requestInfoProperties),
-               getAdditionalServices(requestInfoProperties),
+              getAdditionalServices(requestInfoProperties),
               false);
         } catch (AmbariException e) {
           throw new SystemException("An unexpected error occurred building the cluster's composite Kerberos Descriptor", e);
@@ -245,7 +245,7 @@ public class ClusterKerberosDescriptorResourceProvider extends ReadOnlyResourceP
     if (requestInfoProperties != null) {
       String value = requestInfoProperties.get(DIRECTIVE_ADDITIONAL_SERVICES);
 
-      if(value != null) {
+      if(!StringUtils.isEmpty(value)) {
         return Arrays.asList(value.split("\\s*,\\s*"));
       }
     }

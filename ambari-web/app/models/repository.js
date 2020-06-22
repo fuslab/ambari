@@ -23,6 +23,7 @@ var validator = require('utils/validator');
 App.Repository = DS.Model.extend({
   id:  DS.attr('string'), // This is ${osType}-${repoId}.
   repoId: DS.attr('string'),
+  originalRepoId: DS.attr('string'),
   osType: DS.attr('string'),
   baseUrl: DS.attr('string'),
   baseUrlInit: DS.attr('string'),
@@ -35,8 +36,15 @@ App.Repository = DS.Model.extend({
   components: DS.attr('string'),
   distribution: DS.attr('string'),
   tags: DS.attr('array'),
+  applicable_services: DS.attr('array'),
 
   validation: DS.attr('string', {defaultValue: ''}),
+  validationClassName: Em.computed.getByKey('validationClassNameMap', 'validation', ''),
+  validationClassNameMap: {
+    INVALID: 'glyphicon glyphicon-exclamation-sign',
+    OK: 'glyphicon glyphicon-ok',
+    INPROGRESS: 'glyphicon glyphicon-repeat'
+  },
   errorContent: DS.attr('string', {defaultValue: ''}),
   errorTitle: DS.attr('string', {defaultValue: ''}),
 
@@ -51,7 +59,7 @@ App.Repository = DS.Model.extend({
   }.property('baseUrl'),
 
   invalidError: function() {
-    return this.get('validation') === App.Repository.validation.INVALID;
+    return this.get('validation') === 'INVALID';
   }.property('validation'),
 
   /**
@@ -65,7 +73,8 @@ App.Repository = DS.Model.extend({
    * @type {boolean}
    */
   isGPL: function () {
-    return this.get('tags') && this.get('tags').contains('GPL');
+    var tags = this.get('tags');
+    return tags && tags.contains('GPL');
   }.property('tags'),
 
   /**
@@ -89,13 +98,6 @@ App.Repository = DS.Model.extend({
   placeholder: Em.computed.ifThenElse('isUtils', '', Em.I18n.t('installer.step1.advancedRepo.localRepo.placeholder')),
 
 });
-
-App.Repository.validation = {
-  PENDING: '',
-  INVALID: 'icon-exclamation-sign',
-  OK: 'icon-ok',
-  INPROGRESS: 'icon-repeat'
-};
 
 
 App.Repository.FIXTURES = [];

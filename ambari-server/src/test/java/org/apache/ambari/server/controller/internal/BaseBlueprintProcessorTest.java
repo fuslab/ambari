@@ -12,7 +12,6 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.ambari.server.controller.AmbariManagementController;
-import org.apache.ambari.server.controller.StackConfigurationResponse;
 import org.apache.ambari.server.controller.StackLevelConfigurationRequest;
 import org.apache.ambari.server.controller.StackServiceResponse;
 import org.apache.ambari.server.state.DependencyInfo;
@@ -51,7 +50,7 @@ public class BaseBlueprintProcessorTest {
         Collections.<StackServiceResponse> emptySet());
 
     expect(mockMgmtController.getStackLevelConfigurations((Set<StackLevelConfigurationRequest>) anyObject())).andReturn(
-        Collections.<StackConfigurationResponse>emptySet()).anyTimes();
+        Collections.emptySet()).anyTimes();
 
         // test dependencies
     final DependencyInfo hCatDependency = new TestDependencyInfo("HIVE/HCAT");
@@ -73,7 +72,7 @@ public class BaseBlueprintProcessorTest {
           String component) {
         // simulate the dependencies in a given stack by overriding this method
         if (component.equals("FAKE_MONITORING_SERVER")) {
-          Set<DependencyInfo> setOfDependencies = new HashSet<DependencyInfo>();
+          Set<DependencyInfo> setOfDependencies = new HashSet<>();
 
           setOfDependencies.add(hCatDependency);
           setOfDependencies.add(yarnClientDependency);
@@ -153,7 +152,7 @@ public class BaseBlueprintProcessorTest {
         Collections.<StackServiceResponse> emptySet());
 
     expect(mockMgmtController.getStackLevelConfigurations((Set<StackLevelConfigurationRequest>) anyObject())).andReturn(
-        Collections.<StackConfigurationResponse>emptySet()).anyTimes();
+        Collections.emptySet()).anyTimes();
 
     // test dependencies
     final DependencyInfo yarnClientDependency = new TestDependencyInfo(
@@ -174,7 +173,7 @@ public class BaseBlueprintProcessorTest {
           String component) {
         // simulate the dependencies in a given stack by overriding this method
         if (component.equals("FAKE_MONITORING_SERVER")) {
-          Set<DependencyInfo> setOfDependencies = new HashSet<DependencyInfo>();
+          Set<DependencyInfo> setOfDependencies = new HashSet<>();
 
           setOfDependencies.add(yarnClientDependency);
           setOfDependencies.add(tezClientDependency);
@@ -252,7 +251,7 @@ public class BaseBlueprintProcessorTest {
         Collections.<StackServiceResponse> emptySet());
 
     expect(mockMgmtController.getStackLevelConfigurations((Set<StackLevelConfigurationRequest>) anyObject())).andReturn(
-        Collections.<StackConfigurationResponse>emptySet()).anyTimes();
+        Collections.emptySet()).anyTimes();
 
     // test dependencies
     final DependencyInfo hCatDependency = new TestDependencyInfo("HIVE/HCAT");
@@ -272,7 +271,7 @@ public class BaseBlueprintProcessorTest {
           String component) {
         // simulate the dependencies in a given stack by overriding this method
         if (component.equals("FAKE_MONITORING_SERVER")) {
-          Set<DependencyInfo> setOfDependencies = new HashSet<DependencyInfo>();
+          Set<DependencyInfo> setOfDependencies = new HashSet<>();
 
           setOfDependencies.add(hCatDependency);
           setOfDependencies.add(tezClientDependency);
@@ -348,7 +347,7 @@ public class BaseBlueprintProcessorTest {
         Collections.<StackServiceResponse> emptySet());
 
     expect(mockMgmtController.getStackLevelConfigurations((Set<StackLevelConfigurationRequest>) anyObject())).andReturn(
-        Collections.<StackConfigurationResponse>emptySet()).anyTimes();
+        Collections.emptySet()).anyTimes();
 
     // test dependencies
     final DependencyInfo hCatDependency = new TestDependencyInfo("HIVE/HCAT");
@@ -368,7 +367,7 @@ public class BaseBlueprintProcessorTest {
           String component) {
         // simulate the dependencies in a given stack by overriding this method
         if (component.equals("FAKE_MONITORING_SERVER")) {
-          Set<DependencyInfo> setOfDependencies = new HashSet<DependencyInfo>();
+          Set<DependencyInfo> setOfDependencies = new HashSet<>();
 
           setOfDependencies.add(hCatDependency);
           setOfDependencies.add(yarnClientDependency);
@@ -446,7 +445,7 @@ public class BaseBlueprintProcessorTest {
         Collections.<StackServiceResponse> emptySet());
 
     expect(mockMgmtController.getStackLevelConfigurations((Set<StackLevelConfigurationRequest>) anyObject())).andReturn(
-        Collections.<StackConfigurationResponse>emptySet()).anyTimes();
+        Collections.emptySet()).anyTimes();
 
     // test dependencies
     final DependencyInfo hCatDependency = new TestDependencyInfo("HIVE/HCAT");
@@ -466,7 +465,7 @@ public class BaseBlueprintProcessorTest {
           String component) {
         // simulate the dependencies in a given stack by overriding this method
         if (component.equals("FAKE_MONITORING_SERVER")) {
-          Set<DependencyInfo> setOfDependencies = new HashSet<DependencyInfo>();
+          Set<DependencyInfo> setOfDependencies = new HashSet<>();
 
           setOfDependencies.add(hCatDependency);
           setOfDependencies.add(yarnClientDependency);
@@ -542,7 +541,7 @@ public class BaseBlueprintProcessorTest {
         Collections.<StackServiceResponse> emptySet());
 
     expect(mockMgmtController.getStackLevelConfigurations((Set<StackLevelConfigurationRequest>) anyObject())).andReturn(
-        Collections.<StackConfigurationResponse>emptySet()).anyTimes();
+        Collections.emptySet()).anyTimes();
 
     // test dependencies
     final DependencyInfo hCatDependency = new TestDependencyInfo("HIVE/HCAT");
@@ -562,7 +561,7 @@ public class BaseBlueprintProcessorTest {
           String component) {
         // simulate the dependencies in a given stack by overriding this method
         if (component.equals("FAKE_MONITORING_SERVER")) {
-          Set<DependencyInfo> setOfDependencies = new HashSet<DependencyInfo>();
+          Set<DependencyInfo> setOfDependencies = new HashSet<>();
 
           setOfDependencies.add(hCatDependency);
           setOfDependencies.add(yarnClientDependency);

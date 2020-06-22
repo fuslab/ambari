@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,7 +17,14 @@
  */
 package org.apache.ambari.server.controller.internal;
 
-import com.google.inject.Inject;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.StaticallyInject;
 import org.apache.ambari.server.controller.AmbariManagementController;
@@ -40,13 +47,7 @@ import org.apache.ambari.server.state.UpgradeHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import com.google.inject.Inject;
 /**
  * Get a summary of an upgrade request.
  */
@@ -57,12 +58,12 @@ public class UpgradeSummaryResourceProvider extends AbstractControllerResourcePr
 
   protected static final String UPGRADE_SUMMARY_FAIL_REASON = PropertyHelper.getPropertyId("UpgradeSummary", "fail_reason");
 
-  private static final Set<String> PK_PROPERTY_IDS = new HashSet<String>(
-      Arrays.asList(UPGRADE_SUMMARY_REQUEST_ID, UPGRADE_SUMMARY_CLUSTER_NAME));
-  private static final Set<String> PROPERTY_IDS = new HashSet<String>();
-  private static Map<String, String> TASK_MAPPED_IDS = new HashMap<String, String>();
+  private static final Set<String> PK_PROPERTY_IDS = new HashSet<>(
+    Arrays.asList(UPGRADE_SUMMARY_REQUEST_ID, UPGRADE_SUMMARY_CLUSTER_NAME));
+  private static final Set<String> PROPERTY_IDS = new HashSet<>();
+  private static Map<String, String> TASK_MAPPED_IDS = new HashMap<>();
 
-  private static final Map<Resource.Type, String> KEY_PROPERTY_IDS = new HashMap<Resource.Type, String>();
+  private static final Map<Resource.Type, String> KEY_PROPERTY_IDS = new HashMap<>();
 
   @Inject
   private static UpgradeDAO s_upgradeDAO = null;
@@ -101,7 +102,7 @@ public class UpgradeSummaryResourceProvider extends AbstractControllerResourcePr
    * @param controller the controller
    */
   public UpgradeSummaryResourceProvider(AmbariManagementController controller) {
-    super(PROPERTY_IDS, KEY_PROPERTY_IDS, controller);
+    super(Resource.Type.UpgradeSummary, PROPERTY_IDS, KEY_PROPERTY_IDS, controller);
   }
 
   @Override
@@ -114,7 +115,7 @@ public class UpgradeSummaryResourceProvider extends AbstractControllerResourcePr
   @Override
   public Set<Resource> getResources(Request request, Predicate predicate) throws SystemException,
       UnsupportedPropertyException, NoSuchResourceException, NoSuchParentResourceException {
-    Set<Resource> resources = new HashSet<Resource>();
+    Set<Resource> resources = new HashSet<>();
     Set<String> requestPropertyIds = getRequestPropertyIds(request, predicate);
 
     for (Map<String, Object> propertyMap : getPropertyMaps(predicate)) {
@@ -133,7 +134,7 @@ public class UpgradeSummaryResourceProvider extends AbstractControllerResourcePr
             String.format("Cluster %s could not be loaded", clusterName));
       }
 
-      List<UpgradeEntity> upgrades = new ArrayList<UpgradeEntity>();
+      List<UpgradeEntity> upgrades = new ArrayList<>();
       String upgradeRequestIdStr = (String) propertyMap.get(UPGRADE_SUMMARY_REQUEST_ID);
       if (null != upgradeRequestIdStr) {
         UpgradeEntity upgrade = s_upgradeDAO.findUpgradeByRequestId(Long.valueOf(upgradeRequestIdStr));

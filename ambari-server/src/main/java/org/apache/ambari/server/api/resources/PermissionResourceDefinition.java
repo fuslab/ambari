@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,10 +18,10 @@
 
 package org.apache.ambari.server.api.resources;
 
-import org.apache.ambari.server.controller.spi.Resource;
-
 import java.util.HashSet;
 import java.util.Set;
+
+import org.apache.ambari.server.controller.spi.Resource;
 
 
 /**
@@ -53,7 +53,7 @@ public class PermissionResourceDefinition extends BaseResourceDefinition {
 
   @Override
   public Set<SubResourceDefinition> getSubResourceDefinitions() {
-    Set<SubResourceDefinition> subResourceDefinitions = new HashSet<SubResourceDefinition>();
+    Set<SubResourceDefinition> subResourceDefinitions = new HashSet<>();
     subResourceDefinitions.add(new SubResourceDefinition(Resource.Type.RoleAuthorization));
     return subResourceDefinitions;
   }

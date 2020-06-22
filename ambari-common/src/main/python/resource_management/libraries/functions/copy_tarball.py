@@ -67,7 +67,7 @@ def _prepare_tez_tarball():
   sudo.chmod(tez_temp_dir, 0777)
 
   Logger.info("Extracting {0} to {1}".format(mapreduce_source_file, mapreduce_temp_dir))
-  tar_archive.extract_archive(mapreduce_source_file, mapreduce_temp_dir)
+  tar_archive.untar_archive(mapreduce_source_file, mapreduce_temp_dir)
 
   Logger.info("Extracting {0} to {1}".format(tez_source_file, tez_temp_dir))
   tar_archive.untar_archive(tez_source_file, tez_temp_dir)
@@ -163,7 +163,7 @@ def _prepare_mapreduce_tarball():
     raise Fail("Unable to seed the mapreduce tarball with native LZO libraries since the source Hadoop native lib directory {0} does not exist".format(hadoop_lib_native_source_dir))
 
   Logger.info("Extracting {0} to {1}".format(mapreduce_source_file, mapreduce_temp_dir))
-  tar_archive.extract_archive(mapreduce_source_file, mapreduce_temp_dir)
+  tar_archive.untar_archive(mapreduce_source_file, mapreduce_temp_dir)
 
   mapreduce_lib_dir = os.path.join(mapreduce_temp_dir, "hadoop", "lib")
 
@@ -206,44 +206,49 @@ def _prepare_mapreduce_tarball():
 TARBALL_MAP = {
   "slider": {
     "dirs": ("{0}/{1}/slider/lib/slider.tar.gz".format(STACK_ROOT_PATTERN, STACK_VERSION_PATTERN),
-             "/{0}/apps/{1}/slider/slider.tar.gz".format(STACK_NAME_PATTERN, STACK_VERSION_PATTERN)),
+              "/{0}/apps/{1}/slider/slider.tar.gz".format(STACK_NAME_PATTERN, STACK_VERSION_PATTERN)),
     "service": "SLIDER"
+  },
+  "yarn": {
+    "dirs": ("{0}/{1}/hadoop-yarn/lib/service-dep.tar.gz".format(STACK_ROOT_PATTERN, STACK_VERSION_PATTERN),
+             "/{0}/apps/{1}/yarn/service-dep.tar.gz".format(STACK_NAME_PATTERN, STACK_VERSION_PATTERN)),
+    "service": "YARN"
   },
 
   "tez": {
     "dirs": ("{0}/{1}/tez/lib/tez.tar.gz".format(STACK_ROOT_PATTERN, STACK_VERSION_PATTERN),
-          "/{0}/apps/{1}/tez/tez.tar.gz".format(STACK_NAME_PATTERN, STACK_VERSION_PATTERN)),
+           "/{0}/apps/{1}/tez/tez.tar.gz".format(STACK_NAME_PATTERN, STACK_VERSION_PATTERN)),
     "service": "TEZ",
     "prepare_function": _prepare_tez_tarball
   },
 
   "tez_hive2": {
     "dirs": ("{0}/{1}/tez_hive2/lib/tez.tar.gz".format(STACK_ROOT_PATTERN, STACK_VERSION_PATTERN),
-          "/{0}/apps/{1}/tez_hive2/tez.tar.gz".format(STACK_NAME_PATTERN, STACK_VERSION_PATTERN)),
+           "/{0}/apps/{1}/tez_hive2/tez.tar.gz".format(STACK_NAME_PATTERN, STACK_VERSION_PATTERN)),
     "service": "HIVE"
   },
 
   "hive": {
     "dirs": ("{0}/{1}/hive/hive.tar.gz".format(STACK_ROOT_PATTERN, STACK_VERSION_PATTERN),
-           "/{0}/apps/{1}/hive/hive.tar.gz".format(STACK_NAME_PATTERN, STACK_VERSION_PATTERN)),
+            "/{0}/apps/{1}/hive/hive.tar.gz".format(STACK_NAME_PATTERN, STACK_VERSION_PATTERN)),
     "service": "HIVE"
   },
 
   "pig": {
     "dirs": ("{0}/{1}/pig/pig.tar.gz".format(STACK_ROOT_PATTERN, STACK_VERSION_PATTERN),
-          "/{0}/apps/{1}/pig/pig.tar.gz".format(STACK_NAME_PATTERN, STACK_VERSION_PATTERN)),
+           "/{0}/apps/{1}/pig/pig.tar.gz".format(STACK_NAME_PATTERN, STACK_VERSION_PATTERN)),
     "service": "PIG"
   },
 
   "hadoop_streaming": {
     "dirs": ("{0}/{1}/hadoop-mapreduce/hadoop-streaming.jar".format(STACK_ROOT_PATTERN, STACK_VERSION_PATTERN),
-                       "/{0}/apps/{1}/mapreduce/hadoop-streaming.jar".format(STACK_NAME_PATTERN, STACK_VERSION_PATTERN)),
+                        "/{0}/apps/{1}/mapreduce/hadoop-streaming.jar".format(STACK_NAME_PATTERN, STACK_VERSION_PATTERN)),
     "service": "MAPREDUCE2"
   },
 
   "sqoop": {
     "dirs": ("{0}/{1}/sqoop/sqoop.tar.gz".format(STACK_ROOT_PATTERN, STACK_VERSION_PATTERN),
-            "/{0}/apps/{1}/sqoop/sqoop.tar.gz".format(STACK_NAME_PATTERN, STACK_VERSION_PATTERN)),
+             "/{0}/apps/{1}/sqoop/sqoop.tar.gz".format(STACK_NAME_PATTERN, STACK_VERSION_PATTERN)),
     "service": "SQOOP"
   },
 
@@ -256,7 +261,7 @@ TARBALL_MAP = {
 
   "spark": {
     "dirs": ("{0}/{1}/spark/lib/spark-{2}-assembly.jar".format(STACK_ROOT_PATTERN, STACK_VERSION_PATTERN, STACK_NAME_PATTERN),
-            "/{0}/apps/{1}/spark/spark-{0}-assembly.jar".format(STACK_NAME_PATTERN, STACK_VERSION_PATTERN)),
+             "/{0}/apps/{1}/spark/spark-{0}-assembly.jar".format(STACK_NAME_PATTERN, STACK_VERSION_PATTERN)),
     "service": "SPARK"
   },
 
@@ -264,20 +269,39 @@ TARBALL_MAP = {
     "dirs": ("/tmp/spark2/spark2-{0}-yarn-archive.tar.gz".format(STACK_NAME_PATTERN),
              "/{0}/apps/{1}/spark2/spark2-{0}-yarn-archive.tar.gz".format(STACK_NAME_PATTERN, STACK_VERSION_PATTERN)),
     "service": "SPARK2"
+  },
+
+  "spark2hive": {
+    "dirs":  ("/tmp/spark2/spark2-{0}-hive-archive.tar.gz".format(STACK_NAME_PATTERN),
+              "/{0}/apps/{1}/spark2/spark2-{0}-hive-archive.tar.gz".format(STACK_NAME_PATTERN, STACK_VERSION_PATTERN)),
+
+    "service": "SPARK2"
   }
 }
 
+SERVICE_TO_CONFIG_MAP = {
+  "slider": "slider-env",
+  "yarn": "yarn-env",
+  "tez": "tez-env",
+  "pig": "pig-env",
+  "sqoop": "sqoop-env",
+  "hive": "hive-env",
+  "mapreduce": "hadoop-env",
+  "hadoop_streaming": "mapred-env",
+  "tez_hive2": "hive-env",
+  "spark": "spark-env",
+  "spark2": "spark2-env",
+  "spark2hive": "spark2-env"
+}
 
 def get_sysprep_skip_copy_tarballs_hdfs():
-  import params
-  host_sys_prepped = default("/hostLevelParams/host_sys_prepped", False)
+  host_sys_prepped = default("/ambariLevelParams/host_sys_prepped", False)
 
   # By default, copy the tarballs to HDFS. If the cluster is sysprepped, then set based on the config.
   sysprep_skip_copy_tarballs_hdfs = False
   if host_sys_prepped:
     sysprep_skip_copy_tarballs_hdfs = default("/configurations/cluster-env/sysprep_skip_copy_tarballs_hdfs", False)
   return sysprep_skip_copy_tarballs_hdfs
-
 
 def get_tarball_paths(name, use_upgrading_version_during_upgrade=True, custom_source_file=None, custom_dest_file=None):
   """
@@ -286,47 +310,50 @@ def get_tarball_paths(name, use_upgrading_version_during_upgrade=True, custom_so
   :param use_upgrading_version_during_upgrade:
   :param custom_source_file: If specified, use this source path instead of the default one from the map.
   :param custom_dest_file: If specified, use this destination path instead of the default one from the map.
-  :return: A tuple of success status, source path, destination path, optional preparation function which is invoked to setup the tarball
+  :return: A tuple of (success status, source path, destination path, optional preparation function which is invoked to setup the tarball)
   """
   stack_name = Script.get_stack_name()
 
-  try:
-    if not stack_name:
-      raise ValueError("Cannot copy {0} tarball to HDFS because stack name could not be determined.".format(str(name)))
+  if not stack_name:
+    Logger.error("Cannot copy {0} tarball to HDFS because stack name could not be determined.".format(str(name)))
+    return False, None, None
 
-    if name is None or name.lower() not in TARBALL_MAP:
-      raise ValueError("Cannot copy tarball to HDFS because {0} is not supported in stack {1} for this operation.".format(str(name), str(stack_name)))
+  if name is None or name.lower() not in TARBALL_MAP:
+    Logger.error("Cannot copy tarball to HDFS because {0} is not supported in stack {1} for this operation.".format(str(name), str(stack_name)))
+    return False, None, None
 
-    service = TARBALL_MAP[name.lower()]
-    service_name = service['service']
-    stack_version = get_current_version(service=service_name, use_upgrading_version_during_upgrade=use_upgrading_version_during_upgrade)
-    stack_root = Script.get_stack_root()
+  service = TARBALL_MAP[name.lower()]['service']
 
-    if not stack_version or not stack_root:
-      raise ValueError("Cannot copy {0} tarball to HDFS because stack version could be be determined.".format(str(name)))
+  stack_version = get_current_version(service=service, use_upgrading_version_during_upgrade=use_upgrading_version_during_upgrade)
+  if not stack_version:
+    Logger.error("Cannot copy {0} tarball to HDFS because stack version could be be determined.".format(str(name)))
+    return False, None, None
 
-    source_file, dest_file = service['dirs']
+  stack_root = Script.get_stack_root()
+  if not stack_root:
+    Logger.error("Cannot copy {0} tarball to HDFS because stack root could be be determined.".format(str(name)))
+    return False, None, None
 
-    if custom_source_file is not None:
-      source_file = custom_source_file
+  (source_file, dest_file) = TARBALL_MAP[name.lower()]['dirs']
 
-    if custom_dest_file is not None:
-      dest_file = custom_dest_file
+  if custom_source_file is not None:
+    source_file = custom_source_file
 
-    source_file = source_file.replace(STACK_NAME_PATTERN, stack_name.lower())
-    dest_file = dest_file.replace(STACK_NAME_PATTERN, stack_name.lower())
+  if custom_dest_file is not None:
+    dest_file = custom_dest_file
 
-    source_file = source_file.replace(STACK_ROOT_PATTERN, stack_root.lower())
-    dest_file = dest_file.replace(STACK_ROOT_PATTERN, stack_root.lower())
+  source_file = source_file.replace(STACK_NAME_PATTERN, stack_name.lower())
+  dest_file = dest_file.replace(STACK_NAME_PATTERN, stack_name.lower())
 
-    source_file = source_file.replace(STACK_VERSION_PATTERN, stack_version)
-    dest_file = dest_file.replace(STACK_VERSION_PATTERN, stack_version)
+  source_file = source_file.replace(STACK_ROOT_PATTERN, stack_root.lower())
+  dest_file = dest_file.replace(STACK_ROOT_PATTERN, stack_root.lower())
 
-    prepare_function = service['prepare_function'] if "prepare_function" in service else None
+  source_file = source_file.replace(STACK_VERSION_PATTERN, stack_version)
+  dest_file = dest_file.replace(STACK_VERSION_PATTERN, stack_version)
 
-  except ValueError as e:
-    Logger.error(str(e))
-    return False, None, None, None
+  prepare_function = None
+  if "prepare_function" in TARBALL_MAP[name.lower()]:
+    prepare_function = TARBALL_MAP[name.lower()]['prepare_function']
 
   return True, source_file, dest_file, prepare_function
 
@@ -408,7 +435,7 @@ def _get_single_version_from_stack_select():
 
 
 def copy_to_hdfs(name, user_group, owner, file_mode=0444, custom_source_file=None, custom_dest_file=None, force_execute=False,
-                 use_upgrading_version_during_upgrade=True, replace_existing_files=False, skip=False):
+                 use_upgrading_version_during_upgrade=True, replace_existing_files=False, skip=False, skip_component_check=False):
   """
   :param name: Tarball name, e.g., tez, hive, pig, sqoop.
   :param user_group: Group to own the directory.
@@ -419,12 +446,14 @@ def copy_to_hdfs(name, user_group, owner, file_mode=0444, custom_source_file=Non
   :param force_execute: If true, will execute the HDFS commands immediately, otherwise, will defer to the calling function.
   :param use_upgrading_version_during_upgrade: If true, will use the version going to during upgrade. Otherwise, use the CURRENT (source) version.
   :param skip: If true, tarballs will not be copied as the cluster deployment uses prepped VMs.
+  :param skip_component_check: If true, will skip checking if a given component is installed on the node for a file under its dir to be copied.
+                               This is in case the file is not mapped to a component but rather to a specific location (JDK jar, Ambari jar, etc).
   :return: Will return True if successful, otherwise, False.
   """
   import params
 
   Logger.info("Called copy_to_hdfs tarball: {0}".format(name))
-  success, source_file, dest_file, prepare_function = get_tarball_paths(name, use_upgrading_version_during_upgrade,
+  (success, source_file, dest_file, prepare_function) = get_tarball_paths(name, use_upgrading_version_during_upgrade,
                                                                           custom_source_file, custom_dest_file)
 
   if not success:
@@ -434,6 +463,14 @@ def copy_to_hdfs(name, user_group, owner, file_mode=0444, custom_source_file=Non
   if skip:
     Logger.warning("Skipping copying {0} to {1} for {2} as it is a sys prepped host.".format(str(source_file), str(dest_file), str(name)))
     return True
+
+  if not skip_component_check:
+    # Check if service is installed on the cluster to check if a file can be copied into HDFS
+    config_name = SERVICE_TO_CONFIG_MAP.get(name)
+    config = default("/configurations/"+config_name, None)
+    if config is None:
+      Logger.info("{0} is not present on the cluster. Skip copying {1}".format(config_name, source_file))
+      return False
 
   Logger.info("Source file: {0} , Dest file in HDFS: {1}".format(source_file, dest_file))
 

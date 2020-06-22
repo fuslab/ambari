@@ -19,8 +19,11 @@ Ambari Agent
 
 """
 
-from resource_management import *
+from resource_management.libraries.script.script import Script
+from resource_management.libraries.functions.default import default
+from resource_management.libraries.functions.format import format
 from resource_management.libraries import functions
+from resource_management.libraries.functions import is_empty
 import os
 from status_params import *
 
@@ -41,13 +44,13 @@ _authentication = config['configurations']['core-site']['hadoop.security.authent
 security_enabled = ( not is_empty(_authentication) and _authentication == 'kerberos')
 smoke_user_keytab = config['configurations']['hadoop-env']['smokeuser_keytab']
 kinit_path_local = functions.get_kinit_path(default('/configurations/kerberos-env/executable_search_paths', None))
-rm_host = config['clusterHostInfo']['rm_host'][0]
+rm_host = config['clusterHostInfo']['resourcemanager_hosts'][0]
 rm_port = config['configurations']['yarn-site']['yarn.resourcemanager.webapp.address'].split(':')[-1]
 rm_https_port = "8090"
 rm_webui_address = format("{rm_host}:{rm_port}")
 rm_webui_https_address = format("{rm_host}:{rm_https_port}")
 
-hs_host = config['clusterHostInfo']['hs_host'][0]
+hs_host = config['clusterHostInfo']['historyserver_hosts'][0]
 hs_port = config['configurations']['mapred-site']['mapreduce.jobhistory.webapp.address'].split(':')[-1]
 hs_webui_address = format("{hs_host}:{hs_port}")
 
@@ -64,4 +67,4 @@ include_hosts = None
 manage_include_files = default("/configurations/yarn-site/manage.include.files", False)
 if include_file_path and manage_include_files:
   include_hosts = list(set(nm_hosts) - set(exclude_hosts))
-update_files_only = default("/commandParams/update_files_only",False)
+update_files_only = default("/commandParams/update_files_only", False)

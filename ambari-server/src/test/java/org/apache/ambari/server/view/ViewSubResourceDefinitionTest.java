@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,8 @@
 
 package org.apache.ambari.server.view;
 
+import java.util.Set;
+
 import org.apache.ambari.server.api.resources.SubResourceDefinition;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.orm.entities.ViewEntity;
@@ -26,8 +28,6 @@ import org.apache.ambari.server.view.configuration.ResourceConfig;
 import org.apache.ambari.server.view.configuration.ResourceConfigTest;
 import org.junit.Assert;
 import org.junit.Test;
-
-import java.util.Set;
 
 /**
  * ViewSubResourceDefinition tests.

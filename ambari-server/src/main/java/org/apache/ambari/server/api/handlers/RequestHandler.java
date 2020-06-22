@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,5 +31,5 @@ public interface RequestHandler {
    * @param request the request to handle
    * @return the result of the request
    */
-  public Result handleRequest(Request request);
+  Result handleRequest(Request request);
 }

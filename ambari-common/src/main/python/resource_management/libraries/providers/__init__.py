@@ -22,13 +22,13 @@ Ambari Agent
 
 PROVIDERS = dict(
   amazon=dict(
-    Repository="resource_management.libraries.providers.repository.RhelSuseRepositoryProvider",
+    Repository="resource_management.libraries.providers.repository.RhelRepositoryProvider",
   ),
   redhat=dict(
-    Repository="resource_management.libraries.providers.repository.RhelSuseRepositoryProvider",
+    Repository="resource_management.libraries.providers.repository.RhelRepositoryProvider",
   ),
   suse=dict(
-    Repository="resource_management.libraries.providers.repository.RhelSuseRepositoryProvider",
+    Repository="resource_management.libraries.providers.repository.SuseRepositoryProvider",
   ),
   ubuntu=dict(
     Repository="resource_management.libraries.providers.repository.UbuntuRepositoryProvider",
@@ -38,6 +38,7 @@ PROVIDERS = dict(
   ),
   default=dict(
     ExecuteHadoop="resource_management.libraries.providers.execute_hadoop.ExecuteHadoopProvider",
+    ExecuteHDFS="resource_management.libraries.providers.execute_hdfs.ExecuteHDFSProvider",
     TemplateConfig="resource_management.libraries.providers.template_config.TemplateConfigProvider",
     XmlConfig="resource_management.libraries.providers.xml_config.XmlConfigProvider",
     PropertiesFile="resource_management.libraries.providers.properties_file.PropertiesFileProvider",

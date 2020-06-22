@@ -21,13 +21,17 @@ var App = require('app');
 var validator = require('utils/validator');
 require('utils/configs/modification_handlers/modification_handler');
 
-App.ServiceConfigsByCategoryView = Em.View.extend(App.UserPref, App.ConfigOverridable, {
+App.ServiceConfigsByCategoryView = Em.View.extend(App.Persist, App.ConfigOverridable, App.WizardMiscPropertyChecker, {
 
   templateName: require('templates/common/configs/service_config_category'),
 
-  classNames: ['accordion-group', 'common-config-category'],
+  classNames: ['panel-group', 'common-config-category', 'clear'],
 
-  classNameBindings: ['category.name', 'isShowBlock::hidden'],
+  classNameBindings: ['isShowBlock::hidden'],
+
+  'data-qa': function () {
+    return this.get('category.name') + ' ' + 'panel-group';
+  }.property('category.name'),
 
   content: null,
 
@@ -96,7 +100,7 @@ App.ServiceConfigsByCategoryView = Em.View.extend(App.UserPref, App.ConfigOverri
       }
       $('#serviceConfig').tooltip({
         selector: '[data-toggle=tooltip]',
-        placement: 'in top'
+        placement: 'top'
       });
       self.filteredCategoryConfigs();
       self.updateReadOnlyFlags();
@@ -184,13 +188,22 @@ App.ServiceConfigsByCategoryView = Em.View.extend(App.UserPref, App.ConfigOverri
    * @type {boolean}
    */
   isShowBlock: function () {
-    var isCustomPropertiesCategory = this.get('category.customCanAddProperty');
-    var hasFilteredAdvancedConfigs = this.get('categoryConfigs').filter(function (config) {
-        return config.get('isHiddenByFilter') === false && Em.isNone(config.get('widget'));
+    const isFilterEmpty = this.get('controller.filter') === '';
+    const isFilterActive = this.get('mainView.columns') && this.get('mainView.columns').someProperty('selected');
+    const isCustomPropertiesCategory = this.get('category.customCanAddProperty');
+    const isCompareMode = this.get('controller.isCompareMode');
+    const hasFilteredAdvancedConfigs = this.get('categoryConfigs').filter(function (config) {
+        return config.get('isHiddenByFilter') === false && Em.isNone(config.get('isInDefaultTheme'));
       }, this).length > 0;
-    return (isCustomPropertiesCategory && this.get('controller.filter') === '' && !this.get('mainView.columns').someProperty('selected')) ||
+    return (isCustomPropertiesCategory && !isCompareMode && isFilterEmpty && !isFilterActive) ||
       hasFilteredAdvancedConfigs;
-  }.property('category.customCanAddProperty', 'categoryConfigs.@each.isHiddenByFilter', 'categoryConfigs.@each.widget', 'controller.filter', 'mainView.columns.@each.selected'),
+  }.property(
+    'category.customCanAddProperty',
+    'categoryConfigs.@each.isHiddenByFilter',
+    'categoryConfigs.@each.isInDefaultTheme',
+    'controller.filter',
+    'controller.isCompareMode',
+    'mainView.columns.@each.selected'),
 
   /**
    * Re-order the configs to list content displayType properties at last in the category
@@ -233,75 +246,11 @@ App.ServiceConfigsByCategoryView = Em.View.extend(App.UserPref, App.ConfigOverri
     else {
       return;
     }
-    this.affectedProperties = [];
+
     var stepConfigs = this.get("controller.stepConfigs");
     var serviceId = this.get('controller.selectedService.serviceName');
-    var serviceConfigModificationHandler = null;
-    try{
-      serviceConfigModificationHandler = require('utils/configs/modification_handlers/'+serviceId.toLowerCase());
-    }catch (e) {
-      console.log("Unable to load modification handler for ", serviceId);
-    }
-    if (serviceConfigModificationHandler != null) {
-      var securityEnabled = App.router.get('mainAdminKerberosController.securityEnabled');
-      this.affectedProperties = serviceConfigModificationHandler.getDependentConfigChanges(changedProperty, this.get("controller.selectedServiceNames"), stepConfigs, securityEnabled);
-    }
-    changedProperty.set("editDone", false); // Turn off flag
+    return this.showConfirmationDialogIfShouldChangeProps(changedProperty, stepConfigs, serviceId);
 
-    if (this.affectedProperties.length > 0 && !this.get("controller.miscModalVisible")) {
-      this.newAffectedProperties = this.affectedProperties;
-      var self = this;
-      return App.ModalPopup.show({
-        classNames: ['modal-690px-width'],
-        showCloseButton: false,
-        header: "Warning: you must also change these Service properties",
-        onApply: function () {
-          self.get("newAffectedProperties").forEach(function(item) {
-            if (item.isNewProperty) {
-              self.createProperty({
-                name: item.propertyName,
-                displayName: item.propertyDisplayName,
-                value: item.newValue,
-                categoryName: item.categoryName,
-                serviceName: item.serviceName,
-                filename: item.filename
-              });
-            } else {
-              self.get("controller.stepConfigs").findProperty("serviceName", item.serviceName).get("configs").find(function(config) {
-                return item.propertyName == config.get('name') && (item.filename == null || item.filename == config.get('filename'));
-              }).set("value", item.newValue);
-            }
-          });
-          self.get("controller").set("miscModalVisible", false);
-          this.hide();
-        },
-        onIgnore: function () {
-          self.get("controller").set("miscModalVisible", false);
-          this.hide();
-        },
-        onUndo: function () {
-          var affected = self.get("newAffectedProperties").objectAt(0),
-            changedProperty = self.get("controller.stepConfigs").findProperty("serviceName", affected.sourceServiceName)
-              .get("configs").findProperty("name", affected.changedPropertyName);
-          changedProperty.set('value', changedProperty.get('savedValue') || changedProperty.get('initialValue'));
-          self.get("controller").set("miscModalVisible", false);
-          this.hide();
-        },
-        footerClass: Em.View.extend({
-          classNames: ['modal-footer'],
-          templateName: require('templates/common/configs/propertyDependence_footer'),
-          canIgnore: serviceId == 'MISC'
-        }),
-        bodyClass: Em.View.extend({
-          templateName: require('templates/common/configs/propertyDependence'),
-          controller: this,
-          propertyChange: self.get("newAffectedProperties"),
-          didInsertElement: function () {
-            self.get("controller").set("miscModalVisible", true);
-          }
-        })
-      });
-    }
   }.observes('categoryConfigs.@each.editDone'),
 
   /**
@@ -362,7 +311,7 @@ App.ServiceConfigsByCategoryView = Em.View.extend(App.UserPref, App.ConfigOverri
       }
       return className;
     });
-    var categoryBlock = $('.' + classNames.join('.') + '>.accordion-body');
+    var categoryBlock = $('.' + classNames.join('.') + '>.panel-body');
     this.get('category.isCollapsed') ? categoryBlock.hide() : categoryBlock.show();
   },
 
@@ -398,12 +347,12 @@ App.ServiceConfigsByCategoryView = Em.View.extend(App.UserPref, App.ConfigOverri
    * @method onToggleBlock
    */
   onToggleBlock: function () {
-    this.$('.accordion-body').toggle('blind', 500);
+    this.$('.panel-body').toggle('blind', 500);
     this.toggleProperty('category.isCollapsed');
   },
 
   /**
-   * Determines should accordion be collapsed by default
+   * Determines should panel be collapsed by default
    * @returns {boolean}
    * @method calcIsCollapsed
    */
@@ -450,8 +399,16 @@ App.ServiceConfigsByCategoryView = Em.View.extend(App.UserPref, App.ConfigOverri
       serviceConfigProperty.set('overrides', duplicatedProperty.get('overrides'));
       categoryConfigsAll.removeAt(categoryConfigsAll.indexOf(duplicatedProperty));
     }
+    this._appendConfigToCollection(serviceConfigProperty);
+  },
+
+  /**
+   * @param {App.ServiceConfigProperty} serviceConfigProperty
+   * @private
+   */
+  _appendConfigToCollection: function (serviceConfigProperty) {
     this.get('serviceConfigs').pushObject(serviceConfigProperty);
-    categoryConfigsAll.pushObject(serviceConfigProperty);
+    this.get('categoryConfigsAll').pushObject(serviceConfigProperty);
     this.setVisibleCategoryConfigs();
   },
 
@@ -550,7 +507,8 @@ App.ServiceConfigsByCategoryView = Em.View.extend(App.UserPref, App.ConfigOverri
     });
 
     App.ModalPopup.show({
-      classNames: ['sixty-percent-width-modal'],
+      classNames: ['common-modal-wrapper'],
+      modalDialogClasses: ['modal-lg'],
       header: Em.I18n.t('installer.step7.config.addProperty'),
       primary: Em.I18n.t('add'),
       secondary: Em.I18n.t('common.cancel'),
@@ -663,8 +621,8 @@ App.ServiceConfigsByCategoryView = Em.View.extend(App.UserPref, App.ConfigOverri
         },
         filterByKey: function (event) {
           var controller = (App.router.get('currentState.name') == 'configs')
-            ? App.router.get('mainServiceInfoConfigsController')
-            : App.router.get('wizardStep7Controller');
+              ? App.router.get('mainServiceInfoConfigsController')
+              : App.router.get('wizardStep7Controller');
           controller.set('filter', this.get('serviceConfigObj.name'));
           this.get('parentView').onClose();
         }
@@ -765,7 +723,9 @@ App.ServiceConfigsByCategoryView = Em.View.extend(App.UserPref, App.ConfigOverri
       if (serviceConfigProperty.get('displayType') === 'password') {
         serviceConfigProperty.set('retypedPassword', savedValue);
       }
+      serviceConfigProperty.set('changedViaUndoValue', true);
       serviceConfigProperty.set('value', savedValue);
+      serviceConfigProperty.set('changedViaUndoValue', false);
     }
     if (supportsFinal) {
       serviceConfigProperty.set('isFinal', savedIsFinal);

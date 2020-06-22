@@ -16,8 +16,24 @@
 * limitations under the License.
 }}
 
-<div id="config_history">
-  <table class="table advanced-header-table table-bordered table-striped" >
+<div id="config_history" class="container-wrap-table">
+  <div class="row">
+    <h2 class="table-title col-md-6">{{t dashboard.configHistory.title}}</h2>
+    <div class="table-controls row col-sm-6 pull-right">
+      <div class="col-sm-12">
+        <div class="VS-open-box pull-right">
+          <button class="btn btn-default">
+            <i class="icon-filter"></i>
+          </button>
+          <div class="popup-arrow-up hide"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="row search-box-row hide">
+    {{view App.MainConfigHistorySearchBoxView}}
+  </div>
+  <table class="table advanced-header-table table-hover">
     <thead>
     {{#view view.sortView classNames="label-row config-history-sort-row"}}
       {{view view.parentView.versionSort}}
@@ -26,14 +42,6 @@
       {{view view.parentView.authorSort}}
       {{view view.parentView.notesSort}}
     {{/view}}
-
-    <tr class="filter-row config-history-filter-row">
-      <th class="first cg-service">{{view view.serviceFilterView}}</th>
-      <th class="cg-name">{{view view.configGroupFilterView}}</th>
-      <th class="cg-created">{{view view.modifiedFilterView}}</th>
-      <th class="cg-author">{{view view.authorFilterView}}</th>
-      <th class="cg-notes">{{view view.notesFilterView}}</th>
-    </tr>
     </thead>
     <tbody class="services-menu">
     {{#if view.filteringComplete}}
@@ -49,7 +57,7 @@
                   {{item.displayName}}
                 </a>
               {{/if}}
-              <i {{bindAttr class=":icon-refresh :restart-required-service item.isRestartRequired::hidden"}}
+              <i {{bindAttr class=":glyphicon :glyphicon-refresh :restart-required-service item.isRestartRequired::hidden"}}
                 rel="Tooltip" {{translateAttr data-original-title="dashboard.configHistory.table.restart.tooltip"}}></i>
             </td>
             <td>{{item.configGroupName}}
@@ -87,22 +95,13 @@
       <tr><td colspan="5">{{view App.SpinnerView}}</td></tr>
     {{/if}}
     </tbody>
-</table>
+    <tfoot>
+    <tr>
+      <td colspan="5">
+        {{view App.PaginationView dataViewBinding="view" isDataLoadedBinding="view.filteringComplete"}}
+      </td>
+    </tr>
+    </tfoot>
+  </table>
 
-  <div class="page-bar">
-    <div class="filtered-info span4">
-    {{#if view.showFilteredContent}}
-      <label>{{view.filteredContentInfo}} - <a {{action clearFilters target="view"}}
-              href="#">{{t tableView.filters.clearAllFilters}}</a></label>
-    {{/if}}
-    </div>
-    <div class="items-on-page">
-      <label>{{t common.show}}: {{view view.rowsPerPageSelectView selectionBinding="view.displayLength"}}</label>
-    </div>
-    <div class="info">{{view.paginationInfo}}</div>
-    <div class="paging_two_button">
-      {{view view.paginationLeft}}
-      {{view view.paginationRight}}
-    </div>
-  </div>
 </div>

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements. See the NOTICE file distributed with this
  * work for additional information regarding copyright ownership. The ASF
@@ -21,15 +21,15 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+
 import org.junit.Assert;
-import org.junit.Test;
 
 /**
  *
  * Test if DeadlockWarningThread can detect deadlocks properly
  */
 public class DeadlockedThreadsTest {
-  static Set<Thread> threads = new HashSet<Thread>();
+  static Set<Thread> threads = new HashSet<>();
   
   /**
    *
@@ -172,16 +172,16 @@ public class DeadlockedThreadsTest {
       }
     }
     private void f() {
-      w.lock(); {
-        g();
-      } w.unlock();
+      w.lock();
+      g();
+      w.unlock();
     }
     
     private void g() {
-      r.lock(); {
-        // do some work...
-        for (int i = 0; i < 1000 * 1000; i++) ;
-      } r.unlock();
+      r.lock();
+      // do some work...
+      for (int i = 0; i < 1000 * 1000; i++) ;
+      r.unlock();
     }
   }
   

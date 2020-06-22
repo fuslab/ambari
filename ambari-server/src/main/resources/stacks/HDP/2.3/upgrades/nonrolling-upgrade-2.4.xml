@@ -119,15 +119,6 @@
       <service name="MAPREDUCE2">
         <component>HISTORYSERVER</component>
       </service>
-      
-      <service name="RANGER">
-        <component>RANGER_USERSYNC</component>
-        <component>RANGER_ADMIN</component>
-      </service>
-
-      <service name="RANGER_KMS">
-        <component>RANGER_KMS_SERVER</component>
-      </service>
     </group>
 
     <group xsi:type="cluster" name="Backups" title="Perform Backups">
@@ -163,10 +154,10 @@
 
       <execute-stage service="RANGER" component="RANGER_ADMIN" title="Backup Ranger Database">
         <task xsi:type="manual">
-          <message>Before continuing, please backup the Ranger Admin database and Ranger Audit database on the following host(s): {{hosts.all}}. If audit database size is too large (greater than 3GB) then follow the below instructions:
-            1. Backup the audit table from audit database.
-            2. Truncate audit table.
-            3. Follow upgrade process and once completed then restore audit data to audit table.</message>
+          <message>Before continuing, please backup the Ranger Admin database and Ranger Audit database on the following host(s): {{hosts.all}}. If audit database size is too large (greater than 3GB) then follow the below instructions:</message>
+          <message>1. Backup the audit table from audit database.</message>
+          <message>2. Truncate audit table.</message>
+          <message>3. Follow upgrade process and once completed then restore audit data to audit table.</message>
         </task>
       </execute-stage>
 
@@ -200,6 +191,15 @@
         <component>ZKFC</component>
         <component>JOURNALNODE</component>
         <component>NFS_GATEWAY</component>
+      </service>
+
+      <service name="RANGER">
+        <component>RANGER_USERSYNC</component>
+        <component>RANGER_ADMIN</component>
+      </service>
+
+      <service name="RANGER_KMS">
+        <component>RANGER_KMS_SERVER</component>
       </service>
 
       <service name="ZOOKEEPER">
@@ -447,23 +447,6 @@
         </task>
       </execute-stage>
 
-    </group>
-
-    <!--
-    Invoke "hdp-select set all" to change any components we may have missed
-    that are installed on the hosts but not known by Ambari.
-    -->
-    <group xsi:type="cluster" name="ALL_HOST_OPS" title="Set Version On All Hosts">
-      <scope>COMPLETE</scope>
-      <skippable>true</skippable>
-      <supports-auto-skip-failure>false</supports-auto-skip-failure>
-
-      <execute-stage title="Update stack to {{version}}">
-        <task xsi:type="execute">
-          <script>scripts/ru_set_all.py</script>
-          <function>actionexecute</function>
-        </task>
-      </execute-stage>
     </group>
 
     <!-- Now, restart all of the services. -->
@@ -889,7 +872,7 @@
             <function>setup_ranger_java_patches</function>
           </task>
         </pre-upgrade>
-        
+
         <pre-downgrade copy-upgrade="true" />
 
         <upgrade>
@@ -908,7 +891,7 @@
     <service name="HDFS">
       <component name="NAMENODE">
         <upgrade>
-          <task xsi:type="restart-task"/>
+          <task xsi:type="restart-task" timeout-config="upgrade.parameter.nn-restart.timeout"/>
         </upgrade>
       </component>
 
@@ -1242,7 +1225,7 @@
             <function>delete_storm_local_data</function>
           </task>
         </pre-upgrade>
-        
+
         <pre-downgrade copy-upgrade="true" />
 
         <upgrade>
@@ -1258,7 +1241,7 @@
             <function>delete_storm_local_data</function>
           </task>
         </pre-upgrade>
-        
+
         <pre-downgrade copy-upgrade="true" />
 
         <upgrade>
@@ -1270,9 +1253,9 @@
             <message>Please rebuild your topology using the new Storm version dependencies and resubmit it using the newly created jar.</message>
           </task>
         </post-upgrade>
-        
+
         <post-downgrade copy-upgrade="true" />
-        
+
       </component>
     </service>
 

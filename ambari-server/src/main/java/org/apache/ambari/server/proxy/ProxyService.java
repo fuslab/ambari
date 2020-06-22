@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,34 +18,36 @@
 
 package org.apache.ambari.server.proxy;
 
-import com.google.gson.Gson;
-import org.apache.ambari.server.controller.internal.URLStreamProvider;
-import org.apache.ambari.server.view.ImpersonatorSettingImpl;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
-import javax.ws.rs.Path;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriInfo;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.MultivaluedMap;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
-import java.util.Map;
-import java.util.List;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
+import javax.ws.rs.Path;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.MultivaluedMap;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriInfo;
+
+import org.apache.ambari.annotations.ApiIgnore;
+import org.apache.ambari.server.controller.internal.URLStreamProvider;
+import org.apache.ambari.server.view.ImpersonatorSettingImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.gson.Gson;
 
 @Path("/")
 public class ProxyService {
@@ -65,24 +67,24 @@ public class ProxyService {
 
   private final static Logger LOG = LoggerFactory.getLogger(ProxyService.class);
 
-  @GET
+  @GET @ApiIgnore // until documented
   public Response processGetRequestForwarding(@Context HttpHeaders headers, @Context UriInfo ui) {
     return handleRequest(REQUEST_TYPE_GET, ui, null, headers);
   }
 
-  @POST
+  @POST @ApiIgnore // until documented
   @Consumes({MediaType.WILDCARD, MediaType.TEXT_PLAIN, MediaType.TEXT_XML, MediaType.APPLICATION_FORM_URLENCODED, MediaType.APPLICATION_JSON})
   public Response processPostRequestForwarding(InputStream body, @Context HttpHeaders headers, @Context UriInfo ui) {
     return handleRequest(REQUEST_TYPE_POST, ui, body, headers);
   }
 
-  @PUT
+  @PUT @ApiIgnore // until documented
   @Consumes({MediaType.WILDCARD, MediaType.TEXT_PLAIN, MediaType.TEXT_XML, MediaType.APPLICATION_FORM_URLENCODED, MediaType.APPLICATION_JSON})
   public Response processPutRequestForwarding(InputStream body, @Context HttpHeaders headers, @Context UriInfo ui) {
     return handleRequest(REQUEST_TYPE_PUT, ui, body, headers);
   }
 
-  @DELETE
+  @DELETE @ApiIgnore // until documented
   public Response processDeleteRequestForwarding(@Context HttpHeaders headers, @Context UriInfo ui) {
     return handleRequest(REQUEST_TYPE_DELETE, ui, null, headers);
   }
@@ -128,7 +130,7 @@ public class ProxyService {
   }
 
   private Map<String, List<String>> getHeaderParamsToForward(HttpHeaders headers) {
-    Map<String, List<String>> headerParamsToForward = new HashMap<String, List<String>>();
+    Map<String, List<String>> headerParamsToForward = new HashMap<>();
     for (String paramName: headers.getRequestHeaders().keySet()) {
       if (paramName.startsWith(AMBARI_PROXY_PREFIX)) {
         headerParamsToForward.put(paramName.replaceAll(AMBARI_PROXY_PREFIX,""), headers.getRequestHeader(paramName));

@@ -17,6 +17,12 @@
  */
 package org.apache.ambari.server.state;
 
+import static com.google.common.collect.Sets.newLinkedHashSet;
+import static java.util.Collections.emptySet;
+import static java.util.Collections.singletonList;
+import static org.easymock.EasyMock.anyLong;
+import static org.easymock.EasyMock.anyObject;
+import static org.easymock.EasyMock.anyString;
 import static org.easymock.EasyMock.eq;
 import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.expectLastCall;
@@ -33,6 +39,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -45,11 +52,15 @@ import org.apache.ambari.annotations.ExperimentalFeature;
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.H2DatabaseCleaner;
 import org.apache.ambari.server.actionmanager.HostRoleCommandFactory;
+import org.apache.ambari.server.agent.stomp.AgentConfigsHolder;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
 import org.apache.ambari.server.controller.AmbariManagementController;
 import org.apache.ambari.server.controller.ClusterRequest;
 import org.apache.ambari.server.controller.ConfigurationRequest;
+import org.apache.ambari.server.controller.KerberosDetails;
+import org.apache.ambari.server.controller.internal.DeleteHostComponentStatusMetaData;
 import org.apache.ambari.server.controller.internal.UpgradeResourceProvider;
+import org.apache.ambari.server.events.AgentConfigsUpdateEvent;
 import org.apache.ambari.server.orm.GuiceJpaInitializer;
 import org.apache.ambari.server.orm.InMemoryDefaultTestModule;
 import org.apache.ambari.server.orm.OrmTestHelper;
@@ -59,6 +70,7 @@ import org.apache.ambari.server.orm.entities.RepositoryVersionEntity;
 import org.apache.ambari.server.orm.entities.ServiceConfigEntity;
 import org.apache.ambari.server.security.TestAuthenticationFactory;
 import org.apache.ambari.server.security.authorization.AuthorizationException;
+import org.apache.ambari.server.serveraction.kerberos.KDCType;
 import org.apache.ambari.server.stack.HostsType;
 import org.apache.ambari.server.stack.MasterHostResolver;
 import org.apache.ambari.server.stack.StackManagerMock;
@@ -130,6 +142,7 @@ public class UpgradeHelperTest extends EasyMockSupport {
   private RepositoryVersionEntity repositoryVersion2110;
   private RepositoryVersionEntity repositoryVersion2200;
   private RepositoryVersionEntity repositoryVersion2210;
+  private HostsType namenodeHosts = HostsType.highAvailability("h1", "h2", newLinkedHashSet(Arrays.asList("h1", "h2")));
 
   /**
    * Because test cases need to share config mocks, put common ones in this function.
@@ -141,7 +154,11 @@ public class UpgradeHelperTest extends EasyMockSupport {
     expect(m_configHelper.getPlaceholderValueFromDesiredConfigurations(
         EasyMock.anyObject(Cluster.class), EasyMock.eq("{{foo/bar}}"))).andReturn("placeholder-rendered-properly").anyTimes();
     expect(m_configHelper.getEffectiveDesiredTags(
-        EasyMock.anyObject(Cluster.class), EasyMock.anyObject(String.class))).andReturn(new HashMap<String, Map<String, String>>()).anyTimes();
+        EasyMock.anyObject(Cluster.class), EasyMock.anyObject(String.class))).andReturn(new HashMap<>()).anyTimes();
+    expect(m_configHelper.getHostActualConfigs(
+        EasyMock.anyLong())).andReturn(new AgentConfigsUpdateEvent(null, Collections.emptySortedMap())).anyTimes();
+    expect(m_configHelper.getChangedConfigTypes(anyObject(Cluster.class), anyObject(ServiceConfigEntity.class),
+        anyLong(), anyLong(), anyString())).andReturn(Collections.emptyMap()).anyTimes();
   }
 
   @Before
@@ -216,8 +233,12 @@ public class UpgradeHelperTest extends EasyMockSupport {
 
     upgrades = ambariMetaInfo.getUpgradePacks("HDP", "2.1.1");
 
-    ServiceInfo si = ambariMetaInfo.getService("HDP", "2.1.1", "ZOOKEEPER");
+    // set the display names of the service and component in the target stack
+    // to make sure that we can correctly render display strings during the
+    // upgrade
+    ServiceInfo si = ambariMetaInfo.getService("HDP", "2.2.0", "ZOOKEEPER");
     si.setDisplayName("Zk");
+
     ComponentInfo ci = si.getComponentByName("ZOOKEEPER_SERVER");
     ci.setDisplayName("ZooKeeper1 Server2");
 
@@ -295,8 +316,12 @@ public class UpgradeHelperTest extends EasyMockSupport {
 
     upgrades = ambariMetaInfo.getUpgradePacks("HDP", "2.1.1");
 
-    ServiceInfo si = ambariMetaInfo.getService("HDP", "2.1.1", "ZOOKEEPER");
+    // set the display names of the service and component in the target stack
+    // to make sure that we can correctly render display strings during the
+    // upgrade
+    ServiceInfo si = ambariMetaInfo.getService("HDP", "2.2.0", "ZOOKEEPER");
     si.setDisplayName("Zk");
+
     ComponentInfo ci = si.getComponentByName("ZOOKEEPER_SERVER");
     ci.setDisplayName("ZooKeeper1 Server2");
 
@@ -352,8 +377,12 @@ public class UpgradeHelperTest extends EasyMockSupport {
 
     upgrades = ambariMetaInfo.getUpgradePacks("HDP", "2.1.1");
 
-    ServiceInfo si = ambariMetaInfo.getService("HDP", "2.1.1", "ZOOKEEPER");
+    // set the display names of the service and component in the target stack
+    // to make sure that we can correctly render display strings during the
+    // upgrade
+    ServiceInfo si = ambariMetaInfo.getService("HDP", "2.2.0", "ZOOKEEPER");
     si.setDisplayName("Zk");
+
     ComponentInfo ci = si.getComponentByName("ZOOKEEPER_SERVER");
     ci.setDisplayName("ZooKeeper1 Server2");
 
@@ -527,7 +556,42 @@ public class UpgradeHelperTest extends EasyMockSupport {
     assertEquals("h1", orderedNameNodes.get(1));
   }
 
+  @Test
+  public void testNamenodeFederationOrder() throws Exception {
+    namenodeHosts = HostsType.federated(
+      Arrays.asList(
+        new HostsType.HighAvailabilityHosts("h1", Arrays.asList("h2", "h3")),
+        new HostsType.HighAvailabilityHosts("h4", singletonList("h5"))),
+      newLinkedHashSet(Arrays.asList("h1", "h2", "h3", "h4", "h5")));
 
+    Map<String, UpgradePack> upgrades = ambariMetaInfo.getUpgradePacks("HDP", "2.1.1");
+    assertTrue(upgrades.containsKey("upgrade_test"));
+    UpgradePack upgrade = upgrades.get("upgrade_test");
+    assertNotNull(upgrade);
+
+    Cluster cluster = makeCluster();
+
+    UpgradeContext context = getMockUpgradeContext(cluster, Direction.UPGRADE, UpgradeType.ROLLING);
+
+    List<UpgradeGroupHolder> groups = m_upgradeHelper.createSequence(upgrade, context);
+
+    assertEquals(7, groups.size());
+
+    UpgradeGroupHolder mastersGroup = groups.get(2);
+    assertEquals("CORE_MASTER", mastersGroup.name);
+
+    List<String> orderedNameNodes = new LinkedList<>();
+    for (StageWrapper sw : mastersGroup.items) {
+      if (sw.getType().equals(StageWrapper.Type.RESTART) && sw.getText().toLowerCase().contains("NameNode".toLowerCase())) {
+        for (TaskWrapper tw : sw.getTasks()) {
+          for (String hostName : tw.getHosts()) {
+            orderedNameNodes.add(hostName);
+          }
+        }
+      }
+    }
+    assertEquals(Arrays.asList("h2", "h3", "h1", "h5", "h4"), orderedNameNodes);
+  }
 
   @Test
   public void testUpgradeOrchestrationWithNoHeartbeat() throws Exception {
@@ -611,7 +675,7 @@ public class UpgradeHelperTest extends EasyMockSupport {
 
     assertEquals(4, groups.get(0).items.size());
     assertEquals(8, groups.get(1).items.size());
-    assertEquals(5, groups.get(2).items.size());
+    assertEquals(6, groups.get(2).items.size());
     assertEquals(7, groups.get(3).items.size());
     assertEquals(8, groups.get(4).items.size());
   }
@@ -706,7 +770,7 @@ public class UpgradeHelperTest extends EasyMockSupport {
         cluster.getClusterId(), cluster.getClusterName(),
         cluster.getDesiredStackVersion().getStackVersion(), null);
 
-    clusterRequest.setDesiredConfig(Collections.singletonList(configurationRequest));
+    clusterRequest.setDesiredConfig(singletonList(configurationRequest));
     m_managementController.updateClusters(new HashSet<ClusterRequest>() {
       {
         add(clusterRequest);
@@ -948,7 +1012,7 @@ public class UpgradeHelperTest extends EasyMockSupport {
         cluster.getClusterId(), cluster.getClusterName(),
         cluster.getDesiredStackVersion().getStackVersion(), null);
 
-    clusterRequest.setDesiredConfig(Collections.singletonList(configurationRequest));
+    clusterRequest.setDesiredConfig(singletonList(configurationRequest));
     m_managementController.updateClusters(new HashSet<ClusterRequest>() {
       {
         add(clusterRequest);
@@ -971,6 +1035,82 @@ public class UpgradeHelperTest extends EasyMockSupport {
 
     assertEquals("fooKey", keyValuePairs.get(0).key);
     assertEquals("fooValue", keyValuePairs.get(0).value);
+  }
+
+  /**
+   * Tests that the regex replacement is working for configurations.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testConfigureRegexTask() throws Exception {
+    Map<String, UpgradePack> upgrades = ambariMetaInfo.getUpgradePacks("HDP", "2.1.1");
+    assertTrue(upgrades.containsKey("upgrade_test"));
+    UpgradePack upgrade = upgrades.get("upgrade_test");
+    ConfigUpgradePack cup = ambariMetaInfo.getConfigUpgradePack("HDP", "2.1.1");
+    assertNotNull(upgrade);
+
+    Cluster cluster = makeCluster();
+
+    UpgradeContext context = getMockUpgradeContext(cluster, Direction.UPGRADE, UpgradeType.ROLLING);
+
+    List<UpgradeGroupHolder> groups = m_upgradeHelper.createSequence(upgrade,context);
+    assertEquals(7, groups.size());
+
+    // grab the regex task out of Hive
+    UpgradeGroupHolder hiveGroup = groups.get(4);
+    assertEquals("HIVE", hiveGroup.name);
+    ConfigureTask configureTask = (ConfigureTask) hiveGroup.items.get(5).getTasks().get(0).getTasks().get(0);
+    assertEquals("hdp_2_1_1_regex_replace", configureTask.getId());
+
+    // now set the property in the if-check in the set element so that we have a match
+    Map<String, String> hiveConfigs = new HashMap<>();
+    StringBuilder builder = new StringBuilder();
+    builder.append("1-foo-2");
+    builder.append(System.lineSeparator());
+    builder.append("1-bar-2");
+    builder.append(System.lineSeparator());
+    builder.append("3-foo-4");
+    builder.append(System.lineSeparator());
+    builder.append("1-foobar-2");
+    builder.append(System.lineSeparator());
+    hiveConfigs.put("regex-replace-key-one", builder.toString());
+
+    ConfigurationRequest configurationRequest = new ConfigurationRequest();
+    configurationRequest.setClusterName(cluster.getClusterName());
+    configurationRequest.setType("hive-site");
+    configurationRequest.setVersionTag("version2");
+    configurationRequest.setProperties(hiveConfigs);
+
+    final ClusterRequest clusterRequest = new ClusterRequest(
+        cluster.getClusterId(), cluster.getClusterName(),
+        cluster.getDesiredStackVersion().getStackVersion(), null);
+
+    clusterRequest.setDesiredConfig(singletonList(configurationRequest));
+    m_managementController.updateClusters(new HashSet<ClusterRequest>() {
+      {
+        add(clusterRequest);
+      }
+    }, null);
+
+    // the configure task should now return different properties to set based on
+    // the if-condition checks
+    Map<String, String> configProperties = configureTask.getConfigurationChanges(cluster, cup);
+    assertFalse(configProperties.isEmpty());
+    assertEquals(configProperties.get(ConfigureTask.PARAMETER_CONFIG_TYPE), "hive-site");
+
+    String configurationJson = configProperties.get(ConfigureTask.PARAMETER_REPLACEMENTS);
+    assertNotNull(configurationJson);
+
+    List<ConfigUpgradeChangeDefinition.Replace> replacements = m_gson.fromJson(
+        configurationJson,
+        new TypeToken<List<ConfigUpgradeChangeDefinition.Replace>>() {}.getType());
+
+    assertEquals("1-foo-2" + System.lineSeparator(), replacements.get(0).find);
+    assertEquals("REPLACED", replacements.get(0).replaceWith);
+    assertEquals("3-foo-4" + System.lineSeparator(), replacements.get(1).find);
+    assertEquals("REPLACED", replacements.get(1).replaceWith);
+    assertEquals(2, replacements.size());
   }
 
   @Test
@@ -1129,8 +1269,12 @@ public class UpgradeHelperTest extends EasyMockSupport {
   public void testUpgradeOrchestrationFullTask() throws Exception {
     Map<String, UpgradePack> upgrades = ambariMetaInfo.getUpgradePacks("HDP", "2.1.1");
 
-    ServiceInfo si = ambariMetaInfo.getService("HDP", "2.1.1", "ZOOKEEPER");
+    // set the display names of the service and component in the target stack
+    // to make sure that we can correctly render display strings during the
+    // upgrade
+    ServiceInfo si = ambariMetaInfo.getService("HDP", "2.2.0", "ZOOKEEPER");
     si.setDisplayName("Zk");
+
     ComponentInfo ci = si.getComponentByName("ZOOKEEPER_SERVER");
     ci.setDisplayName("ZooKeeper1 Server2");
 
@@ -1216,7 +1360,7 @@ public class UpgradeHelperTest extends EasyMockSupport {
    * @throws AmbariException
    */
   private Cluster makeCluster(boolean clean) throws AmbariException, AuthorizationException {
-    return makeCluster(clean, new HashSet<String>());
+    return makeCluster(clean, new HashSet<>());
   }
 
   /**
@@ -1314,52 +1458,41 @@ public class UpgradeHelperTest extends EasyMockSupport {
     final ClusterRequest clusterRequest = new ClusterRequest(c.getClusterId(),
         clusterName, c.getDesiredStackVersion().getStackVersion(), null);
 
-    clusterRequest.setDesiredConfig(Collections.singletonList(configurationRequest));
+    clusterRequest.setDesiredConfig(singletonList(configurationRequest));
     m_managementController.updateClusters(new HashSet<ClusterRequest>() {
       {
         add(clusterRequest);
       }
     }, null);
 
-    HostsType type = new HostsType();
-    type.hosts.addAll(Arrays.asList("h1", "h2", "h3"));
+    HostsType type = HostsType.normal("h1", "h2", "h3");
     expect(m_masterHostResolver.getMasterAndHosts("ZOOKEEPER", "ZOOKEEPER_SERVER")).andReturn(type).anyTimes();
+    expect(m_masterHostResolver.getMasterAndHosts("HDFS", "NAMENODE")).andReturn(namenodeHosts).anyTimes();
 
-    type = new HostsType();
-    type.hosts.addAll(Arrays.asList("h1", "h2"));
-    type.master = "h1";
-    type.secondary = "h2";
-    expect(m_masterHostResolver.getMasterAndHosts("HDFS", "NAMENODE")).andReturn(type).anyTimes();
-
-    type = new HostsType();
     if (clean) {
-      type.hosts.addAll(Arrays.asList("h2", "h3", "h4"));
+      type = HostsType.normal("h2", "h3", "h4");
     } else {
-      type.unhealthy = Collections.singletonList(sch);
-      type.hosts.addAll(Arrays.asList("h2", "h3"));
+      type = HostsType.normal("h2", "h3");
+      type.unhealthy = singletonList(sch);
     }
     expect(m_masterHostResolver.getMasterAndHosts("HDFS", "DATANODE")).andReturn(type).anyTimes();
 
-    type = new HostsType();
-    type.hosts.addAll(Arrays.asList("h2"));
+    type = HostsType.normal("h2");
     expect(m_masterHostResolver.getMasterAndHosts("YARN", "RESOURCEMANAGER")).andReturn(type).anyTimes();
 
-    type = new HostsType();
+    type = HostsType.normal(Sets.newLinkedHashSet());
     expect(m_masterHostResolver.getMasterAndHosts("YARN", "APP_TIMELINE_SERVER")).andReturn(type).anyTimes();
 
-    type = new HostsType();
-    type.hosts.addAll(Arrays.asList("h1", "h3"));
+    type = HostsType.normal("h1", "h3");
     expect(m_masterHostResolver.getMasterAndHosts("YARN", "NODEMANAGER")).andReturn(type).anyTimes();
 
     expect(m_masterHostResolver.getMasterAndHosts("HIVE", "HIVE_SERVER")).andReturn(
         type).anyTimes();
 
-    type = new HostsType();
-    type.hosts.addAll(Arrays.asList("h2", "h3"));
+    type = HostsType.normal("h2", "h3");
     expect(m_masterHostResolver.getMasterAndHosts("OOZIE", "OOZIE_SERVER")).andReturn(type).anyTimes();
 
-    type = new HostsType();
-    type.hosts.addAll(Arrays.asList("h1", "h2", "h3"));
+    type = HostsType.normal("h1", "h2", "h3");
     expect(m_masterHostResolver.getMasterAndHosts("OOZIE", "OOZIE_CLIENT")).andReturn(type).anyTimes();
 
     expect(m_masterHostResolver.getCluster()).andReturn(c).anyTimes();
@@ -1367,8 +1500,7 @@ public class UpgradeHelperTest extends EasyMockSupport {
     for(String service : additionalServices) {
       c.addService(service, repositoryVersion);
       if (service.equals("HBASE")) {
-        type = new HostsType();
-        type.hosts.addAll(Arrays.asList("h1", "h2"));
+        type = HostsType.normal("h1", "h2");
         expect(m_masterHostResolver.getMasterAndHosts("HBASE", "HBASE_MASTER")).andReturn(type).anyTimes();
       }
     }
@@ -1487,9 +1619,7 @@ public class UpgradeHelperTest extends EasyMockSupport {
     List<ServiceComponentHost> schs = c.getServiceComponentHosts("HDFS", "NAMENODE");
     assertEquals(2, schs.size());
 
-    HostsType type = new HostsType();
-    type.master = "h1";
-    type.secondary = "h2";
+    HostsType type = HostsType.highAvailability("h1", "h2", new LinkedHashSet<>(emptySet()));
 
     expect(m_masterHostResolver.getMasterAndHosts("ZOOKEEPER", "ZOOKEEPER_SERVER")).andReturn(null).anyTimes();
     expect(m_masterHostResolver.getMasterAndHosts("HDFS", "NAMENODE")).andReturn(type).anyTimes();
@@ -1571,15 +1701,15 @@ public class UpgradeHelperTest extends EasyMockSupport {
     replay(context);
 
     HostsType ht = resolver.getMasterAndHosts("ZOOKEEPER", "ZOOKEEPER_SERVER");
-    assertEquals(0, ht.hosts.size());
+    assertEquals(0, ht.getHosts().size());
 
     // !!! if one of them is failed, it should be scheduled
     sch2.setUpgradeState(UpgradeState.FAILED);
 
     ht = resolver.getMasterAndHosts("ZOOKEEPER", "ZOOKEEPER_SERVER");
 
-    assertEquals(1, ht.hosts.size());
-    assertEquals("h2", ht.hosts.iterator().next());
+    assertEquals(1, ht.getHosts().size());
+    assertEquals("h2", ht.getHosts().iterator().next());
   }
 
   /**
@@ -1647,13 +1777,13 @@ public class UpgradeHelperTest extends EasyMockSupport {
 
 
     HostsType ht = mhr.getMasterAndHosts("HDFS", "NAMENODE");
-    assertNotNull(ht.master);
-    assertNotNull(ht.secondary);
-    assertEquals(2, ht.hosts.size());
+    assertNotNull(ht.getMasters());
+    assertNotNull(ht.getSecondaries());
+    assertEquals(2, ht.getHosts().size());
 
     // Should be stored in lowercase.
-    assertTrue(ht.hosts.contains("h1"));
-    assertTrue(ht.hosts.contains("h1"));
+    assertTrue(ht.getHosts().contains("h1"));
+    assertTrue(ht.getHosts().contains("h1"));
   }
 
   @Test
@@ -1715,13 +1845,13 @@ public class UpgradeHelperTest extends EasyMockSupport {
     replay(context);
 
     HostsType ht = mhr.getMasterAndHosts("HDFS", "NAMENODE");
-    assertNotNull(ht.master);
-    assertNotNull(ht.secondary);
-    assertEquals(2, ht.hosts.size());
+    assertNotNull(ht.getMasters());
+    assertNotNull(ht.getSecondaries());
+    assertEquals(2, ht.getHosts().size());
 
     // Should be stored in lowercase.
-    assertTrue(ht.hosts.contains("h1"));
-    assertTrue(ht.hosts.contains("h2"));
+    assertTrue(ht.getHosts().contains("h1"));
+    assertTrue(ht.getHosts().contains("h2"));
   }
 
 
@@ -1820,7 +1950,7 @@ public class UpgradeHelperTest extends EasyMockSupport {
 
         OrderService orderService = new OrderService();
         orderService.serviceName = "STORM";
-        orderService.components = Collections.singletonList("NIMBUS");
+        orderService.components = singletonList("NIMBUS");
 
         g.name = "GROUP1";
         g.title = "Nimbus Group";
@@ -1836,7 +1966,7 @@ public class UpgradeHelperTest extends EasyMockSupport {
 
         ProcessingComponent pc = new ProcessingComponent();
         pc.name = "NIMBUS_MESSAGE";
-        pc.preTasks = Lists.<Task>newArrayList(mt);
+        pc.preTasks = Lists.newArrayList(mt);
 
         return Collections.singletonMap("STORM", Collections.singletonMap("NIMBUS", pc));
       }
@@ -1925,12 +2055,10 @@ public class UpgradeHelperTest extends EasyMockSupport {
 
     expect(m_masterHostResolver.getCluster()).andReturn(c).anyTimes();
 
-    HostsType type = new HostsType();
-    type.hosts.addAll(Arrays.asList("h1", "h2"));
+    HostsType type = HostsType.normal("h1", "h2");
     expect(m_masterHostResolver.getMasterAndHosts("ZOOKEEPER", "ZOOKEEPER_SERVER")).andReturn(type).anyTimes();
 
-    type = new HostsType();
-    type.hosts.addAll(Arrays.asList("h1", "h2"));
+    type = HostsType.normal("h1", "h2");
     expect(m_masterHostResolver.getMasterAndHosts("ZOOKEEPER", "ZOOKEEPER_CLIENT")).andReturn(type).anyTimes();
 
 
@@ -2216,7 +2344,13 @@ public class UpgradeHelperTest extends EasyMockSupport {
 
     Cluster cluster = makeCluster();
 
-    UpgradeContext context = getMockUpgradeContext(cluster, Direction.UPGRADE, UpgradeType.ROLLING);
+    KerberosDetails kerberosDetails = createNiceMock(KerberosDetails.class);
+    expect(kerberosDetails.getKdcType()).andReturn(KDCType.NONE).atLeastOnce();
+    replay(kerberosDetails);
+
+    UpgradeContext context = getMockUpgradeContext(cluster, Direction.UPGRADE, UpgradeType.ROLLING, false);
+    expect(context.getKerberosDetails()).andReturn(kerberosDetails).atLeastOnce();
+    replay(context);
 
     // initially, no conditions should be met, so only 1 group should be
     // available
@@ -2240,7 +2374,7 @@ public class UpgradeHelperTest extends EasyMockSupport {
     final ClusterRequest clusterRequest = new ClusterRequest(cluster.getClusterId(),
         cluster.getClusterName(), cluster.getDesiredStackVersion().getStackVersion(), null);
 
-    clusterRequest.setDesiredConfig(Collections.singletonList(configurationRequest));
+    clusterRequest.setDesiredConfig(singletonList(configurationRequest));
     m_managementController.updateClusters(Sets.newHashSet(clusterRequest), null);
 
     // the config condition should now be set
@@ -2252,7 +2386,9 @@ public class UpgradeHelperTest extends EasyMockSupport {
     cluster.setSecurityType(SecurityType.KERBEROS);
 
     groups = m_upgradeHelper.createSequence(upgrade, context);
-    assertEquals(4, groups.size());
+    assertEquals(5, groups.size());
+
+    EasyMock.verify(kerberosDetails);
   }
 
   /**
@@ -2335,7 +2471,7 @@ public class UpgradeHelperTest extends EasyMockSupport {
     Service zookeeper = createNiceMock(Service.class);
     expect(zookeeper.getName()).andReturn("ZOOKEEPER").atLeastOnce();
     expect(zookeeper.getServiceComponents()).andReturn(
-        new HashMap<String, ServiceComponent>()).once();
+      new HashMap<>()).once();
     zookeeper.setDesiredRepositoryVersion(repoVersion220);
     expectLastCall().once();
 
@@ -2366,12 +2502,11 @@ public class UpgradeHelperTest extends EasyMockSupport {
 
     Capture<Map<String, Map<String, String>>> expectedConfigurationsCapture = EasyMock.newCapture();
 
-    configHelper.createConfigTypes(EasyMock.anyObject(Cluster.class),
+    expect(configHelper.createConfigTypes(EasyMock.anyObject(Cluster.class),
         EasyMock.anyObject(StackId.class), EasyMock.anyObject(AmbariManagementController.class),
         EasyMock.capture(expectedConfigurationsCapture), EasyMock.anyObject(String.class),
-        EasyMock.anyObject(String.class));
+        EasyMock.anyObject(String.class))).andReturn(true);
 
-    expectLastCall().once();
     EasyMock.replay(configHelperProvider, configHelper);
 
     // mock the service config DAO and replay it
@@ -2442,17 +2577,17 @@ public class UpgradeHelperTest extends EasyMockSupport {
 
     Config clusterEnv = cf.createNew(cluster, "cluster-env", "version1",
         ImmutableMap.<String, String>builder().put("a", "b").build(),
-        Collections.<String, Map<String, String>>emptyMap());
+        Collections.emptyMap());
 
     Config zooCfg = cf.createNew(cluster, "zoo.cfg", "version1",
         ImmutableMap.<String, String>builder().put("c", "d").build(),
-        Collections.<String, Map<String, String>>emptyMap());
+        Collections.emptyMap());
 
     cluster.addDesiredConfig("admin", Sets.newHashSet(clusterEnv, zooCfg));
 
     Map<String, Map<String, String>> stackMap = new HashMap<>();
-    stackMap.put("cluster-env", new HashMap<String, String>());
-    stackMap.put("hive-site", new HashMap<String, String>());
+    stackMap.put("cluster-env", new HashMap<>());
+    stackMap.put("hive-site", new HashMap<>());
 
     final Map<String, String> clusterEnvMap = new HashMap<>();
 
@@ -2477,15 +2612,14 @@ public class UpgradeHelperTest extends EasyMockSupport {
     expect(m_configHelper.getDefaultProperties(newStack, "HIVE")).andReturn(stackMap).atLeastOnce();
     expect(m_configHelper.getDefaultProperties(oldStack, "ZOOKEEPER")).andReturn(stackMap).atLeastOnce();
     expect(m_configHelper.getDefaultProperties(newStack, "ZOOKEEPER")).andReturn(stackMap).atLeastOnce();
-    m_configHelper.createConfigTypes(
+    expect(m_configHelper.createConfigTypes(
         EasyMock.capture(captureCluster),
         EasyMock.capture(captureStackId),
         EasyMock.capture(captureAmc),
         EasyMock.capture(cap),
 
         EasyMock.capture(captureUsername),
-        EasyMock.capture(captureNote));
-    expectLastCall().atLeastOnce();
+        EasyMock.capture(captureNote))).andReturn(true);
 
     replay(m_configHelper);
 
@@ -2519,8 +2653,8 @@ public class UpgradeHelperTest extends EasyMockSupport {
     assertNotNull(upgrade);
 
     Cluster cluster = makeCluster();
-    cluster.deleteService("HDFS");
-    cluster.deleteService("YARN");
+    cluster.deleteService("HDFS", new DeleteHostComponentStatusMetaData());
+    cluster.deleteService("YARN", new DeleteHostComponentStatusMetaData());
 
     UpgradeContext context = getMockUpgradeContext(cluster, Direction.UPGRADE,
         UpgradeType.ROLLING, repositoryVersion2110);
@@ -2556,8 +2690,8 @@ public class UpgradeHelperTest extends EasyMockSupport {
     }
 
     Cluster cluster = makeCluster();
-    cluster.deleteService("HDFS");
-    cluster.deleteService("YARN");
+    cluster.deleteService("HDFS", new DeleteHostComponentStatusMetaData());
+    cluster.deleteService("YARN", new DeleteHostComponentStatusMetaData());
 
     UpgradeContext context = getMockUpgradeContext(cluster, Direction.UPGRADE, UpgradeType.ROLLING, repositoryVersion2110,
         RepositoryType.STANDARD, cluster.getServices().keySet(), m_masterHostResolver, false);
@@ -2593,9 +2727,9 @@ public class UpgradeHelperTest extends EasyMockSupport {
     assertNotNull(upgrade);
 
     Cluster cluster = makeCluster();
-    cluster.deleteService("HDFS");
-    cluster.deleteService("YARN");
-    cluster.deleteService("ZOOKEEPER");
+    cluster.deleteService("HDFS", new DeleteHostComponentStatusMetaData());
+    cluster.deleteService("YARN", new DeleteHostComponentStatusMetaData());
+    cluster.deleteService("ZOOKEEPER", new DeleteHostComponentStatusMetaData());
 
     UpgradeContext context = getMockUpgradeContext(cluster, Direction.UPGRADE,
         UpgradeType.ROLLING, repositoryVersion2110);
@@ -2613,22 +2747,111 @@ public class UpgradeHelperTest extends EasyMockSupport {
     ambariMetaInfo.init();
   }
 
+  /**
+   * Tests that components added during the upgrade are scheduled for restart on
+   * their future hosts.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testAddComponentsDuringUpgrade() throws Exception {
+    Map<String, UpgradePack> upgrades = ambariMetaInfo.getUpgradePacks("HDP", "2.1.1");
+
+    assertTrue(upgrades.containsKey("upgrade_test_add_component"));
+    UpgradePack upgrade = upgrades.get("upgrade_test_add_component");
+    assertNotNull(upgrade);
+
+    Cluster cluster = makeCluster();
+
+    UpgradeContext context = getMockUpgradeContext(cluster, Direction.UPGRADE, UpgradeType.NON_ROLLING);
+
+    List<UpgradeGroupHolder> groups = m_upgradeHelper.createSequence(upgrade, context);
+
+    // 3 groups - stop, add component, restart
+    assertEquals(3, groups.size());
+
+    // ensure that the stop did not have extra hosts added to it
+    UpgradeGroupHolder group = groups.get(0);
+    assertEquals("STOP_HIVE", group.name);
+    List<StageWrapper> stageWrappers = group.items;
+    assertEquals(2, stageWrappers.size());
+
+    // ensure that the restart has the future hosts
+    group = groups.get(2);
+    assertEquals("RESTART_HIVE", group.name);
+    stageWrappers = group.items;
+    assertEquals(4, stageWrappers.size());
+
+    // Do stacks cleanup
+    stackManagerMock.invalidateCurrentPaths();
+    ambariMetaInfo.init();
+  }
 
   /**
+   * Builds a mock upgrade context using the following parameters:
+   * <ul>
+   * <li>{@link #repositoryVersion2110}
+   * <li>{@link RepositoryType#STANDARD}
+   * <li>All cluster services
+   * <li>The mock master host resolve, {@link #m_masterHostResolver}
+   * </ul>
+   *
    * @param cluster
+   *          the cluster for the upgrade
    * @param direction
+   *          the upgrade direction
    * @param type
-   * @return
+   *          the type of upgrade
+   * @return a mock {@link UpgradeContext} which has already been replayed and
+   *         is ready to use.
    */
   private UpgradeContext getMockUpgradeContext(Cluster cluster, Direction direction, UpgradeType type){
     return getMockUpgradeContext(cluster, direction, type, repositoryVersion2210);
   }
 
   /**
+   * Builds a mock upgrade context using the following parameters:
+   * <ul>
+   * <li>{@link #repositoryVersion2110}
+   * <li>{@link RepositoryType#STANDARD}
+   * <li>All cluster services
+   * <li>The mock master host resolve, {@link #m_masterHostResolver}
+   * </ul>
+   *
    * @param cluster
+   *          the cluster for the upgrade
    * @param direction
+   *          the upgrade direction
    * @param type
-   * @return
+   *          the type of upgrade
+   * @param replay
+   *          {@code true} to replay the mock object before returning it,
+   *          {@code false} otherwise.
+   * @return a mock {@link UpgradeContext}
+   */
+  private UpgradeContext getMockUpgradeContext(Cluster cluster, Direction direction, UpgradeType type, boolean replay){
+    return getMockUpgradeContext(cluster, direction, type, repositoryVersion2210,
+        RepositoryType.STANDARD, cluster.getServices().keySet(), m_masterHostResolver, replay);
+  }
+
+  /**
+   * Builds a mock upgrade context using the following parameters:
+   * <ul>
+   * <li>{@link RepositoryType#STANDARD}
+   * <li>All cluster services
+   * <li>The mock master host resolve, {@link #m_masterHostResolver}
+   * </ul>
+   *
+   * @param cluster
+   *          the cluster for the upgrade
+   * @param direction
+   *          the upgrade direction
+   * @param type
+   *          the type of upgrade
+   * @param repositoryVersion
+   *          the repository version to use for the upgrade or downgrade.
+   * @return a mock {@link UpgradeContext} which has already been replayed and
+   *         is ready to use.
    */
   private UpgradeContext getMockUpgradeContext(Cluster cluster, Direction direction,
       UpgradeType type, RepositoryVersionEntity repositoryVersion) {
@@ -2638,10 +2861,26 @@ public class UpgradeHelperTest extends EasyMockSupport {
   }
 
   /**
+   * Builds a mock upgrade context using the following parameters:
+   * <ul>
+   * <li>The mock master host resolve, {@link #m_masterHostResolver}
+   * </ul>
+   *
    * @param cluster
+   *          the cluster for the upgrade
    * @param direction
+   *          the upgrade direction
    * @param type
-   * @return
+   *          the type of upgrade
+   * @param repositoryVersion
+   *          the repository version to use for the upgrade or downgrade.
+   * @param repositoryType
+   *          the type of repository for the upgrade (patch, standard, etc).
+   * @param services
+   *          the services participating in the upgrade. This should typically
+   *          be all services, unless the {@link RepositoryType#PATCH} is used.
+   * @return a mock {@link UpgradeContext} which has already been replayed and
+   *         is ready to use.
    */
   private UpgradeContext getMockUpgradeContext(Cluster cluster, Direction direction,
       UpgradeType type, RepositoryVersionEntity repositoryVersion, RepositoryType repositoryType,
@@ -2651,10 +2890,22 @@ public class UpgradeHelperTest extends EasyMockSupport {
   }
 
   /**
+   * Builds a mock upgrade context using the following parameters:
+   * <ul>
+   * <li>{@link RepositoryType#STANDARD}
+   * <li>All cluster services
+   * </ul>
+   *
    * @param cluster
+   *          the cluster for the upgrade
    * @param direction
+   *          the upgrade direction
    * @param type
-   * @return
+   *          the type of upgrade
+   * @param repositoryVersion
+   *          the repository version to use for the upgrade or downgrade.
+   * @return a mock {@link UpgradeContext} which has already been replayed and
+   *         is ready to use.
    */
   private UpgradeContext getMockUpgradeContextNoReplay(Cluster cluster, Direction direction,
       UpgradeType type, RepositoryVersionEntity repositoryVersion) {
@@ -2665,12 +2916,29 @@ public class UpgradeHelperTest extends EasyMockSupport {
   }
 
   /**
+   * Builds a mock upgrade context using only the supplied method arguments.
+   *
    * @param cluster
+   *          the cluster for the upgrade
    * @param direction
+   *          the upgrade direction
    * @param type
+   *          the type of upgrade
+   * @param repositoryVersion
+   *          the repository version to use for the upgrade or downgrade.
    * @param repositoryType
+   *          the type of repository for the upgrade (patch, standard, etc).
    * @param services
-   * @return
+   *          the services participating in the upgrade. This should typically
+   *          be all services, unless the {@link RepositoryType#PATCH} is used
+   * @param resolver
+   *          the master hsot resolver to use when determining how to
+   *          orchestrate hosts.
+   * @param replay
+   *          {@code true} to replay the mock object before returning it,
+   *          {@code false} otherwise.
+   * @return a mock {@link UpgradeContext} which has already been replayed and
+   *         is ready to use.
    */
   private UpgradeContext getMockUpgradeContext(Cluster cluster, Direction direction,
       UpgradeType type, RepositoryVersionEntity repositoryVersion, final RepositoryType repositoryType,
@@ -2827,6 +3095,11 @@ public class UpgradeHelperTest extends EasyMockSupport {
             return Status.ACTIVE.toString();
           case "H2":
             return Status.STANDBY.toString();
+          case "H3":
+            return Status.ACTIVE.toString();
+          case "H4":
+            return Status.STANDBY.toString();
+
           default:
             return "UNKNOWN_NAMENODE_STATUS_FOR_THIS_HOST";
         }
@@ -2841,6 +3114,7 @@ public class UpgradeHelperTest extends EasyMockSupport {
     public void configure(Binder binder) {
       binder.install(new FactoryModuleBuilder().build(UpgradeContextFactory.class));
       binder.bind(ConfigHelper.class).toInstance(m_configHelper);
+      binder.bind(AgentConfigsHolder.class).toInstance(createNiceMock(AgentConfigsHolder.class));
     }
   }
 

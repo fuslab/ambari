@@ -18,18 +18,25 @@
 
 package org.apache.ambari.server.security.authorization;
 
-import com.google.common.collect.HashBasedTable;
-import com.google.common.collect.Table;
-import com.google.common.collect.Table.Cell;
-import com.google.inject.AbstractModule;
-import com.google.inject.Guice;
-import com.google.inject.Injector;
-import junit.framework.Assert;
+import static org.easymock.EasyMock.createMockBuilder;
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.verify;
+
+import java.util.Collections;
+
+import javax.persistence.EntityManager;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.ambari.server.audit.AuditLogger;
 import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.hooks.HookContextFactory;
 import org.apache.ambari.server.hooks.HookService;
+import org.apache.ambari.server.ldap.service.AmbariLdapConfigurationProvider;
 import org.apache.ambari.server.orm.DBAccessor;
 import org.apache.ambari.server.orm.dao.UserDAO;
 import org.apache.ambari.server.security.AmbariEntryPoint;
@@ -40,24 +47,17 @@ import org.easymock.EasyMock;
 import org.junit.After;
 import org.junit.Test;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import javax.persistence.EntityManager;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.util.Collections;
+import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.Table;
+import com.google.common.collect.Table.Cell;
+import com.google.inject.AbstractModule;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
 
-import static org.easymock.EasyMock.createMockBuilder;
-import static org.easymock.EasyMock.createNiceMock;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.verify;
+import junit.framework.Assert;
 
 public class AmbariAuthorizationFilterTest {
   @After
@@ -188,10 +188,13 @@ public class AmbariAuthorizationFilterTest {
     urlTests.put("/api/v1/users/user2", "POST", true);
     urlTests.put("/api/v1/groups", "GET", true);
     urlTests.put("/api/v1/ldap_sync_events", "GET", false);
+    urlTests.put("/api/v1/clusters/c1/widgets", "GET", true);
+    urlTests.put("/api/v1/clusters/c1/widgets", "PUT", true);
+    urlTests.put("/api/v1/clusters/c1/widgets", "POST", true);
     urlTests.put("/any/other/URL", "GET", true);
     urlTests.put("/any/other/URL", "POST", false);
 
-    performGeneralDoFilterTest(TestAuthenticationFactory.createClusterAdministrator(), urlTests, false);
+    performGeneralDoFilterTest(TestAuthenticationFactory.createClusterOperator(), urlTests, false);
   }
 
   @Test
@@ -307,7 +310,7 @@ public class AmbariAuthorizationFilterTest {
     expect(request.getQueryString()).andReturn(null).anyTimes();
     expect(request.getMethod()).andReturn("GET").anyTimes();
 
-    chain.doFilter(EasyMock.<ServletRequest>anyObject(), EasyMock.<ServletResponse>anyObject());
+    chain.doFilter(EasyMock.anyObject(), EasyMock.anyObject());
     EasyMock.expectLastCall().once();
 
     final Configuration configuration = EasyMock.createMock(Configuration.class);
@@ -315,11 +318,10 @@ public class AmbariAuthorizationFilterTest {
 
     User user = EasyMock.createMock(User.class);
     expect(user.getUserName()).andReturn("user1").anyTimes();
-    expect(user.getUserType()).andReturn(UserType.LOCAL).anyTimes();
 
     final Users users = EasyMock.createMock(Users.class);
-    expect(users.getUser("user1", UserType.LOCAL)).andReturn(user).once();
-    expect(users.getUserAuthorities("user1", UserType.LOCAL)).andReturn(Collections.<AmbariGrantedAuthority>emptyList()).once();
+    expect(users.getUser("user1")).andReturn(user).once();
+    expect(users.getUserAuthorities("user1")).andReturn(Collections.<AmbariGrantedAuthority>emptyList()).once();
 
     replay(request, response, chain, configuration, users, user);
 
@@ -336,6 +338,7 @@ public class AmbariAuthorizationFilterTest {
         bind(AuditLogger.class).toInstance(EasyMock.createNiceMock(AuditLogger.class));
         bind(HookService.class).toInstance(EasyMock.createMock(HookService.class));
         bind(HookContextFactory.class).toInstance(EasyMock.createMock(HookContextFactory.class));
+        bind(AmbariLdapConfigurationProvider.class).toInstance(EasyMock.createMock(AmbariLdapConfigurationProvider.class));
       }
     });
 
@@ -357,7 +360,7 @@ public class AmbariAuthorizationFilterTest {
    * @throws Exception if an exception occurs
    */
   private void performGeneralDoFilterTest(Authentication authentication, Table<String, String, Boolean> urlTests, boolean expectRedirect) throws Exception {
-    final SecurityContext securityContext = createNiceMock(SecurityContext.class);
+    SecurityContextHolder.getContext().setAuthentication(authentication);
     final FilterConfig filterConfig = createNiceMock(FilterConfig.class);
 
     final Configuration configuration = EasyMock.createMock(Configuration.class);
@@ -380,12 +383,11 @@ public class AmbariAuthorizationFilterTest {
 
     expect(filterConfig.getInitParameter("realm")).andReturn("AuthFilter").anyTimes();
 
-    expect(filter.getSecurityContext()).andReturn(securityContext).anyTimes();
+    expect(filter.getSecurityContext()).andReturn(SecurityContextHolder.getContext()).anyTimes();
     expect(filter.getViewRegistry()).andReturn(viewRegistry).anyTimes();
-    expect(securityContext.getAuthentication()).andReturn(authentication).anyTimes();
-    expect(viewRegistry.checkPermission(EasyMock.eq("DeniedView"), EasyMock.<String>anyObject(), EasyMock.<String>anyObject(), EasyMock.anyBoolean())).andReturn(false).anyTimes();
+    expect(viewRegistry.checkPermission(EasyMock.eq("DeniedView"), EasyMock.anyObject(), EasyMock.anyObject(), EasyMock.anyBoolean())).andReturn(false).anyTimes();
 
-    replay(filterConfig, filter, securityContext, viewRegistry, configuration, auditLogger);
+    replay(filterConfig, filter, viewRegistry, configuration, auditLogger);
 
     for (final Cell<String, String, Boolean> urlTest: urlTests.cellSet()) {
       final FilterChain chain = EasyMock.createStrictMock(FilterChain.class);
@@ -406,7 +408,7 @@ public class AmbariAuthorizationFilterTest {
       }
 
       if (urlTest.getValue()) {
-        chain.doFilter(EasyMock.<ServletRequest>anyObject(), EasyMock.<ServletResponse>anyObject());
+        chain.doFilter(EasyMock.anyObject(), EasyMock.anyObject());
         EasyMock.expectLastCall().once();
       }
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -45,23 +45,24 @@ public class JsonRequestBodyParser implements RequestBodyParser {
    */
   private final static Logger LOG = LoggerFactory.getLogger(JsonRequestBodyParser.class);
 
+  private final static ObjectMapper mapper = new ObjectMapper();
+
   @Override
   public Set<RequestBody> parse(String body) throws BodyParseException {
 
-    Set<RequestBody> requestBodySet = new HashSet<RequestBody>();
+    Set<RequestBody> requestBodySet = new HashSet<>();
     RequestBody      rootBody       = new RequestBody();
     rootBody.setBody(body);
 
     if (body != null && body.length() != 0) {
-      ObjectMapper mapper = new ObjectMapper();
       try {
         JsonNode root = mapper.readTree(ensureArrayFormat(body));
 
         Iterator<JsonNode> iterator = root.getElements();
         while (iterator.hasNext()) {
           JsonNode            node             = iterator.next();
-          Map<String, Object> mapProperties    = new HashMap<String, Object>();
-          Map<String, String> requestInfoProps = new HashMap<String, String>();
+          Map<String, Object> mapProperties    = new HashMap<>();
+          Map<String, String> requestInfoProps = new HashMap<>();
           NamedPropertySet    propertySet      = new NamedPropertySet("", mapProperties);
 
           processNode(node, "", propertySet, requestInfoProps);
@@ -98,7 +99,7 @@ public class JsonRequestBodyParser implements RequestBodyParser {
       } catch (IOException e) {
         if (LOG.isDebugEnabled()) {
           LOG.debug("Caught exception parsing msg body.");
-          LOG.debug("Message Body: " + body, e);
+          LOG.debug("Message Body: {}", body, e);
         }
         throw new BodyParseException(e);
       }
@@ -110,8 +111,7 @@ public class JsonRequestBodyParser implements RequestBodyParser {
   }
 
   private void processNode(JsonNode node, String path, NamedPropertySet propertySet,
-                           Map<String, String> requestInfoProps) {
-
+                           Map<String, String> requestInfoProps) throws IOException {
     Iterator<String> iterator = node.getFieldNames();
     while (iterator.hasNext()) {
       String   name  = iterator.next();
@@ -119,8 +119,8 @@ public class JsonRequestBodyParser implements RequestBodyParser {
       if (child.isArray()) {
         //array
         Iterator<JsonNode>       arrayIter = child.getElements();
-        Set<Map<String, Object>> arraySet  = new LinkedHashSet<Map<String, Object>>();
-        List<String> primitives = new ArrayList<String>();
+        Set<Map<String, Object>> arraySet  = new LinkedHashSet<>();
+        List<String> primitives = new ArrayList<>();
 
         while (arrayIter.hasNext()) {
           JsonNode next = arrayIter.next();
@@ -129,8 +129,7 @@ public class JsonRequestBodyParser implements RequestBodyParser {
             // All remain nodes will be also primitives
             primitives.add(next.asText());
           } else {
-            NamedPropertySet arrayPropertySet = new NamedPropertySet(name,
-                new HashMap<String, Object>());
+            NamedPropertySet arrayPropertySet = new NamedPropertySet(name, new HashMap<>());
             processNode(next, "", arrayPropertySet, requestInfoProps);
             arraySet.add(arrayPropertySet.getProperties());
           }

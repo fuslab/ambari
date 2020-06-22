@@ -18,8 +18,8 @@
 
 {{#each filter in view.filters}}
 <li>
-  <label class="checkbox">
-    {{view Em.Checkbox checkedBinding="filter.checked"}} {{filter.label}}
-  </label>
+  <div class="checkbox">
+    {{view App.CheckboxView checkedBinding="filter.checked" labelBinding="filter.label"}}
+  </div>
 </li>
 {{/each}}

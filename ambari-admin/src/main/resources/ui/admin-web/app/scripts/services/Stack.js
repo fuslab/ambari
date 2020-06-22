@@ -60,30 +60,31 @@ angular.module('ambariAdminConsole')
       var url = Settings.baseUrl + '/stacks?fields=versions/*';
       var deferred = $q.defer();
       var sortFunction = this.sortByIdAsVersion;
-      $http.get(url, {mock: 'stack/allStackVersions.json'})
-      .success(function (data) {
-        var allStackVersions = [];
-        angular.forEach(data.items, function (stack) {
-          angular.forEach(stack.versions, function (version) {
-            var stack_name = version.Versions.stack_name;
-            var stack_version = version.Versions.stack_version;
-            var upgrade_packs = version.Versions.upgrade_packs;
-            var active = version.Versions.active;
-            allStackVersions.push({
-              id: stack_name + '-' + stack_version,
-              stack_name: stack_name,
-              stack_version: stack_version,
-              displayName: stack_name + '-' + stack_version,
-              upgrade_packs: upgrade_packs,
-              active: active
+      $http.get(url, {mock: 'stack/allStackVersions.json'}).then(
+        function (resp) {
+          var data = resp.data;
+          var allStackVersions = [];
+          angular.forEach(data.items, function (stack) {
+            angular.forEach(stack.versions, function (version) {
+              var stack_name = version.Versions.stack_name;
+              var stack_version = version.Versions.stack_version;
+              var upgrade_packs = version.Versions.upgrade_packs;
+              var active = version.Versions.active;
+              allStackVersions.push({
+                id: stack_name + '-' + stack_version,
+                stack_name: stack_name,
+                stack_version: stack_version,
+                displayName: stack_name + '-' + stack_version,
+                upgrade_packs: upgrade_packs,
+                active: active
+              });
             });
           });
-        });
-        deferred.resolve(allStackVersions.sort(sortFunction));
-      })
-      .error(function (data) {
-        deferred.reject(data);
-      });
+          deferred.resolve(allStackVersions.sort(sortFunction));
+        }, function (resp) {
+          deferred.reject(resp.data);
+        }
+      );
       return deferred.promise;
     },
 
@@ -91,23 +92,25 @@ angular.module('ambariAdminConsole')
       var deferred = $q.defer();
 
       $http.get(Settings.baseUrl + '/services/AMBARI/components/AMBARI_SERVER?fields=RootServiceComponents/properties/gpl.license.accepted&minimal_response=true', {mock: 'true'})
-        .then(function(data) {
-          deferred.resolve(data.data.RootServiceComponents.properties['gpl.license.accepted']);
-        })
-        .catch(function(data) {
-          deferred.reject(data);
-        });
+        .then(function(resp) {
+          deferred.resolve(resp.data.RootServiceComponents.properties && resp.data.RootServiceComponents.properties['gpl.license.accepted']);
+        }, function(resp) {
+          deferred.reject(resp.data);
+        }
+      );
 
       return deferred.promise;
     },
     
     allPublicStackVersions: function() {
+      var self = this;
       var url = '/version_definitions?fields=VersionDefinition/stack_default,VersionDefinition/type,' +
-        'operating_systems/repositories/Repositories/*,VersionDefinition/stack_services,' +
-        'VersionDefinition/repository_version&VersionDefinition/show_available=true';
+        'VersionDefinition/stack_repo_update_link_exists,operating_systems/repositories/Repositories/*,' +
+        'VersionDefinition/stack_services,VersionDefinition/repository_version&VersionDefinition/show_available=true';
       var deferred = $q.defer();
-      $http.get(Settings.baseUrl + url, {mock: 'version/versions.json'})
-        .success(function (data) {
+      $http.get(Settings.baseUrl + url, {mock: 'version/versions.json'}).then(
+        function (resp) {
+          var data = resp.data;
           var versions = [];
           angular.forEach(data.items, function(version) {
             var versionObj = {
@@ -115,10 +118,10 @@ angular.module('ambariAdminConsole')
               stackName: version.VersionDefinition.stack_name,
               stackVersion: version.VersionDefinition.stack_version,
               stackDefault: version.VersionDefinition.stack_default,
+              stackRepoUpdateLinkExists: version.VersionDefinition.stack_repo_update_link_exists,
               stackNameVersion:  version.VersionDefinition.stack_name + '-' + version.VersionDefinition.stack_version,
               displayName: version.VersionDefinition.stack_name + '-' + version.VersionDefinition.repository_version.split('-')[0], //HDP-2.3.4.0
               displayNameFull: version.VersionDefinition.stack_name + '-' + version.VersionDefinition.repository_version, //HDP-2.3.4.0-23
-              editableDisplayName: version.VersionDefinition.repository_version.substring(4),
               isNonXMLdata: true,
               repositoryVersion: version.VersionDefinition.repository_version,
               stackNameRepositoryVersion: version.VersionDefinition.stack_name + '-' + version.VersionDefinition.repository_version,
@@ -126,6 +129,7 @@ angular.module('ambariAdminConsole')
               osList: version.operating_systems,
               updateObj: version
             };
+            self.setVersionNumberProperties(version.VersionDefinition.repository_version, versionObj);
             //hard code to not show stack name box for ECS stack
             if (isNaN(versionObj.editableDisplayName.charAt(0))) {
               versionObj.isNonXMLdata = false;
@@ -146,69 +150,77 @@ angular.module('ambariAdminConsole')
             versionObj.osList.forEach(function (os) {
               os.repositories.forEach(function(repo) {
                 repo.Repositories.initial_base_url = repo.Repositories.base_url;
+                repo.Repositories.initial_repo_id = repo.Repositories.repo_id;
               });
             });
             versions.push(versionObj);
           });
           deferred.resolve(versions)
-        })
-        .error(function (data) {
-          deferred.reject(data);
-        });
+        }, function (resp) {
+          deferred.reject(resp.data);
+        }
+      );
       return deferred.promise;
     },
 
-    allRepos: function (filter, pagination) {
-      var versionFilter = filter.version;
-      var nameFilter = filter.name;
-      var typeFilter = filter.type;
-      var stackFilter = filter.stack && filter.stack.current && filter.stack.current.value;
+    setVersionNumberProperties: function(version, versionObj) {
+      var length = version.split(".").length;
+      switch (length) {
+        //when the stackVersion is single digit e.g. "2"
+        case 1:
+           versionObj.pattern = "(0.0.0)";
+           versionObj.subVersionPattern = new RegExp(/^\d+\.\d+(-\d+)?\.\d+$/);
+           versionObj.editableDisplayName = "";
+           break;
+        //when the stackVersion has two digits e.g. "2.5"
+        case 2:
+           versionObj.pattern = "(0.0)";
+           versionObj.subVersionPattern = new RegExp(/^\d+\.\d+(-\d+)?$/);
+           versionObj.editableDisplayName = version.substring(4);
+           break;
+        //when the stackVersion has three digits e.g. "2.5.1"
+        case 3:
+           versionObj.pattern = "(0)";
+           versionObj.subVersionPattern = new RegExp(/^[0-9]\d*$/);
+           versionObj.editableDisplayName = "";
+           break;
+        default:
+           versionObj.pattern = "(0.0)";
+           versionObj.subVersionPattern = new RegExp(/^\d+\.\d+(-\d+)?$/);
+           versionObj.editableDisplayName = version.substring(4);
+           break;
+      }
+    },
+
+    allRepos: function () {
       var url = '/stacks?fields=versions/repository_versions/RepositoryVersions';
-      if (versionFilter) {
-        url += '&versions/repository_versions/RepositoryVersions/repository_version.matches(.*' + versionFilter + '.*)';
-      }
-      if (nameFilter) {
-        url += '&versions/repository_versions/RepositoryVersions/display_name.matches(.*' + nameFilter + '.*)';
-      }
-      if (typeFilter){
-        url += '&versions/repository_versions/RepositoryVersions/type.matches(.*' + typeFilter.toUpperCase() + '.*)';
-      }
-      if (stackFilter) {
-        var stack = filter.stack.current.value.split('-'),
-          stackNameFilter = stack[0],
-          stackVersionFilter = stack[1];
-        url += '&versions/repository_versions/RepositoryVersions/stack_name=' + stackNameFilter;
-        url += '&versions/repository_versions/RepositoryVersions/stack_version=' + stackVersionFilter;
-      }
       var deferred = $q.defer();
-      $http.get(Settings.baseUrl + url, {mock: 'version/versions.json'})
-      .success(function (data) {
-        var repos = [];
-        angular.forEach(data.items, function(stack) {
-          angular.forEach(stack.versions, function (version) {
-            var repoVersions = version.repository_versions;
-            if (repoVersions.length > 0) {
-              repos = repos.concat(repoVersions);
-            }
+      $http.get(Settings.baseUrl + url, {mock: 'version/versions.json'}).then(
+        function (resp) {
+          var data = resp.data;
+          var repos = [];
+          angular.forEach(data.items, function(stack) {
+            angular.forEach(stack.versions, function (version) {
+              var repoVersions = version.repository_versions;
+              if (repoVersions.length > 0) {
+                repos = repos.concat(repoVersions);
+              }
+            });
           });
-        });
-        repos = repos.map(function (stack) {
-          stack.RepositoryVersions.isPatch = stack.RepositoryVersions.type === 'PATCH';
-          stack.RepositoryVersions.isMaint = stack.RepositoryVersions.type === 'MAINT';
-          return stack.RepositoryVersions;
-        });
-        // prepare response data with client side pagination
-        var response = {};
-        response.itemTotal = repos.length;
-        var from = (pagination.currentPage - 1) * pagination.itemsPerPage;
-        var to = (repos.length - from > pagination.itemsPerPage)? from + pagination.itemsPerPage : repos.length;
-        response.items = repos.slice(from, to);
-        response.showed = to - from;
-        deferred.resolve(response)
-      })
-      .error(function (data) {
-        deferred.reject(data);
-      });
+          repos = repos.map(function (stack) {
+            stack.RepositoryVersions.isPatch = stack.RepositoryVersions.type === 'PATCH';
+            stack.RepositoryVersions.isMaint = stack.RepositoryVersions.type === 'MAINT';
+            return stack.RepositoryVersions;
+          });
+          // prepare response data with client side pagination
+          var response = {};
+          response.items = repos;
+          response.itemTotal = repos.length;
+          deferred.resolve(response);
+        }, function (resp) {
+          deferred.reject(resp.data);
+        }
+      );
       return deferred.promise;
     },
 
@@ -259,41 +271,41 @@ angular.module('ambariAdminConsole')
           '&repository_versions/RepositoryVersions/repository_version=' + repoVersion;
       }
       var deferred = $q.defer();
-      $http.get(url, {mock: 'version/version.json'})
-      .success(function (data) {
-        data = data.items[0];
-        var response = {
-          id : data.repository_versions[0].RepositoryVersions.id,
-          stackVersion : data.Versions.stack_version,
-          stackName: data.Versions.stack_name,
-          type: data.repository_versions[0].RepositoryVersions.release? data.repository_versions[0].RepositoryVersions.release.type: null,
-          stackNameVersion: data.Versions.stack_name + '-' + data.Versions.stack_version, /// HDP-2.3
-          actualVersion: data.repository_versions[0].RepositoryVersions.repository_version, /// 2.3.4.0-3846
-          version: data.repository_versions[0].RepositoryVersions.release ? data.repository_versions[0].RepositoryVersions.release.version: null, /// 2.3.4.0
-          releaseNotes: data.repository_versions[0].RepositoryVersions.release ? data.repository_versions[0].RepositoryVersions.release.release_notes: null,
-          displayName: data.repository_versions[0].RepositoryVersions.display_name, //HDP-2.3.4.0
-          repoVersionFullName : data.Versions.stack_name + '-' + data.repository_versions[0].RepositoryVersions.repository_version,
-          ambari_managed_repositories: data.repository_versions[0].operating_systems[0].OperatingSystems.ambari_managed_repositories !== false,
-          osList: data.repository_versions[0].operating_systems,
-          updateObj: data.repository_versions[0]
-        };
-        var services = [];
-        angular.forEach(data.repository_versions[0].RepositoryVersions.stack_services, function (service) {
-          var servicesToExclude = ['GANGLIA', 'KERBEROS', 'MAPREDUCE2'];
-          if (servicesToExclude.indexOf(service.name) === -1) {
-            services.push({
-              name: service.name,
-              version: service.versions[0],
-              displayName: service.display_name
-            });
-          }
-        });
-        response.services = services.sort(function(a, b){return a.name.localeCompare(b.name)});
-        deferred.resolve(response);
-      })
-      .error(function (data) {
-        deferred.reject(data);
-      });
+      $http.get(url, {mock: 'version/version.json'}).then(
+        function (resp) {
+          var data = resp.data.items[0];
+          var response = {
+            id : data.repository_versions[0].RepositoryVersions.id,
+            stackVersion : data.Versions.stack_version,
+            stackName: data.Versions.stack_name,
+            type: data.repository_versions[0].RepositoryVersions.release? data.repository_versions[0].RepositoryVersions.release.type: null,
+            stackNameVersion: data.Versions.stack_name + '-' + data.Versions.stack_version, /// HDP-2.3
+            actualVersion: data.repository_versions[0].RepositoryVersions.repository_version, /// 2.3.4.0-3846
+            version: data.repository_versions[0].RepositoryVersions.release ? data.repository_versions[0].RepositoryVersions.release.version: null, /// 2.3.4.0
+            releaseNotes: data.repository_versions[0].RepositoryVersions.release ? data.repository_versions[0].RepositoryVersions.release.release_notes: null,
+            displayName: data.repository_versions[0].RepositoryVersions.display_name, //HDP-2.3.4.0
+            repoVersionFullName : data.Versions.stack_name + '-' + data.repository_versions[0].RepositoryVersions.repository_version,
+            ambari_managed_repositories: data.repository_versions[0].operating_systems[0].OperatingSystems.ambari_managed_repositories !== false,
+            osList: data.repository_versions[0].operating_systems,
+            updateObj: data.repository_versions[0]
+          };
+          var services = [];
+          angular.forEach(data.repository_versions[0].RepositoryVersions.stack_services, function (service) {
+            var servicesToExclude = ['GANGLIA', 'KERBEROS', 'MAPREDUCE2'];
+            if (servicesToExclude.indexOf(service.name) === -1) {
+              services.push({
+                name: service.name,
+                version: service.versions[0],
+                displayName: service.display_name
+              });
+            }
+          });
+          response.services = services.sort(function(a, b){return a.name.localeCompare(b.name)});
+          deferred.resolve(response);
+        }, function (resp) {
+          deferred.reject(resp.data);
+        }
+      );
       return deferred.promise;
     },
 
@@ -302,55 +314,33 @@ angular.module('ambariAdminConsole')
         url = Settings.baseUrl + '/version_definitions?skip_url_check=true' + (isDryRun ? '&dry_run=true' : ''),
         configs = isXMLdata? { headers: {'Content-Type': 'text/xml'}} : null;
 
-      $http.post(url, data, configs)
-        .success(function (response) {
-          if (response.resources.length && response.resources[0].VersionDefinition) {
-            deferred.resolve(response);
+      $http.post(url, data, configs).then(
+        function (response) {
+          if (response.data.resources.length && response.data.resources[0].VersionDefinition) {
+            deferred.resolve(response.data);
           }
-        })
-        .error(function (data) {
-          deferred.reject(data);
-        });
+        }, function (resp) {
+          deferred.reject(resp.data);
+        }
+      );
       return deferred.promise;
     },
 
     updateRepo: function (stackName, stackVersion, id, payload) {
       var url = Settings.baseUrl + '/stacks/' + stackName + '/versions/' + stackVersion + '/repository_versions/' + id;
-      var deferred = $q.defer();
-      $http.put(url, payload)
-      .success(function (data) {
-        deferred.resolve(data)
-      })
-      .error(function (data) {
-        deferred.reject(data);
-      });
-      return deferred.promise;
+      return $http.put(url, payload);
     },
 
     deleteRepo: function (stackName, stackVersion, id) {
       var url = Settings.baseUrl + '/stacks/' + stackName + '/versions/' + stackVersion + '/repository_versions/' + id;
-      var deferred = $q.defer();
-      $http.delete(url)
-      .success(function (data) {
-        deferred.resolve(data)
-      })
-      .error(function (data) {
-        deferred.reject(data);
-      });
-      return deferred.promise;
+      return $http.delete(url);
     },
 
     getSupportedOSList: function (stackName, stackVersion) {
       var url = Settings.baseUrl + '/stacks/' + stackName + '/versions/' + stackVersion + '?fields=operating_systems/repositories/Repositories';
-      var deferred = $q.defer();
-      $http.get(url, {mock: 'stack/operatingSystems.json'})
-      .success(function (data) {
-        deferred.resolve(data);
-      })
-      .error(function (data) {
-        deferred.reject(data);
+      return $http.get(url, {mock: 'stack/operatingSystems.json'}).then(function (resp) {
+        return resp.data;
       });
-      return deferred.promise;
     },
 
     validateBaseUrls: function(skip, osList, stack) {
@@ -376,16 +366,14 @@ angular.module('ambariAdminConsole')
                 {
                   repo: repo
                 }
-              )
-                .success(function () {
-                  totalCalls--;
-                  if (totalCalls === 0) deferred.resolve(invalidUrls);
-                })
-                .error(function (response, status, callback, params) {
-                  invalidUrls.push(params.repo);
-                  totalCalls--;
-                  if (totalCalls === 0) deferred.resolve(invalidUrls);
-                });
+              ).then(function () {
+                totalCalls--;
+                if (totalCalls === 0) deferred.resolve(invalidUrls);
+              }, function (response, status, callback, params) {
+                invalidUrls.push(params.repo);
+                totalCalls--;
+                if (totalCalls === 0) deferred.resolve(invalidUrls);
+              });
             });
           }
         });

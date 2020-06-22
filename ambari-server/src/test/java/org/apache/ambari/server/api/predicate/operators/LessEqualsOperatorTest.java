@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,10 +19,11 @@
 package org.apache.ambari.server.api.predicate.operators;
 
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
+
 import org.apache.ambari.server.controller.predicate.LessEqualsPredicate;
 import org.junit.Test;
-
-import static org.junit.Assert.*;
 
 
 /**
@@ -37,7 +38,7 @@ public class LessEqualsOperatorTest {
 
   @Test
   public void testToPredicate() {
-    assertEquals(new LessEqualsPredicate<String>("1", "2"),
+    assertEquals(new LessEqualsPredicate<>("1", "2"),
         new LessEqualsOperator().toPredicate("1", "2"));
   }
 

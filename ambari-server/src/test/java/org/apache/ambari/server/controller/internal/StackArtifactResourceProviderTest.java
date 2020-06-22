@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -82,8 +82,6 @@ public class StackArtifactResourceProviderTest {
 
     return (StackArtifactResourceProvider) AbstractControllerResourceProvider.getResourceProvider(
       type,
-      PropertyHelper.getPropertyIds(type),
-      PropertyHelper.getKeyPropertyIds(type),
       managementController);
   }
 
@@ -97,7 +95,7 @@ public class StackArtifactResourceProviderTest {
 
     StackArtifactResourceProvider resourceProvider = getStackArtifactResourceProvider(managementController);
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
     propertyIds.add(ARTIFACT_NAME_PROPERTY_ID);
     propertyIds.add(STACK_NAME_PROPERTY_ID);
     propertyIds.add(STACK_VERSION_PROPERTY_ID);
@@ -142,7 +140,7 @@ public class StackArtifactResourceProviderTest {
 
     StackArtifactResourceProvider resourceProvider = getStackArtifactResourceProvider(managementController);
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
     propertyIds.add(ARTIFACT_NAME_PROPERTY_ID);
     propertyIds.add(STACK_NAME_PROPERTY_ID);
     propertyIds.add(STACK_VERSION_PROPERTY_ID);
@@ -190,7 +188,7 @@ public class StackArtifactResourceProviderTest {
 
     StackArtifactResourceProvider resourceProvider = getStackArtifactResourceProvider(managementController);
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
     propertyIds.add(ARTIFACT_NAME_PROPERTY_ID);
     propertyIds.add(STACK_NAME_PROPERTY_ID);
     propertyIds.add(STACK_VERSION_PROPERTY_ID);

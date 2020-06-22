@@ -24,7 +24,6 @@ import socket
 
 from math import ceil, floor
 
-from resource_management.core.logger import Logger
 from resource_management.libraries.functions.mounted_dirs_helper import get_mounts_with_multiple_data_dirs
 
 from stack_advisor import DefaultStackAdvisor
@@ -34,7 +33,7 @@ class ODPi20StackAdvisor(DefaultStackAdvisor):
 
   def __init__(self):
     super(ODPi20StackAdvisor, self).__init__()
-    Logger.initialize_logger()
+    self.initialize_logger("ODPi20StackAdvisor")
 
   def getComponentLayoutValidations(self, services, hosts):
     """Returns array of Validation objects about issues with hostnames components assigned to"""
@@ -228,10 +227,10 @@ class ODPi20StackAdvisor(DefaultStackAdvisor):
               hiveServerInteractiveHostName = hiveServerInteractiveHost["Hosts"]["host_name"]
               if hiveServerInteractiveHostName not in hiveServerHostsNameList:
                 hiveServerHostsNameList.append(hiveServerInteractiveHostName)
-                Logger.info("Appended (if not exiting), Hive Server Interactive Host : '{0}', to Hive Server Host List : '{1}'".format(hiveServerInteractiveHostName, hiveServerHostsNameList))
+                self.logger.info("Appended (if not exiting), Hive Server Interactive Host : '{0}', to Hive Server Host List : '{1}'".format(hiveServerInteractiveHostName, hiveServerHostsNameList))
 
           hiveServerHostsNames = ",".join(hiveServerHostsNameList)  # includes Hive Server interactive host also.
-          Logger.info("Hive Server and Hive Server Interactive (if enabled) Host List : {0}".format(hiveServerHostsNameList))
+          self.logger.info("Hive Server and Hive Server Interactive (if enabled) Host List : {0}".format(hiveServerHostsNameList))
           if not hive_user in users and hive_user is not None:
             users[hive_user] = {"propertyHosts" : hiveServerHostsNames,"propertyGroups" : "*", "config" : "hive-env", "propertyName" : "hive_user"}
 
@@ -288,7 +287,7 @@ class ODPi20StackAdvisor(DefaultStackAdvisor):
           services["forced-configurations"].append({"type" : "core-site", "name" : "hadoop.proxyuser.{0}.hosts".format(hive_user)})
       # Add properties "hadoop.proxyuser.*.hosts", "hadoop.proxyuser.*.groups" to core-site for all users
       putCoreSiteProperty("hadoop.proxyuser.{0}.hosts".format(user_name) , user_properties["propertyHosts"])
-      Logger.info("Updated hadoop.proxyuser.{0}.hosts as : {1}".format(hive_user, user_properties["propertyHosts"]))
+      self.logger.info("Updated hadoop.proxyuser.{0}.hosts as : {1}".format(hive_user, user_properties["propertyHosts"]))
       if "propertyGroups" in user_properties:
         putCoreSiteProperty("hadoop.proxyuser.{0}.groups".format(user_name) , user_properties["propertyGroups"])
 
@@ -582,16 +581,14 @@ class ODPi20StackAdvisor(DefaultStackAdvisor):
     putAmsHbaseSiteProperty = self.putProperty(configurations, "ams-hbase-site", services)
     putAmsSiteProperty = self.putProperty(configurations, "ams-site", services)
     putHbaseEnvProperty = self.putProperty(configurations, "ams-hbase-env", services)
-    putGrafanaProperty = self.putProperty(configurations, "ams-grafana-env", services)
     putGrafanaPropertyAttribute = self.putPropertyAttribute(configurations, "ams-grafana-env")
 
     amsCollectorHosts = self.getComponentHostNames(services, "AMBARI_METRICS", "METRICS_COLLECTOR")
-
     if 'cluster-env' in services['configurations'] and \
-        'metrics_collector_vip_host' in services['configurations']['cluster-env']['properties']:
-      metric_collector_host = services['configurations']['cluster-env']['properties']['metrics_collector_vip_host']
-    else:
-      metric_collector_host = 'localhost' if len(amsCollectorHosts) == 0 else amsCollectorHosts[0]
+        'metrics_collector_external_hosts' in services['configurations']['cluster-env']:
+      amsCollectorHosts = services['configurations']['cluster-env']['metrics_collector_external_hosts']
+
+    metric_collector_host = 'localhost' if len(amsCollectorHosts) == 0 else amsCollectorHosts[0]
 
     putAmsSiteProperty("timeline.metrics.service.webapp.address", str(metric_collector_host) + ":6188")
 
@@ -1316,6 +1313,9 @@ class ODPi20StackAdvisor(DefaultStackAdvisor):
     if not mountPoints:
       return self.getErrorItem("No disk info found on host %s" % hostInfo["host_name"])
 
+    if mountPoint is None:
+      return self.getErrorItem("No mount point in directory %s. Mount points: %s" % (dir, ', '.join(mountPoints.keys())))
+
     if mountPoints[mountPoint] < reqiuredDiskSpace:
       msg = "Ambari Metrics disk space requirements not met. \n" \
             "Recommended disk space for partition {0} is {1}G"
@@ -1403,7 +1403,7 @@ class ODPi20StackAdvisor(DefaultStackAdvisor):
     if len(leaf_queue_names) == 0:
       return None
     elif queue_name not in leaf_queue_names:
-      return self.getErrorItem("Queue is not exist or not corresponds to existing YARN leaf queue")
+      return self.getErrorItem("Queue does not exist or correspond to an existing YARN leaf queue")
 
     return None
 
@@ -1628,24 +1628,24 @@ class ODPi20StackAdvisor(DefaultStackAdvisor):
             for property in cap_sched_props_as_str:
               key, sep, value = property.partition("=")
               capacity_scheduler_properties[key] = value
-            Logger.info("'capacity-scheduler' configs is passed-in as a single '\\n' separated string. "
+            self.logger.info("'capacity-scheduler' configs is passed-in as a single '\\n' separated string. "
                         "count(services['configurations']['capacity-scheduler']['properties']['capacity-scheduler']) = "
                         "{0}".format(len(capacity_scheduler_properties)))
             received_as_key_value_pair = False
           else:
-            Logger.info("Passed-in services['configurations']['capacity-scheduler']['properties']['capacity-scheduler'] is 'null'.")
+            self.logger.info("Passed-in services['configurations']['capacity-scheduler']['properties']['capacity-scheduler'] is 'null'.")
         else:
-          Logger.info("'capacity-schdeuler' configs not passed-in as single '\\n' string in "
+          self.logger.info("'capacity-schdeuler' configs not passed-in as single '\\n' string in "
                       "services['configurations']['capacity-scheduler']['properties']['capacity-scheduler'].")
       if not capacity_scheduler_properties:
         # Received configs as a dictionary (Generally on 1st invocation).
         capacity_scheduler_properties = services['configurations']["capacity-scheduler"]["properties"]
-        Logger.info("'capacity-scheduler' configs is passed-in as a dictionary. "
+        self.logger.info("'capacity-scheduler' configs is passed-in as a dictionary. "
                     "count(services['configurations']['capacity-scheduler']['properties']) = {0}".format(len(capacity_scheduler_properties)))
     else:
-      Logger.error("Couldn't retrieve 'capacity-scheduler' from services.")
+      self.logger.error("Couldn't retrieve 'capacity-scheduler' from services.")
 
-    Logger.info("Retrieved 'capacity-scheduler' received as dictionary : '{0}'. configs : {1}" \
+    self.logger.info("Retrieved 'capacity-scheduler' received as dictionary : '{0}'. configs : {1}" \
                 .format(received_as_key_value_pair, capacity_scheduler_properties.items()))
     return capacity_scheduler_properties, received_as_key_value_pair
 

@@ -19,14 +19,14 @@
 {{#if view.service.isRestartRequired}}
   {{#isAuthorized "SERVICE.START_STOP"}}
     <div id="summary-restart-bar">
-      <div class="alert alert-warning clearfix">
-        <i class="icon-refresh"></i> {{{view.needToRestartMessage}}} {{t services.service.config.restartService.needToRestart}}
+      <div class="alert alert-warning clearfix restart-required">
+        <i class="glyphicon glyphicon-refresh"></i> {{{view.needToRestartMessage}}} {{t services.service.config.restartService.needToRestart}}
         <a href="#" {{action showComponentsShouldBeRestarted controller.content target="App.router.mainServiceInfoConfigsController"}}>{{view.componentsCount}} {{pluralize view.componentsCount singular="t:common.component" plural="t:common.components"}}</a> {{t on}}
         <a href="#" {{action showHostsShouldBeRestarted controller.content target="App.router.mainServiceInfoConfigsController"}}>{{view.hostsCount}} {{pluralize view.hostsCount singular="t:common.host" plural="t:common.hosts"}}</a>
         <span class="restart-components pull-right">&nbsp</span>
 
         <div class="btn-group pull-right">
-          <button type="button" class="btn btn-default dropdown-toggle btn-warning" data-toggle="dropdown">
+          <button type="button" class="btn dropdown-toggle btn-warning" data-toggle="dropdown">
             {{t hosts.host.details.needToRestart.button}}
             <span class="caret"></span>
           </button>
@@ -47,110 +47,107 @@
 {{/if}}
 
 <div class="service-block">
-  <div class="box">
-    <div class="box-header summary-box-header">
-      <h4>{{controller.content.label}} {{t services.service.info.menu.summary}}</h4>
-      {{#if view.hasAlertDefinitions}}
-        {{#if view.alertsCount}}
-          <span {{action "showServiceAlertsPopup" controller.content target="controller"}}
-            {{bindAttr class=":label :pull-right view.hasCriticalAlerts:alerts-crit-count:alerts-warn-count"}}>
-            {{view.alertsCount}} {{pluralize view.alertsCount singular="alert" plural="alerts"}}</span>
+  <div class="summary-links-block">
+    <div class="panel panel-default summary-block">
+      <div class="panel-heading summary-box-header">
+        <div class="row">
+          <div class="col-md-8 col-lg-8">
+            <h4 class="panel-title">{{controller.content.label}} {{t services.service.info.menu.summary}}</h4>
+          </div>
+          <div class="col-md-4 col-lg-4 service-alerts">
+            {{#if view.hasAlertDefinitions}}
+              <span {{action "showServiceAlertsPopup" controller.content target="controller"}} class="pull-right">
+                <i class="glyphicon glyphicon-bell"></i>
+                <span {{bindAttr class=":label view.hasCriticalAlerts:alerts-crit-count view.hasNonCriticalAlertsOnly:alerts-warn-count view.hasNoAlerts:alerts-none-count"}}>
+                  {{view.alertsCount}}
+                </span>
+              </span>
+            {{/if}}
+          </div>
+        </div>
+      </div>
+      <div class="panel-body">
+        {{#if view.serviceSummaryView}}
+          {{view view.serviceSummaryView}}
         {{else}}
-          <span {{action "showServiceAlertsPopup" controller.content target="controller"}}
-                  class="label pull-right no-alerts-label">{{t services.service.summary.alerts.noAlerts}}</span>
+          {{view App.SpinnerView}}
         {{/if}}
-      {{/if}}
+      </div>
     </div>
-    {{#if view.serviceSummaryView}}
-      {{view view.serviceSummaryView}}
-    {{else}}
-      {{view App.SpinnerView}}
-    {{/if}}
-  </div>
 
-  {{! widgets in the metrics panel are loaded seperately from summary page text information
-      and does not get block due to any global API poller information }}
-  {{#if view.isServiceMetricLoaded}}
-    <div class="service-metrics-block">
-      <div class="box">
-        <div class="box-header">
-          <h4>{{t services.service.metrics}}</h4>
-          {{#if showTimeRangeControl}}
-            {{view view.timeRangeListView}}
-          {{/if}}
-          {{#if isServiceWithEnhancedWidgets}}
-            {{#if isAmbariMetricsInstalled}}
-              <div class="btn-group pull-right actions">
-                <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">
-                  {{t common.actions}} &nbsp;<span class="caret"></span>
-                </button>
-                <ul class="dropdown-menu">
-                  {{#each option in view.widgetActions}}
-                    <li {{bindAttr class="option.layouts:dropdown-submenu"}}>
-                      {{#if option.isAction}}
-                        <a href="#" {{action doWidgetAction option.action target="view"}}>
-                          <i {{bindAttr class="option.class"}}></i>
-                          {{option.label}}
-                        </a>
-                        {{#if option.layouts}}
-                          <ul class="dropdown-menu">
-                            {{#each layout in option.layouts}}
-                              <li>
-                                <a href="javascript:void(0);">
-                                  {{layout.layoutName}}
-                                </a>
-                              </li>
-                            {{/each}}
-                          </ul>
-                        {{/if}}
-                      {{/if}}
-                    </li>
+    <div class="panel panel-default quick-links-block">
+      {{#view App.QuickLinksView contentBinding="view.svc" masterGroupsBinding="view.mastersObj"}}
+        <div class="panel-heading">
+          <div class="row col-md-8 col-lg-12">
+            <h4 class="panel-title">{{t common.quickLinks}}</h4>
+          </div>
+        </div>
+        <div class="panel-body">
+          {{#if view.showQuickLinks}}
+            {{#if view.isLoaded}}
+              {{#if view.quickLinksArray}}
+                <!--there are multiple masters eg, HBase multiple masters or HDFS HA enabled-->
+                {{#each group in view.quickLinksArray}}
+                  <div {{QAAttr "{group.title}-quick-links"}}>
+                    {{#if group.title}}
+                      <h5 class="ellipsis-overflow-nowrap"
+                        {{bindAttr data-title="group.title" rel="view.tooltipAttribute"}}>
+                        {{group.title}}
+                      </h5>
+                    {{/if}}
+                    {{#each quickLinks in group.links}}
+                      <h6>{{quickLinks.publicHostNameLabel}}</h6>
+                      {{#each quickLinks}}
+                        <a {{bindAttr href="url"}} target="_blank" rel="noopener noreferrer">{{label}}</a>
+                      {{/each}}
+                    {{/each}}
+                  </div>
+                {{/each}}
+              {{else}}
+                {{#if view.quickLinks}}
+                  {{#each view.quickLinks}}
+                    <a {{bindAttr href="url"}} target="_blank" rel="noopener noreferrer">{{label}}</a>
                   {{/each}}
-                </ul>
-              </div>
+                {{else}}
+                  <div class="alert alert-danger">
+                    <small>{{t quick.links.error.quicklinks.unavailable.label}}</small>
+                  </div>
+                {{/if}}
+              {{/if}}
+            {{else}}
+              {{view App.SpinnerView}}
+            {{/if}}
+          {{else}}
+            {{#if view.showNoLinks}}
+              {{t common.noLink}}
+            {{else}}
+              {{view App.SpinnerView}}
             {{/if}}
           {{/if}}
         </div>
-        <div>
-          {{#if isServiceWithEnhancedWidgets}}
-            <div id="widget_layout" class="row-fluid">
-              {{#each widget in controller.widgets}}
-                <div class="widget span2p4" {{bindAttr id="widget.id"}}>
-                  {{view widget.viewClass contentBinding="widget" idBinding="widget.id"}}
-                </div>
-              {{/each}}
-              {{#if isAmbariMetricsInstalled}}
-                <div class="span2p4">
-                  <button id="add-widget-action-box"
-                          class="btn btn-default" {{action "goToWidgetsBrowser" controller.content target="controller"}}
-                          rel="add-widget-tooltip" {{translateAttr data-original-title="dashboard.widgets.addButton.tooltip"}}>
-                    <i class="icon-plus"></i></button>
-                </div>
-              {{/if}}
-            </div>
-          {{/if}}
-          <table class="graphs">
-            {{#each graphs in view.serviceMetricGraphs}}
-              <tr>
-                {{#each graph in graphs}}
-                  <td>
-                    <div class="">
-                      {{view graph}}
-                    </div>
-                  </td>
-                {{/each}}
-              </tr>
-            {{/each}}
-          </table>
-        </div>
+      {{/view}}
+      {{! TODO implement display of views related to the current service}}
+      <!--div class="panel-heading">
+         <div class="row col-md-8 col-lg-12">
+           <h4 class="panel-title">{{!t common.views}}</h4>
+         </div>
       </div>
+      <div class="panel-body">
+       {{!#if view.views.length}}
+         {{!#each item in view.views}}
+           <a href="#" {{!action "setView" item target="App.router.mainViewsController"}}>{{!item.label}}</a>
+         {{!/each}}
+       {{!else}}
+         <span>{{!t menu.item.views.noViews}}</span>
+       {{!/if}}
+      </div-->
     </div>
-  {{/if}}
+  </div>
 </div>
 
 {{#if view.collapsedSections}}
-  <div class="row-fluid">
-    <div class="span12 metrics-collapsed-graphs">
+  <div class="row">
+    <div class="col-md-12 metrics-collapsed-graphs">
       {{#each collapsedSection in view.collapsedSections}}
         {{view collapsedSection}}
       {{/each}}

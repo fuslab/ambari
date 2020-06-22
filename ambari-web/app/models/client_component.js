@@ -23,12 +23,12 @@ App.ClientComponent = DS.Model.extend({
   service: DS.belongsTo('App.Service'),
   componentName: DS.attr('string'),
   displayName: DS.attr('string'),
-  installedCount: DS.attr('number'),
-  installFailedCount: DS.attr('number'),
-  initCount: DS.attr('number'),
-  unknownCount: DS.attr('number'),
-  startedCount: DS.attr('number'),
-  totalCount: DS.attr('number'),
+  installedCount: DS.attr('number', {defaultValue: 0}),
+  installFailedCount: DS.attr('number', {defaultValue: 0}),
+  initCount: DS.attr('number', {defaultValue: 0}),
+  unknownCount: DS.attr('number', {defaultValue: 0}),
+  startedCount: DS.attr('number', {defaultValue: 0}),
+  totalCount: DS.attr('number', {defaultValue: 0}),
   stackInfo: DS.belongsTo('App.StackServiceComponent'),
   hostNames: DS.attr('array'),
   staleConfigHosts: DS.attr('array'),
@@ -54,5 +54,16 @@ App.ClientComponent = DS.Model.extend({
     return stringUtils.pluralize(this.get('installedCount'), this.get('displayName'));
   }.property('installedCount')
 });
+
+App.ClientComponent.getModelByComponentName = function(componentName) {
+  if (App.HostComponent.isMaster(componentName)) {
+    return App.MasterComponent.find(componentName)
+  } else if (App.HostComponent.isSlave(componentName)) {
+    return App.SlaveComponent.find(componentName)
+  } else if (App.HostComponent.isClient(componentName)) {
+    return App.ClientComponent.find(componentName)
+  }
+  return null;
+};
 
 App.ClientComponent.FIXTURES = [];

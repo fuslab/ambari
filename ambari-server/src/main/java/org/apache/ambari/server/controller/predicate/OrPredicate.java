@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,12 +17,12 @@
  */
 package org.apache.ambari.server.controller.predicate;
 
-import org.apache.ambari.server.controller.spi.Predicate;
-import org.apache.ambari.server.controller.spi.Resource;
-
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
+
+import org.apache.ambari.server.controller.spi.Predicate;
+import org.apache.ambari.server.controller.spi.Resource;
 
 /**
  * Predicate which evaluates to true if any of the predicates in a predicate
@@ -40,7 +40,7 @@ public class OrPredicate extends ArrayPredicate {
   }
 
   public static Predicate instance(Predicate... predicates) {
-    List<Predicate> predicateList = new LinkedList<Predicate>();
+    List<Predicate> predicateList = new LinkedList<>();
 
     // Simplify the predicate array
     for (Predicate predicate : predicates) {

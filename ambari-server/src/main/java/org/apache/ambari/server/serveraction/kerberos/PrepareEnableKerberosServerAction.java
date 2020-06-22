@@ -29,11 +29,11 @@ import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.actionmanager.HostRoleStatus;
 import org.apache.ambari.server.agent.CommandReport;
 import org.apache.ambari.server.controller.KerberosHelper;
+import org.apache.ambari.server.serveraction.kerberos.stageutils.ResolvedKerberosPrincipal;
 import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.ServiceComponentHost;
 import org.apache.ambari.server.state.kerberos.KerberosDescriptor;
 import org.apache.ambari.server.state.kerberos.KerberosServiceDescriptor;
-import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,17 +70,7 @@ public class PrepareEnableKerberosServerAction extends PrepareKerberosIdentities
 
     Map<String, String> commandParameters = getCommandParameters();
 
-    String preconfigureServices = getCommandParameterValue(commandParameters, PRECONFIGURE_SERVICES);
-    PreconfigureServiceType type = null;
-    if (!StringUtils.isEmpty(preconfigureServices)) {
-      try {
-        type = PreconfigureServiceType.valueOf(preconfigureServices.toUpperCase());
-      } catch (Throwable t) {
-        LOG.warn("Invalid preconfigure_services value, assuming DEFAULT: {}", preconfigureServices);
-        type = PreconfigureServiceType.DEFAULT;
-      }
-    }
-
+    PreconfigureServiceType type = getCommandPreconfigureType();
     KerberosDescriptor kerberosDescriptor = getKerberosDescriptor(cluster, type != PreconfigureServiceType.NONE);
     if (type == PreconfigureServiceType.ALL) {
       // Force all services to be flagged for pre-configuration...
@@ -92,11 +82,14 @@ public class PrepareEnableKerberosServerAction extends PrepareKerberosIdentities
       }
     }
 
+    KerberosHelper kerberosHelper = getKerberosHelper();
+    Map<String, ? extends Collection<String>> serviceComponentFilter = getServiceComponentFilter();
+    Collection<String> hostFilter = getHostFilter();
     Collection<String> identityFilter = getIdentityFilter();
-    List<ServiceComponentHost> schToProcess = getServiceComponentHostsToProcess(cluster, kerberosDescriptor, identityFilter);
+    List<ServiceComponentHost> schToProcess = kerberosHelper.getServiceComponentHostsToProcess(cluster, kerberosDescriptor, serviceComponentFilter, hostFilter);
 
     String dataDirectory = getCommandParameterValue(commandParameters, DATA_DIRECTORY);
-    Map<String, Map<String, String>> kerberosConfigurations = new HashMap<String, Map<String, String>>();
+    Map<String, Map<String, String>> kerberosConfigurations = new HashMap<>();
 
     int schCount = schToProcess.size();
     if (schCount == 0) {
@@ -107,7 +100,6 @@ public class PrepareEnableKerberosServerAction extends PrepareKerberosIdentities
       actionLog.writeStdOut(String.format("Processing %d components", schCount));
     }
 
-    KerberosHelper kerberosHelper = getKerberosHelper();
     Map<String, Set<String>> propertiesToRemove = new HashMap<>();
     Map<String, Set<String>> propertiesToIgnore = new HashMap<>();
     Set<String> services = cluster.getServices().keySet();
@@ -117,32 +109,32 @@ public class PrepareEnableKerberosServerAction extends PrepareKerberosIdentities
     Map<String, Map<String, String>> configurations = kerberosHelper.calculateConfigurations(cluster, null, kerberosDescriptor, false, false);
 
     processServiceComponentHosts(cluster, kerberosDescriptor, schToProcess, identityFilter, dataDirectory,
-        configurations, kerberosConfigurations, true, propertiesToIgnore, false);
+        configurations, kerberosConfigurations, true, propertiesToIgnore);
 
     // Calculate the set of configurations to update and replace any variables
     // using the previously calculated Map of configurations for the host.
     kerberosConfigurations = kerberosHelper.processPreconfiguredServiceConfigurations(kerberosConfigurations, configurations, cluster, kerberosDescriptor);
 
     kerberosHelper.applyStackAdvisorUpdates(cluster, services, configurations, kerberosConfigurations,
-        propertiesToIgnore, propertiesToRemove, true);
+          propertiesToIgnore, propertiesToRemove, true);
 
     processAuthToLocalRules(cluster, configurations, kerberosDescriptor, schToProcess, kerberosConfigurations, getDefaultRealm(commandParameters), true);
 
     // Ensure the cluster-env/security_enabled flag is set properly
     Map<String, String> clusterEnvProperties = kerberosConfigurations.get(KerberosHelper.SECURITY_ENABLED_CONFIG_TYPE);
     if (clusterEnvProperties == null) {
-      clusterEnvProperties = new HashMap<String, String>();
+      clusterEnvProperties = new HashMap<>();
       kerberosConfigurations.put(KerberosHelper.SECURITY_ENABLED_CONFIG_TYPE, clusterEnvProperties);
     }
     clusterEnvProperties.put(KerberosHelper.SECURITY_ENABLED_PROPERTY_NAME, "true");
 
-    processConfigurationChanges(dataDirectory, kerberosConfigurations, propertiesToRemove);
+    processConfigurationChanges(dataDirectory, kerberosConfigurations, propertiesToRemove, kerberosDescriptor, getUpdateConfigurationPolicy(commandParameters));
 
     return createCommandReport(0, HostRoleStatus.COMPLETED, "{}", actionLog.getStdOut(), actionLog.getStdErr());
   }
 
   @Override
-  protected CommandReport processIdentity(Map<String, String> identityRecord, String evaluatedPrincipal, KerberosOperationHandler operationHandler, Map<String, String> kerberosConfiguration, Map<String, Object> requestSharedDataContext) throws AmbariException {
+  protected CommandReport processIdentity(ResolvedKerberosPrincipal resolvedPrincipal, KerberosOperationHandler operationHandler, Map<String, String> kerberosConfiguration, boolean includedInFilter, Map<String, Object> requestSharedDataContext) throws AmbariException {
     throw new UnsupportedOperationException();
   }
 }

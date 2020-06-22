@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -51,7 +51,10 @@ import org.apache.ambari.server.state.StackInfo;
 import org.apache.ambari.server.state.repository.ManifestServiceInfo;
 import org.apache.ambari.server.state.repository.VersionDefinitionXml;
 import org.apache.ambari.server.state.stack.UpgradePack;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
@@ -62,6 +65,8 @@ import com.google.inject.Provider;
  */
 @StaticallyInject
 public class CompatibleRepositoryVersionResourceProvider extends ReadOnlyResourceProvider {
+
+  private static final Logger LOG = LoggerFactory.getLogger(CompatibleRepositoryVersionResourceProvider.class);
 
   // ----- Property ID constants ---------------------------------------------
 
@@ -90,14 +95,12 @@ public class CompatibleRepositoryVersionResourceProvider extends ReadOnlyResourc
     REPOSITORY_VERSION_SERVICES,
     REPOSITORY_VERSION_STACK_SERVICES);
 
-  static Map<Type, String> keyPropertyIds = new HashMap<Type, String>() {
-    {
-      put(Type.Stack, REPOSITORY_VERSION_STACK_NAME_PROPERTY_ID);
-      put(Type.StackVersion, REPOSITORY_VERSION_STACK_VERSION_PROPERTY_ID);
-      put(Type.Upgrade, REPOSITORY_UPGRADES_SUPPORTED_TYPES_ID);
-      put(Type.CompatibleRepositoryVersion, REPOSITORY_VERSION_ID_PROPERTY_ID);
-    }
-  };
+  static Map<Type, String> keyPropertyIds = new ImmutableMap.Builder<Type, String>()
+    .put(Type.Stack, REPOSITORY_VERSION_STACK_NAME_PROPERTY_ID)
+    .put(Type.StackVersion, REPOSITORY_VERSION_STACK_VERSION_PROPERTY_ID)
+    .put(Type.Upgrade, REPOSITORY_UPGRADES_SUPPORTED_TYPES_ID)
+    .put(Type.CompatibleRepositoryVersion, REPOSITORY_VERSION_ID_PROPERTY_ID)
+    .build();
 
   @Inject
   private static RepositoryVersionDAO s_repositoryVersionDAO;
@@ -109,13 +112,13 @@ public class CompatibleRepositoryVersionResourceProvider extends ReadOnlyResourc
    * Create a new resource provider.
    */
   public CompatibleRepositoryVersionResourceProvider(AmbariManagementController amc) {
-    super(propertyIds, keyPropertyIds, amc);
+    super(Type.CompatibleRepositoryVersion, propertyIds, keyPropertyIds, amc);
   }
 
   @Override
   public Set<Resource> getResources(Request request, Predicate predicate)
     throws SystemException, UnsupportedPropertyException, NoSuchResourceException, NoSuchParentResourceException {
-    final Set<Resource> resources = new HashSet<Resource>();
+    final Set<Resource> resources = new HashSet<>();
     final Set<String> requestedIds = getRequestPropertyIds(request, predicate);
     final Set<Map<String, Object>> propertyMaps = getPropertyMaps(predicate);
 
@@ -166,7 +169,7 @@ public class CompatibleRepositoryVersionResourceProvider extends ReadOnlyResourc
           if (compatibleRepositoryVersionsMap.containsKey(repositoryVersionEntity.getId())) {
             compatibleRepositoryVersionsMap.get(repositoryVersionEntity.getId()).addUpgradePackType(up.getType());
             if (LOG.isDebugEnabled()) {
-              LOG.debug("Stack id: {} exists in map.  Appended new upgrade type {}" + repositoryVersionEntity.getId(), up.getType());
+              LOG.debug("Stack id: {} exists in map.  Appended new upgrade type {}{}", up.getType(), repositoryVersionEntity.getId());
             }
           } else {
             CompatibleRepositoryVersion compatibleRepositoryVersionEntity = new CompatibleRepositoryVersion(repositoryVersionEntity);

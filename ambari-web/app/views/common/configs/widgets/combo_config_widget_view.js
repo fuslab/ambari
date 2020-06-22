@@ -17,6 +17,8 @@
  */
 
 var App = require('app');
+var dbInfo = require('data/db_properties_info') || {};
+var dbUtils = require('utils/configs/database');
 
 /**
  * Combo box widget view for config property.
@@ -43,9 +45,60 @@ App.ComboConfigWidgetView = App.ConfigWidgetView.extend({
     this._super();
     this.toggleWidgetState();
     this.initPopover();
+    this.disableSwitchToTextBox();
     this.addObserver('config.stackConfigProperty.valueAttributes.entries.[]', this, this.updateValuesList);
     this.addObserver('controller.forceUpdateBoundaries', this, this.updateValuesList);
     this.addObserver('config.value', this, this.isValueCompatibleWithWidget);
+    this.addCustomMessage();
+  },
+
+  customMessageServiceMapping: [
+    {
+      serviceName: 'HIVE', dbConfigName: 'hive_database'
+    },
+    {
+      serviceName: 'RANGER', dbConfigName: 'DB_FLAVOR'
+    },
+    {
+      serviceName: 'RANGER_KMS', dbConfigName: 'DB_FLAVOR'
+    }
+  ],
+
+  addCustomMessage: function () {
+    // show warning alert about downloading db connector for services with databases
+    if (this.isCustomMessageRequired()) {
+      this.set('config.additionalView', Em.View.extend({
+        template: Em.Handlebars.compile('<div class="alert alert-warning enhanced-configs">{{{view.message}}}</div>'),
+        message: function () {
+          var selectedDb = dbUtils.getDBType(this.get('config.value'));
+          var dbData = dbInfo.dpPropertiesMap[selectedDb];
+          return Em.I18n.t('services.service.config.database.msg.jdbcSetup.detailed').format(
+            dbData.db_name,
+            dbData.db_type,
+            dbData.driver,
+            dbData.driver_download_url,
+            dbData.driver_download_url,
+            dbData.driver_name,
+            this.get('config.serviceName').toCapital()
+          );
+        }.property('config.value'),
+        config: this.get('config')
+      }));
+    }
+  },
+
+  isCustomMessageRequired: function () {
+    var self = this;
+    return this.get('customMessageServiceMapping').find(function (configMap) {
+      return configMap['serviceName'].toLowerCase() === self.get('config.serviceName').toLowerCase() && configMap['dbConfigName'].toLowerCase() === self.get('config.name').toLowerCase()
+    });
+  },
+
+  disableSwitchToTextBox: function () {
+    var valueAttributes = this.get('config.valueAttributes');
+    if (valueAttributes && valueAttributes.hasOwnProperty('entriesEditable') && !valueAttributes.entriesEditable) {
+      this.set('supportSwitchToTextBox', false);
+    }
   },
 
   /**

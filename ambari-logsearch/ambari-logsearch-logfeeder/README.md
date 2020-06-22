@@ -17,20 +17,33 @@ limitations under the License.
 {% endcomment %}
 -->
 
-#LogSearch - LogFeeder:
+# Log Search - Log Feeder:
 
-Logfeeder is a tool that reads log, parses it and stores it in Apache Solr for analyising purpose.
+Log Feeder is a component of the Log Search service that reads logs, parses them and stores them in Apache Solr for the purpose
+of later analysis.
 
-#Compilation
-mvn clean compile package
+## Start locally from maven / IDE
 
-#Deploy
-##Copy to remote
-copy target/logsearch-logfeeder.tgz to host machine
-
-##Setup environment
+First you need to start every required service (except logfeeder), go to `ambari-logsearch/docker` folder and run:
 ```bash
-mkdir /opt/logfeeder
-cd /opt/logfeeder
-tar xfz ~/logsearch-logfeeder.tar.gz 
+docker-compose up -d zookeeper solr logsearch
 ```
+
+Secondly, if you are planning to run Log Feeder from an IDE, for running the LogFeeder main methoud, you will need to set the working directory to `ambari/ambari-logsearch/ambari-logsearch-logfeeder` or set `LOGFEEDER_RELATIVE_LOCATION` env variable.
+With Maven, you won't need these steps, just run this command from the ambari-logsearch-logfeeder folder:
+
+```bash
+mvn clean package -DskipTests spring-boot:run
+```
+
+# Input Configuration
+
+The configuration for the log feeder contains
+* description of the log files
+* description of the filters that parse the data of the log entries
+* description of the mappers that modify the parsed fields
+
+The element description can be found [here](docs/inputConfig.md)
+
+All these data are stored in json files, which should be named in the directory /etc/ambari-logsearch-logfeeder/conf, and the
+name of the files should be input.config-<service\_name>.json

@@ -25,10 +25,15 @@ from resource_management.libraries.script import Script
 from resource_management.libraries.functions import stack_select
 from resource_management.libraries.functions.constants import Direction
 from resource_management.libraries.functions.format import format
+from resource_management.libraries.functions.version import format_stack_version
 from resource_management.libraries.functions import StackFeature
 from resource_management.libraries.functions import upgrade_summary
 from resource_management.libraries.functions.stack_features import check_stack_feature
+from resource_management.libraries.functions.security_commons import build_expectations
 from resource_management.libraries.functions.security_commons import cached_kinit_executor
+from resource_management.libraries.functions.security_commons import get_params_from_filesystem
+from resource_management.libraries.functions.security_commons import validate_security_config_properties
+from resource_management.libraries.functions.security_commons import FILE_TYPE_XML
 from resource_management.core.resources.system import File
 from setup_ranger_hive import setup_ranger_hive_metastore_service
 
@@ -53,7 +58,7 @@ class HiveMetastore(Script):
     # writing configurations on start required for securtity
     self.configure(env)
     if params.init_metastore_schema:
-      create_metastore_schema()
+      create_metastore_schema() # execute without config lock
 
     hive_service('metastore', action='start', upgrade_type=upgrade_type)
 
@@ -85,11 +90,10 @@ class HiveMetastoreDefault(HiveMetastore):
   def status(self, env):
     import status_params
     from resource_management.libraries.functions import check_process_status
-
     env.set_params(status_params)
-    pid_file = format("{hive_pid_dir}/{hive_metastore_pid}")
+
     # Recursively check all existing gmetad pid files
-    check_process_status(pid_file)
+    check_process_status(status_params.hive_metastore_pid)
 
 
   def pre_upgrade_restart(self, env, upgrade_type=None):
@@ -197,6 +201,10 @@ class HiveMetastoreDefault(HiveMetastore):
   def get_user(self):
     import params
     return params.hive_user
+
+  def get_pid_files(self):
+    import status_params
+    return [status_params.hive_metastore_pid]
 
 
 if __name__ == "__main__":

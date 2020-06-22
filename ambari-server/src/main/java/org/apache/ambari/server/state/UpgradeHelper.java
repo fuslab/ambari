@@ -30,12 +30,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.apache.ambari.annotations.Experimental;
 import org.apache.ambari.annotations.ExperimentalFeature;
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
 import org.apache.ambari.server.controller.AmbariManagementController;
+import org.apache.ambari.server.controller.AmbariManagementControllerImpl;
 import org.apache.ambari.server.controller.internal.TaskResourceProvider;
 import org.apache.ambari.server.controller.predicate.AndPredicate;
 import org.apache.ambari.server.controller.spi.ClusterController;
@@ -50,7 +52,9 @@ import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.controller.utilities.ClusterControllerHelper;
 import org.apache.ambari.server.controller.utilities.PredicateBuilder;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
+import org.apache.ambari.server.events.ClusterComponentsRepoChangedEvent;
 import org.apache.ambari.server.events.listeners.upgrade.StackVersionListener;
+import org.apache.ambari.server.events.publishers.AmbariEventPublisher;
 import org.apache.ambari.server.orm.dao.ServiceConfigDAO;
 import org.apache.ambari.server.orm.entities.ClusterConfigEntity;
 import org.apache.ambari.server.orm.entities.RepositoryVersionEntity;
@@ -59,6 +63,7 @@ import org.apache.ambari.server.stack.HostsType;
 import org.apache.ambari.server.stack.MasterHostResolver;
 import org.apache.ambari.server.state.stack.UpgradePack;
 import org.apache.ambari.server.state.stack.UpgradePack.ProcessingComponent;
+import org.apache.ambari.server.state.stack.upgrade.AddComponentTask;
 import org.apache.ambari.server.state.stack.upgrade.Direction;
 import org.apache.ambari.server.state.stack.upgrade.Grouping;
 import org.apache.ambari.server.state.stack.upgrade.ManualTask;
@@ -197,13 +202,16 @@ public class UpgradeHelper {
    * Used to update the configuration properties.
    */
   @Inject
-  private Provider<AmbariManagementController> m_controllerProvider;
+  private Provider<AmbariManagementControllerImpl> m_controllerProvider;
 
   /**
    * Used to get configurations by service name.
    */
   @Inject
   ServiceConfigDAO m_serviceConfigDAO;
+
+  @Inject
+  private AmbariEventPublisher ambariEventPublisher;
 
   /**
    * Get right Upgrade Pack, depends on stack, direction and upgrade type
@@ -219,8 +227,6 @@ public class UpgradeHelper {
    *          {@code Direction} of the upgrade
    * @param upgradeType
    *          The {@code UpgradeType}
-   * @param targetStackName
-   *          The destination target stack name.
    * @param preferredUpgradePackName
    *          For unit test, need to prefer an upgrade pack since multiple
    *          matches can be found.
@@ -297,6 +303,7 @@ public class UpgradeHelper {
 
     Cluster cluster = context.getCluster();
     MasterHostResolver mhr = context.getResolver();
+    Map<String, AddComponentTask> addedComponentsDuringUpgrade = upgradePack.getAddComponentTasks();
 
     // Note, only a Rolling Upgrade uses processing tasks.
     Map<String, Map<String, ProcessingComponent>> allTasks = upgradePack.getTasks();
@@ -367,26 +374,13 @@ public class UpgradeHelper {
           continue;
         }
 
-
         for (String component : service.components) {
           // Rolling Upgrade has exactly one task for a Component.
+          // NonRolling Upgrade has several tasks for the same component, since it must first call Stop, perform several
+          // other tasks, and then Start on that Component.
           if (upgradePack.getType() == UpgradeType.ROLLING && !allTasks.get(service.serviceName).containsKey(component)) {
             continue;
           }
-
-          // NonRolling Upgrade has several tasks for the same component, since it must first call Stop, perform several
-          // other tasks, and then Start on that Component.
-
-          HostsType hostsType = mhr.getMasterAndHosts(service.serviceName, component);
-          if (null == hostsType) {
-            continue;
-          }
-
-          if (!hostsType.unhealthy.isEmpty()) {
-            context.addUnhealthy(hostsType.unhealthy);
-          }
-
-          Service svc = cluster.getService(service.serviceName);
 
           // if a function name is present, build the tasks dynamically;
           // otherwise use the tasks defined in the upgrade pack processing
@@ -429,6 +423,56 @@ public class UpgradeHelper {
             continue;
           }
 
+          HostsType hostsType = mhr.getMasterAndHosts(service.serviceName, component);
+
+          // only worry about adding future commands if this is a start/restart task
+          boolean taskIsRestartOrStart = functionName == null || functionName == Type.START
+              || functionName == Type.RESTART;
+
+          // see if this component has an add component task which will indicate
+          // we need to dynamically schedule some more tasks by predicting where
+          // the components will be installed
+          String serviceAndComponentHash = service.serviceName + "/" + component;
+          if (taskIsRestartOrStart && addedComponentsDuringUpgrade.containsKey(serviceAndComponentHash)) {
+            AddComponentTask task = addedComponentsDuringUpgrade.get(serviceAndComponentHash);
+
+            Collection<Host> candidateHosts = MasterHostResolver.getCandidateHosts(cluster,
+                task.hosts, task.hostService, task.hostComponent);
+
+            // if we have candidate hosts, then we can create a structure to be
+            // scheduled
+            if (!candidateHosts.isEmpty()) {
+              if (null == hostsType) {
+                // a null hosts type usually means that the component is not
+                // installed in the cluster - but it's possible that it's going
+                // to be added as part of the upgrade. If this is the case, then
+                // we need to schedule tasks assuming the add works
+                hostsType = HostsType.normal(
+                    candidateHosts.stream().map(host -> host.getHostName()).collect(
+                        Collectors.toCollection(LinkedHashSet::new)));
+              } else {
+                // it's possible that we're adding components that may already
+                // exist in the cluster - in this case, we must append the
+                // structure instead of creating a new one
+                Set<String> hostsForTask = hostsType.getHosts();
+                for (Host host : candidateHosts) {
+                  hostsForTask.add(host.getHostName());
+                }
+              }
+            }
+          }
+
+          // if we still have no hosts, then truly skip this component
+          if (null == hostsType) {
+            continue;
+          }
+
+          if (!hostsType.unhealthy.isEmpty()) {
+            context.addUnhealthy(hostsType.unhealthy);
+          }
+
+          Service svc = cluster.getService(service.serviceName);
+
           setDisplayNames(context, service.serviceName, component);
 
           // Special case for NAMENODE when there are multiple
@@ -440,49 +484,26 @@ public class UpgradeHelper {
             //   Non-NameNode HA: Upgrade first the SECONDARY, then the primary NAMENODE
             switch (upgradePack.getType()) {
               case ROLLING:
-                if (!hostsType.hosts.isEmpty() && hostsType.master != null && hostsType.secondary != null) {
+                if (!hostsType.getHosts().isEmpty() && hostsType.hasMastersAndSecondaries()) {
                   // The order is important, first do the standby, then the active namenode.
-                  LinkedHashSet<String> order = new LinkedHashSet<>();
-
-                  order.add(hostsType.secondary);
-                  order.add(hostsType.master);
-
-                  // Override the hosts with the ordered collection
-                  hostsType.hosts = order;
-
+                  hostsType.arrangeHostSecondariesFirst();
                   builder.add(context, hostsType, service.serviceName,
                       svc.isClientOnlyService(), pc, null);
                 } else {
                   LOG.warn("Could not orchestrate NameNode.  Hosts could not be resolved: hosts={}, active={}, standby={}",
-                      StringUtils.join(hostsType.hosts, ','), hostsType.master, hostsType.secondary);
+                      StringUtils.join(hostsType.getHosts(), ','), hostsType.getMasters(), hostsType.getSecondaries());
                 }
                 break;
               case NON_ROLLING:
                 boolean isNameNodeHA = mhr.isNameNodeHA();
-                if (isNameNodeHA && hostsType.master != null && hostsType.secondary != null) {
+                if (isNameNodeHA && hostsType.hasMastersAndSecondaries()) {
                   // This could be any order, but the NameNodes have to know what role they are going to take.
                   // So need to make 2 stages, and add different parameters to each one.
+                  builder.add(context, HostsType.normal(hostsType.getMasters()), service.serviceName,
+                      svc.isClientOnlyService(), pc, nameNodeRole("active"));
 
-                  HostsType ht1 = new HostsType();
-                  LinkedHashSet<String> h1Hosts = new LinkedHashSet<>();
-                  h1Hosts.add(hostsType.master);
-                  ht1.hosts = h1Hosts;
-                  Map<String, String> h1Params = new HashMap<>();
-                  h1Params.put("desired_namenode_role", "active");
-
-                  HostsType ht2 = new HostsType();
-                  LinkedHashSet<String> h2Hosts = new LinkedHashSet<>();
-                  h2Hosts.add(hostsType.secondary);
-                  ht2.hosts = h2Hosts;
-                  Map<String, String> h2Params = new HashMap<>();
-                  h2Params.put("desired_namenode_role", "standby");
-
-
-                  builder.add(context, ht1, service.serviceName,
-                      svc.isClientOnlyService(), pc, h1Params);
-
-                  builder.add(context, ht2, service.serviceName,
-                      svc.isClientOnlyService(), pc, h2Params);
+                  builder.add(context, HostsType.normal(hostsType.getSecondaries()), service.serviceName,
+                      svc.isClientOnlyService(), pc, nameNodeRole("standby"));
                 } else {
                   // If no NameNode HA, then don't need to change hostsType.hosts since there should be exactly one.
                   builder.add(context, hostsType, service.serviceName,
@@ -550,6 +571,12 @@ public class UpgradeHelper {
     }
 
     return groups;
+  }
+
+  private static Map<String, String> nameNodeRole(String value) {
+    Map<String, String> params = new HashMap<>();
+    params.put("desired_namenode_role", value);
+    return params;
   }
 
   /**
@@ -665,7 +692,7 @@ public class UpgradeHelper {
             HostsType hostsType = mhr.getMasterAndHosts(service, component);
 
             if (null != hostsType) {
-              value = StringUtils.join(hostsType.hosts, ", ");
+              value = StringUtils.join(hostsType.getHosts(), ", ");
             }
           }
           break;
@@ -675,7 +702,7 @@ public class UpgradeHelper {
             HostsType hostsType = mhr.getMasterAndHosts(service, component);
 
             if (null != hostsType) {
-              value = hostsType.master;
+              value = StringUtils.join(hostsType.getMasters(), ", ");
             }
           }
           break;
@@ -809,13 +836,32 @@ public class UpgradeHelper {
    * @param component the component name
    */
   private void setDisplayNames(UpgradeContext context, String service, String component) {
-    StackId stackId = context.getCluster().getDesiredStackVersion();
+    StackId currentStackId = context.getCluster().getCurrentStackVersion();
+    StackId stackId = context.getRepositoryVersion().getStackId();
+
     try {
       ServiceInfo serviceInfo = m_ambariMetaInfoProvider.get().getService(stackId.getStackName(),
           stackId.getStackVersion(), service);
+
+      // if the service doesn't exist in the new stack, try the old one
+      if (null == serviceInfo) {
+        serviceInfo = m_ambariMetaInfoProvider.get().getService(currentStackId.getStackName(),
+            currentStackId.getStackVersion(), service);
+      }
+
+      if (null == serviceInfo) {
+        LOG.debug("Unable to lookup service display name information for {}", service);
+        return;
+      }
+
       context.setServiceDisplay(service, serviceInfo.getDisplayName());
 
       ComponentInfo compInfo = serviceInfo.getComponentByName(component);
+      if (null == compInfo) {
+        LOG.debug("Unable to lookup component display name information for {}", component);
+        return;
+      }
+
       context.setComponentDisplay(service, component, compInfo.getDisplayName());
 
     } catch (AmbariException e) {
@@ -828,7 +874,7 @@ public class UpgradeHelper {
    * participating in the upgrade or downgrade. The following actions are
    * performed in order:
    * <ul>
-   * <li>The desired repository for every service and component is changed<
+   * <li>The desired repository for every service and component is changed
    * <li>The {@link UpgradeState} of every component host is moved to either
    * {@link UpgradeState#IN_PROGRESS} or {@link UpgradeState#NONE}.
    * <li>In the case of an upgrade, new configurations and service
@@ -847,6 +893,11 @@ public class UpgradeHelper {
       throws AmbariException {
     setDesiredRepositories(upgradeContext);
     processConfigurationsIfRequired(upgradeContext);
+  }
+
+  public void publishDesiredRepositoriesUpdates(UpgradeContext upgradeContext) throws AmbariException {
+    Cluster cluster = upgradeContext.getCluster();
+    ambariEventPublisher.publish(new ClusterComponentsRepoChangedEvent(cluster.getClusterId()));
   }
 
   /**
@@ -950,6 +1001,7 @@ public class UpgradeHelper {
 
     Set<String> clusterConfigTypes = new HashSet<>();
     Set<String> processedClusterConfigTypes = new HashSet<>();
+    boolean configsChanged = false;
 
     // merge or revert configurations for any service that needs it
     for (String serviceName : servicesInUpgrade) {
@@ -971,8 +1023,10 @@ public class UpgradeHelper {
 
       ConfigHelper configHelper = m_configHelperProvider.get();
 
+      // downgrade is easy - just remove the new and make the old current
       if (direction == Direction.DOWNGRADE) {
         cluster.applyLatestConfigurations(targetStackId, serviceName);
+        configsChanged = true;
         continue;
       }
 
@@ -980,6 +1034,8 @@ public class UpgradeHelper {
       // - if the properties was read-only in the source stack, then we must
       // take the new stack's value
       Map<String, Set<String>> readOnlyProperties = getReadOnlyProperties(sourceStackId, serviceName);
+
+      // upgrade is a bit harder - we have to merge new stack configurations in
 
       // populate a map of default configurations for the service on the old
       // stack (this is used when determining if a property has been
@@ -1008,6 +1064,9 @@ public class UpgradeHelper {
           String configurationType = currentServiceConfig.getType();
 
           Config currentClusterConfigForService = cluster.getDesiredConfigByType(configurationType);
+          if (currentClusterConfigForService == null) {
+            throw new AmbariException(String.format("configuration type %s did not have a selected version", configurationType));
+          }
           existingServiceConfigs.add(currentClusterConfigForService);
           foundConfigTypes.add(configurationType);
         }
@@ -1146,7 +1205,11 @@ public class UpgradeHelper {
 
         configHelper.createConfigTypes(cluster, targetStackId, controller,
             newServiceDefaultConfigsByType, userName, serviceVersionNote);
+        configsChanged = true;
       }
+    }
+    if (configsChanged) {
+      m_configHelperProvider.get().updateAgentConfigs(Collections.singleton(cluster.getClusterName()));
     }
   }
 

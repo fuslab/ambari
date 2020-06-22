@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -25,6 +25,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -46,7 +47,7 @@ public class FileUtil {
   private FileUtil() {
     throw new UnsupportedOperationException();
   }
-  
+
   public static List<File> getAllFileFromDir(File directory, String extension, boolean checkInSubDir) {
     if (!directory.exists()) {
       LOG.error(directory.getAbsolutePath() + " is not exists ");
@@ -120,11 +121,11 @@ public class FileUtil {
             return files;
           }
         } catch (Exception e) {
-          LOG.warn("Input file not found by pattern (exception thrown); {}, message: {}", searchPath, e.getMessage());
+          LOG.info("Input file was not found by pattern (exception thrown); {}, message: {}", searchPath, e.getMessage());
         }
 
       } else {
-        LOG.warn("Input file config not found by pattern; {}", searchPath);
+        LOG.info("Input file config was not found by pattern; {}", searchPath);
       }
       return new File[]{};
     }
@@ -148,7 +149,7 @@ public class FileUtil {
     }
     if (!foldersMap.isEmpty()) {
       for (Map.Entry<String, List<File>> entry : foldersMap.entrySet()) {
-       Collections.sort(entry.getValue(), Collections.reverseOrder());
+        Collections.sort(entry.getValue(), Collections.reverseOrder());
       }
     }
     return foldersMap;
@@ -167,6 +168,12 @@ public class FileUtil {
     } else {
       return beforeRegex;
     }
+  }
+
+  public static void move(File source, File target) throws IOException {
+    Path sourcePath = Paths.get(source.getAbsolutePath());
+    Path targetPath = Paths.get(target.getAbsolutePath());
+    Files.move(sourcePath, targetPath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
   }
 
   public static boolean isFileTooOld(File file, long diffMin) {

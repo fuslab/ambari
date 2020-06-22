@@ -24,6 +24,10 @@ App.ServiceConfigView = Em.View.extend({
 
   isRestartMessageCollapsed: false,
 
+  isDiscardDisabled: Em.computed.or('!controller.versionLoaded', '!controller.isPropertiesChanged'),
+
+  isSaveDisabled: Em.computed.or('controller.isSubmitDisabled', '!controller.versionLoaded', '!controller.isPropertiesChanged'),
+
   /**
    * Bound from parent view in the template
    * @type {string}
@@ -58,13 +62,20 @@ App.ServiceConfigView = Em.View.extend({
     }
   }.property('controller.name', 'controller.selectedService'),
 
+  showSavePanel: function() {
+    return this.get('isOnTheServicePage') &&
+           !this.get('controller.isCompareMode') &&
+           this.get('controller.selectedVersionRecord.isCurrent') &&
+           !this.get('controller.isHostsConfigsPage');
+  }.property('isOnTheServicePage', 'controller.isCompareMode', 'controller.selectedVersionRecord.isCurrent', 'controller.isHostsConfigsPage'),
+
   /**
    * Determines if user is on the service configs page
    * @type {boolean}
    */
   isOnTheServicePage: Em.computed.equal('controller.name', 'mainServiceInfoConfigsController'),
 
-  classNameBindings: ['isOnTheServicePage:serviceConfigs'],
+  classNameBindings: ['isOnTheServicePage:serviceConfigs', 'controller.isCompareMode:settings-compare-layout'],
 
   /**
    * flag defines if any config match filter
@@ -83,6 +94,64 @@ App.ServiceConfigView = Em.View.extend({
   }.observes('controller.selectedService.configs.@each.isHiddenByFilter'),
 
   /**
+   * save configuration
+   * @return {object}
+   */
+  save: function () {
+    var controller = this.get('controller');
+    var passwordWasChanged = this.get('controller.passwordConfigsAreChanged');
+    return App.ModalPopup.show({
+      header: Em.I18n.t('dashboard.configHistory.info-bar.save.popup.title'),
+      serviceConfigNote: '',
+      bodyClass: Em.View.extend({
+        templateName: require('templates/common/configs/save_configuration'),
+        classNames: ['col-md-12'],
+        showPasswordChangeWarning: passwordWasChanged,
+        notesArea: Em.TextArea.extend({
+          classNames: ['full-width'],
+          value: passwordWasChanged ? Em.I18n.t('dashboard.configHistory.info-bar.save.popup.notesForPasswordChange') : '',
+          placeholder: Em.I18n.t('dashboard.configHistory.info-bar.save.popup.placeholder'),
+          didInsertElement: function () {
+            if (this.get('value')) {
+              this.onChangeValue();
+            }
+          },
+          onChangeValue: function() {
+            this.get('parentView.parentView').set('serviceConfigNote', this.get('value'));
+          }.observes('value')
+        })
+      }),
+      footerClass: Em.View.extend({
+        templateName: require('templates/main/service/info/save_popup_footer')
+      }),
+      primary: Em.I18n.t('common.save'),
+      secondary: Em.I18n.t('common.cancel'),
+      onSave: function () {
+        const newVersionToBeCreated = Math.max.apply(null, App.ServiceConfigVersion.find().mapProperty('version')) + 1;
+        controller.setProperties({
+          saveConfigsFlag: true,
+          serviceConfigVersionNote: this.get('serviceConfigNote'),
+          preSelectedConfigVersion: Em.Object.create({
+            version: newVersionToBeCreated,
+            serviceName: controller.get('content.serviceName'),
+            groupName: controller.get('selectedConfigGroup.name')
+          })
+        });
+        controller.saveStepConfigs();
+        this.hide();
+      },
+      onDiscard: function () {
+        this.hide();
+        controller.set('preSelectedConfigVersion', null);
+        controller.loadStep();
+      },
+      onCancel: function () {
+        this.hide();
+      }
+    });
+  },
+
+  /**
    * updates filter counters for advanced tab
    * @method updateFilterCounters
    */
@@ -94,7 +163,7 @@ App.ServiceConfigView = Em.View.extend({
       });
       var isAllConfigsHidden = configsToShow.get('length') == 0;
       var isAdvancedHidden = isAllConfigsHidden || configsToShow.filter(function (config) {
-        return Em.isNone(config.get('widget'));
+        return Em.isNone(config.get('isInDefaultTheme'));
       }).get('length') == 0;
       this.set('isAllConfigsHidden', isAllConfigsHidden);
       var advancedTab = App.Tab.find().filterProperty('serviceName', this.get('controller.selectedService.serviceName')).findProperty('isAdvanced');
@@ -108,8 +177,8 @@ App.ServiceConfigView = Em.View.extend({
    */
   supportsConfigLayout: function() {
     var supportedControllers = ['wizardStep7Controller', 'mainServiceInfoConfigsController', 'mainHostServiceConfigsController'];
-    if (App.Tab.find().someProperty('serviceName', this.get('controller.selectedService.serviceName')) && supportedControllers.contains(this.get('controller.name'))) {
-      return !Em.isEmpty(App.Tab.find().filterProperty('serviceName', this.get('controller.selectedService.serviceName')).filterProperty('isAdvanced', false));
+     if (App.Tab.find().rejectProperty('isCategorized').someProperty('serviceName', this.get('controller.selectedService.serviceName')) && supportedControllers.contains(this.get('controller.name'))) {
+      return !Em.isEmpty(App.Tab.find().rejectProperty('isCategorized').filterProperty('serviceName', this.get('controller.selectedService.serviceName')).filterProperty('isAdvanced', false));
     } else {
       return false;
     }
@@ -128,9 +197,10 @@ App.ServiceConfigView = Em.View.extend({
       this.$('.service-body').hide();
     }
     App.tooltip($(".restart-required-property"), {html: true});
-    App.tooltip($(".icon-lock"), {placement: 'right'});
+    App.tooltip($(".glyphicon .glyphicon-lock"), {placement: 'right'});
     App.tooltip($("[rel=tooltip]"));
     this.checkCanEdit();
+    this.set('filter', '');
   },
 
   willDestroyElement: function() {
@@ -175,12 +245,11 @@ App.ServiceConfigView = Em.View.extend({
    * @returns {Ember.A}
    */
   tabs: function() {
-    var tabs = App.Tab.find().filterProperty('serviceName', this.get('controller.selectedService.serviceName'));
+    var tabs = App.Tab.find().rejectProperty('isCategorized').filterProperty('serviceName', this.get('controller.selectedService.serviceName'));
     var advancedTab = tabs.findProperty('isAdvanced', true);
     if (advancedTab) {
       advancedTab.set('isRendered', advancedTab.get('isActive'));
     }
-    this.processTabs(tabs);
     return tabs;
   }.property('controller.selectedService.serviceName'),
 
@@ -216,41 +285,6 @@ App.ServiceConfigView = Em.View.extend({
           firstHotHiddenTab.set('isRendered', true);
         }
       }
-    }
-  },
-
-  /**
-   * Data reordering before rendering.
-   * Reorder all sections/subsections into rows based on their rowIndex
-   * @param tabs
-   */
-  processTabs: function (tabs) {
-    for (var i = 0; i < tabs.length; i++) {
-      var tab = tabs[i];
-
-      // process sections
-      var sectionRows = [];
-      var sections = tab.get('sections');
-      for (var j = 0; j < sections.get('length'); j++) {
-        var section = sections.objectAt(j);
-        var sectionRow = sectionRows[section.get('rowIndex')];
-        if (!sectionRow) { sectionRow = sectionRows[section.get('rowIndex')] = []; }
-        sectionRow.push(section);
-
-        //process subsections
-        var subsections = section.get('subSections');
-        var subsectionRows = [];
-        for (var k = 0; k < subsections.get('length'); k++) {
-          var subsection = subsections.objectAt(k);
-          var subsectionRow = subsectionRows[subsection.get('rowIndex')];
-          if (!subsectionRow) { subsectionRow = subsectionRows[subsection.get('rowIndex')] = []; }
-          subsectionRow.push(subsection);
-          // leave a title gap if one of the subsection on the same row within the same section has title
-          if (subsection.get('displayName')) {subsectionRow.hasTitleGap = true;}
-        }
-        section.set('subsectionRows', subsectionRows);
-      }
-      tab.set('sectionRows', sectionRows);
     }
   },
 

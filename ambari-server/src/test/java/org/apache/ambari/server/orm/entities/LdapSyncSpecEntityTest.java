@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,12 @@
 
 package org.apache.ambari.server.orm.entities;
 
-import org.junit.Assert;
-import org.junit.Test;
-
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+
+import org.junit.Assert;
+import org.junit.Test;
 
 /**
  * LdapSyncSpecEntity tests.
@@ -32,28 +32,28 @@ public class LdapSyncSpecEntityTest {
   @Test
   public void testGetPrincipalType() throws Exception {
     LdapSyncSpecEntity entity = new LdapSyncSpecEntity(LdapSyncSpecEntity.PrincipalType.USERS,
-        LdapSyncSpecEntity.SyncType.ALL, Collections.<String>emptyList());
+        LdapSyncSpecEntity.SyncType.ALL, Collections.emptyList());
     Assert.assertEquals(LdapSyncSpecEntity.PrincipalType.USERS, entity.getPrincipalType());
 
     entity = new LdapSyncSpecEntity(LdapSyncSpecEntity.PrincipalType.GROUPS,
-        LdapSyncSpecEntity.SyncType.ALL, Collections.<String>emptyList());
+        LdapSyncSpecEntity.SyncType.ALL, Collections.emptyList());
     Assert.assertEquals(LdapSyncSpecEntity.PrincipalType.GROUPS, entity.getPrincipalType());
   }
 
   @Test
   public void testGetSyncType() throws Exception {
     LdapSyncSpecEntity entity = new LdapSyncSpecEntity(LdapSyncSpecEntity.PrincipalType.USERS,
-        LdapSyncSpecEntity.SyncType.ALL, Collections.<String>emptyList());
+        LdapSyncSpecEntity.SyncType.ALL, Collections.emptyList());
     Assert.assertEquals(LdapSyncSpecEntity.SyncType.ALL, entity.getSyncType());
 
     entity = new LdapSyncSpecEntity(LdapSyncSpecEntity.PrincipalType.USERS,
-        LdapSyncSpecEntity.SyncType.EXISTING, Collections.<String>emptyList());
+        LdapSyncSpecEntity.SyncType.EXISTING, Collections.emptyList());
     Assert.assertEquals(LdapSyncSpecEntity.SyncType.EXISTING, entity.getSyncType());
   }
 
   @Test
   public void testGetPrincipalNames() throws Exception {
-    List<String> names = new LinkedList<String>();
+    List<String> names = new LinkedList<>();
     names.add("joe");
     names.add("fred");
 
@@ -66,13 +66,13 @@ public class LdapSyncSpecEntityTest {
   public void testIllegalConstruction() throws Exception {
     try {
       new LdapSyncSpecEntity(LdapSyncSpecEntity.PrincipalType.USERS,
-          LdapSyncSpecEntity.SyncType.SPECIFIC, Collections.<String>emptyList());
+          LdapSyncSpecEntity.SyncType.SPECIFIC, Collections.emptyList());
       Assert.fail("expected IllegalArgumentException");
     } catch (IllegalArgumentException e) {
       // expected
     }
 
-    List<String> names = new LinkedList<String>();
+    List<String> names = new LinkedList<>();
     names.add("joe");
     names.add("fred");
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -61,11 +61,7 @@ public abstract class BaseProvider {
    */
   private final Map<String, Pattern> patterns;
 
-  /**
-   * The logger.
-   */
-  protected final static Logger LOG =
-      LoggerFactory.getLogger(BaseProvider.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BaseProvider.class);
 
   /**
    * The regex pattern that will match on all $1, $2.method(0), and
@@ -90,11 +86,11 @@ public abstract class BaseProvider {
    * @param propertyIds  the properties associated with this provider
    */
   public BaseProvider(Set<String> propertyIds) {
-    this.propertyIds = new HashSet<String>(propertyIds);
+    this.propertyIds = new HashSet<>(propertyIds);
     categoryIds = PropertyHelper.getCategories(propertyIds);
-    combinedIds = new HashSet<String>(propertyIds);
+    combinedIds = new HashSet<>(propertyIds);
     combinedIds.addAll(categoryIds);
-    patterns = new HashMap<String, Pattern>();
+    patterns = new HashMap<>();
 
     // convert the argumented metric as it's defined in the JSON file to regex
     for (String id : combinedIds) {
@@ -121,7 +117,7 @@ public abstract class BaseProvider {
       return base;
     }
 
-    Set<String> unsupported = new HashSet<String>();
+    Set<String> unsupported = new HashSet<>();
 
     for (String propertyId : base)
     {
@@ -135,13 +131,13 @@ public abstract class BaseProvider {
 
   public Set<String> checkPropertyIds(Set<String> propertyIds) {
     if (!this.propertyIds.containsAll(propertyIds)) {
-      Set<String> unsupportedPropertyIds = new HashSet<String>(propertyIds);
+      Set<String> unsupportedPropertyIds = new HashSet<>(propertyIds);
       unsupportedPropertyIds.removeAll(combinedIds);
 
       // If the property id is not in the set of known property ids we may still allow it if
       // its parent category is a known property. This allows for Map type properties where
       // we want to treat property as a category and the entries as individual properties.
-      Set<String> categoryProperties = new HashSet<String>();
+      Set<String> categoryProperties = new HashSet<>();
       for (String unsupportedPropertyId : unsupportedPropertyIds) {
         if (checkCategory(unsupportedPropertyId) || checkRegExp(unsupportedPropertyId)) {
           categoryProperties.add(unsupportedPropertyId);
@@ -167,18 +163,18 @@ public abstract class BaseProvider {
 
     // if no properties are specified, then return them all
     if (propertyIds == null || propertyIds.isEmpty()) {
-      return new HashSet<String>(this.propertyIds);
+      return new HashSet<>(this.propertyIds);
     }
 
-    propertyIds = new HashSet<String>(propertyIds);
+    propertyIds = new HashSet<>(propertyIds);
 
     if (predicate != null) {
       propertyIds.addAll(PredicateHelper.getPropertyIds(predicate));
     }
 
     if (!combinedIds.containsAll(propertyIds)) {
-      Set<String> keepers = new HashSet<String>();
-      Set<String> unsupportedPropertyIds = new HashSet<String>(propertyIds);
+      Set<String> keepers = new HashSet<>();
+      Set<String> unsupportedPropertyIds = new HashSet<>(propertyIds);
       unsupportedPropertyIds.removeAll(combinedIds);
 
       for (String unsupportedPropertyId : unsupportedPropertyIds) {
@@ -249,7 +245,7 @@ public abstract class BaseProvider {
    */
   protected List<String> getRegexGroups(String regExpKey, String id) {
     Pattern pattern = patterns.get(regExpKey);
-    List<String> regexGroups = new ArrayList<String>();
+    List<String> regexGroups = new ArrayList<>();
 
     if (pattern != null) {
       Matcher matcher = pattern.matcher(id);
@@ -309,10 +305,7 @@ public abstract class BaseProvider {
 
     if (contains) {
       if (LOG.isDebugEnabled()) {
-        LOG.debug("Setting property for resource"
-            + ", resourceType=" + resource.getType()
-            + ", propertyId=" + propertyId
-            + ", value=" + value);
+        LOG.debug("Setting property for resource, resourceType={}, propertyId={}, value={}", resource.getType(), propertyId, value);
       }
 
       // If the value is a Map then set all of its entries as properties
@@ -335,10 +328,7 @@ public abstract class BaseProvider {
       }
 
       if (!contains && LOG.isDebugEnabled()) {
-        LOG.debug("Skipping property for resource as not in requestedIds"
-            + ", resourceType=" + resource.getType()
-            + ", propertyId=" + propertyId
-            + ", value=" + value);
+        LOG.debug("Skipping property for resource as not in requestedIds, resourceType={}, propertyId={}, value={}", resource.getType(), propertyId, value);
       }
     }
     return contains;

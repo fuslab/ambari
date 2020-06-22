@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,13 +19,15 @@
 
 package org.apache.ambari.server.api.resources;
 
-import org.apache.ambari.server.controller.utilities.ClusterControllerHelper;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+
 import org.apache.ambari.server.api.services.Request;
+import org.apache.ambari.server.api.util.TreeNode;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.spi.Schema;
-import org.apache.ambari.server.api.util.TreeNode;
-
-import java.util.*;
+import org.apache.ambari.server.controller.utilities.ClusterControllerHelper;
 
 /**
  * Component resource definition.

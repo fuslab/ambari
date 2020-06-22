@@ -21,7 +21,11 @@ var App = require('app');
 var manageAlertGroupsController;
 
 function getController() {
-  return App.ManageAlertGroupsController.create({});
+  return App.ManageAlertGroupsController.create({
+    selectedAlertGroup: Em.Object.create({
+      name: ''
+    })
+  });
 }
 
 describe('App.ManageAlertGroupsController', function () {
@@ -198,6 +202,63 @@ describe('App.ManageAlertGroupsController', function () {
         manageAlertGroupsController.addDefinitionsCallback(test.selectedDefinitions);
         expect(manageAlertGroupsController.get('selectedAlertGroup.definitions').toArray()).to.eql(test.e);
       });
+    });
+
+  });
+
+  App.TestAliases.testAsComputedAnd(getController(), 'isDefsModified', ['isLoaded', 'isDefsModifiedAlertGroups']);
+
+  App.TestAliases.testAsComputedOr(getController(), 'isDefsModifiedAlertGroups', ['defsModifiedAlertGroups.toSet.length', 'defsModifiedAlertGroups.toCreate.length', 'defsModifiedAlertGroups.toDelete.length'])
+
+  describe('#addAlertGroup', function () {
+
+    function getAppGroupPopup() {
+      var c = getController();
+      c.addAlertGroup();
+      return c.get('addGroupPopup');
+    }
+
+    App.TestAliases.testAsComputedOr(getAppGroupPopup(), 'disablePrimary', ['alertGroupNameIsEmpty', 'warningMessage']);
+
+  });
+
+  describe('#renameAlertGroup', function () {
+
+    function getRenamePopup() {
+      var c = getController();
+      c.renameAlertGroup();
+      return c.get('renameGroupPopup');
+    }
+
+    App.TestAliases.testAsComputedOr(getRenamePopup(), 'disablePrimary', ['alertGroupNameIsEmpty', 'warningMessage']);
+
+  });
+
+  describe('#alertNotifications', function () {
+    var alertNotifications;
+    beforeEach(function () {
+      sinon.stub(App.AlertNotification, 'find').returns([
+        Em.Object.create({id: 1, name: 'n1', description: 'n1d', type: 'EMAIL', global: true}),
+        Em.Object.create({id: 2, name: 'n2', description: 'n2d', type: 'SNMP', global: false})
+      ]);
+      manageAlertGroupsController.set('isLoaded', true);
+      alertNotifications = manageAlertGroupsController.get('alertNotifications');
+    });
+
+    afterEach(function () {
+      App.AlertNotification.find.restore();
+    });
+
+    it('should be mapped from App.AlertNotification (1)', function () {
+      expect(alertNotifications).to.have.property('length').to.be.equal(2);
+    });
+
+    it('should be mapped from App.AlertNotification (2)', function () {
+      expect(JSON.parse(JSON.stringify(alertNotifications[0]))).to.be.eql({id: 1, name: 'n1', description: 'n1d', type: 'EMAIL', global: true});
+    });
+
+    it('should be mapped from App.AlertNotification (3)', function () {
+      expect(JSON.parse(JSON.stringify(alertNotifications[1]))).to.be.eql({id: 2, name: 'n2', description: 'n2d', type: 'SNMP', global: false});
     });
 
   });

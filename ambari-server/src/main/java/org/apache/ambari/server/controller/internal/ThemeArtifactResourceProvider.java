@@ -18,6 +18,14 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.controller.AmbariManagementController;
 import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
@@ -33,16 +41,12 @@ import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.apache.ambari.server.state.ServiceInfo;
 import org.apache.ambari.server.state.StackInfo;
 import org.apache.ambari.server.state.ThemeInfo;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ThemeArtifactResourceProvider extends AbstractControllerResourceProvider {
+
+  private static final Logger LOG = LoggerFactory.getLogger(ThemeArtifactResourceProvider.class);
 
   public static final String STACK_NAME_PROPERTY_ID = PropertyHelper.getPropertyId("ThemeInfo", "stack_name");
   public static final String STACK_VERSION_PROPERTY_ID = PropertyHelper.getPropertyId("ThemeInfo", "stack_version");
@@ -54,17 +58,17 @@ public class ThemeArtifactResourceProvider extends AbstractControllerResourcePro
   /**
    * primary key fields
    */
-  public static Set<String> pkPropertyIds = new HashSet<String>();
+  public static Set<String> pkPropertyIds = new HashSet<>();
   /**
    * map of resource type to fk field
    */
   public static Map<Resource.Type, String> keyPropertyIds =
-    new HashMap<Resource.Type, String>();
+    new HashMap<>();
 
   /**
    * resource properties
    */
-  public static Set<String> propertyIds = new HashSet<String>();
+  public static Set<String> propertyIds = new HashSet<>();
 
   static {
     keyPropertyIds.put(Resource.Type.Theme, THEME_FILE_NAME_PROPERTY_ID);
@@ -89,7 +93,7 @@ public class ThemeArtifactResourceProvider extends AbstractControllerResourcePro
    * @param managementController the management controller
    */
   protected ThemeArtifactResourceProvider(AmbariManagementController managementController) {
-    super(propertyIds, keyPropertyIds, managementController);
+    super(Resource.Type.Theme, propertyIds, keyPropertyIds, managementController);
   }
 
   @Override
@@ -102,7 +106,7 @@ public class ThemeArtifactResourceProvider extends AbstractControllerResourcePro
   public Set<Resource> getResources(Request request, Predicate predicate) throws SystemException, UnsupportedPropertyException, NoSuchResourceException,
       NoSuchParentResourceException {
 
-    Set<Resource> resources = new LinkedHashSet<Resource>();
+    Set<Resource> resources = new LinkedHashSet<>();
 
     resources.addAll(getThemes(request, predicate));
     // add other artifacts types here
@@ -130,7 +134,7 @@ public class ThemeArtifactResourceProvider extends AbstractControllerResourcePro
   private Set<Resource> getThemes(Request request, Predicate predicate) throws NoSuchParentResourceException,
     NoSuchResourceException, UnsupportedPropertyException, SystemException {
 
-    Set<Resource> resources = new LinkedHashSet<Resource>();
+    Set<Resource> resources = new LinkedHashSet<>();
     for (Map<String, Object> properties : getPropertyMaps(predicate)) {
       String themeFileName = (String) properties.get(THEME_FILE_NAME_PROPERTY_ID);
 
@@ -147,7 +151,7 @@ public class ThemeArtifactResourceProvider extends AbstractControllerResourcePro
           "Parent stack resource doesn't exist: stackName='%s', stackVersion='%s'", stackName, stackVersion));
       }
 
-      List<ServiceInfo> serviceInfoList = new ArrayList<ServiceInfo>();
+      List<ServiceInfo> serviceInfoList = new ArrayList<>();
 
       if (stackService == null) {
         serviceInfoList.addAll(stackInfo.getServices());
@@ -162,7 +166,7 @@ public class ThemeArtifactResourceProvider extends AbstractControllerResourcePro
       }
 
       for (ServiceInfo serviceInfo : serviceInfoList) {
-        List<ThemeInfo> serviceThemes = new ArrayList<ThemeInfo>();
+        List<ThemeInfo> serviceThemes = new ArrayList<>();
         if (themeFileName != null) {
           LOG.debug("Getting themes from service {}, themes = {}", serviceInfo.getName(), serviceInfo.getThemesMap());
           serviceThemes.add(serviceInfo.getThemesMap().get(themeFileName));
@@ -176,7 +180,7 @@ public class ThemeArtifactResourceProvider extends AbstractControllerResourcePro
           }
         }
 
-        List<Resource> serviceResources = new ArrayList<Resource>();
+        List<Resource> serviceResources = new ArrayList<>();
         for (ThemeInfo themeInfo : serviceThemes) {
           Resource resource = new ResourceImpl(Resource.Type.Theme);
           Set<String> requestedIds = getRequestPropertyIds(request, predicate);

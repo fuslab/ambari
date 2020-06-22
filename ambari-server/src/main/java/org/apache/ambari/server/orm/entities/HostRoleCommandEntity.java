@@ -107,7 +107,10 @@ import org.apache.commons.lang.ArrayUtils;
         query = "SELECT DISTINCT(host.hostName) FROM HostRoleCommandEntity command, HostEntity host WHERE command.requestId >= :lowerRequestIdInclusive AND command.requestId < :upperRequestIdExclusive AND command.status IN :statuses AND command.isBackgroundCommand=0 AND command.hostId = host.hostId AND host.hostName IS NOT NULL"),
     @NamedQuery(
         name = "HostRoleCommandEntity.findLatestServiceChecksByRole",
-        query = "SELECT NEW org.apache.ambari.server.orm.dao.HostRoleCommandDAO.LastServiceCheckDTO(command.role, MAX(command.endTime)) FROM HostRoleCommandEntity command WHERE command.roleCommand = :roleCommand AND command.endTime > 0 AND command.stage.clusterId = :clusterId GROUP BY command.role ORDER BY command.role ASC")
+        query = "SELECT NEW org.apache.ambari.server.orm.dao.HostRoleCommandDAO.LastServiceCheckDTO(command.role, MAX(command.endTime)) FROM HostRoleCommandEntity command WHERE command.roleCommand = :roleCommand AND command.endTime > 0 AND command.stage.clusterId = :clusterId GROUP BY command.role ORDER BY command.role ASC"),
+    @NamedQuery(
+      name = "HostRoleCommandEntity.findByRequestId",
+      query = "SELECT command FROM HostRoleCommandEntity command WHERE command.requestId = :requestId ORDER BY command.taskId")
 })
 public class HostRoleCommandEntity {
 
@@ -142,9 +145,9 @@ public class HostRoleCommandEntity {
   @Basic
   private Integer exitcode = 0;
 
-  @Column(name = "status")
+  @Column(name = "status", nullable = false)
   @Enumerated(EnumType.STRING)
-  private HostRoleStatus status;
+  private HostRoleStatus status = HostRoleStatus.PENDING;
 
   @Column(name = "std_error")
   @Lob
@@ -212,6 +215,11 @@ public class HostRoleCommandEntity {
   @Column(name = "command_detail")
   @Basic
   private String commandDetail;
+
+  // An optional property that can be used for setting the displayName for operations window
+  @Column(name = "ops_display_name")
+  @Basic
+  private String opsDisplayName;
 
   // When command type id CUSTOM_COMMAND and CUSTOM_ACTION this is the name
   @Column(name = "custom_command_name")
@@ -409,6 +417,16 @@ public class HostRoleCommandEntity {
   public void setCustomCommandName(String customCommandName) {
     this.customCommandName = customCommandName;
   }
+
+  public String getOpsDisplayName() {
+    return opsDisplayName;
+  }
+
+  public void setOpsDisplayName(String opsDisplayName) {
+    this.opsDisplayName = opsDisplayName;
+  }
+
+  
 
   /**
    * Determine whether this task should hold for retry when an error occurs.

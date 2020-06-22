@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,14 @@
 
 package org.apache.ambari.server.notifications.dispatchers;
 
-import com.google.inject.Singleton;
+import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.RuntimeMXBean;
+import java.math.BigDecimal;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+
 import org.apache.ambari.server.notifications.Notification;
 import org.apache.ambari.server.state.alert.AlertNotification;
 import org.apache.ambari.server.state.alert.TargetType;
@@ -31,16 +38,11 @@ import org.snmp4j.mp.SnmpConstants;
 import org.snmp4j.smi.Integer32;
 import org.snmp4j.smi.OID;
 import org.snmp4j.smi.OctetString;
+import org.snmp4j.smi.TimeTicks;
 import org.snmp4j.smi.VariableBinding;
 import org.snmp4j.util.DefaultPDUFactory;
-import org.snmp4j.smi.TimeTicks;
 
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.util.*;
-
-import java.lang.management.RuntimeMXBean;
-import java.lang.management.ManagementFactory;
+import com.google.inject.Singleton;
 
 /**
  * The {@link AmbariSNMPDispatcher} class is used to dispatch {@link AlertNotification} via SNMP using predefined Ambari OIDs.

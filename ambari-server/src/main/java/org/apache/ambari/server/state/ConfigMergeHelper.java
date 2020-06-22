@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,6 +26,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.ambari.server.AmbariException;
+import org.apache.ambari.server.StackAccessException;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
 import org.apache.commons.collections.CollectionUtils;
 import org.slf4j.Logger;
@@ -60,14 +61,18 @@ public class ConfigMergeHelper {
 
     // Collect service-level properties for old and new stack
     for (String serviceName : cluster.getServices().keySet()) {
+      try {
+        Set<PropertyInfo> newStackProperties = m_ambariMetaInfo.get().getServiceProperties(
+          targetStack.getStackName(), targetStack.getStackVersion(), serviceName);
+        addToMap(newMap, newStackProperties);
+      } catch (StackAccessException e) {
+        LOG.info("Skipping service {} which is currently installed but does not exist in the target stack {}", serviceName, targetStack);
+        continue;
+      }
       Set<PropertyInfo> oldStackProperties = m_ambariMetaInfo.get().getServiceProperties(
           oldStack.getStackName(), oldStack.getStackVersion(), serviceName);
       addToMap(oldMap, oldStackProperties);
-
-      Set<PropertyInfo> newStackProperties = m_ambariMetaInfo.get().getServiceProperties(
-          targetStack.getStackName(), targetStack.getStackVersion(), serviceName);
-      addToMap(newMap, newStackProperties);
-    }
+  }
 
     // Collect stack-level properties defined for old and new stack
     Set<PropertyInfo> set = m_ambariMetaInfo.get().getStackProperties(
@@ -80,7 +85,7 @@ public class ConfigMergeHelper {
 
     // Final result after merging.
     Map<String, Map<String, ThreeWayValue>> result =
-        new HashMap<String, Map<String, ThreeWayValue>>();
+      new HashMap<>();
 
     // For every property of every config type, see if it is going to be merged:
     for (Entry<String, Map<String, String>> entry : oldMap.entrySet()) {
@@ -117,7 +122,7 @@ public class ConfigMergeHelper {
             twv.savedValue = savedVal.trim();
 
             if (!result.containsKey(entry.getKey())) {
-              result.put(entry.getKey(), new HashMap<String, ThreeWayValue>());
+              result.put(entry.getKey(), new HashMap<>());
             }
 
             result.get(entry.getKey()).put(prop, twv);
@@ -152,7 +157,7 @@ public class ConfigMergeHelper {
           twv.savedValue = (null == savedVal) ? null : savedVal.trim();
 
           if (!result.containsKey(entry.getKey())) {
-            result.put(entry.getKey(), new HashMap<String, ThreeWayValue>());
+            result.put(entry.getKey(), new HashMap<>());
           }
 
           result.get(entry.getKey()).put(prop, twv);
@@ -168,7 +173,7 @@ public class ConfigMergeHelper {
       String type = ConfigHelper.fileNameToConfigType(pi.getFilename());
 
       if (!map.containsKey(type)) {
-        map.put(type, new HashMap<String, String>());
+        map.put(type, new HashMap<>());
       }
       map.get(type).put(pi.getName(), pi.getValue());
     }

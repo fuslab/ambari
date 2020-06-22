@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -47,7 +47,6 @@ import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.controller.utilities.PredicateHelper;
 import org.apache.ambari.server.orm.dao.HostRoleCommandDAO;
 import org.apache.ambari.server.orm.dao.HostRoleCommandStatusSummaryDTO;
-import org.apache.ambari.server.orm.dao.RequestDAO;
 import org.apache.ambari.server.orm.dao.StageDAO;
 import org.apache.ambari.server.orm.entities.StageEntity;
 import org.apache.ambari.server.state.Cluster;
@@ -57,6 +56,8 @@ import org.apache.ambari.server.topology.TopologyManager;
 import org.apache.ambari.server.utils.SecretReference;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.math.NumberUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Sets;
 
@@ -65,6 +66,8 @@ import com.google.common.collect.Sets;
  */
 @StaticallyInject
 public class StageResourceProvider extends AbstractControllerResourceProvider implements ExtendedResourceProvider {
+
+  private static final Logger LOG = LoggerFactory.getLogger(StageResourceProvider.class);
 
   /**
    * Used for querying stage resources.
@@ -104,13 +107,13 @@ public class StageResourceProvider extends AbstractControllerResourceProvider im
   /**
    * The property ids for a stage resource.
    */
-  static final Set<String> PROPERTY_IDS = new HashSet<String>();
+  static final Set<String> PROPERTY_IDS = new HashSet<>();
 
   /**
    * The key property ids for a stage resource.
    */
   private static final Map<Resource.Type, String> KEY_PROPERTY_IDS =
-      new HashMap<Resource.Type, String>();
+    new HashMap<>();
 
   static {
     // properties
@@ -147,14 +150,14 @@ public class StageResourceProvider extends AbstractControllerResourceProvider im
    * @param managementController  the Ambari management controller
    */
   StageResourceProvider(AmbariManagementController managementController) {
-    super(PROPERTY_IDS, KEY_PROPERTY_IDS, managementController);
+    super(Resource.Type.Stage, PROPERTY_IDS, KEY_PROPERTY_IDS, managementController);
   }
 
   // ----- AbstractResourceProvider ------------------------------------------
 
   @Override
   protected Set<String> getPKPropertyIds() {
-    return new HashSet<String>(KEY_PROPERTY_IDS.values());
+    return new HashSet<>(KEY_PROPERTY_IDS.values());
   }
 
 
@@ -205,7 +208,7 @@ public class StageResourceProvider extends AbstractControllerResourceProvider im
       throws SystemException, UnsupportedPropertyException,
       NoSuchResourceException, NoSuchParentResourceException {
 
-    Set<Resource> results     = new LinkedHashSet<Resource>();
+    Set<Resource> results     = new LinkedHashSet<>();
     Set<String>   propertyIds = getRequestPropertyIds(request, predicate);
 
     // !!! poor mans cache.  toResource() shouldn't be calling the db
@@ -306,7 +309,6 @@ public class StageResourceProvider extends AbstractControllerResourceProvider im
     setResourceProperty(resource, STAGE_REQUEST_ID, entity.getRequestId(), requestedIds);
     setResourceProperty(resource, STAGE_CONTEXT, entity.getRequestContext(), requestedIds);
 
-    // this property is lazy loaded in JPA; don't use it unless requested
     if (isPropertyRequested(STAGE_COMMAND_PARAMS, requestedIds)) {
       String value = entity.getCommandParamsStage();
       if (!StringUtils.isBlank(value)) {

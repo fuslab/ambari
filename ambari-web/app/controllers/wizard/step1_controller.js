@@ -61,7 +61,19 @@ App.WizardStep1Controller = Em.Controller.extend({
    *
    * @type {boolean}
    */
-  networkIssuesExist: Em.computed.everyBy('content.stacks', 'stackDefault', true),
+  networkIssuesExist: function() {
+    if (this.get('content.stacks') && this.get('content.stacks.length') > 1) {
+      return this.get('content.stacks').everyProperty('stackDefault', true);
+    }
+    return false;
+  }.property('content.stacks.@each.stackDefault'),
+
+  /**
+   * No stacks have repo update URL section (aka "latest") defined in repoinfo.xml
+   *
+   * @type {boolean}
+   */
+  stackRepoUpdateLinkExists: Em.computed.someBy('content.stacks', 'stackRepoUpdateLinkExists', true),
 
   optionsToSelect: {
     'usePublicRepo': {
@@ -182,11 +194,13 @@ App.WizardStep1Controller = Em.Controller.extend({
   onNetworkIssuesExist: function() {
     if (this.get('networkIssuesExist')) {
       this.get('content.stacks').forEach(function (stack) {
-        stack.setProperties({
-          usePublicRepo: false,
-          useLocalRepo: true
-        });
-        stack.cleanReposBaseUrls();
+       if(stack.get('useLocalRepo') !== true){
+          stack.setProperties({
+            usePublicRepo: false,
+            useLocalRepo: true
+          });
+          stack.cleanReposBaseUrls();
+        }
       });
     }
   }.observes('networkIssuesExist'),
@@ -290,6 +304,8 @@ App.WizardStep1Controller = Em.Controller.extend({
 
       disablePrimary: Em.computed.alias('controller.readInfoIsNotProvided'),
 
+      'data-qa': 'vdf-modal',
+
       /**
        * Try to read version info from the url or file (if provided)
        */
@@ -304,7 +320,7 @@ App.WizardStep1Controller = Em.Controller.extend({
             App.showAlertPopup(Em.I18n.t('common.warning'), Em.I18n.t('installer.step1.addVersion.stackChanged.popup.body').format(oldStackNameVersion, response.stackNameVersion));
           }
           Ember.run.next(function () {
-            $("[rel=skip-validation-tooltip]").tooltip({placement: 'right'});
+            App.tooltip($("[rel=skip-validation-tooltip]"), {html: true, placement: 'left'});
             $("[rel=use-redhat-tooltip]").tooltip({placement: 'right'});
           });
         });
@@ -354,14 +370,13 @@ App.WizardStep1Controller = Em.Controller.extend({
           classNames: ['clearfix'],
 
           /**
-           * Checkbox for Use local Repo > Upload VDF file
+           * Radio button for Use local Repo > Upload VDF file
            *
-           * @type {Ember.Checkbox}
+           * @type {App.RadioButtonView}
            */
-          uploadFileRadioButton: Em.Checkbox.extend({
-            attributeBindings: ['type', 'checked'],
-            checked: Em.computed.alias('controller.optionsToSelect.useLocalRepo.uploadFile.isSelected'),
-            type: 'radio'
+          uploadFileRadioButton: App.RadioButtonView.extend({
+            labelTranslate: 'installer.step1.useLocalRepo.uploadFile',
+            checked: Em.computed.alias('controller.optionsToSelect.useLocalRepo.uploadFile.isSelected')
           }),
 
           /**
@@ -384,9 +399,7 @@ App.WizardStep1Controller = Em.Controller.extend({
            * @type {Em.View}
            */
           fileInputView: Em.View.extend({
-            template: Em.Handlebars.compile('<input type="file" {{bindAttr class="controller.optionsToSelect.useLocalRepo.enterUrl.isSelected:disabled"}} />'),
-
-            classNames: ['vdf-input-indentation'],
+            template: Em.Handlebars.compile('<input type="file" {{bindAttr class="controller.optionsToSelect.useLocalRepo.enterUrl.isSelected:disabled"}} {{QAAttr "vdf-input"}}/>'),
 
             change: function (e) {
               var self = this;
@@ -439,14 +452,13 @@ App.WizardStep1Controller = Em.Controller.extend({
           }),
 
           /**
-           * Checkbox for Use local Repo > Enter Url of VDF file
+           * Radio button for Use local Repo > Enter Url of VDF file
            *
-           * @type {Ember.Checkbox}
+           * @type {App.RadioButtonView}
            */
-          enterUrlRadioButton: Em.Checkbox.extend({
-            attributeBindings: [ 'type', 'checked' ],
-            checked: Em.computed.alias('controller.optionsToSelect.useLocalRepo.enterUrl.isSelected'),
-            type: 'radio',
+          enterUrlRadioButton: App.RadioButtonView.extend({
+            labelTranslate: 'installer.step1.useLocalRepo.enterUrl',
+            checked: Em.computed.alias('controller.optionsToSelect.useLocalRepo.enterUrl.isSelected')
           }),
 
           click: function () {

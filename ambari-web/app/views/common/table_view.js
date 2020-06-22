@@ -19,7 +19,7 @@
 var App = require('app');
 var filters = require('views/common/filter_view');
 
-App.TableView = Em.View.extend(App.UserPref, {
+App.TableView = Em.View.extend(App.Persist, {
 
   init: function() {
     this.set('filterConditions', []);
@@ -68,6 +68,16 @@ App.TableView = Em.View.extend(App.UserPref, {
    * total number of items in table before applying filters
    */
   totalCount: Em.computed.alias('content.length'),
+
+  /**
+   * Determines whether current page is the first one
+   */
+  isCurrentPageFirst: Em.computed.lte('startIndex', 1),
+
+  /**
+   * Determines whether current page is the last one
+   */
+  isCurrentPageLast: Em.computed.equalProperties('endIndex', 'filteredCount'),
 
   /**
    * Do filtering, using saved in the local storage filter conditions
@@ -182,89 +192,6 @@ App.TableView = Em.View.extend(App.UserPref, {
    */
   paginationInfo: Em.computed.i18nFormat('tableView.filters.paginationInfo', 'startIndex', 'endIndex', 'filteredCount'),
 
-  paginationLeft: Ember.View.extend({
-    tagName: 'a',
-    template: Ember.Handlebars.compile('<i class="icon-arrow-left"></i>'),
-    classNameBindings: ['class'],
-    class: function () {
-      if (this.get("parentView.startIndex") > 1) {
-        return "paginate_previous";
-      }
-      return "paginate_disabled_previous";
-    }.property("parentView.startIndex", 'parentView.filteredCount'),
-
-    click: function () {
-      if (this.get('class') === "paginate_previous") {
-        this.get('parentView').previousPage();
-      }
-    }
-  }),
-
-  paginationRight: Ember.View.extend({
-    tagName: 'a',
-    template: Ember.Handlebars.compile('<i class="icon-arrow-right"></i>'),
-    classNameBindings: ['class'],
-    class: function () {
-      if ((this.get("parentView.endIndex")) < this.get("parentView.filteredCount")) {
-        return "paginate_next";
-      }
-      return "paginate_disabled_next";
-    }.property("parentView.endIndex", 'parentView.filteredCount'),
-
-    click: function () {
-      if (this.get('class') === "paginate_next") {
-        this.get('parentView').nextPage();
-      }
-    }
-  }),
-
-  paginationFirst: Ember.View.extend({
-    tagName: 'a',
-    template: Ember.Handlebars.compile('<i class="icon-step-backward"></i>'),
-    classNameBindings: ['class'],
-    class: function () {
-      if ((this.get("parentView.endIndex")) > parseInt(this.get("parentView.displayLength"))) {
-        return "paginate_previous";
-      }
-      return "paginate_disabled_previous";
-    }.property("parentView.endIndex", 'parentView.filteredCount'),
-
-    click: function () {
-      if (this.get('class') === "paginate_previous") {
-        this.get('parentView').firstPage();
-      }
-    }
-  }),
-
-  paginationLast: Ember.View.extend({
-    tagName: 'a',
-    template: Ember.Handlebars.compile('<i class="icon-step-forward"></i>'),
-    classNameBindings: ['class'],
-    class: function () {
-      if (this.get("parentView.endIndex") !== this.get("parentView.filteredCount")) {
-        return "paginate_next";
-      }
-      return "paginate_disabled_next";
-    }.property("parentView.endIndex", 'parentView.filteredCount'),
-
-    click: function () {
-      if (this.get('class') === "paginate_next") {
-        this.get('parentView').lastPage();
-      }
-    }
-  }),
-
-  /**
-   * Select View with list of "rows-per-page" options
-   * @type {Ember.View}
-   */
-  rowsPerPageSelectView: Em.Select.extend({
-    content: ['10', '25', '50', '100'],
-    change: function () {
-      this.get('parentView').saveDisplayLength();
-    }
-  }),
-
   /**
    * Start index for displayed content on the page
    */
@@ -342,6 +269,17 @@ App.TableView = Em.View.extend(App.UserPref, {
   updateFilter: function (iColumn, value, type) {
     this.saveFilterConditions(iColumn, value, type, false);
     this.filtersUsedCalc();
+    this.filter();
+  },
+
+  /**
+   *
+   * @param {Array} filterConditions
+   */
+  updateComboFilter: function(filterConditions) {
+    this.set('controller.resetStartIndex', true);
+    this.set('filterConditions', filterConditions);
+    this.saveAllFilterConditions();
     this.filter();
   },
 

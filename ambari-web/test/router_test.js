@@ -102,7 +102,7 @@ describe('App.Router', function () {
           }
         }, {
           'RootServiceComponents': {
-            'component_version': '2.0.0'
+            'component_version': '2.0.0_MyBuild'
           }
         }]
       },
@@ -128,7 +128,7 @@ describe('App.Router', function () {
       mockData: {
         components: [{
           'RootServiceComponents': {
-            component_version: '2.1.0'
+            component_version: '2.1.0_MyBuild'
           }
         }]
       },
@@ -459,6 +459,26 @@ describe('App.Router', function () {
         responseData: {
           responseText: JSON.stringify({jwtProviderUrl: 'http://some.com?originalUrl='}),
           status: 403
+        },
+        redirectCalled: false,
+        m: 'jwtProviderUrl is present, current location is local login url, no redirect'
+      },
+      {
+        lastSetURL: '/main/dashboard',
+        isResolved: false,
+        responseData: {
+          responseText: JSON.stringify({jwtProviderUrl: 'http://some.com?originalUrl='}),
+          status: 401
+        },
+        redirectCalled: true,
+        m: 'jwtProviderUrl is present, current location not local login url, redirect according to jwtProviderUrl value'
+      },
+      {
+        lastSetURL: '/login/local',
+        isResolved: false,
+        responseData: {
+          responseText: JSON.stringify({jwtProviderUrl: 'http://some.com?originalUrl='}),
+          status: 401
         },
         redirectCalled: false,
         m: 'jwtProviderUrl is present, current location is local login url, no redirect'

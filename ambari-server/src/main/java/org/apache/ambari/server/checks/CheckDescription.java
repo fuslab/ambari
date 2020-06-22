@@ -28,7 +28,6 @@ import com.google.common.collect.ImmutableMap;
  * done for Stack Upgrades.
  */
 public class CheckDescription {
-
   public static CheckDescription CLIENT_RETRY = new CheckDescription("CLIENT_RETRY",
     PrereqCheckType.SERVICE,
     "Client Retry Properties",
@@ -87,11 +86,6 @@ public class CheckDescription {
     new ImmutableMap.Builder<String, String>()
       .put(AbstractCheckDescriptor.DEFAULT,
           "The following hosts must have version {{version}} installed: {{fails}}.").build());
-
-   public static CheckDescription KAFKA_PROPERTIES_VALIDATION = new CheckDescription("KAFKA_PROPERTIES_VALIDATION",
-    PrereqCheckType.SERVICE,"Kafka properties should be set correctly",
-    new ImmutableMap.Builder<String, String>().put( AbstractCheckDescriptor.DEFAULT,
-      "The following Kafka properties should be set properly: {{fails}}").build());
 
   public static CheckDescription SECONDARY_NAMENODE_MUST_BE_DELETED = new CheckDescription("SECONDARY_NAMENODE_MUST_BE_DELETED",
     PrereqCheckType.HOST,
@@ -224,6 +218,14 @@ public class CheckDescription {
       .put(HiveDynamicServiceDiscoveryCheck.HIVE_DYNAMIC_SERVICE_ZK_NAMESPACE_KEY,
           "The hive-site.xml property hive.server2.zookeeper.namespace should be set to the value for the root namespace on ZooKeeper.").build());
 
+  public static CheckDescription AMS_HADOOP_SINK_VERSION_COMPATIBILITY = new CheckDescription("AMS_HADOOP_SINK_VERSION_COMPATIBILITY",
+    PrereqCheckType.HOST,
+    "Ambari Metrics Hadoop Sinks need to be compatible with the stack version. This check ensures that compatibility.",
+    new ImmutableMap.Builder<String, String>().put(AbstractCheckDescriptor.DEFAULT,"Hadoop Sink version check failed. " +
+      "To fix this, please upgrade 'ambari-metrics-hadoop-sink' package to %s on all the failed hosts")
+      .put(AmbariMetricsHadoopSinkVersionCompatibilityCheck.HADOOP_SINK_VERSION_NOT_SPECIFIED, "Hadoop Sink version for pre-check not specified. " +
+        "Please use 'min-hadoop-sink-version' property in upgrade pack to specify min hadoop sink version").build());
+
   public static CheckDescription CONFIG_MERGE = new CheckDescription("CONFIG_MERGE",
     PrereqCheckType.CLUSTER,
     "Configuration Merge Check",
@@ -284,8 +286,7 @@ public class CheckDescription {
           "After upgrading, %s can be reinstalled")
       .put(ServicePresenceCheck.KEY_SERVICE_REMOVED,
           "The %s service is currently installed on the cluster. " +
-          "This service is removed from the new release and must be removed before the upgrade can continue. " +
-          "After upgrading, %s can be installed").build());
+          "This service is removed from the new release and must be removed before the upgrade can continue.").build());
 
   public static CheckDescription RANGER_SERVICE_AUDIT_DB_CHECK = new CheckDescription("RANGER_SERVICE_AUDIT_DB_CHECK",
     PrereqCheckType.SERVICE,
@@ -349,11 +350,13 @@ public class CheckDescription {
           .build());
 
   public static CheckDescription COMPONENTS_EXIST_IN_TARGET_REPO = new CheckDescription("COMPONENTS_EXIST_IN_TARGET_REPO",
-      PrereqCheckType.CLUSTER,
-      "Verify Cluster Components Exist In Target Repository",
-      new ImmutableMap.Builder<String, String>()
-        .put(AbstractCheckDescriptor.DEFAULT, "The following components do not exist in the target repository's stack. They must be removed from the cluster before upgrading.")
-          .build());
+    PrereqCheckType.CLUSTER,
+    "Check installed services which are not supported in the installed stack",
+    new ImmutableMap.Builder<String, String>()
+      .put(ComponentsExistInRepoCheck.AUTO_REMOVE, "The following services and/or components do not exist in the target stack and will be automatically removed during the upgrade.")
+      .put(ComponentsExistInRepoCheck.MANUAL_REMOVE, "The following components do not exist in the target repository's stack. They must be removed from the cluster before upgrading.")
+      .build()
+    );
 
   public static CheckDescription DRUID_HA_WARNING = new CheckDescription(
       "DRUID_HA",
@@ -366,14 +369,45 @@ public class CheckDescription {
           )
           .build()
   );
-  
+
   public static CheckDescription VALID_SERVICES_INCLUDED_IN_REPOSITORY = new CheckDescription("VALID_SERVICES_INCLUDED_IN_REPOSITORY",
       PrereqCheckType.CLUSTER,
       "The repository is missing services which are required",
       new ImmutableMap.Builder<String, String>()
         .put(AbstractCheckDescriptor.DEFAULT,
             "The following services are included in the upgrade but the repository is missing their dependencies:\n%s").build());
-  
+
+
+  public static CheckDescription ATLAS_MIGRATION_PROPERTY_CHECK = new CheckDescription("ATLAS_MIGRATION_PROPERTY_CHECK",
+    PrereqCheckType.SERVICE, "Check for Atlas Migration Property before upgrade.",
+      new ImmutableMap.Builder<String,String>().put(AbstractCheckDescriptor.DEFAULT,
+        "The property atlas.migration.data.filename is missing from application-properties. Do not use atlas conf path ie /etc/atlas/conf as the value." +
+        "After upgrading Atlas will no longer support TitanDB, instead it will support JanusGraph." +
+        "Hence need to migrate existing data to newer formats post upgrade. " +
+        "To migrate existing data, Kindly refer and follow Apache Atlas documentation for 1.0 release.").build());
+
+  public static CheckDescription KERBEROS_ADMIN_CREDENTIAL_CHECK = new CheckDescription("KERBEROS_ADMIN_CREDENTIAL_CHECK",
+      PrereqCheckType.CLUSTER,
+      "The KDC administrator credentials need to be stored in Ambari persisted credential store.",
+      new ImmutableMap.Builder<String, String>()
+          .put(KerberosAdminPersistedCredentialCheck.KEY_PERSISTED_STORE_NOT_CONFIGURED,
+              "Ambari's credential store has not been configured.  " +
+                  "This is needed so the KDC administrator credential may be stored long enough to ensure it will be around if needed during the upgrade process.")
+          .put(KerberosAdminPersistedCredentialCheck.KEY_CREDENTIAL_NOT_STORED,
+              "The KDC administrator credential has not been stored in the persisted credential store. " +
+                  "Visit the Kerberos administrator page to set the credential. " +
+                  "This is needed so the KDC administrator credential may be stored long enough to ensure it will be around if needed during the upgrade process.")
+          .build());
+
+
+  public static final CheckDescription MISSING_OS_IN_REPO_VERSION = new CheckDescription("MISSING_OS_IN_REPO_VERSION",
+    PrereqCheckType.CLUSTER,
+    "Missing OS in repository version.",
+    new ImmutableMap.Builder<String, String>()
+      .put(MissingOsInRepoVersionCheck.SOURCE_OS, "The source version must have an entry for each OS type in the cluster")
+      .put(MissingOsInRepoVersionCheck.TARGET_OS, "The target version must have an entry for each OS type in the cluster")
+      .build());
+
 
   private String m_name;
   private PrereqCheckType m_type;

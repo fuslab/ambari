@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,9 +20,6 @@ package org.apache.ambari.server.orm.dao;
 import java.sql.SQLException;
 import java.util.Set;
 
-import com.google.inject.Inject;
-import junit.framework.Assert;
-
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.H2DatabaseCleaner;
 import org.apache.ambari.server.orm.GuiceJpaInitializer;
@@ -35,7 +32,10 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.google.inject.Guice;
+import com.google.inject.Inject;
 import com.google.inject.Injector;
+
+import junit.framework.Assert;
 
 /**
  * Tests host config mapping DAO and Entities

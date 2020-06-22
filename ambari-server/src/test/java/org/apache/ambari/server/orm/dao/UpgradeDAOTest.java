@@ -87,7 +87,7 @@ public class UpgradeDAOTest {
     requestEntity.setRequestId(99L);
     requestEntity.setClusterId(clusterId.longValue());
     requestEntity.setStatus(HostRoleStatus.PENDING);
-    requestEntity.setStages(new ArrayList<StageEntity>());
+    requestEntity.setStages(new ArrayList<>());
     requestDAO.create(requestEntity);
 
     repositoryVersion2200 = helper.getOrCreateRepositoryVersion(new StackId("HDP", "2.2.0"), "2.2.0.0-1234");
@@ -168,7 +168,7 @@ public class UpgradeDAOTest {
     requestEntity.setRequestId(1L);
     requestEntity.setClusterId(clusterId.longValue());
     requestEntity.setStatus(HostRoleStatus.PENDING);
-    requestEntity.setStages(new ArrayList<StageEntity>());
+    requestEntity.setStages(new ArrayList<>());
     requestDAO.create(requestEntity);
 
     UpgradeEntity entity1 = new UpgradeEntity();
@@ -217,7 +217,7 @@ public class UpgradeDAOTest {
     requestEntity.setRequestId(1L);
     requestEntity.setClusterId(clusterId.longValue());
     requestEntity.setStatus(HostRoleStatus.PENDING);
-    requestEntity.setStages(new ArrayList<StageEntity>());
+    requestEntity.setStages(new ArrayList<>());
     requestDAO.create(requestEntity);
 
     UpgradeEntity upgradeEntity = new UpgradeEntity();

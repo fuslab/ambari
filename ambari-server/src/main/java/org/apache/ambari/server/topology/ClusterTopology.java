@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,11 @@
 
 package org.apache.ambari.server.topology;
 
-import org.apache.ambari.server.controller.RequestStatusResponse;
-import org.apache.ambari.server.controller.internal.ProvisionAction;
-
 import java.util.Collection;
 import java.util.Map;
+
+import org.apache.ambari.server.controller.RequestStatusResponse;
+import org.apache.ambari.server.controller.internal.ProvisionAction;
 
 /**
  * Represents a full cluster topology including all instance information as well as the associated
@@ -180,4 +180,8 @@ public interface ClusterTopology {
 
   String getDefaultPassword();
 
+  /**
+   * @return true if the topology contains any service with HCFS tag
+   */
+  boolean hasHadoopCompatibleService();
 }

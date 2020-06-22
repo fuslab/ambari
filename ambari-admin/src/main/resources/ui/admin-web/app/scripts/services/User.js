@@ -18,7 +18,7 @@
 'use strict';
 
 angular.module('ambariAdminConsole')
-  .factory('User', ['Restangular', '$http', 'Settings', 'UserConstants', '$translate', function(Restangular, $http, Settings, UserConstants, $translate) {
+.factory('User', ['Restangular', '$http', 'Settings', 'UserConstants', '$translate', 'Cluster', 'Auth', function(Restangular, $http, Settings, UserConstants, $translate, Cluster, Auth) {
   Restangular.addResponseInterceptor(function(data, operation, what, url, response, deferred) {
     var extractedData;
     if(operation === 'getList'){
@@ -31,26 +31,22 @@ angular.module('ambariAdminConsole')
     return extractedData;
   });
   var $t = $translate.instant;
-  var Users = Restangular.all('users');
 
   return {
-    list: function(params) {
-      return $http.get(
-        Settings.baseUrl + '/users/?'
-        + 'Users/user_name.matches(.*'+params.searchString+'.*)'
-        + '&fields=*'
-        + '&from=' + (params.currentPage-1)*params.usersPerPage
-        + '&page_size=' + params.usersPerPage
-        + (params.user_type === '*' ? '' : '&Users/user_type=' + params.user_type)
-        + (params.active === '*' ? '' : '&Users/active=' + params.active)
-        + (params.admin ? '&Users/admin=true' : '')
-      );
+    list: function() {
+      return $http.get(Settings.baseUrl + '/users?fields=Users/*,privileges/*');
     },
     listByName: function(name) {
       return $http.get(
         Settings.baseUrl + '/users?'
         + 'Users/user_name.matches(.*'+name+'.*)'
         + '&from=0&page_size=20'
+      );
+    },
+    getWithRoles: function(userId) {
+      return $http.get(
+        Settings.baseUrl + '/users/' + userId
+        + '?fields=privileges/PrivilegeInfo,Users'
       );
     },
     get: function(userId) {
@@ -85,6 +81,15 @@ angular.module('ambariAdminConsole')
         }
       });
     },
+    resetLoginFailures: function(userId) {
+      return $http({
+        method: 'PUT',
+        url: Settings.baseUrl + '/users/' + userId,
+        data: {
+          'Users/consecutive_failures': 0
+        }
+      });
+    },
     /**
      * Generate user info to display by response data from API.
      * Generally this is a single point to manage all required and useful data
@@ -94,9 +99,15 @@ angular.module('ambariAdminConsole')
      * @returns {Object}
      */
     makeUser: function(user) {
-      user.Users.encoded_name = encodeURIComponent(user.Users.user_name);
+      user.Users.isDeletable = !(user.Users.user_name === Auth.getCurrentUser() || user.Users.user_type !== 'LOCAL');
+      user.Users.encodedName = encodeURIComponent(user.Users.user_name);
       user.Users.userTypeName = $t(UserConstants.TYPES[user.Users.user_type].LABEL_KEY);
-      user.Users.ldap_user = user.Users.user_type === UserConstants.TYPES.LDAP.VALUE;
+      user.Users.ldapUser = user.Users.user_type === UserConstants.TYPES.LDAP.VALUE;
+      user.Users.roles = Cluster.sortRoles(user.privileges.filter(function(item) {
+        return item.PrivilegeInfo.type === 'CLUSTER' || item.PrivilegeInfo.type === 'AMBARI';
+      }).map(function(item) {
+        return item.PrivilegeInfo;
+      }));
 
       return user;
     }

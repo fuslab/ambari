@@ -17,7 +17,9 @@ limitations under the License.
 
 """
 
-from resource_management import *
+from resource_management.libraries.script.script import Script
+from resource_management.libraries.functions.format import format
+from resource_management.core.resources.system import Execute
 from ambari_commons import OSConst
 from ambari_commons.os_family_impl import OsFamilyFuncImpl, OsFamilyImpl
 
@@ -36,11 +38,11 @@ class FlumeServiceCheck(Script):
     import params
     env.set_params(params)
     if params.security_enabled:
-      principal_replaced = params.http_principal.replace("_HOST", params.hostname)
-      Execute(format("{kinit_path_local} -kt {http_keytab} {principal_replaced}"),
-              user=params.smoke_user)
+      Execute(format("{kinit_path_local} -kt {smoke_user_keytab} {smokeuser_principal}"),
+              user=params.smokeuser)
 
     Execute(format('env JAVA_HOME={java_home} {flume_bin} version'),
+            user=params.smokeuser,
             logoutput=True,
             tries = 3,
             try_sleep = 20)

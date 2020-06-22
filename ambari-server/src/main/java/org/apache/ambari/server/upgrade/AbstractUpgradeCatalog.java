@@ -42,11 +42,14 @@ import javax.persistence.EntityManager;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
+import org.apache.ambari.annotations.Experimental;
+import org.apache.ambari.annotations.ExperimentalFeature;
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
 import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.configuration.Configuration.DatabaseType;
 import org.apache.ambari.server.controller.AmbariManagementController;
+import org.apache.ambari.server.controller.AmbariManagementControllerImpl;
 import org.apache.ambari.server.orm.DBAccessor;
 import org.apache.ambari.server.orm.dao.AlertDefinitionDAO;
 import org.apache.ambari.server.orm.dao.ArtifactDAO;
@@ -67,6 +70,7 @@ import org.apache.ambari.server.state.Config;
 import org.apache.ambari.server.state.ConfigHelper;
 import org.apache.ambari.server.state.PropertyInfo;
 import org.apache.ambari.server.state.PropertyUpgradeBehavior;
+import org.apache.ambari.server.state.Service;
 import org.apache.ambari.server.state.ServiceInfo;
 import org.apache.ambari.server.state.StackId;
 import org.apache.ambari.server.state.StackInfo;
@@ -102,6 +106,8 @@ public abstract class AbstractUpgradeCatalog implements UpgradeCatalog {
   protected DBAccessor dbAccessor;
   @Inject
   protected Configuration configuration;
+  @Inject
+  protected AmbariManagementControllerImpl ambariManagementController;
 
   protected Injector injector;
 
@@ -202,6 +208,28 @@ public abstract class AbstractUpgradeCatalog implements UpgradeCatalog {
     // ToDo: rewrite function to use one SQL call per select/insert for all items
     for (String seqName: seqNames){
       addSequence(seqName, seqDefaultValue, ignoreFailure);
+    }
+  }
+
+  /**
+   * Fetches the maximum value of the given ID column from the given table.
+   *
+   * @param tableName
+   *          the name of the table to query the data from
+   * @param idColumnName
+   *          the name of the ID column you want to query the maximum value for.
+   *          This MUST refer an existing numeric type column
+   * @return the maximum value of the given column in the given table if any;
+   *         <code>0L</code> otherwise.
+   * @throws SQLException
+   */
+  protected final long fetchMaxId(String tableName, String idColumnName) throws SQLException {
+    try (Statement stmt = dbAccessor.getConnection().createStatement();
+        ResultSet rs = stmt.executeQuery(String.format("SELECT MAX(%s) FROM %s", idColumnName, tableName))) {
+      if (rs.next()) {
+        return rs.getLong(1);
+      }
+      return 0L;
     }
   }
 
@@ -402,17 +430,17 @@ public abstract class AbstractUpgradeCatalog implements UpgradeCatalog {
               // Do nothing
             } else if (upgradeBehavior.isDelete()) {
               if (!toRemoveProperties.containsKey(configType)) {
-                toRemoveProperties.put(configType, new HashSet<String>());
+                toRemoveProperties.put(configType, new HashSet<>());
               }
               toRemoveProperties.get(configType).add(property.getName());
             } else if (upgradeBehavior.isUpdate()) {
               if (!toUpdateProperties.containsKey(configType)) {
-                toUpdateProperties.put(configType, new HashSet<String>());
+                toUpdateProperties.put(configType, new HashSet<>());
               }
               toUpdateProperties.get(configType).add(property.getName());
             } else if (upgradeBehavior.isAdd()) {
               if (!toAddProperties.containsKey(configType)) {
-                toAddProperties.put(configType, new HashSet<String>());
+                toAddProperties.put(configType, new HashSet<>());
               }
               toAddProperties.get(configType).add(property.getName());
             }
@@ -431,7 +459,7 @@ public abstract class AbstractUpgradeCatalog implements UpgradeCatalog {
 
         for (Entry<String, Set<String>> toRemove : toRemoveProperties.entrySet()) {
           String newPropertyKey = toRemove.getKey();
-          updateConfigurationPropertiesWithValuesFromXml(newPropertyKey, Collections.<String>emptySet(), toRemove.getValue(), false, true);
+          updateConfigurationPropertiesWithValuesFromXml(newPropertyKey, Collections.emptySet(), toRemove.getValue(), false, true);
         }
       }
     }
@@ -592,13 +620,15 @@ public abstract class AbstractUpgradeCatalog implements UpgradeCatalog {
             propertiesAttributes = Collections.emptyMap();
           }
 
-          controller.createConfig(cluster, cluster.getDesiredStackVersion(), configType, mergedProperties, newTag, propertiesAttributes);
+          controller.createConfig(cluster, cluster.getDesiredStackVersion(), configType,
+              mergedProperties, newTag, propertiesAttributes);
 
           Config baseConfig = cluster.getConfig(configType, newTag);
           if (baseConfig != null) {
             String authName = AUTHENTICATED_USER_NAME;
 
-            if (cluster.addDesiredConfig(authName, Collections.singleton(baseConfig)) != null) {
+            String configVersionNote = String.format("Updated %s during Ambari Upgrade from %s to %s.", configType, getSourceVersion(), getTargetVersion());
+            if (cluster.addDesiredConfig(authName, Collections.singleton(baseConfig), configVersionNote) != null) {
               String oldConfigString = (oldConfig != null) ? " from='" + oldConfig.getTag() + "'" : "";
               LOG.info("cluster '" + cluster.getClusterName() + "' "
                 + "changed by: '" + authName + "'; "
@@ -606,6 +636,9 @@ public abstract class AbstractUpgradeCatalog implements UpgradeCatalog {
                 + "tag='" + baseConfig.getTag() + "'"
                 + oldConfigString);
             }
+
+            ConfigHelper configHelper = injector.getInstance(ConfigHelper.class);
+            configHelper.updateAgentConfigs(Collections.singleton(cluster.getClusterName()));
           }
         } else {
           LOG.info("No changes detected to config " + configType + ". Skipping configuration properties update");
@@ -629,7 +662,7 @@ public abstract class AbstractUpgradeCatalog implements UpgradeCatalog {
   protected void removeConfigurationPropertiesFromCluster(Cluster cluster, String configType, Set<String> removePropertiesList)
       throws AmbariException {
 
-    updateConfigurationPropertiesForCluster(cluster, configType, new HashMap<String, String>(), removePropertiesList, false, true);
+    updateConfigurationPropertiesForCluster(cluster, configType, new HashMap<>(), removePropertiesList, false, true);
   }
 
   /**
@@ -697,7 +730,7 @@ public abstract class AbstractUpgradeCatalog implements UpgradeCatalog {
     private final String description;
 
 
-    private ConfigUpdateType(String description) {
+    ConfigUpdateType(String description) {
       this.description = description;
     }
 
@@ -779,14 +812,20 @@ public abstract class AbstractUpgradeCatalog implements UpgradeCatalog {
   protected KerberosDescriptor getKerberosDescriptor(Cluster cluster) throws AmbariException {
     // Get the Stack-defined Kerberos Descriptor (aka default Kerberos Descriptor)
     AmbariMetaInfo ambariMetaInfo = injector.getInstance(AmbariMetaInfo.class);
-    StackId stackId = cluster.getCurrentStackVersion();
+
+
+    // !!! FIXME
+    @Experimental(feature = ExperimentalFeature.PATCH_UPGRADES,
+        comment = "can only take the first stack we find until we can support multiple with Kerberos")
+    StackId stackId = getStackId(cluster);
+
     KerberosDescriptor defaultDescriptor = ambariMetaInfo.getKerberosDescriptor(stackId.getStackName(), stackId.getStackVersion(), false);
 
     // Get the User-set Kerberos Descriptor
     ArtifactDAO artifactDAO = injector.getInstance(ArtifactDAO.class);
     KerberosDescriptor artifactDescriptor = null;
     ArtifactEntity artifactEntity = artifactDAO.findByNameAndForeignKeys("kerberos_descriptor",
-        new TreeMap<>(Collections.singletonMap("cluster", String.valueOf(cluster.getClusterId()))));
+      new TreeMap<>(Collections.singletonMap("cluster", String.valueOf(cluster.getClusterId()))));
     if (artifactEntity != null) {
       Map<String, Object> data = artifactEntity.getArtifactData();
 
@@ -957,6 +996,11 @@ public abstract class AbstractUpgradeCatalog implements UpgradeCatalog {
     return false;
   }
 
+  /**
+   * Perform database schema transformation. Can work only before persist service start
+   * @throws AmbariException
+   * @throws SQLException
+   */
   protected abstract void executeDDLUpdates() throws AmbariException, SQLException;
 
   /**
@@ -966,6 +1010,11 @@ public abstract class AbstractUpgradeCatalog implements UpgradeCatalog {
    */
   protected abstract void executePreDMLUpdates() throws AmbariException, SQLException;
 
+  /**
+   * Performs normal data upgrade
+   * @throws AmbariException
+   * @throws SQLException
+   */
   protected abstract void executeDMLUpdates() throws AmbariException, SQLException;
 
   @Override
@@ -1072,7 +1121,13 @@ public abstract class AbstractUpgradeCatalog implements UpgradeCatalog {
     for (final Cluster cluster : clusterMap.values()) {
       long clusterID = cluster.getClusterId();
 
-      StackId stackId = cluster.getDesiredStackVersion();
+      Service service = cluster.getServices().get(serviceName);
+      if (null == service) {
+        continue;
+      }
+
+      StackId stackId = service.getDesiredStackId();
+
       Map<String, Object> widgetDescriptor = null;
       StackInfo stackInfo = ambariMetaInfo.getStack(stackId.getStackName(), stackId.getStackVersion());
       ServiceInfo serviceInfo = stackInfo.getService(serviceName);
@@ -1111,7 +1166,7 @@ public abstract class AbstractUpgradeCatalog implements UpgradeCatalog {
                 }
               }
               if (widgetDescriptor != null) {
-                LOG.debug("Loaded widget descriptor: " + widgetDescriptor);
+                LOG.debug("Loaded widget descriptor: {}", widgetDescriptor);
                 for (Object artifact : widgetDescriptor.values()) {
                   List<WidgetLayout> widgetLayouts = (List<WidgetLayout>) artifact;
                   for (WidgetLayout widgetLayout : widgetLayouts) {
@@ -1139,5 +1194,11 @@ public abstract class AbstractUpgradeCatalog implements UpgradeCatalog {
         }
       }
     }
+  }
+
+  @Experimental(feature = ExperimentalFeature.PATCH_UPGRADES,
+      comment = "can only take the first stack we find until we can support multiple with Kerberos")
+  private StackId getStackId(Cluster cluster) throws AmbariException {
+    return cluster.getServices().values().iterator().next().getDesiredStackId();
   }
 }

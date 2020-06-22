@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,19 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.createStrictMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.verify;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.Role;
 import org.apache.ambari.server.RoleCommand;
@@ -31,20 +44,6 @@ import org.apache.ambari.server.controller.RequestStatusResponse;
 import org.apache.ambari.server.controller.ShortTaskStatus;
 import org.apache.ambari.server.state.State;
 import org.junit.Test;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-
-import static org.easymock.EasyMock.anyString;
-import static org.easymock.EasyMock.createNiceMock;
-import static org.easymock.EasyMock.createStrictMock;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.verify;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 /**
  * RequestStageContainer unit tests.
@@ -68,7 +67,7 @@ public class RequestStageContainerTest {
 
     Stage stage2 = createNiceMock(Stage.class);
     Stage stage3 = createNiceMock(Stage.class);
-    List<Stage> listStages = new ArrayList<Stage>();
+    List<Stage> listStages = new ArrayList<>();
     listStages.add(stage2);
     listStages.add(stage3);
     requestStages.addStages(listStages);
@@ -86,7 +85,7 @@ public class RequestStageContainerTest {
 
     Stage stage1 = createNiceMock(Stage.class);
     Stage stage2 = createNiceMock(Stage.class);
-    List<Stage> listStages = new ArrayList<Stage>();
+    List<Stage> listStages = new ArrayList<>();
     listStages.add(stage1);
     listStages.add(stage2);
 
@@ -110,7 +109,7 @@ public class RequestStageContainerTest {
     HostRoleCommand command2 = createNiceMock(HostRoleCommand.class);
     HostRoleCommand command3 = createNiceMock(HostRoleCommand.class);
 
-    List<Stage> stages = new ArrayList<Stage>();
+    List<Stage> stages = new ArrayList<>();
     stages.add(stage1);
     stages.add(stage2);
     stages.add(stage3);
@@ -120,7 +119,7 @@ public class RequestStageContainerTest {
     expect(stage1.getHostRoleCommands()).andReturn(Collections.singletonMap(hostname, Collections.singletonMap(componentName, command1))).anyTimes();
     expect(stage2.getHostRoleCommands()).andReturn(Collections.singletonMap(hostname, Collections.singletonMap(componentName, command2))).anyTimes();
     expect(stage3.getHostRoleCommands()).andReturn(Collections.singletonMap(hostname, Collections.singletonMap(componentName, command3))).anyTimes();
-    expect(stage4.getHostRoleCommands()).andReturn(Collections.<String, Map<String, HostRoleCommand>>emptyMap()).anyTimes();
+    expect(stage4.getHostRoleCommands()).andReturn(Collections.emptyMap()).anyTimes();
 
     expect(command3.getRoleCommand()).andReturn(RoleCommand.SERVICE_CHECK).anyTimes();
     expect(command2.getRoleCommand()).andReturn(RoleCommand.INSTALL).anyTimes();
@@ -139,12 +138,14 @@ public class RequestStageContainerTest {
     Request request = createStrictMock(Request.class);
     Stage stage1 = createNiceMock(Stage.class);
     Stage stage2 = createNiceMock(Stage.class);
-    List<Stage> stages = new ArrayList<Stage>();
+    List<Stage> stages = new ArrayList<>();
     stages.add(stage1);
     stages.add(stage2);
 
     //expectations
     expect(requestFactory.createNewFromStages(stages, "{}")).andReturn(request);
+    request.setUserName(null);
+    expectLastCall().once();
     expect(request.getStages()).andReturn(stages).anyTimes();
     actionManager.sendActions(request, null);
 
@@ -177,12 +178,12 @@ public class RequestStageContainerTest {
     Stage stage2 = createNiceMock(Stage.class);
     HostRoleCommand command1 = createNiceMock(HostRoleCommand.class);
     Role role = createNiceMock(Role.class);
-    List<Stage> stages = new ArrayList<Stage>();
+    List<Stage> stages = new ArrayList<>();
     RoleCommand roleCommand = RoleCommand.INSTALL;
     HostRoleStatus status = HostRoleStatus.IN_PROGRESS;
     stages.add(stage1);
     stages.add(stage2);
-    List<HostRoleCommand> hostRoleCommands = new ArrayList<HostRoleCommand>();
+    List<HostRoleCommand> hostRoleCommands = new ArrayList<>();
     hostRoleCommands.add(command1);
 
     expect(actionManager.getRequestTasks(100)).andReturn(hostRoleCommands);

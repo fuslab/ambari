@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,7 +17,18 @@
  */
 package org.apache.ambari.server.view;
 
-import junit.framework.Assert;
+import static org.easymock.EasyMock.anyObject;
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.createStrictMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.verify;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.ambari.server.orm.entities.ViewEntity;
 import org.apache.ambari.server.orm.entities.ViewInstanceEntity;
 import org.apache.ambari.view.migration.ViewDataMigrationContext;
@@ -28,11 +39,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-
-import static org.easymock.EasyMock.*;
+import junit.framework.Assert;
 
 /**
  * ViewDataMigrationUtility Tests.
@@ -111,14 +118,14 @@ public class ViewDataMigrationUtilityTest {
   }
 
   private static ViewDataMigrationContextImpl getViewDataMigrationContext(int currentVersion, int originVersion) {
-    Map<String, Class> entities = Collections.<String, Class>singletonMap("MyEntityClass", Object.class);
+    Map<String, Class> entities = Collections.singletonMap("MyEntityClass", Object.class);
     ViewDataMigrationContextImpl context = createNiceMock(ViewDataMigrationContextImpl.class);
     expect(context.getOriginDataVersion()).andReturn(originVersion).anyTimes();
     expect(context.getCurrentDataVersion()).andReturn(currentVersion).anyTimes();
     expect(context.getOriginEntityClasses()).andReturn(entities).anyTimes();
     expect(context.getCurrentEntityClasses()).andReturn(entities).anyTimes();
 
-    expect(context.getCurrentInstanceDataByUser()).andReturn(new HashMap<String, Map<String, String>>());
+    expect(context.getCurrentInstanceDataByUser()).andReturn(new HashMap<>());
     replay(context);
     return context;
   }

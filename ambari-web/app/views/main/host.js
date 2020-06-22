@@ -17,9 +17,7 @@
  */
 
 var App = require('app');
-var filters = require('views/common/filter_view');
 var sort = require('views/common/sort_view');
-var date = require('utils/date/date');
 
 App.MainHostView = App.TableView.extend(App.TableServerViewMixin, {
   templateName:require('templates/main/host'),
@@ -141,23 +139,22 @@ App.MainHostView = App.TableView.extend(App.TableServerViewMixin, {
    * Select View with list of "rows-per-page" options
    * @type {Ember.View}
    */
-  rowsPerPageSelectView: Em.Select.extend({
-    content: ['10', '25', '50', '100'],
-    attributeBindings: ['disabled'],
+  rowsPerPageSelectView: Em.Select.extend(App.PaginationSelectMixin, {
+
     disabled: true,
 
     disableView: function () {
       Em.run.next(this, function(){
-        this.set('disabled', !this.get('parentView.filteringComplete'));
+        this.set('disabled', !this.get('parentView.dataView.filteringComplete'));
       });
-    }.observes('parentView.filteringComplete'),
+    }.observes('parentView.dataView.filteringComplete'),
 
     change: function () {
-      this.get('parentView').saveDisplayLength();
+      this.get('parentView.dataView').saveDisplayLength();
       var self = this;
-      if (this.get('parentView.startIndex') !== 1 && this.get('parentView.startIndex') !== 0) {
+      if (this.get('parentView.dataView.startIndex') !== 1 && this.get('parentView.dataView.startIndex') !== 0) {
         Ember.run.next(function () {
-          self.set('parentView.startIndex', 1);
+          self.set('parentView.dataView.startIndex', 1);
         });
       }
     }
@@ -185,6 +182,9 @@ App.MainHostView = App.TableView.extend(App.TableServerViewMixin, {
       var didClearStartIndex = this.clearStartIndex();
       this.set('controller.filterChangeHappened', didClearedFilters || didClearStartIndex);
     }
+    if (!this.get('controller.saveSelection')) {
+      this.refresh();
+    }
     this._super();
     this.set('startIndex', this.get('controller.startIndex'));
     this.set('displayLength', this.get('controller.paginationProps').findProperty('name', 'displayLength').value);
@@ -208,6 +208,7 @@ App.MainHostView = App.TableView.extend(App.TableServerViewMixin, {
     this.addObserver('filteredCount', this, this.updatePaging);
     // should show overlay even when filtering has begun before observer was added
     this.overlayObserver();
+    this.combineSelectedFilter();
   },
 
   willDestroyElement: function () {
@@ -253,9 +254,7 @@ App.MainHostView = App.TableView.extend(App.TableServerViewMixin, {
       this.set('selectAllHosts', false);
     }
     this.combineSelectedFilter();
-    //10 is an index of selected column
-    var controllerName = this.get('controller.name');
-    App.db.setSelectedHosts(controllerName, this.get('selectedHosts'));
+    App.db.setSelectedHosts(this.get('selectedHosts'));
 
     this.addObserver('selectAllHosts', this, this.toggleAllHosts);
   },
@@ -263,8 +262,7 @@ App.MainHostView = App.TableView.extend(App.TableServerViewMixin, {
    * combine selected hosts on page with selected hosts which are filtered out but added to cluster
    */
   combineSelectedFilter: function () {
-    var controllerName = this.get('controller.name');
-    var previouslySelectedHosts = App.db.getSelectedHosts(controllerName);
+    var previouslySelectedHosts = App.db.getSelectedHosts();
     var selectedHosts = [];
     var hostsOnPage = this.get('pageContent').mapProperty('hostName');
     selectedHosts = this.get('pageContent').filterProperty('selected').mapProperty('hostName');
@@ -314,7 +312,7 @@ App.MainHostView = App.TableView.extend(App.TableServerViewMixin, {
   clearSelection: function() {
     this.get('pageContent').setEach('selected', false);
     this.set('selectAllHosts', false);
-    App.db.setSelectedHosts(this.get('controller.name'), []);
+    App.db.setSelectedHosts([]);
     this.get('selectedHosts').clear();
     this.filterSelected();
   },
@@ -362,9 +360,10 @@ App.MainHostView = App.TableView.extend(App.TableServerViewMixin, {
     type: 'number'
   }),
 
-  HostView:Em.View.extend({
-    content:null,
+  HostView: Em.View.extend({
+    content: null,
     tagName: 'tr',
+    classNameBindings: ['content.selected:active'],
     didInsertElement: function(){
       App.tooltip(this.$("[rel='HealthTooltip'], [rel='UsageTooltip'], [rel='ComponentsTooltip']"));
     },
@@ -460,196 +459,6 @@ App.MainHostView = App.TableView.extend(App.TableServerViewMixin, {
       return "width:" + this.get('content.diskUsage') + "%";
     }.property('content.diskUsage')
 
-  }),
-
-  /**
-   * Update <code>hostsCount</code> in every category
-   */
-  updateHostsCount: function() {
-    var hostsCountMap = this.get('controller.hostsCountMap');
-
-    this.get('categories').forEach(function(category) {
-      var hostsCount = (category.get('healthStatus').trim() === "") ? hostsCountMap['TOTAL'] : hostsCountMap[category.get('healthStatus')];
-
-      if (!Em.isNone(hostsCount)) {
-        category.set('hostsCount', hostsCount);
-        category.set('hasHosts', (hostsCount > 0));
-      }
-    }, this);
-  }.observes('controller.hostsCountMap'),
-
-  /**
-   * Category view for all hosts
-   * @type {Object}
-   */
-  //@TODO maybe should be separated to two types (basing on <code>isHealthStatus</code>)
-  categoryObject: Em.Object.extend({
-
-    /**
-     * Text used with <code>hostsCount</code> in category label
-     * @type {String}
-     */
-    value: null,
-    /**
-     * Is category based on host health status
-     * @type {bool}
-     */
-    isHealthStatus: true,
-    /**
-     * host health status (used if <code>isHealthStatus</code> is true)
-     * @type {String}
-     */
-    healthStatusValue: '',
-    /**
-     * Should category be displayed on the top of the hosts table
-     * @type {bool}
-     */
-    isVisible: true,
-    /**
-     * Is category selected now
-     * @type {bool}
-     */
-    isActive: false,
-    /**
-     * String with path that category should observe
-     * @type {String}
-     */
-    observes: null,
-    /**
-     * CSS-class for span in the category-link (used if <code>isHealthStatus</code> is false)
-     * @type {String}
-     */
-    class: null,
-    /**
-     * Associated column number
-     * @type {Number}
-     */
-    column: null,
-    /**
-     * Type of filter value (string, number, boolean)
-     * @type {String}
-     */
-    type: null,
-    /**
-     * @type {String|Number|bool}
-     */
-    filterValue: null,
-    /**
-     * <code>App.Host</code> property that should be used to calculate <code>hostsCount</code> (used if <code>isHealthStatus</code> is false)
-     * @type {String}
-     */
-    hostProperty: null,
-
-    /**
-     * Number of host in current category
-     * @type {Number}
-     */
-    hostsCount: 0,
-
-    /**
-     * Determine if category has hosts
-     * @type {bool}
-     */
-    hasHosts: false,
-
-    /**
-     * Add "active" class for category span-wrapper if current category is selected
-     * @type {String}
-     */
-    itemClass: Em.computed.ifThenElse('isActive', 'active', ''),
-
-    /**
-     * Text shown on the right of category icon
-     * @type {String}
-     */
-    label: function () {
-      return "%@ (%@)".fmt(this.get('value'), this.get('hostsCount'));
-    }.property('hostsCount')
-  }),
-
-  /**
-   * List of categories used to filter hosts
-   * @type {Array}
-   */
-  categories: function () {
-    var self = this;
-    var category_mocks = require('data/host/categories');
-
-    return category_mocks.map(function(category_mock) {
-      return self.categoryObject.create(category_mock);
-    });
-  }.property(),
-
-  /**
-   * Category for <code>selected</code> property of each App.Host
-   */
-  selectedCategory: Em.computed.findBy('categories', 'selected', true),
-
-  statusFilter: Em.View.extend({
-    column: 0,
-    categories: [],
-    value: null,
-    class: "",
-    comboBoxLabel: function(){
-      var selected = this.get('categories').findProperty('isActive');
-      if (!this.get('value') || !selected) {
-        return "%@ (%@)".fmt(Em.I18n.t('common.all'), this.get('parentView.totalCount'));
-      } else {
-        return "%@ (%@)".fmt(selected.get('value'), selected.get('hostsCount'))
-      }
-    }.property('value', 'parentView.totalCount'),
-    /**
-     * switch active category label
-     */
-    onCategoryChange: function () {
-      this.get('categories').setEach('isActive', false);
-      var selected = this.get('categories').findProperty('healthStatus', this.get('value'));
-      selected.set('isActive', true);
-      this.set('class', selected.get('class') + ' ' + selected.get('healthClass'));
-    }.observes('value'),
-
-    showClearFilter: function () {
-      var mockEvent = {
-        context: this.get('categories').findProperty('healthStatus', this.get('value'))
-      };
-      this.selectCategory(mockEvent);
-    },
-    /**
-     * Trigger on Category click
-     * @param {Object} event
-     */
-    selectCategory: function(event){
-      var category = event.context;
-
-      this.set('value', category.get('healthStatus'));
-      this.get('parentView').resetFilterByColumns([0, 7, 8, 9]);
-      if (category.get('isHealthStatus')) {
-        var status = category.get('healthStatus');
-        if (!status) {
-          // only "All" option has no specific status, just refresh
-          this.get('parentView').refresh();
-        } else {
-          this.get('parentView').updateFilter(0, status, 'string');
-        }
-      } else {
-        this.get('parentView').updateFilter(category.get('column'), category.get('filterValue'), category.get('type'));
-      }
-    },
-
-    /**
-     * set value
-     * @param {string} value
-     */
-    setValue: function (value) {
-      this.set('value', value);
-    },
-
-    clearFilter: function() {
-      this.get('categories').setEach('isActive', false);
-      this.set('value', '');
-      this.set('class', '');
-      this.showClearFilter();
-    }
   }),
 
   /**

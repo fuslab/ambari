@@ -82,7 +82,7 @@ class TestResourceManager(RMFTestCase):
     )
 
     self.assert_configure_default()
-    
+
     self.assertResourceCalled('File', '/var/run/hadoop-yarn/yarn/yarn-yarn-resourcemanager.pid',
         action = ['delete'],
         not_if = 'ambari-sudo.sh [RMF_ENV_PLACEHOLDER] -H -E test -f /var/run/hadoop-yarn/yarn/yarn-yarn-resourcemanager.pid && ambari-sudo.sh [RMF_ENV_PLACEHOLDER] -H -E pgrep -F /var/run/hadoop-yarn/yarn/yarn-yarn-resourcemanager.pid',
@@ -304,6 +304,7 @@ class TestResourceManager(RMFTestCase):
         content = Template('include_hosts_list.j2'),
         group = 'hadoop',
     )
+    
     self.assertResourceCalled('Execute', '/usr/bin/kinit -kt /etc/security/keytabs/rm.service.keytab rm/c6401.ambari.apache.org@EXAMPLE.COM; yarn --config /etc/hadoop/conf rmadmin -refreshNodes',
         environment = {'PATH': "/bin:/usr/bin:/usr/lib/hadoop-yarn/bin"},
         user = 'yarn',
@@ -312,7 +313,6 @@ class TestResourceManager(RMFTestCase):
     self.assertNoMoreResources()
 
   def assert_configure_default(self, is_include_file_configured = False, manage_include_files=False):
-
     self.assertResourceCalled('Directory', '/var/run/hadoop-yarn',
       owner = 'yarn',
       group = 'hadoop',
@@ -362,46 +362,6 @@ class TestResourceManager(RMFTestCase):
       ignore_failures = True,
       cd_access = 'a',
     )
-    self.assertResourceCalled('XmlConfig', 'core-site.xml',
-      owner = 'hdfs',
-      group = 'hadoop',
-      mode = 0644,
-      conf_dir = '/etc/hadoop/conf',
-      configurations = self.getConfig()['configurations']['core-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['core-site']
-    )
-    self.assertResourceCalled('XmlConfig', 'hdfs-site.xml',
-      owner = 'hdfs',
-      group = 'hadoop',
-      mode = 0644,
-      conf_dir = '/etc/hadoop/conf',
-      configurations = self.getConfig()['configurations']['hdfs-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['hdfs-site']
-    )
-    self.assertResourceCalled('XmlConfig', 'mapred-site.xml',
-      owner = 'yarn',
-      group = 'hadoop',
-      mode = 0644,
-      conf_dir = '/etc/hadoop/conf',
-      configurations = self.getConfig()['configurations']['mapred-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['mapred-site']
-    )
-    self.assertResourceCalled('XmlConfig', 'yarn-site.xml',
-      owner = 'yarn',
-      group = 'hadoop',
-      mode = 0644,
-      conf_dir = '/etc/hadoop/conf',
-      configurations = self.getConfig()['configurations']['yarn-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['yarn-site']
-    )
-    self.assertResourceCalled('XmlConfig', 'capacity-scheduler.xml',
-      owner = 'yarn',
-      group = 'hadoop',
-      mode = 0644,
-      conf_dir = '/etc/hadoop/conf',
-      configurations = self.getConfig()['configurations']['capacity-scheduler'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['capacity-scheduler']
-    )
     self.assertResourceCalled('Directory', '/etc/hadoop/conf',
         mode = 0755,
         create_parents = True,
@@ -427,6 +387,46 @@ class TestResourceManager(RMFTestCase):
       owner = 'yarn',
       group = 'hadoop',
     )
+    self.assertResourceCalled('XmlConfig', 'core-site.xml',
+      owner = 'hdfs',
+      group = 'hadoop',
+      mode = 0644,
+      conf_dir = '/etc/hadoop/conf',
+      configurations = self.getConfig()['configurations']['core-site'],
+      configuration_attributes = self.getConfig()['configurationAttributes']['core-site']
+    )
+    self.assertResourceCalled('XmlConfig', 'hdfs-site.xml',
+      owner = 'hdfs',
+      group = 'hadoop',
+      mode = 0644,
+      conf_dir = '/etc/hadoop/conf',
+      configurations = self.getConfig()['configurations']['hdfs-site'],
+      configuration_attributes = self.getConfig()['configurationAttributes']['hdfs-site']
+    )
+    self.assertResourceCalled('XmlConfig', 'mapred-site.xml',
+      owner = 'yarn',
+      group = 'hadoop',
+      mode = 0644,
+      conf_dir = '/etc/hadoop/conf',
+      configurations = self.getConfig()['configurations']['mapred-site'],
+      configuration_attributes = self.getConfig()['configurationAttributes']['mapred-site']
+    )
+    self.assertResourceCalled('XmlConfig', 'yarn-site.xml',
+      owner = 'yarn',
+      group = 'hadoop',
+      mode = 0644,
+      conf_dir = '/etc/hadoop/conf',
+      configurations = self.getConfig()['configurations']['yarn-site'],
+      configuration_attributes = self.getConfig()['configurationAttributes']['yarn-site']
+    )
+    self.assertResourceCalled('XmlConfig', 'capacity-scheduler.xml',
+      owner = 'yarn',
+      group = 'hadoop',
+      mode = 0644,
+      conf_dir = '/etc/hadoop/conf',
+      configurations = self.getConfig()['configurations']['capacity-scheduler'],
+      configuration_attributes = self.getConfig()['configurationAttributes']['capacity-scheduler']
+    )
     self.assertResourceCalled('File', '/etc/security/limits.d/yarn.conf',
       content = Template('yarn.conf.j2'),
       mode = 0644,
@@ -446,7 +446,7 @@ class TestResourceManager(RMFTestCase):
                               mode = 02050,
                               )
     self.assertResourceCalled('File', '/etc/hadoop/conf/container-executor.cfg',
-                              content = Template('container-executor.cfg.j2'),
+                              content = InlineTemplate(self.getConfig()['configurations']['container-executor']['content']),
                               group = 'hadoop',
                               mode = 0644,
                               )
@@ -470,14 +470,14 @@ class TestResourceManager(RMFTestCase):
                               group = 'hadoop',
                               conf_dir = '/etc/hadoop/conf',
                               configurations = self.getConfig()['configurations']['mapred-site'],
-                              configuration_attributes = self.getConfig()['configuration_attributes']['mapred-site']
+                              configuration_attributes = self.getConfig()['configurationAttributes']['mapred-site']
                               )
     self.assertResourceCalled('XmlConfig', 'capacity-scheduler.xml',
                               owner = 'hdfs',
                               group = 'hadoop',
                               conf_dir = '/etc/hadoop/conf',
                               configurations = self.getConfig()['configurations']['capacity-scheduler'],
-                              configuration_attributes = self.getConfig()['configuration_attributes']['capacity-scheduler']
+                              configuration_attributes = self.getConfig()['configurationAttributes']['capacity-scheduler']
                               )
     self.assertResourceCalled('File', '/etc/hadoop/conf/fair-scheduler.xml',
                               owner = 'mapred',
@@ -493,7 +493,6 @@ class TestResourceManager(RMFTestCase):
                               )
 
   def assert_configure_secured(self, is_include_file_configured = False, manage_include_files=False):
-
     self.assertResourceCalled('Directory', '/var/run/hadoop-yarn',
       owner = 'yarn',
       group = 'hadoop',
@@ -543,46 +542,6 @@ class TestResourceManager(RMFTestCase):
       ignore_failures = True,
       cd_access = 'a',
     )
-    self.assertResourceCalled('XmlConfig', 'core-site.xml',
-      owner = 'hdfs',
-      group = 'hadoop',
-      mode = 0644,
-      conf_dir = '/etc/hadoop/conf',
-      configurations = self.getConfig()['configurations']['core-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['core-site']
-    )
-    self.assertResourceCalled('XmlConfig', 'hdfs-site.xml',
-      owner = 'hdfs',
-      group = 'hadoop',
-      mode = 0644,
-      conf_dir = '/etc/hadoop/conf',
-      configurations = self.getConfig()['configurations']['hdfs-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['hdfs-site']
-    )
-    self.assertResourceCalled('XmlConfig', 'mapred-site.xml',
-      owner = 'yarn',
-      group = 'hadoop',
-      mode = 0644,
-      conf_dir = '/etc/hadoop/conf',
-      configurations = self.getConfig()['configurations']['mapred-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['mapred-site']
-    )
-    self.assertResourceCalled('XmlConfig', 'yarn-site.xml',
-      owner = 'yarn',
-      group = 'hadoop',
-      mode = 0644,
-      conf_dir = '/etc/hadoop/conf',
-      configurations = self.getConfig()['configurations']['yarn-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['yarn-site']
-    )
-    self.assertResourceCalled('XmlConfig', 'capacity-scheduler.xml',
-      owner = 'yarn',
-      group = 'hadoop',
-      mode = 0644,
-      conf_dir = '/etc/hadoop/conf',
-      configurations = self.getConfig()['configurations']['capacity-scheduler'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['capacity-scheduler']
-    )
     self.assertResourceCalled('Directory', '/etc/hadoop/conf',
         mode = 0755,
         create_parents = True,
@@ -608,6 +567,46 @@ class TestResourceManager(RMFTestCase):
       owner = 'yarn',
       group = 'hadoop',
     )
+    self.assertResourceCalled('XmlConfig', 'core-site.xml',
+      owner = 'hdfs',
+      group = 'hadoop',
+      mode = 0644,
+      conf_dir = '/etc/hadoop/conf',
+      configurations = self.getConfig()['configurations']['core-site'],
+      configuration_attributes = self.getConfig()['configurationAttributes']['core-site']
+    )
+    self.assertResourceCalled('XmlConfig', 'hdfs-site.xml',
+      owner = 'hdfs',
+      group = 'hadoop',
+      mode = 0644,
+      conf_dir = '/etc/hadoop/conf',
+      configurations = self.getConfig()['configurations']['hdfs-site'],
+      configuration_attributes = self.getConfig()['configurationAttributes']['hdfs-site']
+    )
+    self.assertResourceCalled('XmlConfig', 'mapred-site.xml',
+      owner = 'yarn',
+      group = 'hadoop',
+      mode = 0644,
+      conf_dir = '/etc/hadoop/conf',
+      configurations = self.getConfig()['configurations']['mapred-site'],
+      configuration_attributes = self.getConfig()['configurationAttributes']['mapred-site']
+    )
+    self.assertResourceCalled('XmlConfig', 'yarn-site.xml',
+      owner = 'yarn',
+      group = 'hadoop',
+      mode = 0644,
+      conf_dir = '/etc/hadoop/conf',
+      configurations = self.getConfig()['configurations']['yarn-site'],
+      configuration_attributes = self.getConfig()['configurationAttributes']['yarn-site']
+    )
+    self.assertResourceCalled('XmlConfig', 'capacity-scheduler.xml',
+      owner = 'yarn',
+      group = 'hadoop',
+      mode = 0644,
+      conf_dir = '/etc/hadoop/conf',
+      configurations = self.getConfig()['configurations']['capacity-scheduler'],
+      configuration_attributes = self.getConfig()['configurationAttributes']['capacity-scheduler']
+    )
     self.assertResourceCalled('File', '/etc/security/limits.d/yarn.conf',
       content = Template('yarn.conf.j2'),
       mode = 0644,
@@ -627,7 +626,7 @@ class TestResourceManager(RMFTestCase):
       mode = 06050,
     )
     self.assertResourceCalled('File', '/etc/hadoop/conf/container-executor.cfg',
-      content = Template('container-executor.cfg.j2'),
+      content = InlineTemplate(self.getConfig()['configurations']['container-executor']['content']),
       group = 'hadoop',
       mode = 0644,
     )
@@ -673,14 +672,14 @@ class TestResourceManager(RMFTestCase):
                               group = 'hadoop',
                               conf_dir = '/etc/hadoop/conf',
                               configurations = self.getConfig()['configurations']['mapred-site'],
-                              configuration_attributes = self.getConfig()['configuration_attributes']['mapred-site']
+                              configuration_attributes = self.getConfig()['configurationAttributes']['mapred-site']
                               )
     self.assertResourceCalled('XmlConfig', 'capacity-scheduler.xml',
                               owner = 'hdfs',
                               group = 'hadoop',
                               conf_dir = '/etc/hadoop/conf',
                               configurations = self.getConfig()['configurations']['capacity-scheduler'],
-                              configuration_attributes = self.getConfig()['configuration_attributes']['capacity-scheduler']
+                              configuration_attributes = self.getConfig()['configurationAttributes']['capacity-scheduler']
                               )
     self.assertResourceCalled('File', '/etc/hadoop/conf/fair-scheduler.xml',
                               owner = 'mapred',

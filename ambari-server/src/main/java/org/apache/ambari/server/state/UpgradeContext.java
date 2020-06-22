@@ -48,6 +48,8 @@ import org.apache.ambari.server.actionmanager.HostRoleCommandFactory;
 import org.apache.ambari.server.agent.ExecutionCommand.KeyNames;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
 import org.apache.ambari.server.configuration.Configuration;
+import org.apache.ambari.server.controller.KerberosDetails;
+import org.apache.ambari.server.controller.KerberosHelper;
 import org.apache.ambari.server.controller.internal.AbstractControllerResourceProvider;
 import org.apache.ambari.server.controller.internal.PreUpgradeCheckResourceProvider;
 import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
@@ -64,6 +66,7 @@ import org.apache.ambari.server.orm.dao.UpgradeDAO;
 import org.apache.ambari.server.orm.entities.RepositoryVersionEntity;
 import org.apache.ambari.server.orm.entities.UpgradeEntity;
 import org.apache.ambari.server.orm.entities.UpgradeHistoryEntity;
+import org.apache.ambari.server.serveraction.kerberos.KerberosInvalidConfigurationException;
 import org.apache.ambari.server.stack.MasterHostResolver;
 import org.apache.ambari.server.stageplanner.RoleGraphFactory;
 import org.apache.ambari.server.state.repository.ClusterVersionSummary;
@@ -82,7 +85,7 @@ import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.annotations.SerializedName;
@@ -108,7 +111,7 @@ public class UpgradeContext {
   public static final String COMMAND_PARAM_TASKS = "tasks";
   public static final String COMMAND_PARAM_STRUCT_OUT = "structured_out";
 
-  /**
+  /*
    * The cluster that the upgrade is for.
    */
   private final Cluster m_cluster;
@@ -248,6 +251,13 @@ public class UpgradeContext {
   private UpgradeDAO m_upgradeDAO;
 
   /**
+   * Providers information about the Kerberization of a cluster, such as
+   * {@link KerberosDetails}.
+   */
+  @Inject
+  private KerberosHelper m_kerberosHelper;
+
+  /**
    * Used as a quick way to tell if the upgrade is to revert a patch.
    */
   private final boolean m_isRevert;
@@ -349,7 +359,7 @@ public class UpgradeContext {
       m_type = calculateUpgradeType(upgradeRequestMap, revertUpgrade);
 
       // !!! build all service-specific reversions
-      Map<String,Service> clusterServices = cluster.getServices();
+      Map<String, Service> clusterServices = cluster.getServices();
       for (UpgradeHistoryEntity history : revertUpgrade.getHistory()) {
         String serviceName = history.getServiceName();
         String componentName = history.getComponentName();
@@ -364,16 +374,14 @@ public class UpgradeContext {
 
         m_services.add(serviceName);
         m_sourceRepositoryMap.put(serviceName, history.getTargetRepositoryVersion());
-        m_targetRepositoryMap.put(serviceName, history.getSourceRepositoryVersion());
+        m_targetRepositoryMap.put(serviceName, history.getFromReposistoryVersion());
       }
 
-      // downgrades (which is what a revert really is) have the same associated
-      // repo, just like regular downgrades
+      // the "associated" repository of the revert is the target of what's being reverted
       m_repositoryVersion = revertUpgrade.getRepositoryVersion();
 
       // !!! the version is used later in validators
       upgradeRequestMap.put(UPGRADE_REPO_VERSION_ID, m_repositoryVersion.getId().toString());
-
       // !!! use the same upgrade pack that was used in the upgrade being reverted
       upgradeRequestMap.put(UPGRADE_PACK, revertUpgrade.getUpgradePackage());
 
@@ -422,7 +430,7 @@ public class UpgradeContext {
           for (UpgradeHistoryEntity history : upgrade.getHistory()) {
             m_services.add(history.getServiceName());
             m_sourceRepositoryMap.put(history.getServiceName(), m_repositoryVersion);
-            m_targetRepositoryMap.put(history.getServiceName(), history.getSourceRepositoryVersion());
+            m_targetRepositoryMap.put(history.getServiceName(), history.getFromReposistoryVersion());
           }
 
           break;
@@ -432,6 +440,7 @@ public class UpgradeContext {
               String.format("%s is not a valid upgrade direction.", m_direction));
       }
     }
+
 
     /**
      * For the unit tests tests, there are multiple upgrade packs for the same
@@ -499,24 +508,37 @@ public class UpgradeContext {
     m_cluster = cluster;
     m_type = upgradeEntity.getUpgradeType();
     m_direction = upgradeEntity.getDirection();
+    // !!! this is the overall target stack repo version, not the source repo
     m_repositoryVersion = upgradeEntity.getRepositoryVersion();
 
     m_autoSkipComponentFailures = upgradeEntity.isComponentFailureAutoSkipped();
     m_autoSkipServiceCheckFailures = upgradeEntity.isServiceCheckFailureAutoSkipped();
 
+    /*
+     * This feels wrong.  We need the upgrade pack used when creating the upgrade, as that
+     * is really the source, not the target.  Can NOT use upgradeEntity.getRepositoryVersion() here
+     * for the stack id. Consulting the service map should work out since full upgrades are all same source stack,
+     * and patches by definition are the same source stack (just different repos of that stack).
+     */
+    @Experimental(feature = ExperimentalFeature.PATCH_UPGRADES)
+    StackId stackId = null;
+
     List<UpgradeHistoryEntity> allHistory = upgradeEntity.getHistory();
     for (UpgradeHistoryEntity history : allHistory) {
       String serviceName = history.getServiceName();
-      RepositoryVersionEntity sourceRepositoryVersion = history.getSourceRepositoryVersion();
+      RepositoryVersionEntity sourceRepositoryVersion = history.getFromReposistoryVersion();
       RepositoryVersionEntity targetRepositoryVersion = history.getTargetRepositoryVersion();
       m_sourceRepositoryMap.put(serviceName, sourceRepositoryVersion);
       m_targetRepositoryMap.put(serviceName, targetRepositoryVersion);
       m_services.add(serviceName);
+
+      if (null == stackId) {
+        stackId = sourceRepositoryVersion.getStackId();
+      }
     }
 
-    @Experimental(feature = ExperimentalFeature.PATCH_UPGRADES, comment = "This is wrong")
     String upgradePackage = upgradeEntity.getUpgradePackage();
-    StackId stackId = m_repositoryVersion.getStackId();
+    stackId = (null != stackId) ? stackId : m_repositoryVersion.getStackId(); // fallback to old value
     Map<String, UpgradePack> packs = m_metaInfo.getUpgradePacks(stackId.getStackName(), stackId.getStackVersion());
     m_upgradePack = packs.get(upgradePackage);
 
@@ -874,8 +896,9 @@ public class UpgradeContext {
   public Map<String, String> getInitializedCommandParameters() {
     Map<String, String> parameters = new HashMap<>();
 
+    Direction direction = getDirection();
     parameters.put(COMMAND_PARAM_CLUSTER_NAME, m_cluster.getClusterName());
-    parameters.put(COMMAND_PARAM_DIRECTION, getDirection().name().toLowerCase());
+    parameters.put(COMMAND_PARAM_DIRECTION, direction.name().toLowerCase());
 
     if (null != getType()) {
       // use the serialized attributes of the enum to convert it to a string,
@@ -895,7 +918,7 @@ public class UpgradeContext {
    */
   @Override
   public String toString() {
-    return Objects.toStringHelper(this)
+    return MoreObjects.toStringHelper(this)
         .add("direction", m_direction)
         .add("type", m_type)
         .add("target", m_repositoryVersion).toString();
@@ -947,6 +970,16 @@ public class UpgradeContext {
     summary.orchestration = m_orchestration;
     summary.isRevert = m_isRevert;
 
+    summary.isDowngradeAllowed = isDowngradeAllowed();
+
+    summary.associatedRepositoryId = m_repositoryVersion.getId();
+    summary.associatedStackId = m_repositoryVersion.getStackId().getStackId();
+    summary.associatedVersion = m_repositoryVersion.getVersion();
+
+    // !!! a) if we are reverting, that can only happen via PATCH or MAINT
+    //     b) if orchestration is a revertible type (on upgrade)
+    summary.isSwitchBits = m_isRevert || m_orchestration.isRevertable();
+
     summary.services = new HashMap<>();
 
     for (String serviceName : m_services) {
@@ -974,12 +1007,56 @@ public class UpgradeContext {
   }
 
   /**
+   * Gets the single target stack for the upgrade.  By definition, ALL the targets,
+   * despite the versions, should have the same stack.  The source stacks may be different
+   * from the target, but all the source stacks must also be the same.
+   * <p/>
+   *
+   * @return the target stack for this upgrade (never {@code null}).
+   */
+  public StackId getTargetStack() {
+    RepositoryVersionEntity repo = m_targetRepositoryMap.values().iterator().next();
+    return repo.getStackId();
+  }
+
+  /**
+   * Gets the single source stack for the upgrade depending on the
+   * direction.  By definition, ALL the source stacks, despite the versions, should have
+   * the same stack.  The target stacks may be different from the source, but all the target
+   * stacks must also be the same.
+   * <p/>
+   *
+   * @return the source stack for this upgrade (never {@code null}).
+   */
+  public StackId getSourceStack() {
+    RepositoryVersionEntity repo = m_sourceRepositoryMap.values().iterator().next();
+    return repo.getStackId();
+  }
+
+  /**
+   * Gets Kerberos information about a cluster. It should only be invoked if the
+   * cluster's security type is set to {@link SecurityType#KERBEROS}, otherwise
+   * it will throw an {@link AmbariException}.
+   *
+   * @return the Kerberos related details of a cluster.
+   * @throws KerberosInvalidConfigurationException
+   *           if the {@code kerberos-env} or {@code krb5-conf}} configurations
+   *           can't be parsed.
+   * @throws AmbariException
+   *           if the cluster is not Kerberized.
+   */
+  public KerberosDetails getKerberosDetails()
+      throws KerberosInvalidConfigurationException, AmbariException {
+    return m_kerberosHelper.getKerberosDetails(m_cluster, null);
+  }
+
+  /**
    * Gets the set of services which will participate in the upgrade. The
-   * services available in the repository are comapred against those installed
+   * services available in the repository are compared against those installed
    * in the cluster to arrive at the final subset.
    * <p/>
    * In some cases, such as with a {@link RepositoryType#MAINT} repository, the
-   * subset can be further trimmed by determing that an installed services is
+   * subset can be further trimmed by determing that an installed service is
    * already at a high enough version and doesn't need to be upgraded.
    * <p/>
    * This method will also populate the source ({@link #m_sourceRepositoryMap})
@@ -1216,7 +1293,7 @@ public class UpgradeContext {
       } catch (NoSuchResourceException|SystemException|UnsupportedPropertyException|NoSuchParentResourceException e) {
         throw new AmbariException(
             String.format("Unable to perform %s. Prerequisite checks could not be run",
-                direction.getText(false), e));
+                direction.getText(false)), e);
       }
 
       List<Resource> failedResources = new LinkedList<>();
@@ -1379,8 +1456,45 @@ public class UpgradeContext {
     @SerializedName("isRevert")
     public boolean isRevert = false;
 
+    @SerializedName("downgradeAllowed")
+    public boolean isDowngradeAllowed = true;
+
     @SerializedName("services")
     public Map<String, UpgradeServiceSummary> services;
+
+    /**
+     * The ID of the repository associated with the upgrade. For an
+     * {@link Direction#UPGRADE}, this is the target repository, for a
+     * {@link Direction#DOWNGRADE} this was the repository being downgraded
+     * from.
+     */
+    @SerializedName("associatedRepositoryId")
+    public long associatedRepositoryId;
+
+    /**
+     * The ID of the repository associated with the upgrade. For an
+     * {@link Direction#UPGRADE}, this is the target stack, for a
+     * {@link Direction#DOWNGRADE} this was the stack that is being downgraded
+     * from.
+     */
+    @SerializedName("associatedStackId")
+    public String associatedStackId;
+
+    /**
+     * The ID of the repository associated with the upgrade. For an
+     * {@link Direction#UPGRADE}, this is the target versopm, for a
+     * {@link Direction#DOWNGRADE} this was the version that is being downgraded
+     * from.
+     */
+    @SerializedName("associatedVersion")
+    public String associatedVersion;
+
+    /**
+     * MAINT or PATCH upgrades are meant to just be switching the bits and no other
+     * incompatible changes.
+     */
+    @SerializedName("isSwitchBits")
+    public boolean isSwitchBits = false;
   }
 
   /**

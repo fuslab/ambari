@@ -32,11 +32,11 @@ var validator = require('utils/validator');
 
 var wrapperView = Ember.View.extend({
   classNames: ['view-wrapper'],
-  layout: Ember.Handlebars.compile('<a href="#" {{action "clearFilter" target="view"}} class="ui-icon ui-icon-circle-close"></a> {{yield}}'),
+  layout: Ember.Handlebars.compile('{{yield}} <a href="#" {{action "clearFilter" target="view"}} class="ui-icon ui-icon-circle-close"></a>'),
   template: Ember.Handlebars.compile(
     '{{#if view.fieldId}}<input type="hidden" id="{{unbound view.fieldId}}" value="" />{{/if}}' +
     '{{view view.filterView}}' +
-    '{{#if view.showApply}}<button {{action "setValueOnApply" target="view"}} class="apply-btn btn"><span>{{t common.apply}}</span></button>{{/if}} '
+    '{{#if view.showApply}}<button {{action "setValueOnApply" target="view"}} class="apply-btn btn btn-default"><span>{{t common.apply}}</span></button>{{/if}} '
   ),
 
   value: null,
@@ -224,6 +224,7 @@ var wrapperView = Ember.View.extend({
  * Simple input control for wrapperView
  */
 var textFieldView = Ember.TextField.extend({
+  classNames: ['input-sm', 'form-control'],
   type: 'text',
   placeholder: Em.I18n.t('any'),
   valueBinding: "parentView.value"
@@ -295,12 +296,14 @@ var componentFieldView = Ember.View.extend({
 /**
  * Simple select control for wrapperView
  */
-var selectFieldView = Ember.Select.extend({
-  selectionBinding: 'parentView.selected',
-  contentBinding: 'parentView.content',
-  optionValuePath: "content.value",
-  optionLabelPath: "content.label"
-});
+var getSelectFieldView = function() {
+  return App.DropdownView.extend({
+    selectionBinding: 'parentView.selected',
+    contentBinding: 'parentView.content',
+    optionValuePath: "value",
+    optionLabelPath: "label"
+  });
+};
 
 /**
  * Result object, which will be accessible outside
@@ -316,7 +319,6 @@ module.exports = {
    * And also controls views if need it
    */
   textFieldView: textFieldView,
-  selectFieldView: selectFieldView,
   componentFieldView: componentFieldView,
 
   /**
@@ -355,8 +357,8 @@ module.exports = {
    */
   createSelectView: function (config) {
     config.fieldType = config.fieldType || 'input-medium';
-    config.filterView = selectFieldView.extend({
-      classNames: config.fieldType.split(','),
+    config.filterView = getSelectFieldView().extend({
+      classNames: config.fieldType.split(',').concat('display-inline-block'),
       attributeBindings: ['disabled', 'multiple'],
       disabled: false
     });
@@ -592,7 +594,8 @@ module.exports = {
       default:
         return function (origin, compareValue) {
           if (validator.isValidMatchesRegexp(compareValue)) {
-            var regex = new RegExp(compareValue, "i");
+            var escapedCompareValue = compareValue.replace("(", "\\(").replace(")", "\\)").trim();
+            var regex = new RegExp(escapedCompareValue, "i");
             return regex.test(origin);
           }
           return false;

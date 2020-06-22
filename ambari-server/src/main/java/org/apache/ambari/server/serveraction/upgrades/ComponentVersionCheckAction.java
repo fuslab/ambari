@@ -48,7 +48,7 @@ public class ComponentVersionCheckAction extends FinalizeUpgradeAction {
 
     String clusterName = getExecutionCommand().getClusterName();
 
-    Cluster cluster = m_clusters.getCluster(clusterName);
+    Cluster cluster = getClusters().getCluster(clusterName);
 
     UpgradeContext upgradeContext = getUpgradeContext(cluster);
     Set<InfoTuple> errors = validateComponentVersions(upgradeContext);
@@ -68,6 +68,7 @@ public class ComponentVersionCheckAction extends FinalizeUpgradeAction {
   private String getErrors(StringBuilder outSB, StringBuilder errSB, Set<InfoTuple> errors) {
 
     errSB.append("Finalization will not be able to completed because of the following version inconsistencies:");
+    errSB.append(System.lineSeparator());
 
     Set<String> hosts = new TreeSet<>();
     Map<String, JsonArray> hostDetails = new HashMap<>();

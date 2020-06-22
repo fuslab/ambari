@@ -31,6 +31,6 @@ App.WizardBackButton = App.ButtonProgressView.extend({
   classNames: ['pull-left'],
   isInProgressBinding: 'App.router.backBtnClickInProgress',
   template: Em.Handlebars.compile('&larr; {{t common.back}}'),
-  buttonClassNames: 'pull-left',
+  buttonClassNames: 'btn-default pull-left',
   disabledBinding: 'controller.isBackButtonDisabled'
 });

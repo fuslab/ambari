@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,13 +17,14 @@
  */
 package org.apache.ambari.server.utils;
 
-import junit.framework.Assert;
-import org.junit.Test;
-
-import java.text.*;
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.TimeZone;
+
+import org.junit.Test;
+
+import junit.framework.Assert;
 
 public class TestDateUtils {
 

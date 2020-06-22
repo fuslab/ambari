@@ -18,26 +18,18 @@
 
 package org.apache.ambari.server.api.services.stackadvisor;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Predicates;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-import com.google.inject.Singleton;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-
 import java.util.Set;
+
 import org.apache.ambari.server.api.services.stackadvisor.StackAdvisorRequest.StackAdvisorRequestType;
 import org.apache.ambari.server.api.services.stackadvisor.recommendations.RecommendationResponse;
 import org.apache.ambari.server.api.services.stackadvisor.recommendations.RecommendationResponse.BlueprintConfigurations;
 import org.apache.ambari.server.controller.internal.ConfigurationTopologyException;
 import org.apache.ambari.server.controller.internal.Stack;
-import org.apache.ambari.server.orm.entities.BlueprintConfiguration;
 import org.apache.ambari.server.state.ValueAttributesInfo;
 import org.apache.ambari.server.topology.AdvisedConfiguration;
 import org.apache.ambari.server.topology.Blueprint;
@@ -48,13 +40,20 @@ import org.apache.ambari.server.topology.HostGroupInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Predicates;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import com.google.inject.Singleton;
+
 /**
  * Generate advised configurations for blueprint cluster provisioning by the stack advisor.
  */
 @Singleton
 public class StackAdvisorBlueprintProcessor {
 
-  private static Logger LOG = LoggerFactory.getLogger(StackAdvisorBlueprintProcessor.class);
+  private static final Logger LOG = LoggerFactory.getLogger(StackAdvisorBlueprintProcessor.class);
 
   private static StackAdvisorHelper stackAdvisorHelper;
 
@@ -68,7 +67,7 @@ public class StackAdvisorBlueprintProcessor {
   private static final Map<String, String> userContext;
   static
   {
-    userContext = new HashMap<String, String>();
+    userContext = new HashMap<>();
     userContext.put("operation", "ClusterCreate");
   }
 
@@ -97,7 +96,7 @@ public class StackAdvisorBlueprintProcessor {
             hgHostsMap);
     return StackAdvisorRequest.StackAdvisorRequestBuilder
       .forStack(stack.getName(), stack.getVersion())
-      .forServices(new ArrayList<String>(clusterTopology.getBlueprint().getServices()))
+      .forServices(new ArrayList<>(clusterTopology.getBlueprint().getServices()))
       .forHosts(gatherHosts(clusterTopology))
       .forHostsGroupBindings(gatherHostGroupBindings(clusterTopology))
       .forHostComponents(gatherHostGroupComponents(clusterTopology))
@@ -136,7 +135,7 @@ public class StackAdvisorBlueprintProcessor {
   }
 
   private Map<String, Set<String>> gatherComponentsHostsMap(Map<String, Set<String>> hostGroups, Map<String, Set<String>> bindingHostGroups) {
-    Map<String, Set<String>> componentHostsMap = new HashMap<String, Set<String>>();
+    Map<String, Set<String>> componentHostsMap = new HashMap<>();
     if (null != bindingHostGroups && null != hostGroups) {
       for (Map.Entry<String, Set<String>> hgComponents : hostGroups.entrySet()) {
         String hgName = hgComponents.getKey();
@@ -147,7 +146,7 @@ public class StackAdvisorBlueprintProcessor {
           for (String component : components) {
             Set<String> componentHosts = componentHostsMap.get(component);
             if (componentHosts == null) { // if was not initialized
-              componentHosts = new HashSet<String>();
+              componentHosts = new HashSet<>();
               componentHostsMap.put(component, componentHosts);
             }
             componentHosts.addAll(hosts);

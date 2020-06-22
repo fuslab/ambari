@@ -19,19 +19,24 @@
 package org.apache.ambari.server.state;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.stream.Collectors;
 
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.ObjectNotFoundException;
 import org.apache.ambari.server.ServiceComponentHostNotFoundException;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
+import org.apache.ambari.server.controller.MaintenanceStateHelper;
 import org.apache.ambari.server.controller.ServiceComponentResponse;
+import org.apache.ambari.server.controller.internal.DeleteHostComponentStatusMetaData;
 import org.apache.ambari.server.events.ServiceComponentRecoveryChangedEvent;
 import org.apache.ambari.server.events.listeners.upgrade.StackVersionListener;
 import org.apache.ambari.server.events.publishers.AmbariEventPublisher;
@@ -96,6 +101,9 @@ public class ServiceComponentImpl implements ServiceComponent {
 
   @Inject
   private HostComponentStateDAO hostComponentDAO;
+
+  @Inject
+  private MaintenanceStateHelper maintenanceStateHelper;
 
   @AssistedInject
   public ServiceComponentImpl(@Assisted Service service, @Assisted String componentName,
@@ -169,19 +177,21 @@ public class ServiceComponentImpl implements ServiceComponent {
 
     updateComponentInfo();
 
-    for (HostComponentStateEntity hostComponentStateEntity : serviceComponentDesiredStateEntity.getHostComponentStateEntities()) {
+    List<HostComponentDesiredStateEntity> hostComponentDesiredStateEntities = hostComponentDesiredStateDAO.findByIndex(
+        service.getClusterId(),
+        service.getName(),
+        serviceComponentDesiredStateEntity.getComponentName()
+    );
 
-      HostComponentDesiredStateEntity hostComponentDesiredStateEntity = hostComponentDesiredStateDAO.findByIndex(
-        hostComponentStateEntity.getClusterId(),
-        hostComponentStateEntity.getServiceName(),
-        hostComponentStateEntity.getComponentName(),
-        hostComponentStateEntity.getHostId()
-      );
+    Map<String, HostComponentDesiredStateEntity> mappedHostComponentDesiredStateEntitites =
+        hostComponentDesiredStateEntities.stream().collect(Collectors.toMap(h -> h.getHostEntity().getHostName(),
+            java.util.function.Function.identity()));
+    for (HostComponentStateEntity hostComponentStateEntity : serviceComponentDesiredStateEntity.getHostComponentStateEntities()) {
 
       try {
         hostComponents.put(hostComponentStateEntity.getHostName(),
           serviceComponentHostFactory.createExisting(this,
-            hostComponentStateEntity, hostComponentDesiredStateEntity));
+            hostComponentStateEntity, mappedHostComponentDesiredStateEntitites.get(hostComponentStateEntity.getHostName())));
       } catch(ProvisionException ex) {
         StackId currentStackId = getDesiredStackId();
         LOG.error(String.format("Can not get host component info: stackName=%s, stackVersion=%s, serviceName=%s, componentName=%s, hostname=%s",
@@ -238,7 +248,7 @@ public class ServiceComponentImpl implements ServiceComponent {
 
       // broadcast the change
       ServiceComponentRecoveryChangedEvent event = new ServiceComponentRecoveryChangedEvent(
-          getClusterName(), getServiceName(), getName(), isRecoveryEnabled());
+              getClusterId(), getClusterName(), getServiceName(), getName(), isRecoveryEnabled());
       eventPublisher.publish(event);
 
     } else {
@@ -253,6 +263,11 @@ public class ServiceComponentImpl implements ServiceComponent {
   }
 
   @Override
+  public String getDisplayName() {
+    return displayName;
+  }
+
+  @Override
   public long getClusterId() {
     return service.getClusterId();
   }
@@ -260,6 +275,15 @@ public class ServiceComponentImpl implements ServiceComponent {
   @Override
   public Map<String, ServiceComponentHost> getServiceComponentHosts() {
     return new HashMap<>(hostComponents);
+  }
+
+  @Override
+  public Set<String> getServiceComponentsHosts() {
+    Set<String> serviceComponentsHosts = new HashSet<>();
+    for (ServiceComponentHost serviceComponentHost : getServiceComponentHosts().values()) {
+      serviceComponentsHosts.add(serviceComponentHost.getHostName());
+    }
+    return serviceComponentsHosts;
   }
 
   @Override
@@ -501,7 +525,7 @@ public class ServiceComponentImpl implements ServiceComponent {
 
   @Override
   @Transactional
-  public void deleteAllServiceComponentHosts() throws AmbariException {
+  public void deleteAllServiceComponentHosts(DeleteHostComponentStatusMetaData deleteMetaData) {
     readWriteLock.writeLock().lock();
     try {
       LOG.info("Deleting all servicecomponenthosts for component" + ", clusterName="
@@ -509,15 +533,16 @@ public class ServiceComponentImpl implements ServiceComponent {
           + ", recoveryEnabled=" + isRecoveryEnabled());
       for (ServiceComponentHost sch : hostComponents.values()) {
         if (!sch.canBeRemoved()) {
-          throw new AmbariException("Found non removable hostcomponent " + " when trying to delete"
+          deleteMetaData.setAmbariException(new AmbariException("Found non removable hostcomponent " + " when trying to delete"
               + " all hostcomponents from servicecomponent" + ", clusterName=" + getClusterName()
               + ", serviceName=" + getServiceName() + ", componentName=" + getName()
-              + ", recoveryEnabled=" + isRecoveryEnabled() + ", hostname=" + sch.getHostName());
+              + ", recoveryEnabled=" + isRecoveryEnabled() + ", hostname=" + sch.getHostName()));
+          return;
         }
       }
 
       for (ServiceComponentHost serviceComponentHost : hostComponents.values()) {
-        serviceComponentHost.delete();
+        serviceComponentHost.delete(deleteMetaData);
       }
 
       hostComponents.clear();
@@ -527,7 +552,7 @@ public class ServiceComponentImpl implements ServiceComponent {
   }
 
   @Override
-  public void deleteServiceComponentHosts(String hostname) throws AmbariException {
+  public void deleteServiceComponentHosts(String hostname, DeleteHostComponentStatusMetaData deleteMetaData) throws AmbariException {
     readWriteLock.writeLock().lock();
     try {
       ServiceComponentHost sch = getServiceComponentHost(hostname);
@@ -542,7 +567,7 @@ public class ServiceComponentImpl implements ServiceComponent {
             + ", recoveryEnabled=" + isRecoveryEnabled()
             + ", hostname=" + sch.getHostName());
       }
-      sch.delete();
+      sch.delete(deleteMetaData);
       hostComponents.remove(hostname);
 
     } finally {
@@ -552,10 +577,13 @@ public class ServiceComponentImpl implements ServiceComponent {
 
   @Override
   @Transactional
-  public void delete() throws AmbariException {
+  public void delete(DeleteHostComponentStatusMetaData deleteMetaData) {
     readWriteLock.writeLock().lock();
     try {
-      deleteAllServiceComponentHosts();
+      deleteAllServiceComponentHosts(deleteMetaData);
+      if (deleteMetaData.getAmbariException() != null) {
+        return;
+      }
 
       ServiceComponentDesiredStateEntity desiredStateEntity = serviceComponentDesiredStateDAO.findById(
           desiredStateEntityId);
@@ -724,10 +752,31 @@ public class ServiceComponentImpl implements ServiceComponent {
     return count;
   }
 
+  /**
+   * Count the ServiceComponentHosts that have given state and are effectively not in maintenanceMode
+   * @param state
+   * @return
+   */
+  private int getMaintenanceOffSCHCountByState(State state) {
+    int count = 0;
+    for (ServiceComponentHost sch : hostComponents.values()) {
+      try {
+        MaintenanceState effectiveMaintenanceState = maintenanceStateHelper.getEffectiveState(sch, sch.getHost());
+        if (sch.getState() == state && effectiveMaintenanceState == MaintenanceState.OFF) {
+          count++;
+        }
+      } catch (AmbariException e) {
+        e.printStackTrace();
+      }
+    }
+    return count;
+  }
+
   private Map <String, Integer> getServiceComponentStateCount() {
     Map <String, Integer> serviceComponentStateCountMap = new HashMap<>();
     serviceComponentStateCountMap.put("startedCount", getSCHCountByState(State.STARTED));
     serviceComponentStateCountMap.put("installedCount", getSCHCountByState(State.INSTALLED));
+    serviceComponentStateCountMap.put("installedAndMaintenanceOffCount", getMaintenanceOffSCHCountByState(State.INSTALLED));
     serviceComponentStateCountMap.put("installFailedCount", getSCHCountByState(State.INSTALL_FAILED));
     serviceComponentStateCountMap.put("initCount", getSCHCountByState(State.INIT));
     serviceComponentStateCountMap.put("unknownCount", getSCHCountByState(State.UNKNOWN));

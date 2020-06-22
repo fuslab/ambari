@@ -72,33 +72,6 @@ describe('App.mainAdminStackVersionsView', function () {
         }),
         Em.Object.create({
           status: "INSTALLED",
-          repositoryVersion: "2.2.0.1",
-          stackVersionType: 'HDP',
-          hidden: false
-        }),
-        Em.Object.create({
-          status: "INSTALLED",
-          repositoryVersion: "2.0.0.1",
-          stackVersionType: 'HDP',
-          isPatch: true,
-          hidden: false
-        }),
-        Em.Object.create({
-          status: "INSTALLED",
-          repositoryVersion: "2.0.0.2",
-          stackVersionType: 'HDP',
-          isPatch: true,
-          hidden: true
-        }),
-        Em.Object.create({
-          status: "INSTALLED",
-          repositoryVersion: "2.0.0.1",
-          stackVersionType: 'HDP',
-          isMaint: true,
-          hidden: false
-        }),
-        Em.Object.create({
-          status: "INSTALLED",
           repositoryVersion: "2.2.2.1",
           stackVersionType: 'HDP',
           hidden: false
@@ -158,20 +131,6 @@ describe('App.mainAdminStackVersionsView', function () {
               repositoryVersion: "2.0.2.1",
               stackVersionType: 'HCP',
               isCompatible: true,
-              hidden: false
-            }),
-            Em.Object.create({
-              status: "INSTALLED",
-              repositoryVersion: "2.0.0.1",
-              stackVersionType: 'HDP',
-              isPatch: true,
-              hidden: false
-            }),
-            Em.Object.create({
-              status: "INSTALLED",
-              repositoryVersion: "2.0.0.1",
-              stackVersionType: 'HDP',
-              isMaint: true,
               hidden: false
             }),
             Em.Object.create({
@@ -255,20 +214,6 @@ describe('App.mainAdminStackVersionsView', function () {
               stackVersionType: 'HCP',
               isCompatible: true,
               hidden: false
-            }),
-            Em.Object.create({
-              status: "INSTALLED",
-              repositoryVersion: "2.0.0.1",
-              stackVersionType: 'HDP',
-              isPatch: true,
-              hidden: false
-            }),
-            Em.Object.create({
-              status: "INSTALLED",
-              repositoryVersion: "2.0.0.1",
-              stackVersionType: 'HDP',
-              isMaint: true,
-              hidden: false
             })
           ]
         },
@@ -349,12 +294,14 @@ describe('App.mainAdminStackVersionsView', function () {
       sinon.stub(App, 'get', function (key) {
         return key === 'supports.displayOlderVersions' ? displayOlderVersions : Em.get(App, key);
       });
-      sinon.stub(App.router, 'get').returns('HDP-2.2')
+      sinon.stub(view, 'isVersionUpgrading', function(v) {
+        return v.get('displayName') === 'HDP-2.2';
+      });
     });
 
     afterEach(function () {
       App.get.restore();
-      App.router.get.restore();
+      view.isVersionUpgrading.restore();
     });
 
     testCases.forEach(function(t) {
@@ -460,6 +407,53 @@ describe('App.mainAdminStackVersionsView', function () {
     });
   });
 
+  describe('#isVersionUpgrading()', function() {
+
+    beforeEach(function() {
+      this.mock = sinon.stub(App.router, 'get');
+    });
+
+    afterEach(function() {
+      this.mock.restore();
+    });
+
+    it('should return false, when version not being upgraded', function() {
+      var version = Em.Object.create({
+        displayName: 'HDP',
+        repositoryVersion: 'HDP'
+      });
+      this.mock.returns(Em.Object.create({
+        upgradeVersion: 'HDP-2',
+        fromVersion: 'HDP-1'
+      }));
+      expect(view.isVersionUpgrading(version)).to.be.false;
+    });
+
+    it('should return true, when version being upgraded', function() {
+      var version = Em.Object.create({
+        displayName: 'HDP-2',
+        repositoryVersion: 'HDP'
+      });
+      this.mock.returns(Em.Object.create({
+        upgradeVersion: 'HDP-2',
+        fromVersion: 'HDP-1'
+      }));
+      expect(view.isVersionUpgrading(version)).to.be.true;
+    });
+
+    it('should return true, when version being downgraded', function() {
+      var version = Em.Object.create({
+        displayName: 'HDP',
+        repositoryVersion: 'HDP-1'
+      });
+      this.mock.returns(Em.Object.create({
+        upgradeVersion: 'HDP-2',
+        fromVersion: 'HDP-1'
+      }));
+      expect(view.isVersionUpgrading(version)).to.be.true;
+    });
+  });
+
   describe("#goToVersions()", function() {
     var data = {
       components: [{
@@ -469,6 +463,50 @@ describe('App.mainAdminStackVersionsView', function () {
       }, {
         'RootServiceComponents': {
           'component_version': '2.1.0'
+        }
+      }, {
+        'RootServiceComponents': {
+          'component_version': '2.0.0'
+        }
+      }]
+    };
+    before(function () {
+      sinon.spy(App, 'showConfirmationPopup');
+      sinon.stub(window.location, 'replace', Em.K);
+    });
+    after(function () {
+      App.showConfirmationPopup.restore();
+      window.location.replace.restore();
+    });
+
+    beforeEach(function () {
+      App.ajax.send.restore();
+      sinon.stub(App.ajax, 'send').returns({
+        then: function(callback) {
+          callback(data);
+        }
+      });
+    });
+
+    it("should go to link using the version retrieved by query", function() {
+      var popup = view.goToVersions();
+      expect(App.showConfirmationPopup.calledOnce).to.be.true;
+      popup.onPrimary();
+      var args = testHelpers.findAjaxRequest('name', 'ambari.service.load_server_version');
+      expect(args[0]).exists;
+      expect(window.location.replace.calledWith('/views/ADMIN_VIEW/2.1.0/INSTANCE/#/stackVersions')).to.be.true;
+    });
+  });
+
+  describe("#goToVersionsCustomVersions", function() {
+    var data = {
+      components: [{
+        'RootServiceComponents': {
+          'component_version': '1.9.0'
+        }
+      }, {
+        'RootServiceComponents': {
+          'component_version': '2.1.0_MyBuild'
         }
       }, {
         'RootServiceComponents': {

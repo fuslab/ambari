@@ -16,51 +16,38 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.ambari.logfeeder.util;
 
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
+import org.apache.ambari.logfeeder.input.InputFile;
+import org.apache.ambari.logfeeder.plugin.common.MetricData;
+import org.apache.ambari.logfeeder.plugin.input.InputMarker;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+
 import java.lang.reflect.Type;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Hashtable;
-import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 
-import org.apache.ambari.logfeeder.LogFeeder;
-import org.apache.ambari.logfeeder.common.LogFeederConstants;
-import org.apache.ambari.logfeeder.input.Input;
-import org.apache.ambari.logfeeder.input.InputMarker;
-import org.apache.ambari.logfeeder.metrics.MetricData;
-import org.apache.commons.collections.MapUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.reflect.TypeToken;
-
-/**
- * This class contains utility methods used by LogFeeder
- */
 public class LogFeederUtil {
   private static final Logger LOG = Logger.getLogger(LogFeederUtil.class);
 
   private final static String GSON_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss.SSS";
   private static Gson gson = new GsonBuilder().setDateFormat(GSON_DATE_FORMAT).create();
-  
+
   public static Gson getGson() {
     return gson;
   }
 
   public static String hostName = null;
   public static String ipAddress = null;
-  
+
   static{
     try {
       InetAddress ip = InetAddress.getLocalHost();
@@ -75,183 +62,10 @@ public class LogFeederUtil {
         hostName = getHostName;
       }
       LOG.info("ipAddress=" + ipAddress + ", getHostName=" + getHostName + ", getCanonicalHostName=" + getCanonicalHostName +
-          ", hostName=" + hostName);
+        ", hostName=" + hostName);
     } catch (UnknownHostException e) {
       LOG.error("Error getting hostname.", e);
     }
-  }
-  
-  private static Properties props;
-
-  /**
-   * This method will read the properties from System, followed by propFile and finally from the map
-   */
-  public static void loadProperties(String propFile, String[] propNVList) throws Exception {
-    LOG.info("Loading properties. propFile=" + propFile);
-    props = new Properties(System.getProperties());
-    boolean propLoaded = false;
-
-    // First get properties file path from environment value
-    String propertiesFilePath = System.getProperty("properties");
-    if (StringUtils.isNotEmpty(propertiesFilePath)) {
-      File propertiesFile = new File(propertiesFilePath);
-      if (propertiesFile.exists() && propertiesFile.isFile()) {
-        LOG.info("Properties file path set in environment. Loading properties file=" + propertiesFilePath);
-        try (FileInputStream fis = new FileInputStream(propertiesFile)) {
-          props.load(fis);
-          propLoaded = true;
-        } catch (Throwable t) {
-          LOG.error("Error loading properties file. properties file=" + propertiesFile.getAbsolutePath());
-        }
-      } else {
-        LOG.error("Properties file path set in environment, but file not found. properties file=" + propertiesFilePath);
-      }
-    }
-
-    if (!propLoaded) {
-      try (BufferedInputStream bis = (BufferedInputStream) LogFeeder.class.getClassLoader().getResourceAsStream(propFile)) {
-        // Properties not yet loaded, let's try from class loader
-        if (bis != null) {
-          LOG.info("Loading properties file " + propFile + " from classpath");
-          props.load(bis);
-          propLoaded = true;
-        } else {
-          LOG.fatal("Properties file not found in classpath. properties file name= " + propFile);
-        }
-      }
-    }
-
-    if (!propLoaded) {
-      LOG.fatal("Properties file is not loaded.");
-      throw new Exception("Properties not loaded");
-    } else {
-      updatePropertiesFromMap(propNVList);
-    }
-  }
-
-  private static void updatePropertiesFromMap(String[] nvList) {
-    if (nvList == null) {
-      return;
-    }
-    LOG.info("Trying to load additional proeprties from argument paramters. nvList.length=" + nvList.length);
-    for (String nv : nvList) {
-      LOG.info("Passed nv=" + nv);
-      if (nv.startsWith("-") && nv.length() > 1) {
-        nv = nv.substring(1);
-        LOG.info("Stripped nv=" + nv);
-        int i = nv.indexOf("=");
-        if (nv.length() > i) {
-          LOG.info("Candidate nv=" + nv);
-          String name = nv.substring(0, i);
-          String value = nv.substring(i + 1);
-          LOG.info("Adding property from argument to properties. name=" + name + ", value=" + value);
-          props.put(name, value);
-        }
-      }
-    }
-  }
-
-  public static String getStringProperty(String key) {
-    return props == null ? null : props.getProperty(key);
-  }
-
-  public static String getStringProperty(String key, String defaultValue) {
-    return props == null ? defaultValue : props.getProperty(key, defaultValue);
-  }
-
-  public static boolean getBooleanProperty(String key, boolean defaultValue) {
-    String value = getStringProperty(key);
-    return toBoolean(value, defaultValue);
-  }
-
-  private static boolean toBoolean(String value, boolean defaultValue) {
-    if (StringUtils.isEmpty(value)) {
-      return defaultValue;
-    }
-    
-    return "true".equalsIgnoreCase(value) || "yes".equalsIgnoreCase(value);
-  }
-
-  public static int getIntProperty(String key, int defaultValue) {
-    return getIntProperty(key, defaultValue, null, null);
-  }
-
-  public static int getIntProperty(String key, int defaultValue, Integer minValue, Integer maxValue) {
-    String value = getStringProperty(key);
-    int retValue = objectToInt(value, defaultValue, ", key=" + key);
-    if (minValue != null && retValue < minValue) {
-      LOG.info("Minimum rule was applied for " + key + ": " + retValue + " < " + minValue);
-      retValue = minValue;
-    }
-    if (maxValue != null && retValue > maxValue) {
-      LOG.info("Maximum rule was applied for " + key + ": " + retValue + " > " + maxValue);
-      retValue = maxValue;
-    }
-    return retValue;
-  }
-
-  public static int objectToInt(Object objValue, int retValue, String errMessage) {
-    if (objValue == null) {
-      return retValue;
-    }
-    String strValue = objValue.toString();
-    if (StringUtils.isNotEmpty(strValue)) {
-      try {
-        retValue = Integer.parseInt(strValue);
-      } catch (Throwable t) {
-        LOG.error("Error parsing integer value. str=" + strValue + ", " + errMessage);
-      }
-    }
-    return retValue;
-  }
-
-  @SuppressWarnings("unchecked")
-  public static boolean isEnabled(Map<String, Object> conditionConfigs, Map<String, Object> valueConfigs) {
-    Map<String, Object> conditions = (Map<String, Object>) conditionConfigs.get("conditions");
-    if (MapUtils.isEmpty(conditions)) {
-      return toBoolean((String) valueConfigs.get("is_enabled"), true);
-    }
-    
-    for (String conditionType : conditions.keySet()) {
-      if (!conditionType.equalsIgnoreCase("fields")) {
-        continue;
-      }
-      
-      Map<String, Object> fields = (Map<String, Object>) conditions.get("fields");
-      for (Map.Entry<String, Object> field : fields.entrySet()) {
-        if (field.getValue() instanceof String) {
-          if (isFieldConditionMatch(valueConfigs, field.getKey(), (String) field.getValue())) {
-            return true;
-          }
-        } else {
-          for (String stringValue : (List<String>) field.getValue()) {
-            if (isFieldConditionMatch(valueConfigs, field.getKey(), stringValue)) {
-              return true;
-            }
-          }
-        }
-      }
-    }
-    
-    return false;
-  }
-
-  private static boolean isFieldConditionMatch(Map<String, Object> configs, String fieldName, String stringValue) {
-    boolean allow = false;
-    String fieldValue = (String) configs.get(fieldName);
-    if (fieldValue != null && fieldValue.equalsIgnoreCase(stringValue)) {
-      allow = true;
-    } else {
-      @SuppressWarnings("unchecked")
-      Map<String, Object> addFields = (Map<String, Object>) configs.get("add_fields");
-      if (addFields != null && addFields.get(fieldName) != null) {
-        String addFieldValue = (String) addFields.get(fieldName);
-        if (stringValue.equalsIgnoreCase(addFieldValue)) {
-          allow = true;
-        }
-      }
-    }
-    return allow;
   }
 
   public static void logStatForMetric(MetricData metric, String prefixStr, String postFix) {
@@ -259,7 +73,7 @@ public class LogFeederUtil {
     long currMS = System.currentTimeMillis();
     if (currStat > metric.prevLogValue) {
       LOG.info(prefixStr + ": total_count=" + metric.value + ", duration=" + (currMS - metric.prevLogTime) / 1000 +
-          " secs, count=" + (currStat - metric.prevLogValue) + postFix);
+        " secs, count=" + (currStat - metric.prevLogValue) + postFix);
     }
     metric.prevLogValue = currStat;
     metric.prevLogTime = currMS;
@@ -282,20 +96,35 @@ public class LogFeederUtil {
     return gson.fromJson(jsonStr, type);
   }
 
+  public static int objectToInt(Object objValue, int retValue, String errMessage) {
+    if (objValue == null) {
+      return retValue;
+    }
+    String strValue = objValue.toString();
+    if (StringUtils.isNotEmpty(strValue)) {
+      try {
+        retValue = Integer.parseInt(strValue);
+      } catch (Throwable t) {
+        LOG.error("Error parsing integer value. str=" + strValue + ", " + errMessage);
+      }
+    }
+    return retValue;
+  }
+
   private static class LogHistory {
     private long lastLogTime = 0;
     private int counter = 0;
   }
 
-  private static Map<String, LogHistory> logHistoryList = new Hashtable<String, LogHistory>();
+  private static Map<String, LogFeederUtil.LogHistory> logHistoryList = new Hashtable<>();
 
   public static boolean logErrorMessageByInterval(String key, String message, Throwable e, Logger callerLogger, Level level) {
-    LogHistory log = logHistoryList.get(key);
+    LogFeederUtil.LogHistory log = logHistoryList.get(key);
     if (log == null) {
-      log = new LogHistory();
+      log = new LogFeederUtil.LogHistory();
       logHistoryList.put(key, log);
     }
-    
+
     if ((System.currentTimeMillis() - log.lastLogTime) > 30 * 1000) {
       log.lastLogTime = System.currentTimeMillis();
       if (log.counter > 0) {
@@ -311,53 +140,24 @@ public class LogFeederUtil {
     }
   }
 
-  public static boolean isListContains(List<String> list, String str, boolean caseSensitive) {
-    if (list == null) {
-      return false;
-    }
-    
-    for (String value : list) {
-      if (value == null) {
-        continue;
-      }
-      
-      if (caseSensitive ? value.equals(str) : value.equalsIgnoreCase(str) ||
-          value.equalsIgnoreCase(LogFeederConstants.ALL)) {
-        return true;
-      }
-    }
-    return false;
-  }
-  
-  private static String logfeederTempDir = null;
-  
-  public synchronized static String getLogfeederTempDir() {
-    if (logfeederTempDir == null) {
-      String tempDirValue = getStringProperty("logfeeder.tmp.dir", "/tmp/$username/logfeeder/");
-      HashMap<String, String> contextParam = new HashMap<String, String>();
-      String username = System.getProperty("user.name");
-      contextParam.put("username", username);
-      logfeederTempDir = PlaceholderUtil.replaceVariables(tempDirValue, contextParam);
-    }
-    return logfeederTempDir;
-  }
-
   public static void fillMapWithFieldDefaults(Map<String, Object> jsonObj, InputMarker inputMarker, boolean force) {
-    if (inputMarker != null && inputMarker.input != null && (force || inputMarker.input.isInitDefaultFields())) {
+    if (inputMarker != null && inputMarker.getInput() != null && (force || inputMarker.getInput().isInitDefaultFields())) {
       if (jsonObj.get("type") == null) {
-        jsonObj.put("type", inputMarker.input.getStringValue("type"));
+        jsonObj.put("type", inputMarker.getInput().getInputDescriptor().getType());
       }
-      if (jsonObj.get("path") == null && inputMarker.input.getFilePath() != null) {
-        jsonObj.put("path", inputMarker.input.getFilePath());
+      if (inputMarker.getInput() instanceof InputFile) {
+        if (jsonObj.get("path") == null && ((InputFile)inputMarker.getInput()).getFilePath() != null) {
+          jsonObj.put("path", ((InputFile)inputMarker.getInput()).getFilePath());
+        }
       }
-      if (jsonObj.get("path") == null && inputMarker.input.getStringValue("path") != null) {
-        jsonObj.put("path", inputMarker.input.getStringValue("path"));
+      if (jsonObj.get("path") == null && inputMarker.getInput().getInputDescriptor().getPath() != null) {
+        jsonObj.put("path", inputMarker.getInput().getInputDescriptor().getPath());
       }
-      if (jsonObj.get("host") == null && LogFeederUtil.hostName != null) {
-        jsonObj.put("host", LogFeederUtil.hostName);
+      if (jsonObj.get("host") == null && hostName != null) {
+        jsonObj.put("host", hostName);
       }
-      if (jsonObj.get("ip") == null && LogFeederUtil.ipAddress != null) {
-        jsonObj.put("ip", LogFeederUtil.ipAddress);
+      if (jsonObj.get("ip") == null && ipAddress != null) {
+        jsonObj.put("ip", ipAddress);
       }
     }
   }

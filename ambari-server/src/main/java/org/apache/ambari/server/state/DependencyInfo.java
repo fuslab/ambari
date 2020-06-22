@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,14 @@
 package org.apache.ambari.server.state;
 
 
+import java.util.ArrayList;
+import java.util.List;
+
 import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlElementWrapper;
+import javax.xml.bind.annotation.XmlElements;
+
+import org.apache.commons.collections.CollectionUtils;
 
 /**
  * Represents stack component dependency information.
@@ -51,10 +58,12 @@ public class DependencyInfo {
    * If auto-deployment is enabled for the dependency, the dependency is
    * automatically deployed if it is not specified in the provided topology.
    */
-  @XmlElement(name="auto-deploy")
   private AutoDeployInfo m_autoDeploy;
 
-
+  /**
+   * Conditions for Component dependency to other components.
+   */
+  private List<DependencyConditionInfo> dependencyConditions = new ArrayList<>();
   /**
    * Setter for name property.
    *
@@ -114,6 +123,7 @@ public class DependencyInfo {
    *
    * @return auto-deploy information
    */
+  @XmlElement(name="auto-deploy")
   public AutoDeployInfo getAutoDeploy() {
     return m_autoDeploy;
   }
@@ -134,6 +144,33 @@ public class DependencyInfo {
    */
   public String getServiceName() {
     return serviceName;
+  }
+  /**
+   * Get the dependencyConditions list
+   *
+   * @return dependencyConditions
+   */
+  @XmlElementWrapper(name="conditions")
+  @XmlElements(@XmlElement(name="condition"))
+  public List<DependencyConditionInfo> getDependencyConditions() {
+    return dependencyConditions;
+  }
+
+  /**
+   * Set dependencyConditions
+   *
+   * @param dependencyConditions
+   */
+  public void setDependencyConditions(List<DependencyConditionInfo> dependencyConditions) {
+    this.dependencyConditions = dependencyConditions;
+  }
+
+  /**
+   * Confirms if dependency have any condition or not
+   * @return true if dependencies are based on a condition
+   */
+  public boolean hasDependencyConditions(){
+    return !CollectionUtils.isEmpty(dependencyConditions);
   }
 
   @Override

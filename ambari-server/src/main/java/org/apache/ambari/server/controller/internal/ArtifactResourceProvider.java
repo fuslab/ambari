@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,16 @@
 
 package org.apache.ambari.server.controller.internal;
 
-import com.google.gson.Gson;
-import com.google.inject.Inject;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.DuplicateResourceException;
 import org.apache.ambari.server.ObjectNotFoundException;
@@ -39,16 +47,11 @@ import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.apache.ambari.server.orm.dao.ArtifactDAO;
 import org.apache.ambari.server.orm.entities.ArtifactEntity;
 import org.apache.ambari.server.state.Cluster;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
+import com.google.gson.Gson;
+import com.google.inject.Inject;
 
 /**
  * Provider for cluster artifacts.
@@ -60,50 +63,51 @@ import java.util.TreeMap;
 //todo: implement ExtendedResourceProvider???
 @StaticallyInject
 public class ArtifactResourceProvider extends AbstractResourceProvider {
-  /**
-   * artifact name
-   */
-  public static final String ARTIFACT_NAME_PROPERTY =
-      PropertyHelper.getPropertyId("Artifacts", "artifact_name");
 
-  /**
-   * artifact data
-   */
+  private static final Logger LOG = LoggerFactory.getLogger(ArtifactResourceProvider.class);
+
+  public static final String RESPONSE_KEY = "Artifacts";
+  public static final String ARTIFACT_NAME = "artifact_name";
+  public static final String CLUSTER_NAME = "cluster_name";
+  public static final String SERVICE_NAME = "service_name";
   public static final String ARTIFACT_DATA_PROPERTY = "artifact_data";
+  public static final String ARTIFACT_NAME_PROPERTY = RESPONSE_KEY + PropertyHelper.EXTERNAL_PATH_SEP + ARTIFACT_NAME;
+  public static final String CLUSTER_NAME_PROPERTY = RESPONSE_KEY + PropertyHelper.EXTERNAL_PATH_SEP + CLUSTER_NAME;
+  public static final String SERVICE_NAME_PROPERTY = RESPONSE_KEY + PropertyHelper.EXTERNAL_PATH_SEP + SERVICE_NAME;
 
   /**
    * primary key fields
    */
-  private static Set<String> pkPropertyIds = new HashSet<String>();
+  private static Set<String> pkPropertyIds = new HashSet<>();
 
   /**
    * map of resource type to fk field
    */
   private static Map<Resource.Type, String> keyPropertyIds =
-      new HashMap<Resource.Type, String>();
+    new HashMap<>();
 
   /**
    * resource properties
    */
-  private static Set<String> propertyIds = new HashSet<String>();
+  private static Set<String> propertyIds = new HashSet<>();
 
   /**
    * map of resource type to type registration
    */
   private static final Map<Resource.Type, TypeRegistration> typeRegistrations =
-      new HashMap<Resource.Type, TypeRegistration>();
+    new HashMap<>();
 
   /**
    * map of foreign key field to type registration
    */
   private static final Map<String, TypeRegistration> typeRegistrationsByFK =
-      new HashMap<String, TypeRegistration>();
+    new HashMap<>();
 
   /**
    * map of short foreign key field to type registration
    */
   private static final Map<String, TypeRegistration> typeRegistrationsByShortFK =
-      new HashMap<String, TypeRegistration>();
+    new HashMap<>();
 
   /**
    * serializer used to convert json to map
@@ -117,7 +121,7 @@ public class ArtifactResourceProvider extends AbstractResourceProvider {
   private static ArtifactDAO artifactDAO;
 
 
-  /**
+  /*
    * set resource properties, pk and fk's
    */
   static {
@@ -202,7 +206,7 @@ public class ArtifactResourceProvider extends AbstractResourceProvider {
              NoSuchParentResourceException {
 
     Set<Map<String, Object>> requestProps = getPropertyMaps(predicate);
-    Set<Resource> resources = new LinkedHashSet<Resource>();
+    Set<Resource> resources = new LinkedHashSet<>();
 
     for (Map<String, Object> props : requestProps) {
       resources.addAll(getResources(getGetCommand(request, predicate, props)));
@@ -300,7 +304,7 @@ public class ArtifactResourceProvider extends AbstractResourceProvider {
         String name = (String) properties.get(ARTIFACT_NAME_PROPERTY);
         validateParent(properties);
 
-        Set<Resource> matchingResources = new HashSet<Resource>();
+        Set<Resource> matchingResources = new HashSet<>();
         TreeMap<String, String> foreignKeys = createForeignKeyMap(properties);
         Set<String> requestPropertyIds = getRequestPropertyIds(request, predicate);
         if (name != null) {
@@ -340,7 +344,7 @@ public class ArtifactResourceProvider extends AbstractResourceProvider {
       @Override
       public Void invoke() throws AmbariException {
         Map<String, Object> entityUpdateProperties =
-            new HashMap<String, Object>(request.getProperties().iterator().next());
+          new HashMap<>(request.getProperties().iterator().next());
 
         // ensure name is set.  It won't be in case of query
         entityUpdateProperties.put(ARTIFACT_NAME_PROPERTY,
@@ -366,8 +370,8 @@ public class ArtifactResourceProvider extends AbstractResourceProvider {
       @Override
       public Void invoke() throws AmbariException {
         // flatten out key properties as is expected by createForeignKeyMap()
-        Map<String, Object> keyProperties = new HashMap<String, Object>();
-        for (Map.Entry<String, Object> entry : resource.getPropertiesMap().get("Artifacts").entrySet()) {
+        Map<String, Object> keyProperties = new HashMap<>();
+        for (Map.Entry<String, Object> entry : resource.getPropertiesMap().get(RESPONSE_KEY).entrySet()) {
           keyProperties.put(String.format("Artifacts/%s", entry.getKey()), entry.getValue());
         }
 
@@ -418,7 +422,7 @@ public class ArtifactResourceProvider extends AbstractResourceProvider {
   private Resource.Type getRequestType(Map<String, Object> properties) throws AmbariException {
     Set<String> requestFKs = getRequestForeignKeys(properties).keySet();
     for (TypeRegistration registration : typeRegistrations.values()) {
-      Collection<String> typeFKs = new HashSet<String>(registration.getForeignKeyInfo().values());
+      Collection<String> typeFKs = new HashSet<>(registration.getForeignKeyInfo().values());
       typeFKs.add(registration.getFKPropertyName());
       if (requestFKs.equals(typeFKs)) {
         return registration.getType();
@@ -438,7 +442,7 @@ public class ArtifactResourceProvider extends AbstractResourceProvider {
    * @return map of foreign key to value for the provided request properties
    */
   private Map<String, String> getRequestForeignKeys(Map<String, Object> properties) {
-    Map<String, String> requestFKs = new HashMap<String, String>();
+    Map<String, String> requestFKs = new HashMap<>();
     for (String property : properties.keySet()) {
       if (! property.equals(ARTIFACT_NAME_PROPERTY) && ! property.startsWith(ARTIFACT_DATA_PROPERTY)) {
         requestFKs.put(property, String.valueOf(properties.get(property)));
@@ -494,7 +498,7 @@ public class ArtifactResourceProvider extends AbstractResourceProvider {
    * @throws AmbariException an unexpected exception occurred
    */
   private TreeMap<String, String> createForeignKeyMap(Map<String, Object> properties) throws AmbariException {
-    TreeMap<String, String> foreignKeys = new TreeMap<String, String>();
+    TreeMap<String, String> foreignKeys = new TreeMap<>();
     for (String keyProperty : keyPropertyIds.values()) {
       if (! keyProperty.equals(ARTIFACT_NAME_PROPERTY)) {
         String origValue = (String) properties.get(keyProperty);
@@ -548,7 +552,7 @@ public class ArtifactResourceProvider extends AbstractResourceProvider {
   /**
    * Used to register a dynamic sub-resource with an existing resource type.
    */
-  public static interface TypeRegistration {
+  public interface TypeRegistration {
     /**
      * Allows the management controller to be set on the registration.
      * This is called as part of the registration process.
@@ -557,14 +561,14 @@ public class ArtifactResourceProvider extends AbstractResourceProvider {
      *
      * @param  controller  management controller
      */
-    public void setManagementController(AmbariManagementController controller);
+    void setManagementController(AmbariManagementController controller);
 
     /**
      * Get the type of the registering resource.
      *
      * @return type of the register resource
      */
-    public Resource.Type getType();
+    Resource.Type getType();
 
     /**
      * Full foreign key property name to use in the artifact resource.
@@ -574,7 +578,7 @@ public class ArtifactResourceProvider extends AbstractResourceProvider {
      *          For example: "Artifacts/cluster_name
      */
     //todo: use relative property names
-    public String getFKPropertyName();
+    String getFKPropertyName();
 
     /**
      * Shortened foreign key name that is written to the database.
@@ -583,7 +587,7 @@ public class ArtifactResourceProvider extends AbstractResourceProvider {
      *
      * @return short fk name.  For example: "cluster_name"
      */
-    public String getShortFKPropertyName();
+    String getShortFKPropertyName();
 
     /**
      * Convert the foreign key value to a value that is persisted to the database.
@@ -603,7 +607,7 @@ public class ArtifactResourceProvider extends AbstractResourceProvider {
      *
      * @throws AmbariException if unable to convert the value
      */
-    public String toPersistId(String value) throws AmbariException;
+    String toPersistId(String value) throws AmbariException;
 
     /**
      * Convert the persist id form of the foreign key which is written to the database
@@ -623,7 +627,7 @@ public class ArtifactResourceProvider extends AbstractResourceProvider {
      *
      * @throws AmbariException if unable to convert the value
      */
-    public String fromPersistId(String value) throws AmbariException;
+    String fromPersistId(String value) throws AmbariException;
 
     /**
      * Get a map of ancestor type to foreign key.
@@ -635,7 +639,7 @@ public class ArtifactResourceProvider extends AbstractResourceProvider {
      * @return map of ancestor type to foreign key
      */
     //todo: look at the need to use the same name as specified by ancestors
-    public Map<Resource.Type, String> getForeignKeyInfo();
+    Map<Resource.Type, String> getForeignKeyInfo();
 
     /**
      * Determine if the instance identified by the provided properties exists.
@@ -647,8 +651,8 @@ public class ArtifactResourceProvider extends AbstractResourceProvider {
      *
      * @throws AmbariException  an exception occurs trying to determine if the instance exists
      */
-    public boolean instanceExists(Map<Resource.Type, String> keyMap,
-                                  Map<String, Object> properties) throws AmbariException;
+    boolean instanceExists(Map<Resource.Type, String> keyMap,
+                           Map<String, Object> properties) throws AmbariException;
   }
 
 
@@ -666,7 +670,6 @@ public class ArtifactResourceProvider extends AbstractResourceProvider {
     /**
      * cluster name property name
      */
-    private static final String CLUSTER_NAME = PropertyHelper.getPropertyId("Artifacts", "cluster_name");
 
     @Override
     public void setManagementController(AmbariManagementController controller) {
@@ -680,7 +683,7 @@ public class ArtifactResourceProvider extends AbstractResourceProvider {
 
     @Override
     public String getFKPropertyName() {
-      return CLUSTER_NAME;
+      return CLUSTER_NAME_PROPERTY;
     }
 
     @Override
@@ -707,7 +710,7 @@ public class ArtifactResourceProvider extends AbstractResourceProvider {
     public boolean instanceExists(Map<Resource.Type, String> keyMap,
                                   Map<String, Object> properties) throws AmbariException {
       try {
-        String clusterName = String.valueOf(properties.get(CLUSTER_NAME));
+        String clusterName = String.valueOf(properties.get(CLUSTER_NAME_PROPERTY));
         controller.getClusters().getCluster(clusterName);
         return true;
       } catch (ObjectNotFoundException e) {
@@ -729,7 +732,6 @@ public class ArtifactResourceProvider extends AbstractResourceProvider {
     /**
      * service name property name
      */
-    private static final String SERVICE_NAME = PropertyHelper.getPropertyId("Artifacts", "service_name");
 
     @Override
     public void setManagementController(AmbariManagementController controller) {
@@ -743,7 +745,7 @@ public class ArtifactResourceProvider extends AbstractResourceProvider {
 
     @Override
     public String getFKPropertyName() {
-      return SERVICE_NAME;
+      return SERVICE_NAME_PROPERTY;
     }
 
     @Override
@@ -763,7 +765,7 @@ public class ArtifactResourceProvider extends AbstractResourceProvider {
 
     @Override
     public Map<Resource.Type, String> getForeignKeyInfo() {
-      return Collections.singletonMap(Resource.Type.Cluster, "Artifacts/cluster_name");
+      return Collections.singletonMap(Resource.Type.Cluster, CLUSTER_NAME_PROPERTY);
     }
 
     @Override
@@ -773,7 +775,7 @@ public class ArtifactResourceProvider extends AbstractResourceProvider {
       String clusterName = String.valueOf(properties.get(keyMap.get(Resource.Type.Cluster)));
       try {
         Cluster cluster = controller.getClusters().getCluster(clusterName);
-        cluster.getService(String.valueOf(properties.get(SERVICE_NAME)));
+        cluster.getService(String.valueOf(properties.get(SERVICE_NAME_PROPERTY)));
         return true;
       } catch (ObjectNotFoundException e) {
         // doesn't exist

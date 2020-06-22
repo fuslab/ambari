@@ -31,6 +31,7 @@ import com.google.inject.Guice;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.multibindings.Multibinder;
+import com.google.inject.persist.jpa.AmbariJpaPersistService;
 
 /**
  * Base Test Upgrade Catalog class
@@ -71,11 +72,6 @@ class TestUpgradeCatalog10 extends TestUpgradeCatalog {
   @Override
   public String getTargetVersion() {
     return "0.1.0";
-  }
-
-  @Override
-  public String getSourceVersion() {
-    return "0.0.1";
   }
 }
 
@@ -141,16 +137,17 @@ public class SchemaUpgradeHelperTest {
   @Before
   public void init(){
     Injector injector = Guice.createInjector(new UpgradeHelperTestModule());
+    injector.getInstance(AmbariJpaPersistService.class).start();
     schemaUpgradeHelper = injector.getInstance(SchemaUpgradeHelper.class);
   }
 
   @Test
   public void testGetMinimalUpgradeCatalogVersion() throws Exception{
-    Method getMinimalUpgradeCatalogVersion = schemaUpgradeHelper.getClass().getDeclaredMethod("getMinimalUpgradeCatalogSourceVersion");
+    Method getMinimalUpgradeCatalogVersion = schemaUpgradeHelper.getClass().getDeclaredMethod("getMinimalUpgradeCatalogVersion");
     getMinimalUpgradeCatalogVersion.setAccessible(true);
     String s = (String)getMinimalUpgradeCatalogVersion.invoke(schemaUpgradeHelper);
 
-    Assert.assertEquals("0.0.1", s);
+    Assert.assertEquals("0.1.0", s);
   }
 
   @Test

@@ -17,18 +17,21 @@
  */
 package org.apache.ambari.server.api.services;
 
-import com.google.inject.Inject;
-import org.apache.ambari.server.utils.StageUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.io.IOException;
+import java.util.Collection;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.xml.bind.JAXBException;
-import java.io.IOException;
-import java.util.Collection;
+
+import org.apache.ambari.annotations.ApiIgnore;
+import org.apache.ambari.server.utils.StageUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.inject.Inject;
 
 @Path("/keys/")
 public class KeyService {
@@ -41,7 +44,7 @@ public class KeyService {
   }
 
   @Path("{number}")
-  @GET
+  @GET @ApiIgnore // until documented
   @Produces("text/plain")
   public String getKeys(@PathParam("number") int number) throws IOException, JAXBException {
     Collection<String> keys = persistKeyVal.generateKeys(number);

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,25 +18,6 @@
 
 package org.apache.ambari.server.security.authorization;
 
-import org.apache.ambari.server.orm.entities.PrincipalEntity;
-import org.apache.ambari.server.orm.entities.UserEntity;
-import org.apache.ambari.server.scheduler.ExecutionScheduleManager;
-import org.apache.ambari.server.security.authorization.internal.InternalTokenClientFilter;
-import org.apache.ambari.server.security.authorization.internal.InternalTokenStorage;
-import org.apache.commons.lang.StringUtils;
-import org.easymock.Capture;
-import org.junit.Before;
-import org.junit.Test;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-
-import javax.servlet.FilterChain;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.util.HashSet;
-
 import static org.easymock.EasyMock.capture;
 import static org.easymock.EasyMock.createMock;
 import static org.easymock.EasyMock.eq;
@@ -48,6 +29,25 @@ import static org.easymock.EasyMock.verify;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+
+import java.io.IOException;
+import java.util.HashSet;
+
+import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.apache.ambari.server.orm.entities.PrincipalEntity;
+import org.apache.ambari.server.orm.entities.UserEntity;
+import org.apache.ambari.server.scheduler.ExecutionScheduleManager;
+import org.apache.ambari.server.security.authorization.internal.InternalTokenClientFilter;
+import org.apache.ambari.server.security.authorization.internal.InternalTokenStorage;
+import org.easymock.Capture;
+import org.junit.Before;
+import org.junit.Test;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 public class AmbariUserAuthenticationFilterTest {
   private static final String TEST_INTERNAL_TOKEN = "test token";
@@ -72,10 +72,11 @@ public class AmbariUserAuthenticationFilterTest {
     expect(tokenStorage.isValidInternalToken(TEST_INTERNAL_TOKEN)).andReturn(true);
     expect(request.getHeader(ExecutionScheduleManager.USER_ID_HEADER)).andReturn(TEST_USER_ID_HEADER);
 
-    User user = combineUser();
+    UserEntity userEntity = createUserEntity();
 
-    expect(users.getUser(TEST_USER_ID)).andReturn(user);
-    expect(users.getUserAuthorities(user.getUserName(), user.getUserType())).andReturn(new HashSet<AmbariGrantedAuthority>());
+    expect(users.getUserEntity(TEST_USER_ID)).andReturn(userEntity);
+    expect(users.getUserAuthorities(userEntity)).andReturn(new HashSet<AmbariGrantedAuthority>());
+    expect(users.getUser(userEntity)).andReturn(new User(userEntity));
     Capture<String> userHeaderValue = newCapture();
     response.setHeader(eq("User"), capture(userHeaderValue));
     expectLastCall();
@@ -93,7 +94,7 @@ public class AmbariUserAuthenticationFilterTest {
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
     assertNotNull(authentication);
     assertEquals(true, authentication.isAuthenticated());
-    assertEquals(TEST_USER_NAME, userHeaderValue.getValue());
+    assertEquals(TEST_USER_NAME.toLowerCase(), userHeaderValue.getValue());
   }
 
   @Test
@@ -158,7 +159,7 @@ public class AmbariUserAuthenticationFilterTest {
     expect(tokenStorage.isValidInternalToken(TEST_INTERNAL_TOKEN)).andReturn(true);
     expect(request.getHeader(ExecutionScheduleManager.USER_ID_HEADER)).andReturn(TEST_USER_ID_HEADER);
 
-    expect(users.getUser(TEST_USER_ID)).andReturn(null);
+    expect(users.getUserEntity(TEST_USER_ID)).andReturn(null);
 
     response.sendError(HttpServletResponse.SC_FORBIDDEN, "Authentication required");
     expectLastCall();
@@ -204,15 +205,12 @@ public class AmbariUserAuthenticationFilterTest {
     assertNull(authentication);
   }
 
-  private User combineUser() {
+  private UserEntity createUserEntity() {
     PrincipalEntity principalEntity = new PrincipalEntity();
     UserEntity userEntity = new UserEntity();
     userEntity.setUserId(TEST_USER_ID);
-    userEntity.setUserName(UserName.fromString(TEST_USER_NAME));
-    userEntity.setUserType(UserType.LOCAL);
+    userEntity.setUserName(UserName.fromString(TEST_USER_NAME).toString());
     userEntity.setPrincipal(principalEntity);
-    User user = new User(userEntity);
-
-    return user;
+    return userEntity;
   }
 }

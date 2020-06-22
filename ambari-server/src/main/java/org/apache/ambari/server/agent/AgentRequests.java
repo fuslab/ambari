@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,13 +18,14 @@
 
 package org.apache.ambari.server.agent;
 
-import com.google.inject.Singleton;
-import org.apache.commons.lang.StringUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import java.util.HashMap;
 import java.util.Map;
+
+import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.inject.Singleton;
 
 
 /**
@@ -33,8 +34,8 @@ import java.util.Map;
 
 @Singleton
 public class AgentRequests {
-  private static Log LOG = LogFactory.getLog(HeartbeatMonitor.class);
-  private final Map<String, Map<String, Boolean>> requiresExecCmdDetails = new HashMap<String, Map<String, Boolean>>();
+  private static final Logger LOG = LoggerFactory.getLogger(HeartbeatMonitor.class);
+  private final Map<String, Map<String, Boolean>> requiresExecCmdDetails = new HashMap<>();
   private final Object _lock = new Object();
 
   /**
@@ -59,7 +60,7 @@ public class AgentRequests {
 
     Map<String, Boolean> perHostRequiresExecCmdDetails = getPerHostRequiresExecCmdDetails(host);
     if (perHostRequiresExecCmdDetails != null && perHostRequiresExecCmdDetails.containsKey(component)) {
-      LOG.debug("Sending exec command details for " + component);
+      LOG.debug("Sending exec command details for {}", component);
       return perHostRequiresExecCmdDetails.get(component);
     }
 
@@ -70,7 +71,7 @@ public class AgentRequests {
     if (!requiresExecCmdDetails.containsKey(host)) {
       synchronized (_lock) {
         if (!requiresExecCmdDetails.containsKey(host)) {
-          requiresExecCmdDetails.put(host, new HashMap<String, Boolean>());
+          requiresExecCmdDetails.put(host, new HashMap<>());
         }
       }
     }
@@ -80,6 +81,6 @@ public class AgentRequests {
 
   @Override
   public String toString() {
-    return new StringBuilder().append("requiresExecCmdDetails: ").append(requiresExecCmdDetails.toString()).toString();
+    return new StringBuilder().append("requiresExecCmdDetails: ").append(requiresExecCmdDetails).toString();
   }
 }

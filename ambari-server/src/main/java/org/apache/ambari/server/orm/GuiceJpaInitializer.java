@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,17 +18,59 @@
 
 package org.apache.ambari.server.orm;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.apache.ambari.server.events.JpaInitializedEvent;
+import org.apache.ambari.server.events.publishers.AmbariEventPublisher;
+
 import com.google.inject.Inject;
+import com.google.inject.Singleton;
 import com.google.inject.persist.PersistService;
 
 /**
- * This class needs to be instantiated with guice to initialize Guice-persist
+ * This class needs to be instantiated with Guice to initialize Guice-persist
  */
+@Singleton
 public class GuiceJpaInitializer {
 
+  private final AtomicBoolean jpaInitialized = new AtomicBoolean(false);
+
+  /**
+   * GuiceJpaInitializer constructor.
+   */
   @Inject
-  public GuiceJpaInitializer(PersistService service) {
-    service.start();
+  public GuiceJpaInitializer(PersistService persistService) {
+    if (persistService != null) {
+      persistService.start();
+    }
   }
 
+  /**
+   * Called to indicate that the JPA service is initialized and ready for use.
+   * <p>
+   * This means that the schema for the underlying database matches the JPA entity objects expectations
+   * and the PersistService has been started.
+   * <p>
+   * If an {@link AmbariEventPublisher} is supplied, a {@link JpaInitializedEvent} is published so
+   * that subscribers can perform database-related tasks when the infrastructure is ready.
+   *
+   * @param publisher an {@link AmbariEventPublisher} to use for publishing the event, optional
+   */
+  public void setInitialized(AmbariEventPublisher publisher) {
+    jpaInitialized.set(true);
+
+    if (publisher != null) {
+      publisher.publish(new JpaInitializedEvent());
+    }
+  }
+
+  /**
+   * Returns whether JPA has been initialized or not
+   *
+   * @return <code>true</code> if JPA has been initialized; <code>false</code> if JPA has not been initialized
+   * @see #setInitialized(AmbariEventPublisher)
+   */
+  public boolean isInitialized() {
+    return jpaInitialized.get();
+  }
 }

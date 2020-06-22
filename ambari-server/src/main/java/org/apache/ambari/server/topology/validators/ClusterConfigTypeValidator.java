@@ -49,7 +49,7 @@ public class ClusterConfigTypeValidator implements TopologyValidator {
     }
 
     // identifying invalid config types
-    Set<String> configTypeIntersection = new HashSet<String>(topologyClusterConfigTypes);
+    Set<String> configTypeIntersection = new HashSet<>(topologyClusterConfigTypes);
 
     if (configTypeIntersection.retainAll(stackServiceConfigTypes)) {
       // there are config types not present in the stack for the services listed in the blueprint
@@ -59,7 +59,7 @@ public class ClusterConfigTypeValidator implements TopologyValidator {
       invalidConfigTypes.removeAll(configTypeIntersection);
 
       LOGGER.error("The following config typess are wrong: {}", invalidConfigTypes);
-      throw new InvalidTopologyException("The following configuration types are invalid: " + invalidConfigTypes.toString());
+      throw new InvalidTopologyException("The following configuration types are invalid: " + invalidConfigTypes);
     }
   }
 }

@@ -54,8 +54,7 @@ SERVICE_CHECK_DIRECTORY_MAP = {
   "OOZIE_SERVICE_CHECK" : "hadoop-client",
   "MAHOUT_SERVICE_CHECK" : "mahout-client",
   "MAPREDUCE2_SERVICE_CHECK" : "hadoop-client",
-  "YARN_SERVICE_CHECK" : "hadoop-client",
-  "SLIDER_SERVICE_CHECK" : "slider-client"
+  "YARN_SERVICE_CHECK" : "hadoop-client"
 }
 
 # <stack-root>/current/hadoop-client/[bin|sbin|libexec|lib]
@@ -177,7 +176,7 @@ def get_packages(scope, service_name = None, component_name = None):
     component_name = config['role']
 
 
-  stack_name = default("/hostLevelParams/stack_name", None)
+  stack_name = default("/clusterLevelParams/stack_name", None)
   if stack_name is None:
     raise Fail("The stack name is not present in the command. Packages for stack-select tool cannot be loaded.")
 
@@ -334,13 +333,17 @@ def get_role_component_current_stack_version():
   role_command =  default("/roleCommand", "")
 
   stack_selector_name = stack_tools.get_stack_tool_name(stack_tools.STACK_SELECTOR_NAME)
-
+  Logger.info("Checking version for {0} via {1}".format(role, stack_selector_name))
   if role_command == "SERVICE_CHECK" and role in SERVICE_CHECK_DIRECTORY_MAP:
     stack_select_component = SERVICE_CHECK_DIRECTORY_MAP[role]
   else:
     stack_select_component = get_package_name()
 
   if stack_select_component is None:
+    if not role:
+      Logger.error("No role information available.")
+    elif not role.lower().endswith("client"):
+      Logger.error("Mapping unavailable for role {0}. Skip checking its version.".format(role))
     return None
 
   current_stack_version = get_stack_version(stack_select_component)
@@ -421,7 +424,7 @@ def _get_upgrade_stack():
   """
   from resource_management.libraries.functions.default import default
   direction = default("/commandParams/upgrade_direction", None)
-  stack_name = default("/hostLevelParams/stack_name", None)
+  stack_name = default("/clusterLevelParams/stack_name", None)
   stack_version = default("/commandParams/version", None)
 
   if direction and stack_name and stack_version:

@@ -20,7 +20,7 @@
   <div class="available-services-list">
       {{#each service in view.content}}
           <p class="service-version-info">
-            <span class="span1">
+            <span class="col-md-1">
               {{service.displayName}}
             </span>
             <span class="label available">
@@ -30,12 +30,3 @@
       {{/each}}
   </div>
 {{/if}}
-<div class="row-fluid">
-  <div class="tinyspan">
-    {{view Ember.Checkbox classNames="align-checkbox" checkedBinding="skipDependencyCheck"}}
-  </div>
-  <div class="span10">
-    {{t admin.stackVersions.version.install.skipDependencies}}
-    <i class="icon-question-sign icon-blue" rel="skip-dep-check" data-toggle="tooltip"></i>
-  </div>
-</div>

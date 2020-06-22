@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -101,17 +101,7 @@ public class RecoveryConfigHelper {
 
     AutoStartConfig autoStartConfig = new AutoStartConfig(clusterName);
 
-    RecoveryConfig recoveryConfig = new RecoveryConfig();
-    recoveryConfig.setMaxCount(autoStartConfig.getNodeRecoveryMaxCount());
-    recoveryConfig.setMaxLifetimeCount(autoStartConfig.getNodeRecoveryLifetimeMaxCount());
-    recoveryConfig.setRetryGap(autoStartConfig.getNodeRecoveryRetryGap());
-    recoveryConfig.setType(autoStartConfig.getNodeRecoveryType());
-    recoveryConfig.setWindowInMinutes(autoStartConfig.getNodeRecoveryWindowInMin());
-    recoveryConfig.setRecoveryTimestamp(now);
-    if (autoStartConfig.isRecoveryEnabled()) {
-      recoveryConfig.setEnabledComponents(StringUtils.join(autoStartConfig.getEnabledComponents(hostname), ','));
-    }
-
+    RecoveryConfig recoveryConfig = new RecoveryConfig(autoStartConfig.getEnabledComponents(hostname));
     return recoveryConfig;
   }
 
@@ -190,7 +180,7 @@ public class RecoveryConfigHelper {
       }
     }
     else if (event.getService() != null) {
-      /**
+      /*
        * Simply invalidate all the hosts in the cluster.
        * The recovery config will be sent to all the hosts
        * even if some of the hosts do not have components
@@ -317,8 +307,8 @@ public class RecoveryConfigHelper {
      * maintenance mode.
      * @return
      */
-    private List<String> getEnabledComponents(String hostname) throws AmbariException {
-      List<String> enabledComponents = new ArrayList<>();
+    private List<RecoveryConfigComponent> getEnabledComponents(String hostname) throws AmbariException {
+      List<RecoveryConfigComponent> enabledComponents = new ArrayList<>();
 
       if (cluster == null) {
         return enabledComponents;
@@ -344,7 +334,7 @@ public class RecoveryConfigHelper {
           if (service.getMaintenanceState() == MaintenanceState.OFF) {
             // Keep the components that are not in maintenance mode.
             if (sch.getMaintenanceState() == MaintenanceState.OFF) {
-              enabledComponents.add(sch.getServiceComponentName());
+              enabledComponents.add(new RecoveryConfigComponent(sch));
             }
           }
         }
@@ -368,48 +358,6 @@ public class RecoveryConfigHelper {
      */
     private boolean isRecoveryEnabled() {
       return Boolean.parseBoolean(getProperty(RECOVERY_ENABLED_KEY, "false"));
-    }
-
-    /**
-     * Get the node recovery type. The only supported value is AUTO_START.
-     * @return
-     */
-    private String getNodeRecoveryType() {
-      return getProperty(RECOVERY_TYPE_KEY, RECOVERY_TYPE_DEFAULT);
-    }
-
-    /**
-     * Get configured max count of recovery attempt allowed per host component in a window
-     * This is reset when agent is restarted.
-     * @return
-     */
-    private String getNodeRecoveryMaxCount() {
-      return getProperty(RECOVERY_MAX_COUNT_KEY, RECOVERY_MAX_COUNT_DEFAULT);
-    }
-
-    /**
-     * Get configured max lifetime count of recovery attempt allowed per host component.
-     * This is reset when agent is restarted.
-     * @return
-     */
-    private String getNodeRecoveryLifetimeMaxCount() {
-      return getProperty(RECOVERY_LIFETIME_MAX_COUNT_KEY, RECOVERY_LIFETIME_MAX_COUNT_DEFAULT);
-    }
-
-    /**
-     * Get configured window size in minutes
-     * @return
-     */
-    private String getNodeRecoveryWindowInMin() {
-      return getProperty(RECOVERY_WINDOW_IN_MIN_KEY, RECOVERY_WINDOW_IN_MIN_DEFAULT);
-    }
-
-    /**
-     * Get the configured retry gap between tries per host component
-     * @return
-     */
-    private String getNodeRecoveryRetryGap() {
-      return getProperty(RECOVERY_RETRY_GAP_KEY, RECOVERY_RETRY_GAP_DEFAULT);
     }
 
     /**

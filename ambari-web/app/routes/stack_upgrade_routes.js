@@ -21,6 +21,10 @@ var App = require('app');
 module.exports = App.WizardRoute.extend({
   route: 'stack/upgrade',
 
+  breadcrumbs: {
+    labelBindingPath: 'App.router.mainAdminStackAndUpgradeController.wizardModalTitle'
+  },
+
   enter: function (router) {
     if (App.isAuthorized('CLUSTER.UPGRADE_DOWNGRADE_STACK')) {
       router.get('mainController').dataLoading().done(function () {
@@ -34,7 +38,8 @@ module.exports = App.WizardRoute.extend({
           App.router.get('updateController').set('isWorking', false);
 
           return App.ModalPopup.show({
-            classNames: ['full-width-modal'],
+            classNames: ['upgrade-wizard-modal'],
+            modalDialogClasses: ['modal-xlg'],
             headerClass: Em.View.extend({
               header: Em.computed.alias('controller.wizardModalTitle'),
               controllerBinding: 'App.router.mainAdminStackAndUpgradeController',
@@ -58,8 +63,8 @@ module.exports = App.WizardRoute.extend({
              * fit height of scrollable block inside of modal body
              */
             fitInnerHeight: function () {
-              var block = this.$().find('#modal > .modal-body');
-              var scrollable = this.$().find('#modal .scrollable-block');
+              var block = this.$().find('.modal .modal-body');
+              var scrollable = this.$().find('.modal .scrollable-block');
 
               scrollable.css('max-height', Number(block.css('max-height').slice(0, -2)) - block.height());
               block.css('max-height', 'none');
@@ -76,6 +81,7 @@ module.exports = App.WizardRoute.extend({
               this.hide();
               if (['NOT_REQUIRED', 'COMPLETED'].contains(App.get('upgradeState'))) {
                 location.reload();
+                App.router.get('wizardWatcherController').resetUser();
               }
             }
           });

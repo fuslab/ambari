@@ -23,7 +23,9 @@ App.SshKeyFileUploader = Em.View.extend({
   //TODO: rewrite it using tagName and attribute binding
   //TODO: rewrite it as independent component and place it somewhere in utils
   // alternative is to move it to App.WizardStep2View
-  template: Em.Handlebars.compile('<input type="file" {{bindAttr disabled="view.disabled"}} />'),
+  template: Em.Handlebars.compile('<input class="inputfileUgly" type="file" name="file" id="file" {{bindAttr disabled="view.disabled"}} {{QAAttr "upload-ssh-input"}} />' +
+      '<label class="btn btn-default" for="file" {{bindAttr disabled="view.disabled"}}>Choose file</label>' +
+      '<span id="selectedFileName">No file selected</span>'),
 
   classNames: ['ssh-key-input-indentation'],
 
@@ -35,6 +37,9 @@ App.SshKeyFileUploader = Em.View.extend({
 
       reader.onload = (function () {
         return function (e) {
+          var fileNameArray = $("#file").val().toString().split("\\");
+          var selectedFileName = fileNameArray[fileNameArray.length -1];
+          $('#selectedFileName').html(selectedFileName);
           $('#sshKey').html(e.target.result);
           self.get("controller").setSshKey(e.target.result);
         };
@@ -74,21 +79,13 @@ App.WizardStep2View = Em.View.extend({
   }.property(),
 
   /**
-   * Checkbox for activate SSH fields
-   * @type {Ember.Checkbox}
+   * Radio button for activate SSH fields
+   * @type {App.RadioButtonView}
    * TODO: replace next 2 properties with new one used in both places
    */
-  providingSSHKeyRadioButton: Em.Checkbox.extend({
-
-    tagName: 'input',
-
-    attributeBindings: ['type', 'checked'],
-
-    classNames: ['radio-btn-provide-ssh-key'],
-
+  providingSSHKeyRadioButton: App.RadioButtonView.extend({
+    classNames: ['radio'],
     checked: Em.computed.alias('controller.content.installOptions.useSsh'),
-
-    type: 'radio',
 
     click: function () {
       this.set('controller.content.installOptions.useSsh', true);
@@ -97,24 +94,38 @@ App.WizardStep2View = Em.View.extend({
   }),
 
   /**
-   * Checkbox for manual registration
-   * @type {Ember.Checkbox}
+   * Radio button for manual registration
+   * @type {App.RadioButtonView}
    */
-  manualRegistrationRadioButton: Em.Checkbox.extend({
-    tagName: 'input',
-
-    attributeBindings: ['type', 'checked'],
-
-    classNames: ['radio-btn-manual-reg'],
-
-    type: 'radio',
-
+  manualRegistrationRadioButton: App.RadioButtonView.extend({
+    classNames: ['radio'],
     checked: Em.computed.alias('controller.content.installOptions.manualInstall'),
 
     click: function () {
       this.set('controller.content.installOptions.manualInstall', true);
       this.set('controller.content.installOptions.useSsh', false);
     }
+  }),
+
+  /**
+   * Checkbox to skip Host Checks
+   * @type {App.CheckboxView}
+   */
+  skipHostsCheckBox: App.CheckboxView.extend({
+    classNames: ['display-inline-block'],
+    classNameBindings: ['containerClassName'],
+    containerClassName: 'checkbox',
+
+    showConfirmPopup: function() {
+      if(this.get('controller.content.installOptions.skipHostChecks')) {
+        App.ModalPopup.show({
+          header: Em.I18n.t('installer.step2.skipHostChecks.popup.header'),
+          body: Em.I18n.t('installer.step2.skipHostChecks.popup.body'),
+          primary: Em.I18n.t('ok'),
+          secondary: false
+        });
+      }
+    }.observes('controller.content.installOptions.skipHostChecks')
   }),
 
   /**
@@ -131,5 +142,3 @@ App.WizardStep2View = Em.View.extend({
   })
 
 });
-
-

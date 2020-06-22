@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,17 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.createStrictMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.reset;
+import static org.easymock.EasyMock.verify;
+
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.spi.Request;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
@@ -28,17 +39,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
-
-import static org.easymock.EasyMock.createNiceMock;
-import static org.easymock.EasyMock.createStrictMock;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.reset;
-import static org.easymock.EasyMock.verify;
 
 /**
  * PermissionResourceProvider tests.
@@ -66,7 +66,7 @@ public class PermissionResourceProviderTest {
 
   @Test
   public void testGetResources() throws Exception {
-    List<PermissionEntity> permissionEntities = new LinkedList<PermissionEntity>();
+    List<PermissionEntity> permissionEntities = new LinkedList<>();
 
     PermissionEntity permissionEntity = createNiceMock(PermissionEntity.class);
     ResourceTypeEntity resourceTypeEntity = createNiceMock(ResourceTypeEntity.class);

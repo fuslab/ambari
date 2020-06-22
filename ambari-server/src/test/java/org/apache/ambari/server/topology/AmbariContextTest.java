@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,13 @@
 
 package org.apache.ambari.server.topology;
 
+import static java.util.Collections.singletonList;
 import static org.easymock.EasyMock.anyObject;
 import static org.easymock.EasyMock.capture;
 import static org.easymock.EasyMock.createMock;
 import static org.easymock.EasyMock.createNiceMock;
 import static org.easymock.EasyMock.createStrictMock;
+import static org.easymock.EasyMock.eq;
 import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.expectLastCall;
 import static org.easymock.EasyMock.replay;
@@ -43,6 +45,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.ambari.server.agent.stomp.HostLevelParamsHolder;
 import org.apache.ambari.server.controller.AmbariManagementController;
 import org.apache.ambari.server.controller.ClusterRequest;
 import org.apache.ambari.server.controller.ConfigGroupRequest;
@@ -131,12 +134,12 @@ public class AmbariContextTest {
   private Configuration group1Configuration = null;
   private static final Collection<String> group1Hosts = Arrays.asList(HOST1, HOST2);
 
-  private Capture<Set<ConfigGroupRequest>> configGroupRequestCapture = new Capture<>();
+  private Capture<Set<ConfigGroupRequest>> configGroupRequestCapture = EasyMock.newCapture();
 
   @Before
   public void setUp() throws Exception {
     // "inject" context state
-    Class clazz = AmbariContext.class;
+    Class<AmbariContext> clazz = AmbariContext.class;
     Field f = clazz.getDeclaredField("controller");
     f.setAccessible(true);
     f.set(null, controller);
@@ -194,8 +197,8 @@ public class AmbariContextTest {
     expect(type1Group1.getTag()).andReturn("group1").anyTimes();
     expect(type1Group1.getProperties()).andReturn(group1ResolvedProperties).anyTimes();
     expect(configFactory.createReadOnly(EasyMock.eq("type1"), EasyMock.eq("group1"),
-        EasyMock.<Map<String, String>> anyObject(),
-        EasyMock.<Map<String, Map<String, String>>> anyObject())).andReturn(type1Group1).anyTimes();
+        EasyMock.anyObject(),
+        EasyMock.anyObject())).andReturn(type1Group1).anyTimes();
     replay(type1Group1);
 
     Config type1Service1 = createNiceMock(Config.class);
@@ -203,8 +206,8 @@ public class AmbariContextTest {
     expect(type1Service1.getTag()).andReturn("service1").anyTimes();
     expect(type1Service1.getProperties()).andReturn(type1Props).anyTimes();
     expect(configFactory.createReadOnly(EasyMock.eq("type1"), EasyMock.eq("service1"),
-        EasyMock.<Map<String, String>> anyObject(),
-        EasyMock.<Map<String, Map<String, String>>> anyObject())).andReturn(
+        EasyMock.anyObject(),
+        EasyMock.anyObject())).andReturn(
             type1Service1).anyTimes();
     replay(type1Service1);
 
@@ -215,12 +218,14 @@ public class AmbariContextTest {
     expect(repositoryVersion.getType()).andReturn(RepositoryType.STANDARD).atLeastOnce();
 
     expect(repositoryVersionDAO.findByStack(EasyMock.anyObject(StackId.class))).andReturn(
-        Collections.singletonList(repositoryVersion)).atLeastOnce();
-    replay(repositoryVersionDAO, repositoryVersion);
+        singletonList(repositoryVersion)).atLeastOnce();
 
-    context.repositoryVersionDAO = repositoryVersionDAO;
+    HostLevelParamsHolder hostLevelParamsHolder = createNiceMock(HostLevelParamsHolder.class);
+    replay(repositoryVersionDAO, repositoryVersion, hostLevelParamsHolder);
 
     context.configFactory = configFactory;
+    context.repositoryVersionDAO = repositoryVersionDAO;
+    context.hostLevelParamsHolder = hostLevelParamsHolder;
 
     blueprintServices.add("service1");
     blueprintServices.add("service2");
@@ -241,7 +246,7 @@ public class AmbariContextTest {
     expect(stack.getVersion()).andReturn(STACK_VERSION).anyTimes();
 
     for (Map.Entry<String, String> entry : configTypeServiceMapping.entrySet()) {
-      expect(stack.getServiceForConfigType(entry.getKey())).andReturn(entry.getValue()).anyTimes();
+      expect(stack.getServicesForConfigType(entry.getKey())).andReturn(singletonList(entry.getValue())).anyTimes();
     }
 
     expect(controller.getClusters()).andReturn(clusters).anyTimes();
@@ -266,6 +271,7 @@ public class AmbariContextTest {
 
     expect(configGroup1.getName()).andReturn(String.format("%s:%s", BP_NAME, HOST_GROUP_1)).anyTimes();
     expect(configGroup2.getName()).andReturn(String.format("%s:%s", BP_NAME, HOST_GROUP_2)).anyTimes();
+
   }
 
   @After
@@ -288,28 +294,29 @@ public class AmbariContextTest {
   @Test
   public void testCreateAmbariResources() throws Exception {
     // expectations
-    Capture<ClusterRequest> clusterRequestCapture = new Capture<>();
+    Capture<ClusterRequest> clusterRequestCapture = EasyMock.newCapture();
     controller.createCluster(capture(clusterRequestCapture));
     expectLastCall().once();
     expect(cluster.getServices()).andReturn(clusterServices).anyTimes();
 
-    Capture<Set<ServiceRequest>> serviceRequestCapture = new Capture<>();
-    Capture<Set<ServiceComponentRequest>> serviceComponentRequestCapture = new Capture<>();
+    Capture<Set<ServiceRequest>> serviceRequestCapture = EasyMock.newCapture();
+    Capture<Set<ServiceComponentRequest>> serviceComponentRequestCapture = EasyMock.newCapture();
 
     serviceResourceProvider.createServices(capture(serviceRequestCapture));
     expectLastCall().once();
     componentResourceProvider.createComponents(capture(serviceComponentRequestCapture));
     expectLastCall().once();
 
-    Capture<Request> serviceInstallRequestCapture = new Capture<>();
-    Capture<Request> serviceStartRequestCapture = new Capture<>();
-    Capture<Predicate> installPredicateCapture = new Capture<>();
-    Capture<Predicate> startPredicateCapture = new Capture<>();
+    Capture<Request> serviceInstallRequestCapture = EasyMock.newCapture();
+    Capture<Request> serviceStartRequestCapture = EasyMock.newCapture();
+    Capture<Predicate> installPredicateCapture = EasyMock.newCapture();
+    Capture<Predicate> startPredicateCapture = EasyMock.newCapture();
 
     expect(serviceResourceProvider.updateResources(capture(serviceInstallRequestCapture),
         capture(installPredicateCapture))).andReturn(null).once();
     expect(serviceResourceProvider.updateResources(capture(serviceStartRequestCapture),
         capture(startPredicateCapture))).andReturn(null).once();
+
 
     replayAll();
 
@@ -384,7 +391,7 @@ public class AmbariContextTest {
     expect(cluster.getService("service2")).andReturn(mockService1).once();
     Capture<Set<ServiceComponentHostRequest>> requestsCapture = EasyMock.newCapture();
 
-    controller.createHostComponents(capture(requestsCapture));
+    controller.createHostComponents(capture(requestsCapture), eq(true));
     expectLastCall().once();
 
     replayAll();
@@ -414,7 +421,7 @@ public class AmbariContextTest {
     expect(cluster.getService("service1")).andReturn(mockService1).times(2);
     Capture<Set<ServiceComponentHostRequest>> requestsCapture = EasyMock.newCapture();
 
-    controller.createHostComponents(capture(requestsCapture));
+    controller.createHostComponents(capture(requestsCapture), eq(true));
     expectLastCall().once();
 
     replayAll();
@@ -437,7 +444,7 @@ public class AmbariContextTest {
   @Test
   public void testRegisterHostWithConfigGroup_createNewConfigGroup() throws Exception {
     // test specific expectations
-    expect(cluster.getConfigGroups()).andReturn(Collections.<Long, ConfigGroup>emptyMap()).once();
+    expect(cluster.getConfigGroups()).andReturn(Collections.emptyMap()).once();
     expect(clusterController.ensureResourceProvider(Resource.Type.ConfigGroup)).andReturn(configGroupResourceProvider).once();
     //todo: for now not using return value so just returning null
     expect(configGroupResourceProvider.createResources(capture(configGroupRequestCapture))).andReturn(null).once();
@@ -477,7 +484,7 @@ public class AmbariContextTest {
   @Test
   public void testRegisterHostWithConfigGroup_createNewConfigGroupWithPendingHosts() throws Exception {
     // test specific expectations
-    expect(cluster.getConfigGroups()).andReturn(Collections.<Long, ConfigGroup>emptyMap()).once();
+    expect(cluster.getConfigGroups()).andReturn(Collections.emptyMap()).once();
     expect(clusterController.ensureResourceProvider(Resource.Type.ConfigGroup)).andReturn(configGroupResourceProvider).once();
     //todo: for now not using return value so just returning null
     expect(configGroupResourceProvider.createResources(capture(configGroupRequestCapture))).andReturn(null).once();
@@ -556,7 +563,7 @@ public class AmbariContextTest {
     replayAll();
 
     // verify that wait returns successfully with empty updated list passed in
-    context.waitForConfigurationResolution(CLUSTER_NAME, Collections.<String>emptySet());
+    context.waitForConfigurationResolution(CLUSTER_NAME, Collections.emptySet());
   }
 
   @Test
@@ -753,12 +760,10 @@ public class AmbariContextTest {
     RepositoryVersionEntity repositoryVersion1 = createNiceMock(RepositoryVersionEntity.class);
     expect(repositoryVersion1.getId()).andReturn(1L).atLeastOnce();
     expect(repositoryVersion1.getVersion()).andReturn("1.1.1.1").atLeastOnce();
-    expect(repositoryVersion1.getType()).andReturn(RepositoryType.STANDARD).atLeastOnce();
 
     RepositoryVersionEntity repositoryVersion2 = createNiceMock(RepositoryVersionEntity.class);
     expect(repositoryVersion2.getId()).andReturn(2L).atLeastOnce();
     expect(repositoryVersion2.getVersion()).andReturn("1.1.2.2").atLeastOnce();
-    expect(repositoryVersion2.getType()).andReturn(RepositoryType.STANDARD).atLeastOnce();
 
     expect(repositoryVersionDAO.findByStack(EasyMock.anyObject(StackId.class))).andReturn(
         Arrays.asList(repositoryVersion1, repositoryVersion2)).atLeastOnce();

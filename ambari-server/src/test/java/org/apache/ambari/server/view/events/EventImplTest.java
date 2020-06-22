@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,6 +17,10 @@
  */
 package org.apache.ambari.server.view.events;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.ambari.server.orm.entities.ViewEntity;
 import org.apache.ambari.server.orm.entities.ViewEntityTest;
 import org.apache.ambari.server.orm.entities.ViewInstanceEntity;
@@ -25,10 +29,6 @@ import org.apache.ambari.server.view.configuration.ViewConfig;
 import org.apache.ambari.server.view.configuration.ViewConfigTest;
 import org.junit.Assert;
 import org.junit.Test;
-
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * EventImpl tests.
@@ -43,13 +43,13 @@ public class EventImplTest {
 
   @Test
   public void testGetId() throws Exception {
-    EventImpl event = getEvent("MyEvent", Collections.<String, String>emptyMap(), view_xml);
+    EventImpl event = getEvent("MyEvent", Collections.emptyMap(), view_xml);
     Assert.assertEquals("MyEvent", event.getId());
   }
 
   @Test
   public void testGetProperties() throws Exception {
-    Map<String, String> properties = new HashMap<String, String>();
+    Map<String, String> properties = new HashMap<>();
     properties.put("p1", "v1");
     properties.put("p2", "v2");
 
@@ -59,7 +59,7 @@ public class EventImplTest {
 
   @Test
   public void testGetViewSubject() throws Exception {
-    EventImpl event = getEvent("MyEvent", Collections.<String, String>emptyMap(), view_xml);
+    EventImpl event = getEvent("MyEvent", Collections.emptyMap(), view_xml);
 
     Assert.assertEquals("MY_VIEW", event.getViewSubject().getViewName());
     Assert.assertEquals("My View!", event.getViewSubject().getLabel());
@@ -68,11 +68,11 @@ public class EventImplTest {
 
   @Test
   public void testGetViewInstanceSubject() throws Exception {
-    EventImpl event = getEvent("MyEvent", Collections.<String, String>emptyMap(), view_xml);
+    EventImpl event = getEvent("MyEvent", Collections.emptyMap(), view_xml);
     Assert.assertNull(event.getViewInstanceSubject());
 
     ViewInstanceEntity viewInstanceEntity = ViewInstanceEntityTest.getViewInstanceEntity();
-    event = getEvent("MyEvent", Collections.<String, String>emptyMap(), viewInstanceEntity);
+    event = getEvent("MyEvent", Collections.emptyMap(), viewInstanceEntity);
     Assert.assertEquals(viewInstanceEntity, event.getViewInstanceSubject());
   }
 

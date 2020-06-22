@@ -73,7 +73,7 @@ config_dir = os.path.realpath(config_path)
 version_for_stack_feature_checks = get_stack_feature_version(config)
 
 # This is expected to be of the form #.#.#.#
-stack_version_unformatted = config['hostLevelParams']['stack_version']
+stack_version_unformatted = config['clusterLevelParams']['stack_version']
 stack_version_formatted_major = format_stack_version(stack_version_unformatted)
 stack_version_formatted = functions.get_stack_version('hadoop-yarn-resourcemanager')
 major_stack_version = get_major_version(stack_version_formatted_major)
@@ -133,7 +133,7 @@ spark2_version = get_spark_version("SPARK2", "SPARK2_CLIENT", version)
 stack_supports_ranger_kerberos = check_stack_feature(StackFeature.RANGER_KERBEROS_SUPPORT, version_for_stack_feature_checks)
 stack_supports_ranger_audit_db = check_stack_feature(StackFeature.RANGER_AUDIT_DB_SUPPORT, version_for_stack_feature_checks)
 
-hostname = config['hostname']
+hostname = config['agentLevelParams']['hostname']
 
 # hadoop default parameters
 hadoop_home = status_params.hadoop_home
@@ -192,7 +192,7 @@ if stack_supports_ru:
 
 if stack_supports_timeline_state_store:
   # Timeline Service property that was added timeline_state_store stack feature
-  ats_leveldb_state_store_dir = config['configurations']['yarn-site']['yarn.timeline-service.leveldb-state-store.path']
+  ats_leveldb_state_store_dir = default('/configurations/yarn-site/yarn.timeline-service.leveldb-state-store.path', '/hadoop/yarn/timeline')
 
 # ats 1.5 properties
 entity_groupfs_active_dir = config['configurations']['yarn-site']['yarn.timeline-service.entity-group-fs-store.active-dir']
@@ -216,7 +216,7 @@ ulimit_cmd = "ulimit -c unlimited;"
 mapred_user = status_params.mapred_user
 yarn_user = status_params.yarn_user
 hdfs_user = config['configurations']['hadoop-env']['hdfs_user']
-hdfs_tmp_dir = config['configurations']['hadoop-env']['hdfs_tmp_dir']
+hdfs_tmp_dir = default("/configurations/hadoop-env/hdfs_tmp_dir", "/tmp")
 
 smokeuser = config['configurations']['cluster-env']['smokeuser']
 smokeuser_principal = config['configurations']['cluster-env']['smokeuser_principal_name']
@@ -235,12 +235,15 @@ container_executor_mode = 06050 if is_linux_container_executor else 02050
 kinit_path_local = get_kinit_path(default('/configurations/kerberos-env/executable_search_paths', None))
 yarn_http_policy = config['configurations']['yarn-site']['yarn.http.policy']
 yarn_https_on = (yarn_http_policy.upper() == 'HTTPS_ONLY')
-rm_hosts = config['clusterHostInfo']['rm_host']
+rm_hosts = config['clusterHostInfo']['resourcemanager_hosts']
 rm_host = rm_hosts[0]
 rm_port = config['configurations']['yarn-site']['yarn.resourcemanager.webapp.address'].split(':')[-1]
 rm_https_port = default('/configurations/yarn-site/yarn.resourcemanager.webapp.https.address', ":8090").split(':')[-1]
+# TODO UPGRADE default, update site during upgrade
+rm_nodes_exclude_path = default("/configurations/yarn-site/yarn.resourcemanager.nodes.exclude-path","/etc/hadoop/conf/yarn.exclude")
+rm_nodes_exclude_dir = os.path.dirname(rm_nodes_exclude_path)
 
-java64_home = config['hostLevelParams']['java_home']
+java64_home = config['ambariLevelParams']['java_home']
 java_exec = format("{java64_home}/bin/java")
 hadoop_ssl_enabled = default("/configurations/core-site/hadoop.ssl.enabled", False)
 
@@ -256,6 +259,7 @@ mapred_pid_dir_prefix = status_params.mapred_pid_dir_prefix
 mapred_log_dir_prefix = config['configurations']['mapred-env']['mapred_log_dir_prefix']
 mapred_env_sh_template = config['configurations']['mapred-env']['content']
 yarn_env_sh_template = config['configurations']['yarn-env']['content']
+container_executor_cfg_template = config['configurations']['container-executor']['content']
 yarn_nodemanager_recovery_dir = default('/configurations/yarn-site/yarn.nodemanager.recovery.dir', None)
 service_check_queue_name = default('/configurations/yarn-env/service_check.queue.name', 'default')
 
@@ -266,6 +270,13 @@ if len(rm_hosts) > 1:
 else:
   rm_webui_address = format("{rm_host}:{rm_port}")
   rm_webui_https_address = format("{rm_host}:{rm_https_port}")
+
+if security_enabled:
+  tc_mode = 0644
+  tc_owner = "root"
+else:
+  tc_mode = None
+  tc_owner = hdfs_user
 
 nm_webui_address = config['configurations']['yarn-site']['yarn.nodemanager.webapp.address']
 hs_webui_address = config['configurations']['mapred-site']['mapreduce.jobhistory.webapp.address']
@@ -299,11 +310,14 @@ yarn_job_summary_log = format("{yarn_log_dir_prefix}/{yarn_user}/hadoop-mapreduc
 user_group = config['configurations']['cluster-env']['user_group']
 
 #exclude file
-exclude_hosts = default("/clusterHostInfo/decom_nm_hosts", [])
+if 'all_decommissioned_hosts' in config['commandParams']:
+  exclude_hosts = config['commandParams']['all_decommissioned_hosts'].split(",")
+else:
+  exclude_hosts = []
 exclude_file_path = default("/configurations/yarn-site/yarn.resourcemanager.nodes.exclude-path","/etc/hadoop/conf/yarn.exclude")
 rm_nodes_exclude_dir = os.path.dirname(exclude_file_path)
 
-nm_hosts = default("/clusterHostInfo/nm_hosts", [])
+nm_hosts = default("/clusterHostInfo/nodemanager_hosts", [])
 #incude file
 include_file_path = default("/configurations/yarn-site/yarn.resourcemanager.nodes.include-path", None)
 include_hosts = None
@@ -318,7 +332,7 @@ has_ats = not len(ats_host) == 0
 # don't using len(nm_hosts) here, because check can take too much time on large clusters
 number_of_nm = 1
 
-hs_host = default("/clusterHostInfo/hs_host", [])
+hs_host = default("/clusterHostInfo/historyserver_hosts", [])
 has_hs = not len(hs_host) == 0
 
 # default kinit commands
@@ -340,7 +354,9 @@ if security_enabled:
   rm_kinit_cmd = format("{kinit_path_local} -kt {rm_keytab} {rm_principal_name};")
   yarn_jaas_file = os.path.join(config_dir, 'yarn_jaas.conf')
   if stack_supports_zk_security:
-    rm_security_opts = format('-Dzookeeper.sasl.client=true -Dzookeeper.sasl.client.username=zookeeper -Djava.security.auth.login.config={yarn_jaas_file} -Dzookeeper.sasl.clientconfig=Client')
+    zk_principal_name = default("/configurations/zookeeper-env/zookeeper_principal_name", "zookeeper/_HOST@EXAMPLE.COM")
+    zk_principal_user = zk_principal_name.split('/')[0]
+    rm_security_opts = format('-Dzookeeper.sasl.client=true -Dzookeeper.sasl.client.username={zk_principal_user} -Djava.security.auth.login.config={yarn_jaas_file} -Dzookeeper.sasl.clientconfig=Client')
 
   # YARN timeline security options
   if has_ats:
@@ -393,7 +409,7 @@ is_webhdfs_enabled = hdfs_site['dfs.webhdfs.enabled']
 # Path to file that contains list of HDFS resources to be skipped during processing
 hdfs_resource_ignore_file = "/var/lib/ambari-agent/data/.hdfs_resource_ignore"
 
-dfs_type = default("/commandParams/dfs_type", "")
+dfs_type = default("/clusterLevelParams/dfs_type", "")
 
 
 import functools
@@ -431,13 +447,11 @@ node_label_enable = config['configurations']['yarn-site']['yarn.node-labels.enab
 cgroups_dir = "/cgroups_test/cpu"
 
 # hostname of the active HDFS HA Namenode (only used when HA is enabled)
-dfs_ha_namenode_active = default("/configurations/hadoop-env/dfs_ha_initial_namenode_active", None)
-if dfs_ha_namenode_active is not None: 
+dfs_ha_namenode_active = default("/configurations/cluster-env/dfs_ha_initial_namenode_active", None)
+if dfs_ha_namenode_active is not None:
   namenode_hostname = dfs_ha_namenode_active
 else:
-  namenode_hostname = config['clusterHostInfo']['namenode_host'][0]
-
-ranger_admin_log_dir = default("/configurations/ranger-env/ranger_admin_log_dir","/var/log/ranger/admin")
+  namenode_hostname = config['clusterHostInfo']['namenode_hosts'][0]
 
 scheme = 'http' if not yarn_https_on else 'https'
 yarn_rm_address = config['configurations']['yarn-site']['yarn.resourcemanager.webapp.address'] if not yarn_https_on else config['configurations']['yarn-site']['yarn.resourcemanager.webapp.https.address']
@@ -461,7 +475,7 @@ if rm_ha_enabled:
     rm_webapp_addresses_list.append(rm_webapp_address)
 
 # for curl command in ranger plugin to get db connector
-jdk_location = config['hostLevelParams']['jdk_location']
+jdk_location = config['ambariLevelParams']['jdk_location']
 
 # ranger yarn plugin section start
 
@@ -473,7 +487,7 @@ has_ranger_admin = not len(ranger_admin_hosts) == 0
 xml_configurations_supported = check_stack_feature(StackFeature.RANGER_XML_CONFIGURATION, version_for_stack_feature_checks)
 
 # ambari-server hostname
-ambari_server_hostname = config['clusterHostInfo']['ambari_server_host'][0]
+ambari_server_hostname = config['ambariLevelParams']['ambari_server_host']
 
 # ranger yarn plugin enabled property
 enable_ranger_yarn = default("/configurations/ranger-yarn-plugin-properties/ranger-yarn-plugin-enabled", "No")

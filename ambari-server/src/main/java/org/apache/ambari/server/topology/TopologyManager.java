@@ -35,7 +35,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import javax.annotation.Nullable;
 import javax.inject.Inject;
 
 import org.apache.ambari.server.AmbariException;
@@ -44,6 +43,7 @@ import org.apache.ambari.server.actionmanager.HostRoleStatus;
 import org.apache.ambari.server.api.services.stackadvisor.StackAdvisorBlueprintProcessor;
 import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.controller.AmbariServer;
+import org.apache.ambari.server.controller.KerberosHelper;
 import org.apache.ambari.server.controller.RequestStatusResponse;
 import org.apache.ambari.server.controller.internal.ArtifactResourceProvider;
 import org.apache.ambari.server.controller.internal.BaseClusterRequest;
@@ -62,6 +62,8 @@ import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.events.AmbariEvent;
 import org.apache.ambari.server.events.ClusterConfigFinishedEvent;
+import org.apache.ambari.server.events.ClusterProvisionStartedEvent;
+import org.apache.ambari.server.events.ClusterProvisionedEvent;
 import org.apache.ambari.server.events.HostsRemovedEvent;
 import org.apache.ambari.server.events.RequestFinishedEvent;
 import org.apache.ambari.server.events.publishers.AmbariEventPublisher;
@@ -70,6 +72,7 @@ import org.apache.ambari.server.orm.dao.SettingDAO;
 import org.apache.ambari.server.orm.entities.SettingEntity;
 import org.apache.ambari.server.orm.entities.StageEntity;
 import org.apache.ambari.server.security.authorization.AuthorizationHelper;
+import org.apache.ambari.server.serveraction.kerberos.KDCType;
 import org.apache.ambari.server.state.Host;
 import org.apache.ambari.server.state.SecurityType;
 import org.apache.ambari.server.state.host.HostImpl;
@@ -82,7 +85,6 @@ import org.apache.ambari.server.utils.RetryHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Function;
 import com.google.common.eventbus.Subscribe;
 import com.google.inject.Singleton;
 import com.google.inject.persist.Transactional;
@@ -205,13 +207,12 @@ public class TopologyManager {
           replayRequests(persistedState.getAllRequests());
           // ensure KERBEROS_CLIENT is present in each hostgroup even if it's not in original BP
           for(ClusterTopology clusterTopology : clusterTopologyMap.values()) {
-            if (clusterTopology.isClusterKerberosEnabled()) {
-              addKerberosClient(clusterTopology);
+            if (clusterTopology.isClusterKerberosEnabled() && isKerberosClientInstallAllowed(clusterTopology)) {
+                addKerberosClient(clusterTopology);
             }
           }
           isInitialized = true;
         }
-
       }
     }
   }
@@ -236,6 +237,7 @@ public class TopologyManager {
                 clusterProvisionWithBlueprintCreateRequests.get(event.getClusterId()).getRequestId(),
                 clusterTopologyMap.get(event.getClusterId()).getBlueprint().getName(),
                 event.getClusterId());
+        ambariEventPublisher.publish(new ClusterProvisionedEvent(event.getClusterId()));
       } else {
         LOG.info("Cluster creation request id={} using Blueprint {} failed for cluster id={}",
                 clusterProvisionWithBlueprintCreateRequests.get(event.getClusterId()).getRequestId(),
@@ -291,7 +293,10 @@ public class TopologyManager {
 
     if (securityConfiguration != null && securityConfiguration.getType() == SecurityType.KERBEROS) {
       securityType = SecurityType.KERBEROS;
-      addKerberosClient(topology);
+
+      if (isKerberosClientInstallAllowed(topology)) {
+        addKerberosClient(topology);
+      }
 
       // refresh default stack config after adding KERBEROS_CLIENT component to topology
       topology.getBlueprint().getConfiguration().setParentConfiguration(stack.getConfiguration(topology.getBlueprint().getServices()));
@@ -303,6 +308,7 @@ public class TopologyManager {
     }
 
     topologyValidatorService.validateTopologyConfiguration(topology);
+
 
     // create resources
     ambariContext.createAmbariResources(topology, clusterName, securityType, repoVersion, repoVersionID);
@@ -350,7 +356,24 @@ public class TopologyManager {
 
     ambariContext.persistInstallStateForUI(clusterName, stack.getName(), stack.getVersion());
     clusterProvisionWithBlueprintCreateRequests.put(clusterId, logicalRequest);
+    ambariEventPublisher.publish(new ClusterProvisionStartedEvent(clusterId));
     return getRequestStatus(logicalRequest.getRequestId());
+  }
+
+  /**
+   * The Kerberos Client component is unnecessarily installed via Blueprints when kerberos-env/kdc-type is "none".
+   * The Blueprint TopologyManager should only force the Kerberos client to be installed if Kerberos is enabled
+   * and kerberos_env/kdc_type is not "none" or when kerberos_env/manage_identities is true.
+   *
+   * @param topology the Cluster Topology which provides the topology's Configuration object.
+   * @return true if kerberos_env/kdc_type is not "none" or when kerberos_env/manage_identities is true
+   */
+  private boolean isKerberosClientInstallAllowed(final ClusterTopology topology) {
+    final org.apache.ambari.server.topology.Configuration topologyConfig = topology.getBlueprint().getConfiguration();
+    final String kdc_type = topologyConfig.getPropertyValue(KerberosHelper.KERBEROS_ENV, KerberosHelper.KDC_TYPE);
+    final String manage_identities = topologyConfig.getPropertyValue(KerberosHelper.KERBEROS_ENV, KerberosHelper.MANAGE_IDENTITIES);
+
+    return KDCType.NONE != KDCType.translate(kdc_type) || Boolean.parseBoolean(manage_identities);
   }
 
   @Subscribe
@@ -403,8 +426,8 @@ public class TopologyManager {
     properties.put(CredentialResourceProvider.CREDENTIAL_KEY_PROPERTY_ID, credential.getKey());
     properties.put(CredentialResourceProvider.CREDENTIAL_TYPE_PROPERTY_ID, credential.getType().name());
 
-    org.apache.ambari.server.controller.spi.Request request = new RequestImpl(Collections.<String>emptySet(),
-        Collections.singleton(properties), Collections.<String, String>emptyMap(), null);
+    org.apache.ambari.server.controller.spi.Request request = new RequestImpl(Collections.emptySet(),
+        Collections.singleton(properties), Collections.emptyMap(), null);
 
     try {
       RequestStatus status = provider.createResources(request);
@@ -455,7 +478,7 @@ public class TopologyManager {
     requestInfoProps.put(org.apache.ambari.server.controller.spi.Request.REQUEST_INFO_BODY_PROPERTY,
             "{\"" + ArtifactResourceProvider.ARTIFACT_DATA_PROPERTY + "\": " + descriptor + "}");
 
-    org.apache.ambari.server.controller.spi.Request request = new RequestImpl(Collections.<String>emptySet(),
+    org.apache.ambari.server.controller.spi.Request request = new RequestImpl(Collections.emptySet(),
         Collections.singleton(properties), requestInfoProps, null);
 
     try {
@@ -760,7 +783,7 @@ public class TopologyManager {
   public Collection<HostRoleCommand> getTasks(long requestId) {
     ensureInitialized();
     LogicalRequest request = allRequests.get(requestId);
-    return request == null ? Collections.<HostRoleCommand>emptyList() : request.getCommands();
+    return request == null ? Collections.emptyList() : request.getCommands();
   }
 
   public Collection<HostRoleCommand> getTasks(Collection<Long> requestIds) {
@@ -776,7 +799,7 @@ public class TopologyManager {
   public Map<Long, HostRoleCommandStatusSummaryDTO> getStageSummaries(Long requestId) {
     ensureInitialized();
     LogicalRequest request = allRequests.get(requestId);
-    return request == null ? Collections.<Long, HostRoleCommandStatusSummaryDTO>emptyMap() :
+    return request == null ? Collections.emptyMap() :
         request.getStageSummaries();
   }
 
@@ -943,11 +966,8 @@ public class TopologyManager {
       // update the host with the rack info if applicable
       updateHostWithRackInfo(topology, response, host);
 
-    } catch (InvalidTopologyException e) {
+    } catch (InvalidTopologyException | NoSuchHostGroupException e) {
       // host already registered
-      throw new RuntimeException("An internal error occurred while performing request host registration: " + e, e);
-    } catch (NoSuchHostGroupException e) {
-      // invalid host group
       throw new RuntimeException("An internal error occurred while performing request host registration: " + e, e);
     }
 
@@ -1114,18 +1134,13 @@ public class TopologyManager {
    */
   private void addClusterConfigRequest(final LogicalRequest logicalRequest, ClusterTopology topology, ClusterConfigurationRequest configurationRequest) {
     ConfigureClusterTask task = configureClusterTaskFactory.createConfigureClusterTask(topology, configurationRequest, ambariEventPublisher);
-    Function<Throwable, Void> onConfigureClusterError = new Function<Throwable, Void>() {
-      @Nullable @Override
-      public Void apply(Throwable input) {
-        HostRoleStatus status = input instanceof TimeoutException ? HostRoleStatus.TIMEDOUT : HostRoleStatus.FAILED;
-        LOG.info("ConfigureClusterTask failed, marking host requests {}", status);
-        for (HostRequest hostRequest : logicalRequest.getHostRequests()) {
-          hostRequest.markHostRequestFailed(status, input, persistedState);
-        }
-        return null;
+    executor.submit(new AsyncCallableService<>(task, task.getTimeout(), task.getRepeatDelay(),"ConfigureClusterTask", throwable -> {
+      HostRoleStatus status = throwable instanceof TimeoutException ? HostRoleStatus.TIMEDOUT : HostRoleStatus.FAILED;
+      LOG.info("ConfigureClusterTask failed, marking host requests {}", status);
+      for (HostRequest hostRequest : logicalRequest.getHostRequests()) {
+        hostRequest.markHostRequestFailed(status, throwable, persistedState);
       }
-    };
-    executor.submit(new AsyncCallableService<>(task, task.getTimeout(), task.getRepeatDelay(),"ConfigureClusterTask", onConfigureClusterError));
+    }));
   }
 
   /**
@@ -1165,4 +1180,5 @@ public class TopologyManager {
       }
     }
   }
+
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -50,6 +50,8 @@ import org.apache.ambari.server.view.validation.ValidationResultImpl;
 import org.apache.ambari.view.ClusterType;
 import org.apache.ambari.view.validation.Validator;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import com.google.inject.persist.Transactional;
 
@@ -58,70 +60,85 @@ import com.google.inject.persist.Transactional;
  */
 public class ViewInstanceResourceProvider extends AbstractAuthorizedResourceProvider {
 
-  /**
-   * View instance property id constants.
-   */
-  public static final String VIEW_NAME_PROPERTY_ID      = "ViewInstanceInfo/view_name";
-  public static final String VIEW_VERSION_PROPERTY_ID   = "ViewInstanceInfo/version";
-  public static final String INSTANCE_NAME_PROPERTY_ID  = "ViewInstanceInfo/instance_name";
-  public static final String LABEL_PROPERTY_ID          = "ViewInstanceInfo/label";
-  public static final String DESCRIPTION_PROPERTY_ID    = "ViewInstanceInfo/description";
-  public static final String VISIBLE_PROPERTY_ID        = "ViewInstanceInfo/visible";
-  public static final String ICON_PATH_ID               = "ViewInstanceInfo/icon_path";
-  public static final String ICON64_PATH_ID             = "ViewInstanceInfo/icon64_path";
-  public static final String PROPERTIES_PROPERTY_ID     = "ViewInstanceInfo/properties";
-  public static final String DATA_PROPERTY_ID           = "ViewInstanceInfo/instance_data";
-  public static final String CONTEXT_PATH_PROPERTY_ID   = "ViewInstanceInfo/context_path";
-  public static final String STATIC_PROPERTY_ID         = "ViewInstanceInfo/static";
-  public static final String CLUSTER_HANDLE_PROPERTY_ID = "ViewInstanceInfo/cluster_handle";
-  public static final String CLUSTER_TYPE_PROPERTY_ID = "ViewInstanceInfo/cluster_type";
-  public static final String SHORT_URL_PROPERTY_ID      = "ViewInstanceInfo/short_url";
-  public static final String SHORT_URL_NAME_PROPERTY_ID = "ViewInstanceInfo/short_url_name";
+  public static final String VIEW_INSTANCE_INFO = "ViewInstanceInfo";
+
+  public static final String VIEW_NAME_PROPERTY_ID = "view_name";
+  public static final String VERSION_PROPERTY_ID = "version";
+  public static final String INSTANCE_NAME_PROPERTY_ID = "instance_name";
+  public static final String LABEL_PROPERTY_ID = "label";
+  public static final String DESCRIPTION_PROPERTY_ID = "description";
+  public static final String VISIBLE_PROPERTY_ID = "visible";
+  public static final String ICON_PATH_PROPERTY_ID = "icon_path";
+  public static final String ICON64_PATH_PROPERTY_ID = "icon64_path";
+  public static final String PROPERTIES_PROPERTY_ID = "properties";
+  public static final String INSTANCE_DATA_PROPERTY_ID = "instance_data";
+  public static final String CONTEXT_PATH_PROPERTY_ID = "context_path";
+  public static final String STATIC_PROPERTY_ID = "static";
+  public static final String CLUSTER_HANDLE_PROPERTY_ID = "cluster_handle";
+  public static final String CLUSTER_TYPE_PROPERTY_ID = "cluster_type";
+  public static final String SHORT_URL_PROPERTY_ID = "short_url";
+  public static final String SHORT_URL_NAME_PROPERTY_ID = "short_url_name";
+  public static final String VALIDATION_RESULT_PROPERTY_ID = "validation_result";
+  public static final String PROPERTY_VALIDATION_RESULTS_PROPERTY_ID = "property_validation_results";
+
+  public static final String VIEW_NAME = VIEW_INSTANCE_INFO + PropertyHelper.EXTERNAL_PATH_SEP + VIEW_NAME_PROPERTY_ID;
+  public static final String VERSION = VIEW_INSTANCE_INFO + PropertyHelper.EXTERNAL_PATH_SEP + VERSION_PROPERTY_ID;
+  public static final String INSTANCE_NAME = VIEW_INSTANCE_INFO + PropertyHelper.EXTERNAL_PATH_SEP + INSTANCE_NAME_PROPERTY_ID;
+  public static final String LABEL = VIEW_INSTANCE_INFO + PropertyHelper.EXTERNAL_PATH_SEP + LABEL_PROPERTY_ID;
+  public static final String DESCRIPTION = VIEW_INSTANCE_INFO + PropertyHelper.EXTERNAL_PATH_SEP + DESCRIPTION_PROPERTY_ID;
+  public static final String VISIBLE = VIEW_INSTANCE_INFO + PropertyHelper.EXTERNAL_PATH_SEP + VISIBLE_PROPERTY_ID;
+  public static final String ICON_PATH = VIEW_INSTANCE_INFO + PropertyHelper.EXTERNAL_PATH_SEP + ICON_PATH_PROPERTY_ID;
+  public static final String ICON64_PATH = VIEW_INSTANCE_INFO + PropertyHelper.EXTERNAL_PATH_SEP + ICON64_PATH_PROPERTY_ID;
+  public static final String PROPERTIES = VIEW_INSTANCE_INFO + PropertyHelper.EXTERNAL_PATH_SEP + PROPERTIES_PROPERTY_ID;
+  public static final String INSTANCE_DATA = VIEW_INSTANCE_INFO + PropertyHelper.EXTERNAL_PATH_SEP + INSTANCE_DATA_PROPERTY_ID;
+  public static final String CONTEXT_PATH = VIEW_INSTANCE_INFO + PropertyHelper.EXTERNAL_PATH_SEP + CONTEXT_PATH_PROPERTY_ID;
+  public static final String STATIC = VIEW_INSTANCE_INFO + PropertyHelper.EXTERNAL_PATH_SEP + STATIC_PROPERTY_ID;
+  public static final String CLUSTER_HANDLE = VIEW_INSTANCE_INFO + PropertyHelper.EXTERNAL_PATH_SEP + CLUSTER_HANDLE_PROPERTY_ID;
+  public static final String CLUSTER_TYPE = VIEW_INSTANCE_INFO + PropertyHelper.EXTERNAL_PATH_SEP + CLUSTER_TYPE_PROPERTY_ID;
+  public static final String SHORT_URL = VIEW_INSTANCE_INFO + PropertyHelper.EXTERNAL_PATH_SEP + SHORT_URL_PROPERTY_ID;
+  public static final String SHORT_URL_NAME = VIEW_INSTANCE_INFO + PropertyHelper.EXTERNAL_PATH_SEP + SHORT_URL_NAME_PROPERTY_ID;
 
   // validation properties
-  public static final String VALIDATION_RESULT_PROPERTY_ID           = "ViewInstanceInfo/validation_result";
-  public static final String PROPERTY_VALIDATION_RESULTS_PROPERTY_ID = "ViewInstanceInfo/property_validation_results";
+  public static final String VALIDATION_RESULT = VIEW_INSTANCE_INFO + PropertyHelper.EXTERNAL_PATH_SEP + VALIDATION_RESULT_PROPERTY_ID;
+  public static final String PROPERTY_VALIDATION_RESULTS = VIEW_INSTANCE_INFO + PropertyHelper.EXTERNAL_PATH_SEP + PROPERTY_VALIDATION_RESULTS_PROPERTY_ID;
 
   /**
    * Property prefix values.
    */
-  private static final String PROPERTIES_PREFIX = PROPERTIES_PROPERTY_ID + "/";
-  private static final String DATA_PREFIX       = DATA_PROPERTY_ID + "/";
+  private static final String PROPERTIES_PREFIX = PROPERTIES + "/";
+  private static final String DATA_PREFIX       = INSTANCE_DATA + "/";
 
   /**
    * The key property ids for a view instance resource.
    */
-  private static Map<Resource.Type, String> keyPropertyIds = new HashMap<>();
-  static {
-    keyPropertyIds.put(Resource.Type.View, VIEW_NAME_PROPERTY_ID);
-    keyPropertyIds.put(Resource.Type.ViewVersion, VIEW_VERSION_PROPERTY_ID);
-    keyPropertyIds.put(Resource.Type.ViewInstance, INSTANCE_NAME_PROPERTY_ID);
-  }
+  private static Map<Resource.Type, String> keyPropertyIds = ImmutableMap.<Resource.Type, String>builder()
+      .put(Resource.Type.View, VIEW_NAME)
+      .put(Resource.Type.ViewVersion, VERSION)
+      .put(Resource.Type.ViewInstance, INSTANCE_NAME)
+      .build();
 
   /**
    * The property ids for a view instance resource.
    */
-  private static Set<String> propertyIds = new HashSet<>();
-  static {
-    propertyIds.add(VIEW_NAME_PROPERTY_ID);
-    propertyIds.add(VIEW_VERSION_PROPERTY_ID);
-    propertyIds.add(INSTANCE_NAME_PROPERTY_ID);
-    propertyIds.add(LABEL_PROPERTY_ID);
-    propertyIds.add(DESCRIPTION_PROPERTY_ID);
-    propertyIds.add(VISIBLE_PROPERTY_ID);
-    propertyIds.add(ICON_PATH_ID);
-    propertyIds.add(ICON64_PATH_ID);
-    propertyIds.add(PROPERTIES_PROPERTY_ID);
-    propertyIds.add(DATA_PROPERTY_ID);
-    propertyIds.add(CONTEXT_PATH_PROPERTY_ID);
-    propertyIds.add(STATIC_PROPERTY_ID);
-    propertyIds.add(CLUSTER_HANDLE_PROPERTY_ID);
-    propertyIds.add(CLUSTER_TYPE_PROPERTY_ID);
-    propertyIds.add(SHORT_URL_PROPERTY_ID);
-    propertyIds.add(SHORT_URL_NAME_PROPERTY_ID);
-    propertyIds.add(VALIDATION_RESULT_PROPERTY_ID);
-    propertyIds.add(PROPERTY_VALIDATION_RESULTS_PROPERTY_ID);
-  }
+  private static Set<String> propertyIds = Sets.newHashSet(
+    VIEW_NAME,
+    VERSION,
+    INSTANCE_NAME,
+    LABEL,
+    DESCRIPTION,
+    VISIBLE,
+    ICON_PATH,
+    ICON64_PATH,
+    PROPERTIES,
+    INSTANCE_DATA,
+    CONTEXT_PATH,
+    STATIC,
+    CLUSTER_HANDLE,
+    CLUSTER_TYPE,
+    SHORT_URL,
+    SHORT_URL_NAME,
+    VALIDATION_RESULT,
+    PROPERTY_VALIDATION_RESULTS);
 
   // ----- Constructors ------------------------------------------------------
 
@@ -130,7 +147,7 @@ public class ViewInstanceResourceProvider extends AbstractAuthorizedResourceProv
    */
   @Inject
   public ViewInstanceResourceProvider() {
-    super(propertyIds, keyPropertyIds);
+    super(Resource.Type.ViewInstance, propertyIds, keyPropertyIds);
 
     EnumSet<RoleAuthorization> requiredAuthorizations = EnumSet.of(RoleAuthorization.AMBARI_MANAGE_VIEWS);
     setRequiredCreateAuthorizations(requiredAuthorizations);
@@ -163,14 +180,14 @@ public class ViewInstanceResourceProvider extends AbstractAuthorizedResourceProv
 
     Set<Map<String, Object>> propertyMaps = getPropertyMaps(predicate);
     if (propertyMaps.isEmpty()) {
-      propertyMaps.add(Collections.<String, Object>emptyMap());
+      propertyMaps.add(Collections.emptyMap());
     }
 
     for (Map<String, Object> propertyMap : propertyMaps) {
 
-      String viewName     = (String) propertyMap.get(VIEW_NAME_PROPERTY_ID);
-      String viewVersion  = (String) propertyMap.get(VIEW_VERSION_PROPERTY_ID);
-      String instanceName = (String) propertyMap.get(INSTANCE_NAME_PROPERTY_ID);
+      String viewName     = (String) propertyMap.get(VIEW_NAME);
+      String viewVersion  = (String) propertyMap.get(VERSION);
+      String instanceName = (String) propertyMap.get(INSTANCE_NAME);
 
       for (ViewEntity viewDefinition : viewRegistry.getDefinitions()){
         // do not report instances for views that are not loaded.
@@ -242,24 +259,24 @@ public class ViewInstanceResourceProvider extends AbstractAuthorizedResourceProv
     String version  = viewEntity.getVersion();
     String name     = viewInstanceEntity.getName();
 
-    setResourceProperty(resource, VIEW_NAME_PROPERTY_ID, viewName, requestedIds);
-    setResourceProperty(resource, VIEW_VERSION_PROPERTY_ID, version, requestedIds);
-    setResourceProperty(resource, INSTANCE_NAME_PROPERTY_ID, name, requestedIds);
-    setResourceProperty(resource, LABEL_PROPERTY_ID, viewInstanceEntity.getLabel(), requestedIds);
-    setResourceProperty(resource, DESCRIPTION_PROPERTY_ID, viewInstanceEntity.getDescription(), requestedIds);
-    setResourceProperty(resource, VISIBLE_PROPERTY_ID, viewInstanceEntity.isVisible(), requestedIds);
-    setResourceProperty(resource, STATIC_PROPERTY_ID, viewInstanceEntity.isXmlDriven(), requestedIds);
-    setResourceProperty(resource, CLUSTER_HANDLE_PROPERTY_ID, viewInstanceEntity.getClusterHandle(), requestedIds);
-    setResourceProperty(resource, CLUSTER_TYPE_PROPERTY_ID, viewInstanceEntity.getClusterType(), requestedIds);
+    setResourceProperty(resource, VIEW_NAME, viewName, requestedIds);
+    setResourceProperty(resource, VERSION, version, requestedIds);
+    setResourceProperty(resource, INSTANCE_NAME, name, requestedIds);
+    setResourceProperty(resource, LABEL, viewInstanceEntity.getLabel(), requestedIds);
+    setResourceProperty(resource, DESCRIPTION, viewInstanceEntity.getDescription(), requestedIds);
+    setResourceProperty(resource, VISIBLE, viewInstanceEntity.isVisible(), requestedIds);
+    setResourceProperty(resource, STATIC, viewInstanceEntity.isXmlDriven(), requestedIds);
+    setResourceProperty(resource, CLUSTER_HANDLE, viewInstanceEntity.getClusterHandle(), requestedIds);
+    setResourceProperty(resource, CLUSTER_TYPE, viewInstanceEntity.getClusterType(), requestedIds);
     ViewURLEntity viewUrl = viewInstanceEntity.getViewUrl();
     if(viewUrl != null) {
-      setResourceProperty(resource, SHORT_URL_PROPERTY_ID, viewUrl.getUrlSuffix(), requestedIds);
-      setResourceProperty(resource, SHORT_URL_NAME_PROPERTY_ID, viewUrl.getUrlName(), requestedIds);
+      setResourceProperty(resource, SHORT_URL, viewUrl.getUrlSuffix(), requestedIds);
+      setResourceProperty(resource, SHORT_URL_NAME, viewUrl.getUrlName(), requestedIds);
     }
 
     // only allow an admin to access the view properties
     if (ViewRegistry.getInstance().checkAdmin()) {
-      setResourceProperty(resource, PROPERTIES_PROPERTY_ID,
+      setResourceProperty(resource, PROPERTIES,
           viewInstanceEntity.getPropertyMap(), requestedIds);
     }
 
@@ -271,26 +288,26 @@ public class ViewInstanceResourceProvider extends AbstractAuthorizedResourceProv
         applicationData.put(viewInstanceDataEntity.getName(), viewInstanceDataEntity.getValue());
       }
     }
-    setResourceProperty(resource, DATA_PROPERTY_ID,
+    setResourceProperty(resource, INSTANCE_DATA,
         applicationData, requestedIds);
 
     String contextPath = ViewInstanceEntity.getContextPath(viewName, version, name);
 
-    setResourceProperty(resource, CONTEXT_PATH_PROPERTY_ID,contextPath, requestedIds);
-    setResourceProperty(resource, ICON_PATH_ID, getIconPath(contextPath, viewInstanceEntity.getIcon()), requestedIds);
-    setResourceProperty(resource, ICON64_PATH_ID, getIconPath(contextPath, viewInstanceEntity.getIcon64()), requestedIds);
+    setResourceProperty(resource, CONTEXT_PATH,contextPath, requestedIds);
+    setResourceProperty(resource, ICON_PATH, getIconPath(contextPath, viewInstanceEntity.getIcon()), requestedIds);
+    setResourceProperty(resource, ICON64_PATH, getIconPath(contextPath, viewInstanceEntity.getIcon64()), requestedIds);
 
     // if the view provides its own validator then run it
     if (viewEntity.hasValidator()) {
 
-      if (isPropertyRequested(VALIDATION_RESULT_PROPERTY_ID, requestedIds) ||
-          isPropertyRequested(PROPERTY_VALIDATION_RESULTS_PROPERTY_ID, requestedIds)) {
+      if (isPropertyRequested(VALIDATION_RESULT, requestedIds) ||
+          isPropertyRequested(PROPERTY_VALIDATION_RESULTS, requestedIds)) {
 
         InstanceValidationResultImpl result =
             viewInstanceEntity.getValidationResult(viewEntity, Validator.ValidationContext.EXISTING);
 
-        setResourceProperty(resource, VALIDATION_RESULT_PROPERTY_ID, ValidationResultImpl.create(result), requestedIds);
-        setResourceProperty(resource, PROPERTY_VALIDATION_RESULTS_PROPERTY_ID, result.getPropertyResults(), requestedIds);
+        setResourceProperty(resource, VALIDATION_RESULT, ValidationResultImpl.create(result), requestedIds);
+        setResourceProperty(resource, PROPERTY_VALIDATION_RESULTS, result.getPropertyResults(), requestedIds);
       }
     }
 
@@ -299,17 +316,17 @@ public class ViewInstanceResourceProvider extends AbstractAuthorizedResourceProv
 
   // Convert a map of properties to a view instance entity.
   private ViewInstanceEntity toEntity(Map<String, Object> properties, boolean update) throws AmbariException {
-    String name = (String) properties.get(INSTANCE_NAME_PROPERTY_ID);
+    String name = (String) properties.get(INSTANCE_NAME);
     if (name == null || name.isEmpty()) {
       throw new IllegalArgumentException("View instance name must be provided");
     }
 
-    String version = (String) properties.get(VIEW_VERSION_PROPERTY_ID);
+    String version = (String) properties.get(VERSION);
     if (version == null || version.isEmpty()) {
       throw new IllegalArgumentException("View version must be provided");
     }
 
-    String commonViewName = (String) properties.get(VIEW_NAME_PROPERTY_ID);
+    String commonViewName = (String) properties.get(VIEW_NAME);
     if (commonViewName == null || commonViewName.isEmpty()) {
       throw new IllegalArgumentException("View name must be provided");
     }
@@ -334,27 +351,27 @@ public class ViewInstanceResourceProvider extends AbstractAuthorizedResourceProv
       viewInstanceEntity.setViewName(viewName);
       viewInstanceEntity.setViewEntity(viewEntity);
     }
-    if (properties.containsKey(LABEL_PROPERTY_ID)) {
-      viewInstanceEntity.setLabel((String) properties.get(LABEL_PROPERTY_ID));
+    if (properties.containsKey(LABEL)) {
+      viewInstanceEntity.setLabel((String) properties.get(LABEL));
     }
 
-    if (properties.containsKey(DESCRIPTION_PROPERTY_ID)) {
-      viewInstanceEntity.setDescription((String) properties.get(DESCRIPTION_PROPERTY_ID));
+    if (properties.containsKey(DESCRIPTION)) {
+      viewInstanceEntity.setDescription((String) properties.get(DESCRIPTION));
     }
 
-    String visible = (String) properties.get(VISIBLE_PROPERTY_ID);
+    String visible = (String) properties.get(VISIBLE);
     viewInstanceEntity.setVisible(visible==null ? true : Boolean.valueOf(visible));
 
-    if (properties.containsKey(ICON_PATH_ID)) {
-      viewInstanceEntity.setIcon((String) properties.get(ICON_PATH_ID));
+    if (properties.containsKey(ICON_PATH)) {
+      viewInstanceEntity.setIcon((String) properties.get(ICON_PATH));
     }
 
-    if (properties.containsKey(ICON64_PATH_ID)) {
-      viewInstanceEntity.setIcon64((String) properties.get(ICON64_PATH_ID));
+    if (properties.containsKey(ICON64_PATH)) {
+      viewInstanceEntity.setIcon64((String) properties.get(ICON64_PATH));
     }
 
-    if (properties.containsKey(CLUSTER_HANDLE_PROPERTY_ID)) {
-      String handle = (String) properties.get(CLUSTER_HANDLE_PROPERTY_ID);
+    if (properties.containsKey(CLUSTER_HANDLE)) {
+      String handle = (String) properties.get(CLUSTER_HANDLE);
       if (handle != null) {
         viewInstanceEntity.setClusterHandle(Long.valueOf(handle));
       } else {
@@ -362,8 +379,8 @@ public class ViewInstanceResourceProvider extends AbstractAuthorizedResourceProv
       }
     }
 
-    if (properties.containsKey(CLUSTER_TYPE_PROPERTY_ID)) {
-      String clusterType = (String) properties.get(CLUSTER_TYPE_PROPERTY_ID);
+    if (properties.containsKey(CLUSTER_TYPE)) {
+      String clusterType = (String) properties.get(CLUSTER_TYPE);
       viewInstanceEntity.setClusterType(ClusterType.valueOf(clusterType));
     }
 
@@ -503,7 +520,6 @@ public class ViewInstanceResourceProvider extends AbstractAuthorizedResourceProv
     for (ViewInstanceEntity viewInstanceEntity : viewInstanceEntities) {
       viewRegistry.uninstallViewInstance(viewInstanceEntity);
     }
-
   }
 
 

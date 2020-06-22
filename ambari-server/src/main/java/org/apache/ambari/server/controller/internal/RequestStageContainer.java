@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,11 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.Map;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.RoleCommand;
 import org.apache.ambari.server.actionmanager.ActionManager;
@@ -28,14 +33,10 @@ import org.apache.ambari.server.actionmanager.Stage;
 import org.apache.ambari.server.controller.ExecuteActionRequest;
 import org.apache.ambari.server.controller.RequestStatusResponse;
 import org.apache.ambari.server.controller.ShortTaskStatus;
+import org.apache.ambari.server.security.authorization.AuthorizationHelper;
 import org.apache.ambari.server.state.State;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.Map;
 
 /**
  * Contains stages associated with a request.
@@ -97,7 +98,7 @@ public class RequestStageContainer {
   public RequestStageContainer(Long id, List<Stage> stages, RequestFactory factory, ActionManager manager,
                                ExecuteActionRequest actionRequest) {
     this.id = id;
-    this.stages = stages == null ? new ArrayList<Stage>() : stages;
+    this.stages = stages == null ? new ArrayList<>() : stages;
     this.requestFactory = factory;
     this.actionManager = manager;
     this.actionRequest = actionRequest;
@@ -216,9 +217,13 @@ public class RequestStageContainer {
         request.setRequestContext(requestContext);
       }
 
+      if (request != null) { //request can be null at least in JUnit
+        request.setUserName(AuthorizationHelper.getAuthenticatedName());
+      }
+
       if (request != null && request.getStages()!= null && !request.getStages().isEmpty()) {
         if (LOG.isDebugEnabled()) {
-          LOG.debug(String.format("Triggering Action Manager, request=%s", request));
+          LOG.debug("Triggering Action Manager, request={}", request);
         }
         actionManager.sendActions(request, actionRequest);
       }
@@ -239,7 +244,7 @@ public class RequestStageContainer {
           actionManager.getRequestTasks(id);
 
       response.setRequestContext(actionManager.getRequestContext(id));
-      List<ShortTaskStatus> tasks = new ArrayList<ShortTaskStatus>();
+      List<ShortTaskStatus> tasks = new ArrayList<>();
 
       for (HostRoleCommand hostRoleCommand : hostRoleCommands) {
         tasks.add(new ShortTaskStatus(hostRoleCommand));

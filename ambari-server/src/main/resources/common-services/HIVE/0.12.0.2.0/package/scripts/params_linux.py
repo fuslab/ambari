@@ -69,14 +69,14 @@ if 'credentialStoreEnabled' in config:
 stack_root = status_params.stack_root
 stack_name = status_params.stack_name
 stack_name_uppercase = stack_name.upper()
-agent_stack_retry_on_unavailability = config['hostLevelParams']['agent_stack_retry_on_unavailability']
-agent_stack_retry_count = expect("/hostLevelParams/agent_stack_retry_count", int)
+agent_stack_retry_on_unavailability = config['ambariLevelParams']['agent_stack_retry_on_unavailability']
+agent_stack_retry_count = expect("/ambariLevelParams/agent_stack_retry_count", int)
 
 # Needed since this is an Atlas Hook service.
 cluster_name = config['clusterName']
 
 # node hostname
-hostname = config["hostname"]
+hostname = config['agentLevelParams']['hostname']
 
 # This is expected to be of the form #.#.#.#
 stack_version_unformatted = status_params.stack_version_unformatted
@@ -229,12 +229,12 @@ execute_path = os.environ['PATH'] + os.pathsep + hive_bin + os.pathsep + hadoop_
 hive_metastore_user_name = config['configurations']['hive-site']['javax.jdo.option.ConnectionUserName']
 hive_jdbc_connection_url = config['configurations']['hive-site']['javax.jdo.option.ConnectionURL']
 
-jdk_location = config['hostLevelParams']['jdk_location']
+jdk_location = config['ambariLevelParams']['jdk_location']
 
 if credential_store_enabled:
   if 'hadoop.security.credential.provider.path' in config['configurations']['hive-site']:
     cs_lib_path = config['configurations']['hive-site']['credentialStoreClassPath']
-    java_home = config['hostLevelParams']['java_home']
+    java_home = config['ambariLevelParams']['java_home']
     alias = 'javax.jdo.option.ConnectionPassword'
     provider_path = config['configurations']['hive-site']['hadoop.security.credential.provider.path']
     hive_metastore_user_passwd = PasswordString(get_password_from_credential_store(alias, provider_path, cs_lib_path, java_home, jdk_location))
@@ -244,6 +244,7 @@ else:
   hive_metastore_user_passwd = config['configurations']['hive-site']['javax.jdo.option.ConnectionPassword']
 hive_metastore_user_passwd = unicode(hive_metastore_user_passwd) if not is_empty(hive_metastore_user_passwd) else hive_metastore_user_passwd
 hive_metastore_db_type = config['configurations']['hive-env']['hive_database_type']
+hive_db_schma_name = config['configurations']['hive-site']['ambari.hive.db.schema.name']
 
 #HACK Temporarily use dbType=azuredb while invoking schematool
 if hive_metastore_db_type == "mssql":
@@ -255,7 +256,7 @@ hive_user = config['configurations']['hive-env']['hive_user']
 # is it a restart command
 is_restart_command = False
 if 'roleCommand' in config and 'CUSTOM_COMMAND' == config['roleCommand']:
-  if 'custom_command' in config['hostLevelParams'] and 'RESTART' == config['hostLevelParams']['custom_command']:
+  if 'custom_command' in config['commandParams'] and 'RESTART' == config['commandParams']['custom_command']:
     is_restart_command = True
 
 #JDBC driver jar name
@@ -276,20 +277,20 @@ default_connectors_map = { "com.microsoft.sqlserver.jdbc.SQLServerDriver":"sqljd
 sqla_db_used = False
 hive_previous_jdbc_jar_name = None
 if hive_jdbc_driver == "com.microsoft.sqlserver.jdbc.SQLServerDriver":
-  jdbc_jar_name = default("/hostLevelParams/custom_mssql_jdbc_name", None)
-  hive_previous_jdbc_jar_name = default("/hostLevelParams/previous_custom_mssql_jdbc_name", None)
+  jdbc_jar_name = default("/ambariLevelParams/custom_mssql_jdbc_name", None)
+  hive_previous_jdbc_jar_name = default("/ambariLevelParams/previous_custom_mssql_jdbc_name", None)
 elif hive_jdbc_driver == "com.mysql.jdbc.Driver":
-  jdbc_jar_name = default("/hostLevelParams/custom_mysql_jdbc_name", None)
-  hive_previous_jdbc_jar_name = default("/hostLevelParams/previous_custom_mysql_jdbc_name", None)
+  jdbc_jar_name = default("/ambariLevelParams/custom_mysql_jdbc_name", None)
+  hive_previous_jdbc_jar_name = default("/ambariLevelParams/previous_custom_mysql_jdbc_name", None)
 elif hive_jdbc_driver == "org.postgresql.Driver":
-  jdbc_jar_name = default("/hostLevelParams/custom_postgres_jdbc_name", None)
-  hive_previous_jdbc_jar_name = default("/hostLevelParams/previous_custom_postgres_jdbc_name", None)
+  jdbc_jar_name = default("/ambariLevelParams/custom_postgres_jdbc_name", None)
+  hive_previous_jdbc_jar_name = default("/ambariLevelParams/previous_custom_postgres_jdbc_name", None)
 elif hive_jdbc_driver == "oracle.jdbc.driver.OracleDriver":
-  jdbc_jar_name = default("/hostLevelParams/custom_oracle_jdbc_name", None)
-  hive_previous_jdbc_jar_name = default("/hostLevelParams/previous_custom_oracle_jdbc_name", None)
+  jdbc_jar_name = default("/ambariLevelParams/custom_oracle_jdbc_name", None)
+  hive_previous_jdbc_jar_name = default("/ambariLevelParams/previous_custom_oracle_jdbc_name", None)
 elif hive_jdbc_driver == "sap.jdbc4.sqlanywhere.IDriver":
-  jdbc_jar_name = default("/hostLevelParams/custom_sqlanywhere_jdbc_name", None)
-  hive_previous_jdbc_jar_name = default("/hostLevelParams/previous_custom_sqlanywhere_jdbc_name", None)
+  jdbc_jar_name = default("/ambariLevelParams/custom_sqlanywhere_jdbc_name", None)
+  hive_previous_jdbc_jar_name = default("/ambariLevelParams/previous_custom_sqlanywhere_jdbc_name", None)
   sqla_db_used = True
 else: raise Fail(format("JDBC driver '{hive_jdbc_driver}' not supported."))
 
@@ -343,13 +344,13 @@ if sqla_db_used:
 
 
 # Start, Common Hosts and Ports
-ambari_server_hostname = config['clusterHostInfo']['ambari_server_host'][0]
+ambari_server_hostname = config['ambariLevelParams']['ambari_server_host']
 
-hive_metastore_hosts = default('/clusterHostInfo/hive_metastore_host', [])
+hive_metastore_hosts = default('/clusterHostInfo/hive_metastore_hosts', [])
 hive_metastore_host = hive_metastore_hosts[0] if len(hive_metastore_hosts) > 0 else None
 hive_metastore_port = get_port_from_url(config['configurations']['hive-site']['hive.metastore.uris'])
 
-hive_server_hosts = default("/clusterHostInfo/hive_server_host", [])
+hive_server_hosts = default("/clusterHostInfo/hive_server_hosts", [])
 hive_server_host = hive_server_hosts[0] if len(hive_server_hosts) > 0 else None
 
 hive_server_interactive_hosts = default('/clusterHostInfo/hive_server_interactive_hosts', [])
@@ -368,6 +369,9 @@ hive_url = format("jdbc:hive2://{hive_server_host}:{hive_server_port}")
 hive_http_endpoint = default('/configurations/hive-site/hive.server2.thrift.http.path', "cliservice")
 hive_server_principal = config['configurations']['hive-site']['hive.server2.authentication.kerberos.principal']
 hive_server2_authentication = config['configurations']['hive-site']['hive.server2.authentication']
+
+zk_principal_name = default("/configurations/zookeeper-env/zookeeper_principal_name", "zookeeper/_HOST@EXAMPLE.COM")
+zk_principal_user = zk_principal_name.split('/')[0]
 
 # ssl options
 hive_ssl = default('/configurations/hive-site/hive.server2.use.SSL', False)
@@ -449,14 +453,14 @@ else:
 
 hive_metastore_heapsize = config['configurations']['hive-env']['hive.metastore.heapsize']
 
-java64_home = config['hostLevelParams']['java_home']
+java64_home = config['ambariLevelParams']['java_home']
 java_exec = format("{java64_home}/bin/java")
-java_version = expect("/hostLevelParams/java_version", int)
+java_version = expect("/ambariLevelParams/java_version", int)
 
 ##### MYSQL
 db_name = config['configurations']['hive-env']['hive_database_name']
 mysql_group = 'mysql'
-mysql_host = config['clusterHostInfo']['hive_mysql_host']
+mysql_host = config['clusterHostInfo']['mysql_server_hosts']
 
 mysql_adduser_path = format("{tmp_dir}/addMysqlUser.sh")
 mysql_deluser_path = format("{tmp_dir}/removeMysqlUser.sh")
@@ -468,7 +472,6 @@ init_metastore_schema = upgrade_direction is None
 ########## HCAT
 hcat_dbroot = hcat_lib
 
-hcat_user = config['configurations']['hive-env']['hcat_user']
 webhcat_user = config['configurations']['hive-env']['webhcat_user']
 
 hcat_pid_dir = status_params.hcat_pid_dir
@@ -574,10 +577,19 @@ if has_metric_collector:
   metric_truststore_path= default("/configurations/ams-ssl-client/ssl.client.truststore.location", "")
   metric_truststore_type= default("/configurations/ams-ssl-client/ssl.client.truststore.type", "")
   metric_truststore_password= default("/configurations/ams-ssl-client/ssl.client.truststore.password", "")
+  metric_legacy_hadoop_sink = check_stack_feature(StackFeature.AMS_LEGACY_HADOOP_SINK, version_for_stack_feature_checks)
 
 metrics_report_interval = default("/configurations/ams-site/timeline.metrics.sink.report.interval", 60)
 metrics_collection_period = default("/configurations/ams-site/timeline.metrics.sink.collection.period", 10)
 
+host_in_memory_aggregation = default("/configurations/ams-site/timeline.metrics.host.inmemory.aggregation", True)
+host_in_memory_aggregation_port = default("/configurations/ams-site/timeline.metrics.host.inmemory.aggregation.port", 61888)
+is_aggregation_https_enabled = False
+if default("/configurations/ams-site/timeline.metrics.host.inmemory.aggregation.http.policy", "HTTP_ONLY") == "HTTPS_ONLY":
+  host_in_memory_aggregation_protocol = 'https'
+  is_aggregation_https_enabled = True
+else:
+  host_in_memory_aggregation_protocol = 'http'
 ########################################################
 ############# Atlas related params #####################
 ########################################################
@@ -600,9 +612,9 @@ webhcat_pid_file = status_params.webhcat_pid_file
 templeton_jar = config['configurations']['webhcat-site']['templeton.jar']
 
 
-webhcat_server_host = config['clusterHostInfo']['webhcat_server_host']
+webhcat_server_host = config['clusterHostInfo']['webhcat_server_hosts']
 
-hcat_hdfs_user_dir = format("/user/{hcat_user}")
+hcat_hdfs_user_dir = format("/user/{webhcat_user}")
 hcat_hdfs_user_mode = 0755
 webhcat_hdfs_user_dir = format("/user/{webhcat_user}")
 webhcat_hdfs_user_mode = 0755
@@ -614,7 +626,7 @@ security_param = "true" if security_enabled else "false"
 hdfs_site = config['configurations']['hdfs-site']
 default_fs = config['configurations']['core-site']['fs.defaultFS']
 
-dfs_type = default("/commandParams/dfs_type", "")
+dfs_type = default("/clusterLevelParams/dfs_type", "")
 
 import functools
 #create partial functions with common arguments for every HdfsResource call
@@ -634,6 +646,8 @@ HdfsResource = functools.partial(
   immutable_paths = get_not_managed_resources(),
   dfs_type = dfs_type
  )
+
+has_pig = 'pig-env' in config['configurations']
 
 # Hive Interactive related
 hive_interactive_hosts = default('/clusterHostInfo/hive_server_interactive_hosts', [])

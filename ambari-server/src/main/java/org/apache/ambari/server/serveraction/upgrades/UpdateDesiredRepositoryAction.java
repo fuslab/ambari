@@ -34,7 +34,6 @@ import org.apache.ambari.server.orm.entities.HostVersionEntity;
 import org.apache.ambari.server.orm.entities.RepositoryVersionEntity;
 import org.apache.ambari.server.serveraction.ServerAction;
 import org.apache.ambari.server.state.Cluster;
-import org.apache.ambari.server.state.Clusters;
 import org.apache.ambari.server.state.RepositoryType;
 import org.apache.ambari.server.state.RepositoryVersionState;
 import org.apache.ambari.server.state.StackId;
@@ -60,13 +59,6 @@ public class UpdateDesiredRepositoryAction extends AbstractUpgradeServerAction {
    */
   private static final Logger LOG = LoggerFactory.getLogger(UpdateDesiredRepositoryAction.class);
 
-
-  /**
-   * The Cluster that this ServerAction implementation is executing on.
-   */
-  @Inject
-  private Clusters clusters;
-
   /**
    * The Ambari configuration.
    */
@@ -87,7 +79,7 @@ public class UpdateDesiredRepositoryAction extends AbstractUpgradeServerAction {
       throws AmbariException, InterruptedException {
 
     String clusterName = getExecutionCommand().getClusterName();
-    Cluster cluster = clusters.getCluster(clusterName);
+    Cluster cluster = getClusters().getCluster(clusterName);
     UpgradeContext upgradeContext = getUpgradeContext(cluster);
 
     Map<String, String> roleParams = getExecutionCommand().getRoleParams();
@@ -101,7 +93,9 @@ public class UpdateDesiredRepositoryAction extends AbstractUpgradeServerAction {
       LOG.warn(String.format("Did not receive role parameter %s, will save configs using anonymous username %s", ServerAction.ACTION_USER_NAME, userName));
     }
 
-    return updateDesiredRepositoryVersion(cluster, upgradeContext, userName);
+    CommandReport commandReport = updateDesiredRepositoryVersion(cluster, upgradeContext, userName);
+    m_upgradeHelper.publishDesiredRepositoriesUpdates(upgradeContext);
+    return commandReport;
   }
 
   /**
@@ -159,7 +153,7 @@ public class UpdateDesiredRepositoryAction extends AbstractUpgradeServerAction {
 
           message = String.format("  %s to %s", serviceName, repositoryVersion.getVersion());
           out.append(message).append(System.lineSeparator());
-        }        
+        }
       }
 
       // move repositories to the right version and create/revert configs
@@ -180,10 +174,10 @@ public class UpdateDesiredRepositoryAction extends AbstractUpgradeServerAction {
             hostVersion.setState(RepositoryVersionState.INSTALLED);
           }
         }
-        
+
         // move the cluster's desired stack back to it's current stack on downgrade
         StackId targetStackId = cluster.getCurrentStackVersion();
-        cluster.setDesiredStackVersion(targetStackId);        
+        cluster.setDesiredStackVersion(targetStackId);
       }
 
       return createCommandReport(0, HostRoleStatus.COMPLETED, "{}", out.toString(), err.toString());

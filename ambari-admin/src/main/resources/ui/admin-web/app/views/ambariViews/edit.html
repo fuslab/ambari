@@ -20,14 +20,14 @@
     <li><a href="#/views">{{'common.views' | translate}}</a></li>
     <li class="active">{{instance.ViewInstanceInfo.label}}
       <a class="gotoinstance" ng-show="instance.ViewInstanceInfo.visible"
-         href="{{fromSiteRoot('/#/main/views/' + viewUrl)}}">
+         href="{{fromSiteRoot('/#/main/views/' + viewUrl)}}" target="_blank">
         {{'views.goToInstance' | translate}}
       </a>
     </li>
   </ol>
   <div class="pull-right top-margin-4" ng-switch="instance.ViewInstanceInfo.static">
-    <button ng-switch-when="true" class="btn disabled btn-default btn-delete-instance" tooltip="{{'views.alerts.cannotDeleteStaticInstance' | translate}}">{{'common.delete' | translate: '{term: instanceType}'}}</button>
-    <button ng-switch-when="false" class="btn btn-danger" ng-click="deleteInstance(instance)">{{'common.delete' | translate: '{term: constants.instance}'}}</button>
+    <button ng-switch-when="true" class="btn disabled btn-default btn-delete-instance" tooltip="{{'views.alerts.cannotDeleteStaticInstance' | translate}}">{{'common.delete' | translate:{term: instanceType} }}</button>
+    <button ng-switch-when="false" class="btn btn-danger" ng-click="deleteInstance(instance)">{{'common.delete' | translate:{term: constants.instance} }}</button>
   </div>
 </div>
 <hr>
@@ -107,9 +107,8 @@
         <div class="form-group">
           <div class="col-sm-offset-3 col-sm-10">
             <div class="checkbox">
-              <label>
-                <input type="checkbox" ng-model="settings.visible" ng-class="instancevisibility-input"> {{'views.visible' | translate}}
-              </label>
+              <input type="checkbox" class="form-control" ng-model="settings.visible" id="visible" ng-class="instancevisibility-input">
+              <label for="visible">{{'views.visible' | translate}}</label>
             </div>
           </div>
         </div>
@@ -129,7 +128,7 @@
     <h3 class="panel-title pull-left">{{'views.settings' | translate}}</h3>
     <div class="pull-right" ng-switch="instance.ViewInstanceInfo.static">
       <a href ng-switch-when="false" ng-click="toggleSettingsEdit()" ng-show="editSettingsDisabled" class="settings-edit-toggle"> <span class="glyphicon glyphicon-pencil" ></span> {{'views.edit' | translate}}</a>
-      <a href ng-switch-when="true" class="settings-edit-toggle disabled" tooltip="{{'views.cannotEditInstance' | translate}}"> <span class="glyphicon glyphicon-pencil" ></span> {{'views.edit' | translate}}</a>
+      <a href ng-switch-when="true" class="settings-edit-toggle disabled" tooltip="{{'views.alerts.cannotEditInstance' | translate}}"> <span class="glyphicon glyphicon-pencil" ></span> {{'views.edit' | translate}}</a>
     </div>
   </div>
   <div class="panel-body">
@@ -173,47 +172,44 @@
   </div>
   <div class="panel-body property-form" popover="{{clusterConfigurableErrorMsg}}" popover-trigger="mouseenter">
     <div class="checkbox">
-      <label>
-        <input type="radio" ng-model="data.clusterType" ng-change="enableLocalCluster()" ng-disabled="!clusterConfigurable || editConfigurationDisabled || noLocalClusterAvailible" value="LOCAL_AMBARI" class="visibilityCheckbox"> {{'views.localCluster' | translate}}
-      </label>
+      <input type="radio" id="local-cluster" ng-model="data.clusterType" ng-change="enableLocalCluster()" ng-disabled="!clusterConfigurable || editConfigurationDisabled || noLocalClusterAvailible" value="LOCAL_AMBARI" class="visibilityCheckbox form-control">
+      <label for="local-cluster">{{'views.localCluster' | translate}}</label>
     </div>
     <div class="form-horizontal property-form">
       <div class="form-group">
         <label for="" class="control-label col-sm-3 ng-binding not-required" >{{'views.clusterName' | translate}}</label>
         <div>
           <div class="col-sm-9">
-            <select ng-model="cluster" ng-disabled="(data.clusterType != 'LOCAL_AMBARI') || editConfigurationDisabled" ng-change="onClusterChange()" class="clusters-name-dropdown form-control"  ng-options="o as o.name for o in clusters"></select>
+            <select ng-model="cluster" ng-disabled="(data.clusterType != 'LOCAL_AMBARI') || editConfigurationDisabled" class="clusters-name-dropdown form-control"  ng-options="o as o.name for o in clusters"></select>
           </div>
         </div>
       </div>
     </div>
     <p>&nbsp</p>
       <div class="checkbox">
-        <label>
-          <input type="radio" ng-model="data.clusterType" ng-change="enableLocalCluster()" ng-disabled="!clusterConfigurable || editConfigurationDisabled || noRemoteClusterAvailible" value="REMOTE_AMBARI" class="visibilityCheckbox"> {{'views.remoteCluster' | translate}}
-        </label>
+        <input type="radio" id="remote-cluster" ng-model="data.clusterType" ng-change="enableLocalCluster()" ng-disabled="!clusterConfigurable || editConfigurationDisabled || noRemoteClusterAvailible" value="REMOTE_AMBARI" class="visibilityCheckbox form-control">
+        <label for="remote-cluster">{{'views.remoteCluster' | translate}}</label>
       </div>
       <div class="form-horizontal property-form">
         <div class="form-group">
           <label for="" class="control-label col-sm-3 ng-binding not-required" >{{'views.clusterName' | translate}}</label>
           <div>
             <div class="col-sm-9">
-              <select ng-model="data.remoteCluster" ng-disabled="(data.clusterType != 'REMOTE_AMBARI') || editConfigurationDisabled" ng-change="onClusterChange()" class="clusters-name-dropdown form-control"  ng-options="o as o.name for o in remoteClusters"></select>
+              <select ng-model="data.remoteCluster" ng-disabled="(data.clusterType != 'REMOTE_AMBARI') || editConfigurationDisabled" class="clusters-name-dropdown form-control"  ng-options="o as o.name for o in remoteClusters"></select>
             </div>
           </div>
         </div>
       </div>
       <p>&nbsp</p>
     <div class="checkbox" ng-hide="isConfigurationEmpty">
-      <label>
-        <input type="radio"
-         ng-model="data.clusterType"
-         ng-disabled="editConfigurationDisabled"
-         value="NONE"
-         ng-change="disableLocalCluster()"
-         class="visibilityCheckbox">
-        {{'views.custom' | translate}}
-      </label>
+      <input type="radio"
+             id="custom-view"
+             ng-model="data.clusterType"
+             ng-disabled="editConfigurationDisabled"
+             value="NONE"
+             ng-change="disableLocalCluster()"
+             class="visibilityCheckbox">
+      <label for="custom-view">{{'views.custom' | translate}}</label>
     </div>
   </div>
   <div class="panel-body edit-view-custom-wrap">
@@ -245,7 +241,7 @@
       </fieldset>
     </form>
     <div ng-show="isConfigurationEmpty && !clusterConfigurable">
-      <div class="alert alert-info">{{'views.alerts.notDefined' | translate: '{term: constants.props}'}}</div>
+      <div class="alert alert-info">{{'views.alerts.notDefined' | translate:{term: constants.props} }}</div>
     </div>
   </div>
 </div>
@@ -286,12 +282,11 @@
       <div class="col-sm-12">
         <span translate="views.clusterPermissions.infoMessage" translate-values="{cluster: cluster.name}"></span>
       </div>
-      <div class="col-sm-offset-2 col-sm-10">
+      <div class="col-sm-10">
         <div class="checkbox col-sm-12" ng-repeat="key in permissionRoles">
           <div ng-init="i18nKey = 'views.clusterPermissions.' + key.split('.').join('').toLowerCase()">
-            <label>
-              <input type="checkbox" ng-model="permissionsEdit['VIEW.USER']['ROLE'][key]"> {{i18nKey | translate}}
-            </label>
+            <input ng-attr-id="{{i18nKey}}" type="checkbox" class="form-control" ng-model="permissionsEdit['VIEW.USER']['ROLE'][key]">
+            <label ng-attr-for="{{i18nKey}}">{{i18nKey | translate}}</label>
           </div>
         </div>
         <a href ng-click="checkAllRoles()">{{'common.controls.checkAll' | translate}}</a> | <a href ng-click="clearAllRoles()">{{'common.controls.clearAll' | translate}}</a>
@@ -301,7 +296,7 @@
       <span translate="views.clusterPermissions.nonLocalClusterMessage"></span>
     </div>
     <div ng-show="isPermissionsEmpty">
-      <div class="alert alert-info">{{'views.alerts.notDefined' | translate: '{term: constants.perms}'}}</div>
+      <div class="alert alert-info">{{'views.alerts.notDefined' | translate:{term: constants.perms} }}</div>
     </div>
   </div>
 </div>

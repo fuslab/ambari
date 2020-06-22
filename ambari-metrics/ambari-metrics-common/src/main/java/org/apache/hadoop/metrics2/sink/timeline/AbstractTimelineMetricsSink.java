@@ -19,6 +19,8 @@ package org.apache.hadoop.metrics2.sink.timeline;
 
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
@@ -58,6 +60,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.SortedSet;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -79,6 +82,9 @@ public abstract class AbstractTimelineMetricsSink {
   public static final String SSL_KEYSTORE_PATH_PROPERTY = "truststore.path";
   public static final String SSL_KEYSTORE_TYPE_PROPERTY = "truststore.type";
   public static final String SSL_KEYSTORE_PASSWORD_PROPERTY = "truststore.password";
+  public static final String HOST_IN_MEMORY_AGGREGATION_ENABLED_PROPERTY = "host_in_memory_aggregation";
+  public static final String HOST_IN_MEMORY_AGGREGATION_PORT_PROPERTY = "host_in_memory_aggregation_port";
+  public static final String HOST_IN_MEMORY_AGGREGATION_PROTOCOL_PROPERTY = "host_in_memory_aggregation_protocol";
   public static final String COLLECTOR_LIVE_NODES_PATH = "/ws/v1/timeline/metrics/livenodes";
   public static final String INSTANCE_ID_PROPERTY = "instanceId";
   public static final String SET_INSTANCE_ID_PROPERTY = "set.instanceId";
@@ -86,7 +92,7 @@ public abstract class AbstractTimelineMetricsSink {
   private static final String WWW_AUTHENTICATE = "WWW-Authenticate";
   private static final String NEGOTIATE = "Negotiate";
 
-  protected static final AtomicInteger failedCollectorConnectionsCounter = new AtomicInteger(0);
+  protected final AtomicInteger failedCollectorConnectionsCounter = new AtomicInteger(0);
   public static int NUMBER_OF_SKIPPED_COLLECTOR_EXCEPTIONS = 100;
   protected static final AtomicInteger nullCollectorCounter = new AtomicInteger(0);
   public static int NUMBER_OF_NULL_COLLECTOR_EXCEPTIONS = 20;
@@ -118,7 +124,7 @@ public abstract class AbstractTimelineMetricsSink {
   private volatile boolean isInitializedForHA = false;
 
   @SuppressWarnings("all")
-  private final int RETRY_COUNT_BEFORE_COLLECTOR_FAILOVER = 5;
+  private final int RETRY_COUNT_BEFORE_COLLECTOR_FAILOVER = 3;
 
   private final Gson gson = new Gson();
 
@@ -126,6 +132,13 @@ public abstract class AbstractTimelineMetricsSink {
 
   private static final int COLLECTOR_HOST_CACHE_MAX_EXPIRATION_MINUTES = 75;
   private static final int COLLECTOR_HOST_CACHE_MIN_EXPIRATION_MINUTES = 60;
+
+  //10 seconds
+  protected int collectionPeriodMillis = 10000;
+
+  private int cacheExpireTimeMinutesDefault = 10;
+
+  private volatile Cache<String, TimelineMetric> metricsPostCache = CacheBuilder.newBuilder().expireAfterAccess(cacheExpireTimeMinutesDefault, TimeUnit.MINUTES).build();
 
   static {
     mapper = new ObjectMapper();
@@ -286,14 +299,52 @@ public abstract class AbstractTimelineMetricsSink {
     return collectorHost;
   }
 
+  /**
+   * @param metrics metrics to post, metric values will be aligned by minute mark,
+   *                last uncompleted minute will be cached to post in future iteration
+   */
   protected boolean emitMetrics(TimelineMetrics metrics) {
-    String collectorHost = getCurrentCollectorHost();
-    if (collectorHost != null) {
-      String connectUrl = getCollectorUri(collectorHost);
+    return emitMetrics(metrics, false);
+  }
+
+  /**
+   * @param metrics metrics to post, if postAllCachedMetrics is false metric values will be aligned by minute mark,
+   *                last uncompleted minute will be cached to post in future iteration
+   * @param postAllCachedMetrics if set to true all cached metrics will be posted, ignoring the minute aligning
+   * @return
+   */
+  protected boolean emitMetrics(TimelineMetrics metrics, boolean postAllCachedMetrics) {
+    String connectUrl;
+    boolean validCollectorHost = true;
+
+    if (isHostInMemoryAggregationEnabled()) {
+      String hostname = "localhost";
+      if (getHostInMemoryAggregationProtocol().equalsIgnoreCase("https")) {
+        hostname = getHostname();
+      }
+      connectUrl = constructTimelineMetricUri(getHostInMemoryAggregationProtocol(), hostname, String.valueOf(getHostInMemoryAggregationPort()));
+    } else {
+      String collectorHost  = getCurrentCollectorHost();
+      if (collectorHost == null) {
+        validCollectorHost = false;
+      }
+      connectUrl = getCollectorUri(collectorHost);
+    }
+
+    TimelineMetrics metricsToEmit = alignMetricsByMinuteMark(metrics);
+
+    if (postAllCachedMetrics) {
+      for (TimelineMetric timelineMetric : metricsPostCache.asMap().values()) {
+        metricsToEmit.addOrMergeTimelineMetric(timelineMetric);
+      }
+      metricsPostCache.invalidateAll();
+    }
+
+    if (validCollectorHost) {
       String jsonData = null;
       LOG.debug("EmitMetrics connectUrl = "  + connectUrl);
       try {
-        jsonData = mapper.writeValueAsString(metrics);
+        jsonData = mapper.writeValueAsString(metricsToEmit);
       } catch (IOException e) {
         LOG.error("Unable to parse metrics", e);
       }
@@ -314,6 +365,61 @@ public abstract class AbstractTimelineMetricsSink {
       appCookieManager = new AppCookieManager();
     }
     return appCookieManager;
+  }
+
+  /**
+   * Align metrics by the minutes so that only complete minutes are send.
+   * Not completed minutes data points will be cached and posted when the minute will be completed.
+   * Cached metrics are merged with currently posting metrics
+   * e.g:
+   * first iteration if metrics from 00m15s to 01m15s are processed,
+   *               then metrics from 00m15s to 00m59s will be posted
+   *                        and from 01m00s to 01m15s will be cached
+   * second iteration   metrics from 01m25s to 02m55s are processed,
+   *     cached metrics from previous call will be merged with current,
+   *                    metrics from 01m00s to 02m55s will be posted, cache will be empty
+   * @param metrics
+   * @return
+   */
+  protected TimelineMetrics alignMetricsByMinuteMark(TimelineMetrics metrics) {
+    TimelineMetrics allMetricsToPost = new TimelineMetrics();
+
+    for (TimelineMetric metric : metrics.getMetrics()) {
+      TimelineMetric cachedMetric = metricsPostCache.getIfPresent(metric.getMetricName());
+      if (cachedMetric != null) {
+        metric.addMetricValues(cachedMetric.getMetricValues());
+        metricsPostCache.invalidate(metric.getMetricName());
+      }
+    }
+
+    for (TimelineMetric metric : metrics.getMetrics()) {
+      TreeMap<Long, Double> valuesToCache = new TreeMap<>();
+      TreeMap<Long, Double> valuesToPost = metric.getMetricValues();
+
+      // in case there can't be any more datapoints in last minute just post the metrics,
+      // otherwise need to cut off and cache the last uncompleted minute
+      if (!(valuesToPost.lastKey() % 60000 > 60000 - collectionPeriodMillis)) {
+        Long lastMinute = valuesToPost.lastKey() / 60000;
+        while (!valuesToPost.isEmpty() && valuesToPost.lastKey() / 60000 == lastMinute) {
+          valuesToCache.put(valuesToPost.lastKey(), valuesToPost.get(valuesToPost.lastKey()));
+          valuesToPost.remove(valuesToPost.lastKey());
+        }
+      }
+
+      if (!valuesToCache.isEmpty()) {
+        TimelineMetric metricToCache = new TimelineMetric(metric);
+        metricToCache.setMetricValues(valuesToCache);
+        metricsPostCache.put(metricToCache.getMetricName(), metricToCache);
+      }
+
+      if (!valuesToPost.isEmpty()) {
+        TimelineMetric metricToPost = new TimelineMetric(metric);
+        metricToPost.setMetricValues(valuesToPost);
+        allMetricsToPost.addOrMergeTimelineMetric(metricToPost);
+      }
+    }
+
+    return allMetricsToPost;
   }
 
   /**
@@ -591,6 +697,11 @@ public abstract class AbstractTimelineMetricsSink {
       rand.nextInt(zookeeperMaxBackoffTimeMins - zookeeperMinBackoffTimeMins + 1)) * 60*1000l;
   }
 
+  //for now it's used only for testing
+  protected Cache<String, TimelineMetric> getMetricsPostCache() {
+    return metricsPostCache;
+  }
+
   /**
    * Get a pre-formatted URI for the collector
    */
@@ -622,4 +733,22 @@ public abstract class AbstractTimelineMetricsSink {
    * @return String "host1"
    */
   abstract protected String getHostname();
+
+  /**
+   * Check if host in-memory aggregation is enabled
+   * @return
+   */
+  abstract protected boolean isHostInMemoryAggregationEnabled();
+
+  /**
+   * In memory aggregation port
+   * @return
+   */
+  abstract protected int getHostInMemoryAggregationPort();
+
+  /**
+   * In memory aggregation protocol
+   * @return
+   */
+  abstract protected String getHostInMemoryAggregationProtocol();
 }

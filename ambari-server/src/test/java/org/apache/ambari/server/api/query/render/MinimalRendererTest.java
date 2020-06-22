@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,18 @@
 package org.apache.ambari.server.api.query.render;
 
 
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.verify;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.api.query.QueryInfo;
 import org.apache.ambari.server.api.resources.ClusterResourceDefinition;
 import org.apache.ambari.server.api.resources.ComponentResourceDefinition;
@@ -28,23 +40,14 @@ import org.apache.ambari.server.api.services.Result;
 import org.apache.ambari.server.api.services.ResultImpl;
 import org.apache.ambari.server.api.util.TreeNode;
 import org.apache.ambari.server.api.util.TreeNodeImpl;
+import org.apache.ambari.server.controller.internal.HostComponentResourceProvider;
+import org.apache.ambari.server.controller.internal.HostResourceProvider;
 import org.apache.ambari.server.controller.internal.ResourceImpl;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.spi.Schema;
 import org.apache.ambari.server.controller.spi.SchemaFactory;
+import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.junit.Test;
-
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-
-import static org.easymock.EasyMock.createNiceMock;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.verify;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 
 /**
  * MinimalRenderer unit tests.
@@ -63,8 +66,8 @@ public class MinimalRendererTest {
 
     replay(schemaFactory, schema);
 
-    QueryInfo rootQuery = new QueryInfo(new ServiceResourceDefinition(), new HashSet<String>());
-    TreeNode<QueryInfo> queryTree = new TreeNodeImpl<QueryInfo>(null, rootQuery, "Service");
+    QueryInfo rootQuery = new QueryInfo(new ServiceResourceDefinition(), new HashSet<>());
+    TreeNode<QueryInfo> queryTree = new TreeNodeImpl<>(null, rootQuery, "Service");
 
     MinimalRenderer renderer = new MinimalRenderer();
     renderer.init(schemaFactory);
@@ -91,10 +94,10 @@ public class MinimalRendererTest {
 
     replay(schemaFactory, schema);
 
-    HashSet<String> serviceProperties = new HashSet<String>();
+    HashSet<String> serviceProperties = new HashSet<>();
     serviceProperties.add("foo/bar");
     QueryInfo rootQuery = new QueryInfo(new ServiceResourceDefinition(), serviceProperties);
-    TreeNode<QueryInfo> queryTree = new TreeNodeImpl<QueryInfo>(null, rootQuery, "Service");
+    TreeNode<QueryInfo> queryTree = new TreeNodeImpl<>(null, rootQuery, "Service");
 
     MinimalRenderer renderer = new MinimalRenderer();
     renderer.init(schemaFactory);
@@ -120,9 +123,9 @@ public class MinimalRendererTest {
 
     replay(schemaFactory, schema);
 
-    HashSet<String> serviceProperties = new HashSet<String>();
+    HashSet<String> serviceProperties = new HashSet<>();
     QueryInfo rootQuery = new QueryInfo(new ServiceResourceDefinition(), serviceProperties);
-    TreeNode<QueryInfo> queryTree = new TreeNodeImpl<QueryInfo>(null, rootQuery, "Service");
+    TreeNode<QueryInfo> queryTree = new TreeNodeImpl<>(null, rootQuery, "Service");
 
     MinimalRenderer renderer = new MinimalRenderer();
     renderer.init(schemaFactory);
@@ -147,10 +150,10 @@ public class MinimalRendererTest {
 
     replay(schemaFactory, schema);
 
-    HashSet<String> serviceProperties = new HashSet<String>();
+    HashSet<String> serviceProperties = new HashSet<>();
     serviceProperties.add("foo/bar");
     QueryInfo rootQuery = new QueryInfo(new ServiceResourceDefinition(), serviceProperties);
-    TreeNode<QueryInfo> queryTree = new TreeNodeImpl<QueryInfo>(null, rootQuery, "Service");
+    TreeNode<QueryInfo> queryTree = new TreeNodeImpl<>(null, rootQuery, "Service");
 
     MinimalRenderer renderer = new MinimalRenderer();
     renderer.init(schemaFactory);
@@ -179,10 +182,10 @@ public class MinimalRendererTest {
 
     replay(schemaFactory, serviceSchema, componentSchema);
 
-    HashSet<String> serviceProperties = new HashSet<String>();
+    HashSet<String> serviceProperties = new HashSet<>();
     QueryInfo rootQuery = new QueryInfo(new ServiceResourceDefinition(), serviceProperties);
-    TreeNode<QueryInfo> queryTree = new TreeNodeImpl<QueryInfo>(null, rootQuery, "Service");
-    queryTree.addChild(new QueryInfo(new ComponentResourceDefinition(), new HashSet<String>()), "Component");
+    TreeNode<QueryInfo> queryTree = new TreeNodeImpl<>(null, rootQuery, "Service");
+    queryTree.addChild(new QueryInfo(new ComponentResourceDefinition(), new HashSet<>()), "Component");
 
     MinimalRenderer renderer = new MinimalRenderer();
     renderer.init(schemaFactory);
@@ -216,11 +219,11 @@ public class MinimalRendererTest {
 
     replay(schemaFactory, serviceSchema, componentSchema);
 
-    HashSet<String> serviceProperties = new HashSet<String>();
+    HashSet<String> serviceProperties = new HashSet<>();
     serviceProperties.add("foo/bar");
     QueryInfo rootQuery = new QueryInfo(new ServiceResourceDefinition(), serviceProperties);
-    TreeNode<QueryInfo> queryTree = new TreeNodeImpl<QueryInfo>(null, rootQuery, "Service");
-    HashSet<String> componentProperties = new HashSet<String>();
+    TreeNode<QueryInfo> queryTree = new TreeNodeImpl<>(null, rootQuery, "Service");
+    HashSet<String> componentProperties = new HashSet<>();
     componentProperties.add("goo/car");
     queryTree.addChild(new QueryInfo(new ComponentResourceDefinition(), componentProperties), "Component");
 
@@ -256,10 +259,10 @@ public class MinimalRendererTest {
 
     replay(schemaFactory, serviceSchema, componentSchema);
 
-    HashSet<String> serviceProperties = new HashSet<String>();
+    HashSet<String> serviceProperties = new HashSet<>();
     QueryInfo rootQuery = new QueryInfo(new ServiceResourceDefinition(), serviceProperties);
-    TreeNode<QueryInfo> queryTree = new TreeNodeImpl<QueryInfo>(null, rootQuery, "Service");
-    queryTree.addChild(new QueryInfo(new ComponentResourceDefinition(), new HashSet<String>()), "Component");
+    TreeNode<QueryInfo> queryTree = new TreeNodeImpl<>(null, rootQuery, "Service");
+    queryTree.addChild(new QueryInfo(new ComponentResourceDefinition(), new HashSet<>()), "Component");
 
     MinimalRenderer renderer = new MinimalRenderer();
     renderer.init(schemaFactory);
@@ -292,11 +295,11 @@ public class MinimalRendererTest {
 
     replay(schemaFactory, serviceSchema, componentSchema);
 
-    HashSet<String> serviceProperties = new HashSet<String>();
+    HashSet<String> serviceProperties = new HashSet<>();
     serviceProperties.add("foo/bar");
     QueryInfo rootQuery = new QueryInfo(new ServiceResourceDefinition(), serviceProperties);
-    TreeNode<QueryInfo> queryTree = new TreeNodeImpl<QueryInfo>(null, rootQuery, "Service");
-    queryTree.addChild(new QueryInfo(new ComponentResourceDefinition(), new HashSet<String>()), "Component");
+    TreeNode<QueryInfo> queryTree = new TreeNodeImpl<>(null, rootQuery, "Service");
+    queryTree.addChild(new QueryInfo(new ComponentResourceDefinition(), new HashSet<>()), "Component");
 
     MinimalRenderer renderer = new MinimalRenderer();
     renderer.init(schemaFactory);
@@ -456,8 +459,8 @@ public class MinimalRendererTest {
 
 
   private TreeNode<QueryInfo> createPropertyTree() {
-    TreeNode<QueryInfo> propertyTree = new TreeNodeImpl<QueryInfo>(null, new QueryInfo(
-        new ClusterResourceDefinition(), new HashSet<String>()), "Cluster");
+    TreeNode<QueryInfo> propertyTree = new TreeNodeImpl<>(null, new QueryInfo(
+      new ClusterResourceDefinition(), new HashSet<>()), "Cluster");
     Set<String> clusterProperties = propertyTree.getObject().getProperties();
     clusterProperties.add("Clusters/cluster_name");
     clusterProperties.add("Clusters/version");
@@ -468,15 +471,15 @@ public class MinimalRendererTest {
   }
 
   private TreeNode<QueryInfo> createPropertyTreeWithSubProps() {
-    TreeNode<QueryInfo> propertyTree = new TreeNodeImpl<QueryInfo>(null, new QueryInfo(
-        new ClusterResourceDefinition(), new HashSet<String>()), "Cluster");
+    TreeNode<QueryInfo> propertyTree = new TreeNodeImpl<>(null, new QueryInfo(
+      new ClusterResourceDefinition(), new HashSet<>()), "Cluster");
     Set<String> clusterProperties = propertyTree.getObject().getProperties();
     clusterProperties.add("Clusters/cluster_name");
     clusterProperties.add("Clusters/version");
     clusterProperties.add("Clusters/prop1");
     clusterProperties.add("foo");
 
-    propertyTree.addChild(new QueryInfo(new HostResourceDefinition(), new HashSet<String>()), "Host");
+    propertyTree.addChild(new QueryInfo(new HostResourceDefinition(), new HashSet<>()), "Host");
     propertyTree.getChild("Host").getObject().getProperties().add("foo");
 
     return propertyTree;
@@ -496,6 +499,9 @@ public class MinimalRendererTest {
 
     // host 1 : ambari host
     Resource hostResource = new ResourceImpl(Resource.Type.Host);
+
+    PropertyHelper.setKeyPropertyIds(Resource.Type.Host,HostResourceProvider.keyPropertyIds);
+    PropertyHelper.setKeyPropertyIds(Resource.Type.HostComponent, HostComponentResourceProvider.keyPropertyIds);
     hostResource.setProperty("Hosts/host_name", "testHost");
     hostResource.setProperty("Hosts/cluster_name", "testCluster");
     hostResource.setProperty("foo", "bar");

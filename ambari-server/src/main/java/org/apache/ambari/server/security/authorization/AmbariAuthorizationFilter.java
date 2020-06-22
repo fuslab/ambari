@@ -18,9 +18,23 @@
 
 package org.apache.ambari.server.security.authorization;
 
+import java.io.IOException;
+import java.security.Principal;
+import java.util.EnumSet;
+import java.util.regex.Pattern;
+
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.apache.ambari.server.audit.AuditLogger;
 import org.apache.ambari.server.audit.event.AccessUnauthorizedAuditEvent;
 import org.apache.ambari.server.audit.event.AuditEvent;
-import org.apache.ambari.server.audit.AuditLogger;
 import org.apache.ambari.server.audit.event.LoginAuditEvent;
 import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.orm.entities.PermissionEntity;
@@ -37,20 +51,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Component;
 
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.security.Principal;
-import java.util.EnumSet;
-import java.util.regex.Pattern;
-
+@Component
 public class AmbariAuthorizationFilter implements Filter {
   private static final String REALM_PARAM = "realm";
   private static final String DEFAULT_REALM = "AuthFilter";
@@ -69,6 +72,7 @@ public class AmbariAuthorizationFilter implements Filter {
   private static final String API_GROUPS_ALL_PATTERN = API_VERSION_PREFIX + "/groups.*";
   private static final String API_CLUSTERS_PATTERN = API_VERSION_PREFIX + "/clusters/(\\w+/?)?";
   private static final String API_WIDGET_LAYOUTS_PATTERN = API_VERSION_PREFIX + "/clusters/.*?/widget_layouts.*?";
+  private static final String API_WIDGET_PATTERN = API_VERSION_PREFIX + "/clusters/.*?/widgets.*";
   private static final String API_CLUSTERS_ALL_PATTERN = API_VERSION_PREFIX + "/clusters.*";
   private static final String API_VIEWS_ALL_PATTERN = API_VERSION_PREFIX + "/views.*";
   private static final String API_PERSIST_ALL_PATTERN = API_VERSION_PREFIX + "/persist.*";
@@ -302,7 +306,7 @@ public class AmbariAuthorizationFilter implements Filter {
       String username = configuration.getDefaultApiAuthenticatedUser();
 
       if (!StringUtils.isEmpty(username)) {
-        final User user = users.getUser(username, UserType.LOCAL);
+        final User user = users.getUser(username);
 
         if (user != null) {
           Principal principal = new Principal() {
@@ -313,7 +317,7 @@ public class AmbariAuthorizationFilter implements Filter {
           };
 
           defaultUser = new UsernamePasswordAuthenticationToken(principal, null,
-              users.getUserAuthorities(user.getUserName(), user.getUserType()));
+              users.getUserAuthorities(user.getUserName()));
         }
       }
     }
@@ -342,6 +346,7 @@ public class AmbariAuthorizationFilter implements Filter {
         requestURI.matches(API_VIEWS_ALL_PATTERN) ||
         requestURI.matches(VIEWS_CONTEXT_PATH_PATTERN) ||
         requestURI.matches(API_WIDGET_LAYOUTS_PATTERN) ||
+        requestURI.matches(API_WIDGET_PATTERN) ||
         requestURI.matches(API_CLUSTER_HOSTS_ALL_PATTERN) ||
         requestURI.matches(API_CLUSTER_CONFIGURATIONS_ALL_PATTERN) ||
         requestURI.matches(API_CLUSTER_COMPONENTS_ALL_PATTERN) ||

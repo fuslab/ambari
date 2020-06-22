@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,16 +18,16 @@
 
 package org.apache.ambari.server.controller.internal;
 
-import org.apache.ambari.server.controller.ivory.Cluster;
-import org.apache.ambari.server.controller.ivory.Feed;
-import org.apache.ambari.server.controller.ivory.Instance;
-import org.apache.ambari.server.controller.ivory.IvoryService;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+
+import org.apache.ambari.server.controller.ivory.Cluster;
+import org.apache.ambari.server.controller.ivory.Feed;
+import org.apache.ambari.server.controller.ivory.Instance;
+import org.apache.ambari.server.controller.ivory.IvoryService;
 
 /**
  * An IvoryService implementation used for testing the DR related resource providers.
@@ -36,12 +36,12 @@ public class TestIvoryService implements IvoryService{
 
   private int instanceCounter = 0;
 
-  private final Map<String, Feed> feeds = new HashMap<String, Feed>();
-  private final Map<String, Cluster> clusters = new HashMap<String, Cluster>();
-  private final Map<String, Map<String, Instance>> instanceMap = new HashMap<String, Map<String, Instance>>();
+  private final Map<String, Feed> feeds = new HashMap<>();
+  private final Map<String, Cluster> clusters = new HashMap<>();
+  private final Map<String, Map<String, Instance>> instanceMap = new HashMap<>();
 
-  private final Map<String, String> suspendedFeedStatusMap = new HashMap<String, String>();
-  private final Map<String, String> suspendedInstanceStatusMap = new HashMap<String, String>();
+  private final Map<String, String> suspendedFeedStatusMap = new HashMap<>();
+  private final Map<String, String> suspendedInstanceStatusMap = new HashMap<>();
 
 
   public TestIvoryService(Map<String, Feed> feeds,
@@ -70,7 +70,7 @@ public class TestIvoryService implements IvoryService{
 
   @Override
   public List<String> getFeedNames() {
-    return new LinkedList<String>(feeds.keySet());
+    return new LinkedList<>(feeds.keySet());
   }
 
   @Override
@@ -115,7 +115,7 @@ public class TestIvoryService implements IvoryService{
 
   @Override
   public List<String> getClusterNames() {
-    return new LinkedList<String>(clusters.keySet());
+    return new LinkedList<>(clusters.keySet());
   }
 
   @Override
@@ -132,7 +132,7 @@ public class TestIvoryService implements IvoryService{
   public List<Instance> getInstances(String feedName) {
     Map<String, Instance> instances = instanceMap.get(feedName);
     if (instances != null) {
-      return new LinkedList<Instance>(instances.values());
+      return new LinkedList<>(instances.values());
     }
     return Collections.emptyList();
   }
@@ -221,7 +221,7 @@ public class TestIvoryService implements IvoryService{
   private void addDummyInstance(String feedName) {
     Map<String, Instance> instances = instanceMap.get(feedName);
     if (instances == null) {
-      instances = new HashMap<String, Instance>();
+      instances = new HashMap<>();
       instanceMap.put(feedName, instances);
     }
 

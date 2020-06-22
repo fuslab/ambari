@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,24 +18,6 @@
 
 package org.apache.ambari.server.api.services;
 
-
-import org.apache.ambari.server.api.resources.ResourceDefinition;
-import org.apache.ambari.server.api.resources.ResourceInstance;
-import org.apache.ambari.server.controller.internal.RequestStatusImpl;
-import org.apache.ambari.server.controller.utilities.PropertyHelper;
-import org.apache.ambari.server.api.query.Query;
-import org.apache.ambari.server.controller.spi.Request;
-import org.apache.ambari.server.controller.spi.*;
-import org.junit.Test;
-
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-
-import static org.junit.Assert.*;
-
-import static org.easymock.EasyMock.*;
 
 /**
  * Unit tests for UpdatePersistenceManager.

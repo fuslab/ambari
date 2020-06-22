@@ -63,7 +63,10 @@ App.ConfigOverridable = Em.Mixin.create({
     }
     else {
       var valueForOverride = (serviceConfigProperty.get('widget') || serviceConfigProperty.get('displayType') == 'checkbox') ? serviceConfigProperty.get('value') : '';
-      App.config.createOverride(serviceConfigProperty, { "value": valueForOverride, "isEditable": true }, selectedConfigGroup);
+      App.config.createOverride(serviceConfigProperty, {
+        "value": valueForOverride,
+        "isEditable": true
+      }, selectedConfigGroup);
     }
     Em.$('body>.tooltip').remove();
   },
@@ -99,7 +102,8 @@ App.ConfigOverridable = Em.Mixin.create({
     var serviceName = App.format.role(serviceId, true);
 
     return App.ModalPopup.show({
-      classNames: ['sixty-percent-width-modal'],
+      classNames: ['common-modal-wrapper'],
+      modalDialogClasses: ['modal-lg'],
       header: Em.I18n.t('config.group.selection.dialog.title').format(serviceName),
       subTitle: Em.I18n.t('config.group.selection.dialog.subtitle').format(serviceName),
       selectExistingGroupLabel: Em.I18n.t('config.group.selection.dialog.option.select').format(serviceName),
@@ -189,27 +193,25 @@ App.ConfigOverridable = Em.Mixin.create({
       bodyClass: Em.View.extend({
         templateName: require('templates/common/configs/selectCreateConfigGroup'),
         controllerBinding: 'App.router.mainServiceInfoConfigsController',
-        selectConfigGroupRadioButton: Em.Checkbox.extend({
-          tagName: 'input',
-          attributeBindings: ['type', 'checked', 'disabled'],
+        selectConfigGroupRadioButton: App.RadioButtonView.extend({
+          label: Em.computed.alias('parentView.parentView.selectExistingGroupLabel'),
           checked: Em.computed.alias('parentView.parentView.optionSelectConfigGroup'),
-          type: 'radio',
-          disabled: false,
+          disabled: Em.computed.not('parentView.parentView.hasExistedGroups'),
           click: function () {
+            if (this.get('disabled')) {
+              return;
+            }
             this.set('parentView.parentView.optionSelectConfigGroup', true);
           },
           didInsertElement: function () {
             if (!this.get('parentView.parentView.hasExistedGroups')) {
-              this.set('disabled', true);
               this.set('parentView.parentView.optionSelectConfigGroup', false);
             }
           }
         }),
-        createConfigGroupRadioButton: Em.Checkbox.extend({
-          tagName: 'input',
-          attributeBindings: ['type', 'checked'],
+        createConfigGroupRadioButton: App.RadioButtonView.extend({
+          label: Em.computed.alias('parentView.parentView.createNewGroupLabel'),
           checked: Em.computed.not('parentView.parentView.optionSelectConfigGroup'),
-          type: 'radio',
           click: function () {
             this.set('parentView.parentView.optionSelectConfigGroup', false);
           }
@@ -244,7 +246,6 @@ App.ConfigOverridable = Em.Mixin.create({
           var type = Em.get(cst, 'site') || Em.get(cst, 'type');
           return {
             type: type,
-            tag: 'version' + (new Date).getTime(),
             properties: typeToPropertiesMap[type]
           };
         }),
@@ -255,33 +256,43 @@ App.ConfigOverridable = Em.Mixin.create({
         })
       }
     };
-    var sendData = {
+    return App.ajax.send({
       name: 'config_groups.create',
+      sender: this,
       data: {
         data: [newGroupData],
         modelData: newConfigGroupData
       },
-      success: 'successFunction',
-      error: 'errorFunction',
-      successFunction: function (response, opt, params) {
-        var modelData = params.modelData;
-        modelData.id = response.resources[0].ConfigGroup.id;
-        App.store.safeLoad(App.ServiceConfigGroup, modelData);
-        App.store.fastCommit();
-        App.ServiceConfigGroup.deleteTemporaryRecords();
-        if (callback) {
-          callback();
-        }
-      },
-      errorFunction: function (xhr, text, errorThrown) {
-        if (callback) {
-          callback(xhr, text, errorThrown);
-        }
+      success: 'postNewConfigurationGroupSuccess',
+      error: 'postNewConfigurationGroupError'
+    }).always(function (xhr, text, errorThrown) {
+      if (callback) {
+        callback(xhr, text, errorThrown);
       }
-    };
-    sendData.sender = sendData;
-    return App.ajax.send(sendData);
+    });
   },
+
+  /**
+   *
+   * @param {string} response
+   * @param {object} opt
+   * @param {object} params
+   */
+  postNewConfigurationGroupSuccess: function (response, opt, params) {
+    var modelData = params.modelData;
+    modelData.id = response.resources[0].ConfigGroup.id;
+    App.store.safeLoad(App.ServiceConfigGroup, modelData);
+    App.store.fastCommit();
+    App.ServiceConfigGroup.deleteTemporaryRecords();
+  },
+
+  /**
+   *
+   * @param {object} xhr
+   * @param {string} text
+   * @param {Error} errorThrown
+   */
+  postNewConfigurationGroupError: Em.K,
 
   /**
    * PUTs the new configuration-group on the server.
@@ -295,32 +306,11 @@ App.ConfigOverridable = Em.Mixin.create({
    * @method updateConfigurationGroup
    */
   updateConfigurationGroup: function (configGroup, successCallback, errorCallback) {
-    var desiredConfigs = configGroup.get('desiredConfigs') || [];
-    var putConfigGroup = {
-      ConfigGroup: {
-        group_name: configGroup.get('name'),
-        description: configGroup.get('description'),
-        tag: configGroup.get('service.id'),
-        service_name: configGroup.get('service.id'),
-        hosts: configGroup.get('hosts').map(function (h) {
-          return {
-            host_name: h
-          };
-        }),
-        desired_configs: desiredConfigs.map(function (cst) {
-          return {
-            type: Em.get(cst, 'site') || Em.get(cst, 'type'),
-            tag: Em.get(cst, 'tag')
-          };
-        })
-      }
-    };
-
     var sendData = {
       name: 'config_groups.update',
       data: {
         id: configGroup.get('id'),
-        data: putConfigGroup
+        data: this.getConfigGroupData(configGroup)
       },
       success: 'successFunction',
       error: 'errorFunction',
@@ -340,6 +330,35 @@ App.ConfigOverridable = Em.Mixin.create({
   },
 
   /**
+   *
+   * @param {Em.Object} configGroup
+   * @returns {{ConfigGroup: {group_name: *, description: *, tag: *, hosts: *, desired_configs: (Array|*)}}}
+   */
+  getConfigGroupData: function (configGroup) {
+    var desiredConfigs = configGroup.get('desiredConfigs') || [];
+
+    return {
+      ConfigGroup: {
+        group_name: configGroup.get('name'),
+        description: configGroup.get('description'),
+        tag: configGroup.get('service.id'),
+        service_name: configGroup.get('service.id'),
+        hosts: configGroup.get('hosts').map(function (h) {
+          return {
+            host_name: h
+          };
+        }),
+        desired_configs: desiredConfigs.map(function (cst) {
+          return {
+            type: Em.get(cst, 'site') || Em.get(cst, 'type'),
+            tag: Em.get(cst, 'tag')
+          };
+        })
+      }
+    };
+  },
+
+  /**
    * launch dialog where can be assigned another group to host
    * @param {App.ConfigGroup} selectedGroup
    * @param {App.ConfigGroup[]} configGroups
@@ -351,6 +370,7 @@ App.ConfigOverridable = Em.Mixin.create({
   launchSwitchConfigGroupOfHostDialog: function (selectedGroup, configGroups, hostName, callback) {
     var self = this;
     return App.ModalPopup.show({
+      classNames: ['change-config-group-modal'],
       header: Em.I18n.t('config.group.host.switch.dialog.title'),
       configGroups: configGroups,
       selectedConfigGroup: selectedGroup,
@@ -394,6 +414,7 @@ App.ConfigOverridable = Em.Mixin.create({
    * @method deleteConfigurationGroup
    */
   deleteConfigurationGroup: function (configGroup, successCallback, errorCallback) {
+    var self = this;
     var sendData = {
       name: 'common.delete.config_group',
       sender: this,
@@ -403,13 +424,7 @@ App.ConfigOverridable = Em.Mixin.create({
       success: 'successFunction',
       error: 'errorFunction',
       successFunction: function (data, xhr, params) {
-        var groupFromModel = App.ServiceConfigGroup.find().findProperty('id', params.id);
-        if (groupFromModel) {
-          if (groupFromModel.get('stateManager.currentState.name') !== 'saved') {
-            groupFromModel.get('stateManager').transitionTo('loaded');
-          }
-          App.configGroupsMapper.deleteRecord(groupFromModel);
-        }
+        self.deleteConfigurationGroupSuccess(data, xhr, params);
         if (successCallback) {
           successCallback();
         }
@@ -422,6 +437,23 @@ App.ConfigOverridable = Em.Mixin.create({
     };
     sendData.sender = sendData;
     return App.ajax.send(sendData);
+  },
+
+
+  /**
+   *
+   * @param {object} data
+   * @param {object} xhr
+   * @param {object} params
+   */
+  deleteConfigurationGroupSuccess: function (data, xhr, params) {
+    var groupFromModel = App.ServiceConfigGroup.find().findProperty('id', params.id);
+    if (groupFromModel) {
+      if (groupFromModel.get('stateManager.currentState.name') !== 'saved') {
+        groupFromModel.get('stateManager').transitionTo('loaded');
+      }
+      App.configGroupsMapper.deleteRecord(groupFromModel);
+    }
   },
 
   /**
@@ -447,11 +479,11 @@ App.ConfigOverridable = Em.Mixin.create({
       bodyClass: Em.View.extend({
         templateName: require('templates/common/configs/saveConfigGroup')
       }),
-      onPrimary:function() {
-        if (self.get('controller.name') == 'mainServiceInfoConfigsController') {
-          self.get('controller').loadConfigGroups([self.get('controller.content.serviceName')]).done(function() {
-            var group = App.ServiceConfigGroup.find().find(function(g) {
-              return g.get('serviceName') == self.get('controller.content.serviceName') && g.get('name') == groupName;
+      onPrimary: function () {
+        if (self.get('controller.name') === 'mainServiceInfoConfigsController') {
+          self.get('controller').loadConfigGroups([self.get('controller.content.serviceName')]).done(function () {
+            var group = App.ServiceConfigGroup.find().find(function (g) {
+              return g.get('serviceName') === self.get('controller.content.serviceName') && g.get('name') === groupName;
             });
             self.get('controller').doSelectConfigGroup({context: group});
           });
@@ -472,7 +504,7 @@ App.ConfigOverridable = Em.Mixin.create({
   persistConfigGroups: function () {
     var installerController = App.router.get('installerController');
     var step7Controller = App.router.get('wizardStep7Controller');
-    installerController.saveServiceConfigGroups(step7Controller, step7Controller.get('content.controllerName') == 'addServiceController');
+    installerController.saveServiceConfigGroups(step7Controller, step7Controller.get('content.controllerName') === 'addServiceController');
     App.clusterStatus.setClusterStatus({
       localdb: App.db.data
     });

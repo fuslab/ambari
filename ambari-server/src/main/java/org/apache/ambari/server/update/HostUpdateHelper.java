@@ -25,13 +25,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.apache.ambari.server.AmbariException;
+import org.apache.ambari.server.agent.stomp.AgentConfigsHolder;
 import org.apache.ambari.server.audit.AuditLoggerModule;
 import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.controller.AmbariManagementController;
 import org.apache.ambari.server.controller.ControllerModule;
 import org.apache.ambari.server.controller.KerberosHelper;
+import org.apache.ambari.server.ldap.LdapModule;
 import org.apache.ambari.server.orm.dao.AlertDefinitionDAO;
 import org.apache.ambari.server.orm.dao.AlertsDAO;
 import org.apache.ambari.server.orm.dao.ClusterDAO;
@@ -216,6 +219,7 @@ public class HostUpdateHelper {
 
       // going through all clusters with host pairs from file
       for (Map.Entry<String, Map<String,String>> clusterHosts : hostChangesFileMap.entrySet()) {
+        boolean hostConfigsUpdated = false;
         String clusterName = clusterHosts.getKey();
         ClusterEntity clusterEntity = clusterDAO.findByName(clusterName);
         Cluster cluster = clusters.getCluster(clusterName);
@@ -251,9 +255,15 @@ public class HostUpdateHelper {
             }
 
             if (configUpdated) {
+              hostConfigsUpdated = true;
               config.save();
             }
           }
+        }
+        if (hostConfigsUpdated) {
+          AgentConfigsHolder agentConfigsHolder = injector.getInstance(AgentConfigsHolder.class);
+          agentConfigsHolder.updateData(cluster.getClusterId(), currentHostNames.stream()
+              .map(hm -> cluster.getHost(hm).getHostId()).collect(Collectors.toList()));
         }
 
         //******************************
@@ -364,7 +374,7 @@ public class HostUpdateHelper {
     for (Map.Entry<String, JsonElement> clusterEntry : hostChangesJsonObject.entrySet()) {
       try {
         Gson gson = new Gson();
-        hostChangesFileMap.put(clusterEntry.getKey(), gson.fromJson(clusterEntry.getValue(), Map.class));
+        hostChangesFileMap.put(clusterEntry.getKey(), gson.<Map<String, String>>fromJson(clusterEntry.getValue(), Map.class));
       } catch(Exception e) {
         throw new AmbariException("Error occurred during mapping Json to Map structure. Please check json structure in file.", e);
       }
@@ -532,7 +542,7 @@ public class HostUpdateHelper {
         throw new AmbariException("Path to file with host names changes is empty or null.");
       }
 
-      Injector injector = Guice.createInjector(new UpdateHelperModule(), new CheckHelperAuditModule());
+      Injector injector = Guice.createInjector(new UpdateHelperModule(), new CheckHelperAuditModule(), new LdapModule());
       HostUpdateHelper hostUpdateHelper = injector.getInstance(HostUpdateHelper.class);
 
       hostUpdateHelper.setHostChangesFile(hostChangesFile);

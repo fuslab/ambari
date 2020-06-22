@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,14 +32,14 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.ClusterNotFoundException;
-import org.apache.ambari.server.agent.ActionQueue;
-import org.apache.ambari.server.agent.AgentCommand.AgentCommandType;
 import org.apache.ambari.server.agent.AlertDefinitionCommand;
-import org.apache.ambari.server.controller.RootServiceResponseFactory.Components;
-import org.apache.ambari.server.controller.RootServiceResponseFactory.Services;
+import org.apache.ambari.server.controller.RootComponent;
+import org.apache.ambari.server.controller.RootService;
 import org.apache.ambari.server.orm.dao.AlertDefinitionDAO;
 import org.apache.ambari.server.orm.entities.AlertDefinitionEntity;
 import org.apache.ambari.server.state.Cluster;
@@ -53,6 +53,7 @@ import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.google.inject.Singleton;
@@ -95,13 +96,6 @@ public class AlertDefinitionHash {
   private Provider<Clusters> m_clusters;
 
   /**
-   * Used to enqueue {@link AlertDefinitionCommand} on the heartbeat response
-   * queue.
-   */
-  @Inject
-  private ActionQueue m_actionQueue;
-
-  /**
    * Used to add configurations to the {@link AlertDefinitionCommand} instances
    * so that alerts can be scheduled to run with access to the properties they
    * need.
@@ -121,7 +115,7 @@ public class AlertDefinitionHash {
    * value is a map between cluster name and hash.
    */
   private ConcurrentMap<String, ConcurrentMap<String, String>> m_hashes =
-      new ConcurrentHashMap<String, ConcurrentMap<String, String>>();
+    new ConcurrentHashMap<>();
 
   /**
    * Gets a unique hash value reprssenting all of the alert definitions that
@@ -142,7 +136,7 @@ public class AlertDefinitionHash {
   public String getHash(String clusterName, String hostName) {
     ConcurrentMap<String, String> clusterMapping = m_hashes.get(hostName);
     if (null == clusterMapping) {
-      clusterMapping = new ConcurrentHashMap<String, String>();
+      clusterMapping = new ConcurrentHashMap<>();
       ConcurrentMap<String, String> temp = m_hashes.putIfAbsent(hostName, clusterMapping);
       if (temp != null) {
         clusterMapping = temp;
@@ -231,23 +225,27 @@ public class AlertDefinitionHash {
    * @return the alert definitions for the host, or an empty set (never
    *         {@code null}).
    */
-  public List<AlertDefinition> getAlertDefinitions(
-      String clusterName,
-      String hostName) {
-
-    Set<AlertDefinitionEntity> entities = getAlertDefinitionEntities(
-        clusterName, hostName);
-
-    List<AlertDefinition> definitions = new ArrayList<AlertDefinition>(
-        entities.size());
-
-    for (AlertDefinitionEntity entity : entities) {
-      definitions.add(m_factory.coerce(entity));
-    }
-
-    return definitions;
+  public List<AlertDefinition> getAlertDefinitions(String clusterName, String hostName) {
+    return coerce(getAlertDefinitionEntities(clusterName, hostName));
   }
 
+  public Map<Long, Map<Long, AlertDefinition>> getAlertDefinitions(Long hostId) throws AmbariException {
+    Map<Long, Map<Long, AlertDefinition>> result = new HashMap<>();
+    String hostName = m_clusters.get().getHostById(hostId).getHostName();
+    for (Cluster cluster : m_clusters.get().getClustersForHost(hostName)) {
+      List<AlertDefinition> alertDefinitions = getAlertDefinitions(cluster.getClusterName(), hostName);
+      result.put(cluster.getClusterId(), mapById(alertDefinitions));
+    }
+    return result;
+  }
+
+  public Map<Long, AlertDefinition> findByServiceComponent(long clusterId, String serviceName, String componentName) {
+    return mapById(coerce(m_definitionDao.findByServiceComponent(clusterId, serviceName, componentName)));
+  }
+
+  public Map<Long, AlertDefinition> findByServiceMaster(long clusterId, String... serviceName) {
+    return mapById(coerce(m_definitionDao.findByServiceMaster(clusterId, Sets.newHashSet(serviceName))));
+  }
 
   /**
    * Invalidate the hashes of any host that would be affected by the specified
@@ -363,21 +361,12 @@ public class AlertDefinitionHash {
       return Collections.emptySet();
     }
 
-    Map<String, Host> hosts = null;
     String clusterName = cluster.getClusterName();
-    Set<String> affectedHosts = new HashSet<String>();
+    Map<String, Host> hosts = m_clusters.get().getHostsForCluster(clusterName);
+    Set<String> affectedHosts = new HashSet<>();
 
-    try {
-      hosts = m_clusters.get().getHostsForCluster(clusterName);
-    } catch (AmbariException ambariException) {
-      LOG.error("Unable to lookup hosts for cluster named {}", clusterName,
-          ambariException);
-
-      return affectedHosts;
-    }
-
-    String ambariServiceName = Services.AMBARI.name();
-    String agentComponentName = Components.AMBARI_AGENT.name();
+    String ambariServiceName = RootService.AMBARI.name();
+    String agentComponentName = RootComponent.AMBARI_AGENT.name();
 
     // intercept host agent alerts; they affect all hosts
     if (ambariServiceName.equals(definitionServiceName)
@@ -427,9 +416,7 @@ public class AlertDefinitionHash {
         if (component.getValue().isMasterComponent()) {
           Map<String, ServiceComponentHost> componentHosts = component.getValue().getServiceComponentHosts();
           if (null != componentHosts) {
-            for (String componentHost : componentHosts.keySet()) {
-              affectedHosts.add(componentHost);
-            }
+            affectedHosts.addAll(componentHosts.keySet());
           }
         }
       }
@@ -448,8 +435,6 @@ public class AlertDefinitionHash {
    *
    * @param clusterId
    *          the ID of the cluster.
-   * @param hosts
-   *          the hosts to push {@link AlertDefinitionCommand}s for.
    */
   public void enqueueAgentCommands(long clusterId) {
     String clusterName = null;
@@ -543,17 +528,8 @@ public class AlertDefinitionHash {
               ae);
         }
 
-        // unlike other commands, the alert definitions commands are really
-        // designed to be 1:1 per change; if multiple invalidations happened
-        // before the next heartbeat, there would be several commands that would
-        // force the agents to reschedule their alerts more than once
-        m_actionQueue.dequeue(hostName,
-            AgentCommandType.ALERT_DEFINITION_COMMAND);
-
-        m_actionQueue.dequeue(hostName,
-            AgentCommandType.ALERT_EXECUTION_COMMAND);
-
-        m_actionQueue.enqueue(hostName, command);
+        // TODO implement alert execution commands logic
+        //m_actionQueue.enqueue(hostName, command);
       }
     } finally {
       m_actionQueueLock.unlock();
@@ -591,7 +567,7 @@ public class AlertDefinitionHash {
     }
 
     // build the UUIDs
-    List<String> uuids = new ArrayList<String>(definitions.size());
+    List<String> uuids = new ArrayList<>(definitions.size());
     for (AlertDefinitionEntity definition : definitions) {
       uuids.add(definition.getHash());
     }
@@ -618,7 +594,7 @@ public class AlertDefinitionHash {
    * following types of alert definitions:
    * <ul>
    * <li>Service/Component alerts</li>
-   * <li>Service alerts where the host is a MASTER</li>
+   * <li>Service alerts where the host is a MASTER except AGGREGATE alerts</li>
    * <li>Host alerts that are not bound to a service</li>
    * </ul>
    *
@@ -632,13 +608,11 @@ public class AlertDefinitionHash {
   private Set<AlertDefinitionEntity> getAlertDefinitionEntities(
       String clusterName, String hostName) {
 
-    Set<AlertDefinitionEntity> definitions = new HashSet<AlertDefinitionEntity>();
+    Set<AlertDefinitionEntity> definitions = new HashSet<>();
 
     try {
       Cluster cluster = m_clusters.get().getCluster(clusterName);
       if (null == cluster) {
-
-
         return Collections.emptySet();
       }
 
@@ -652,13 +626,12 @@ public class AlertDefinitionHash {
           String componentName = serviceComponent.getServiceComponentName();
 
           // add all alerts for this service/component pair
-          definitions.addAll(m_definitionDao.findByServiceComponent(clusterId,
-              serviceName, componentName));
+          definitions.addAll(m_definitionDao.findByServiceComponent(clusterId, serviceName, componentName));
         }
 
         // for every service, get the master components and see if the host
         // is a master
-        Set<String> services = new HashSet<String>();
+        Set<String> services = new HashSet<>();
         for (Entry<String, Service> entry : cluster.getServices().entrySet()) {
           Service service = entry.getValue();
           Map<String, ServiceComponent> components = service.getServiceComponents();
@@ -695,4 +668,16 @@ public class AlertDefinitionHash {
 
     return definitions;
   }
+
+  private List<AlertDefinition> coerce(Collection<AlertDefinitionEntity> entities) {
+    return entities.stream()
+      .map(m_factory::coerce)
+      .collect(Collectors.toList());
+  }
+
+  private static Map<Long, AlertDefinition> mapById(Collection<AlertDefinition> definitions) {
+    return definitions.stream()
+      .collect(Collectors.toMap(AlertDefinition::getDefinitionId, Function.identity()));
+  }
+
 }

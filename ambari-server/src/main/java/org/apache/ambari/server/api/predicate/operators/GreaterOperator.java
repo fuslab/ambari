@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -40,7 +40,7 @@ public class GreaterOperator extends AbstractOperator implements RelationalOpera
 
   @Override
   public Predicate toPredicate(String prop, String val) {
-    return new GreaterPredicate<String>(prop, val);
+    return new GreaterPredicate<>(prop, val);
   }
 
   @Override

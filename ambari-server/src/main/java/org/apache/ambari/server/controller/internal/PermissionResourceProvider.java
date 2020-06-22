@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,10 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
 import org.apache.ambari.server.controller.spi.NoSuchResourceException;
 import org.apache.ambari.server.controller.spi.Predicate;
@@ -30,10 +34,8 @@ import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.orm.dao.PermissionDAO;
 import org.apache.ambari.server.orm.entities.PermissionEntity;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 
 /**
  * Resource provider for permission instances.
@@ -58,22 +60,19 @@ public class PermissionResourceProvider extends AbstractResourceProvider {
   /**
    * The key property ids for a permission resource.
    */
-  private static Map<Resource.Type, String> keyPropertyIds = new HashMap<Resource.Type, String>();
-  static {
-    keyPropertyIds.put(Resource.Type.Permission, PERMISSION_ID_PROPERTY_ID);
-  }
+  private static Map<Resource.Type, String> keyPropertyIds = ImmutableMap.<Resource.Type, String>builder()
+      .put(Resource.Type.Permission, PERMISSION_ID_PROPERTY_ID)
+      .build();
 
   /**
    * The property ids for a permission resource.
    */
-  private static Set<String> propertyIds = new HashSet<String>();
-  static {
-    propertyIds.add(PERMISSION_ID_PROPERTY_ID);
-    propertyIds.add(PERMISSION_NAME_PROPERTY_ID);
-    propertyIds.add(PERMISSION_LABEL_PROPERTY_ID);
-    propertyIds.add(RESOURCE_NAME_PROPERTY_ID);
-    propertyIds.add(SORT_ORDER_PROPERTY_ID);
-  }
+  private static Set<String> propertyIds = Sets.newHashSet(
+      PERMISSION_ID_PROPERTY_ID,
+      PERMISSION_NAME_PROPERTY_ID,
+      PERMISSION_LABEL_PROPERTY_ID,
+      RESOURCE_NAME_PROPERTY_ID,
+      SORT_ORDER_PROPERTY_ID);
 
 
   // ----- Constructors ------------------------------------------------------
@@ -111,7 +110,7 @@ public class PermissionResourceProvider extends AbstractResourceProvider {
   public Set<Resource> getResources(Request request, Predicate predicate)
       throws SystemException, UnsupportedPropertyException, NoSuchResourceException, NoSuchParentResourceException {
 
-    Set<Resource> resources    = new HashSet<Resource>();
+    Set<Resource> resources    = new HashSet<>();
     Set<String>   requestedIds = getRequestPropertyIds(request, predicate);
 
     for(PermissionEntity permissionEntity : permissionDAO.findAll()){
@@ -144,7 +143,7 @@ public class PermissionResourceProvider extends AbstractResourceProvider {
 
   @Override
   protected Set<String> getPKPropertyIds() {
-    return new HashSet<String>(keyPropertyIds.values());
+    return new HashSet<>(keyPropertyIds.values());
   }
 
 

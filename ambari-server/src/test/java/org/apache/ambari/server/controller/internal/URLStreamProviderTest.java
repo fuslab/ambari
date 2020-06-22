@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,21 +18,20 @@
 
 package org.apache.ambari.server.controller.internal;
 
-import org.junit.Assert;
-import org.junit.Test;
+import static org.easymock.EasyMock.createMockBuilder;
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.verify;
 
-import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.easymock.EasyMock.createNiceMock;
-import static org.easymock.EasyMock.createMockBuilder;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.verify;
+import org.junit.Assert;
+import org.junit.Test;
 
 /**
  * URLStreamProvider tests.
@@ -54,7 +53,7 @@ public class URLStreamProviderTest {
     expect(urlStreamProvider.getAppCookieManager()).andReturn(appCookieManager).anyTimes();
     expect(urlStreamProvider.getConnection("spec")).andReturn(connection);
 
-    Map<String, List<String>> headerMap = new HashMap<String, List<String>>();
+    Map<String, List<String>> headerMap = new HashMap<>();
     headerMap.put("Header1", Collections.singletonList("value"));
     headerMap.put("Cookie", Collections.singletonList("FOO=bar"));
 
@@ -84,7 +83,7 @@ public class URLStreamProviderTest {
         addMockedMethod("getConnection", String.class).
         createMock();
 
-    Map<String, List<String>> headerMap = new HashMap<String, List<String>>();
+    Map<String, List<String>> headerMap = new HashMap<>();
     headerMap.put("Header1", Collections.singletonList("value"));
     headerMap.put("Cookie", Collections.singletonList("FOO=bar"));
 

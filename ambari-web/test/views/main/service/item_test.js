@@ -26,7 +26,9 @@ function getView() {
     controller: Em.Object.create({
       content: Em.Object.create({
         hostComponents: []
-      })
+      }),
+      setStartStopState: sinon.spy(),
+      loadConfigs: sinon.spy()
     })
   });
 }
@@ -37,21 +39,17 @@ describe('App.MainServiceItemView', function () {
 
   App.TestAliases.testAsComputedAlias(getView(), 'displayName', 'controller.content.displayName', 'string');
 
+  beforeEach(function() {
+    view = getView();
+  });
+
   describe('#mastersExcludedCommands', function () {
-
-    view = App.MainServiceItemView.create({
-      controller: Em.Object.create({
-        content: Em.Object.create({
-          hostComponents: []
-        })
-      })
-    });
-
+    view = getView();
     var nonCustomAction = ['RESTART_ALL', 'RUN_SMOKE_TEST', 'REFRESH_CONFIGS', 'ROLLING_RESTART', 'TOGGLE_PASSIVE', 'TOGGLE_NN_HA', 'TOGGLE_RM_HA', 'MOVE_COMPONENT', 'DOWNLOAD_CLIENT_CONFIGS', 'MASTER_CUSTOM_COMMAND'];
-    var keys = Object.keys(view.mastersExcludedCommands);
+    var keys = Object.keys(view.get('mastersExcludedCommands'));
     var mastersExcludedCommands = [];
     for (var i = 0; i < keys.length; i++) {
-      mastersExcludedCommands[i] = view.mastersExcludedCommands[keys[i]];
+      mastersExcludedCommands[i] = view.get('mastersExcludedCommands')[keys[i]];
     }
     var allMastersExcludedCommands = mastersExcludedCommands.reduce(function (previous, current) {
       return previous.concat(current);
@@ -146,6 +144,7 @@ describe('App.MainServiceItemView', function () {
         {
           serviceName: "HDFS",
           displayName: "HDFS",
+          supportDeleteViaUi: true,
           isSingleNode: true,
           serviceTypes: ["HA_MODE"],
           slaveComponents: [
@@ -174,15 +173,17 @@ describe('App.MainServiceItemView', function () {
             })
           ],
           result: [
-            {"action": "restartAllHostComponents", "context": "HDFS", "label": "Restart All", "cssClass": "icon-repeat", "disabled": false},
-            {"action": "rollingRestart", "label": "Restart DataNodes", "cssClass": "icon-time", "disabled": false, "context": "DATANODE"},
-            {"action": "reassignMaster", "context": "NAMENODE", "label": "Move NameNode", "cssClass": "icon-share-alt", "disabled": false},
-            {"action": "reassignMaster", "context": "SECONDARY_NAMENODE", "label": "Move SNameNode", "cssClass": "icon-share-alt", "disabled": false},
-            {"action": "enableHighAvailability", "label": "Enable NameNode HA", "cssClass": "icon-arrow-up", "isHidden": false, "disabled": true},
-            {"action": "runSmokeTest", "label": "Run Service Check", "cssClass": "icon-thumbs-up-alt", "disabled": false},
+            {"action": "startService", "label": "Start", "cssClass": "glyphicon glyphicon-play enabled", "disabled": false},
+            {"action": "stopService", "label": "Stop", "cssClass": "glyphicon glyphicon-stop enabled", "disabled": false},
+            {"action": "restartAllHostComponents", "context": "HDFS", "label": "Restart All", "cssClass": "glyphicon glyphicon-time", "disabled": false},
+            {"action": "rollingRestart", "label": "Restart DataNodes", "cssClass": "glyphicon glyphicon-time", "disabled": false, "context": "DATANODE"},
+            {"action": "reassignMaster", "context": "NAMENODE", "label": "Move NameNode", "cssClass": "glyphicon glyphicon-share-alt", "disabled": false},
+            {"action": "reassignMaster", "context": "SECONDARY_NAMENODE", "label": "Move SNameNode", "cssClass": "glyphicon glyphicon-share-alt", "disabled": false},
+            {"action": "enableHighAvailability", "label": "Enable NameNode HA", "cssClass": "glyphicon glyphicon-arrow-up", "isHidden": false, "disabled": true},
+            {"action": "runSmokeTest", "label": "Run Service Check", "cssClass": "glyphicon glyphicon-thumbs-up", "disabled": false},
             {"action": "turnOnOffPassive", "context": "Turn On Maintenance Mode for HDFS", "label": "Turn On Maintenance Mode", "cssClass": "icon-medkit", "disabled": false},
-            {"action": "rebalanceHdfsNodes", "customCommand": "REBALANCEHDFS", "context": "Rebalance HDFS", "label": "Rebalance HDFS", "cssClass": "icon-refresh", "disabled": false},
-            {"action": "downloadClientConfigs", "label": "Download Client Configs", "cssClass": "icon-download-alt", "isHidden": false, "disabled": false, hasSubmenu: false, submenuOptions: []}
+            {"action": "rebalanceHdfsNodes", "customCommand": "REBALANCEHDFS", "context": "Rebalance HDFS", "label": "Rebalance HDFS", "cssClass": "glyphicon glyphicon-refresh", "disabled": false},
+            {"action": "downloadClientConfigs", "label": "Download Client Configs", "cssClass": "glyphicon glyphicon-download-alt", "isHidden": false, "disabled": false, hasSubmenu: false, submenuOptions: []}
           ]
         },
         {
@@ -208,11 +209,13 @@ describe('App.MainServiceItemView', function () {
             {'isAddDisabled-ZOOKEEPER_SERVER': 'disabled'}
           ],
           result: [
-            {"action": "restartAllHostComponents", "context": "ZOOKEEPER", "label": "Restart All", "cssClass": "icon-repeat", "disabled": false},
-            {"action": "runSmokeTest", "label": "Run Service Check", "cssClass": "icon-thumbs-up-alt", "disabled": false},
+            {"action": "startService", "label": "Start", "cssClass": "glyphicon glyphicon-play enabled", "disabled": false},
+            {"action": "stopService", "label": "Stop", "cssClass": "glyphicon glyphicon-stop enabled", "disabled": false},
+            {"action": "restartAllHostComponents", "context": "ZOOKEEPER", "label": "Restart All", "cssClass": "glyphicon glyphicon-time", "disabled": false},
+            {"action": "runSmokeTest", "label": "Run Service Check", "cssClass": "glyphicon glyphicon-thumbs-up", "disabled": false},
             {"action": "turnOnOffPassive", "context": "Turn On Maintenance Mode for ZooKeeper", "label": "Turn On Maintenance Mode", "cssClass": "icon-medkit", "disabled": false},
-            {"cssClass": "icon-plus", "label": "Add ZooKeeper Server", "service": "ZOOKEEPER", "component": "ZOOKEEPER_SERVER", "action": "addComponent", "disabled": "", tooltip: ''},
-            {"action": "downloadClientConfigs", "label": "Download Client Configs", "cssClass": "icon-download-alt", "isHidden": false, "disabled": false, "hasSubmenu": false, "submenuOptions": []}
+            {"cssClass": "glyphicon glyphicon-plus", "label": "Add ZooKeeper Server", "service": "ZOOKEEPER", "component": "ZOOKEEPER_SERVER", "action": "addComponent", "disabled": "", tooltip: ''},
+            {"action": "downloadClientConfigs", "label": "Download Client Configs", "cssClass": "glyphicon glyphicon-download-alt", "isHidden": false, "disabled": false, "hasSubmenu": false, "submenuOptions": []}
           ]
         },
         {
@@ -245,15 +248,17 @@ describe('App.MainServiceItemView', function () {
             })
           ],
           result: [
-            {"action": "refreshYarnQueues", "customCommand": "REFRESHQUEUES", "context": "Refresh YARN Capacity Scheduler", "label": "Refresh YARN Capacity Scheduler", "cssClass": "icon-refresh", "disabled": false},
-            {"action": "restartAllHostComponents", "context": "YARN", "label": "Restart All", "cssClass": "icon-repeat", "disabled": false},
-            {"action": "rollingRestart", "label": "Restart NodeManagers", "cssClass": "icon-time", "disabled": false, "context": "NODEMANAGER"},
-            {"action": "reassignMaster", "context": "APP_TIMELINE_SERVER", "label": "Move App Timeline Server", "cssClass": "icon-share-alt", "disabled": false},
-            {"action": "reassignMaster", "context": "RESOURCEMANAGER", "label": "Move ResourceManager", "cssClass": "icon-share-alt", "disabled": false},
-            {"action": "enableRMHighAvailability", "label": "Enable ResourceManager HA", "cssClass": "icon-arrow-up", "isHidden": false, disabled: false},
-            {"action": "runSmokeTest", "label": "Run Service Check", "cssClass": "icon-thumbs-up-alt", "disabled": false},
+            {"action": "startService", "label": "Start", "cssClass": "glyphicon glyphicon-play enabled", "disabled": false},
+            {"action": "stopService", "label": "Stop", "cssClass": "glyphicon glyphicon-stop enabled", "disabled": false},
+            {"action": "refreshYarnQueues", "customCommand": "REFRESHQUEUES", "context": "Refresh YARN Capacity Scheduler", "label": "Refresh YARN Capacity Scheduler", "cssClass": "glyphicon glyphicon-refresh", "disabled": false},
+            {"action": "restartAllHostComponents", "context": "YARN", "label": "Restart All", "cssClass": "glyphicon glyphicon-time", "disabled": false},
+            {"action": "rollingRestart", "label": "Restart NodeManagers", "cssClass": "glyphicon glyphicon-time", "disabled": false, "context": "NODEMANAGER"},
+            {"action": "reassignMaster", "context": "APP_TIMELINE_SERVER", "label": "Move App Timeline Server", "cssClass": "glyphicon glyphicon-share-alt", "disabled": false},
+            {"action": "reassignMaster", "context": "RESOURCEMANAGER", "label": "Move ResourceManager", "cssClass": "glyphicon glyphicon-share-alt", "disabled": false},
+            {"action": "enableRMHighAvailability", "label": "Enable ResourceManager HA", "cssClass": "glyphicon glyphicon-arrow-up", "isHidden": false, disabled: false},
+            {"action": "runSmokeTest", "label": "Run Service Check", "cssClass": "glyphicon glyphicon-thumbs-up", "disabled": false},
             {"action": "turnOnOffPassive", "context": "Turn On Maintenance Mode for YARN", "label": "Turn On Maintenance Mode", "cssClass": "icon-medkit", "disabled": false},
-            {"action": "downloadClientConfigs", "label": "Download Client Configs", "cssClass": "icon-download-alt", "isHidden": false, "disabled": false, "hasSubmenu": false, "submenuOptions": []}
+            {"action": "downloadClientConfigs", "label": "Download Client Configs", "cssClass": "glyphicon glyphicon-download-alt", "isHidden": false, "disabled": false, "hasSubmenu": false, "submenuOptions": []}
           ]
         },
         {
@@ -275,10 +280,12 @@ describe('App.MainServiceItemView', function () {
             })
           ],
           result: [
-            {"action": "restartAllHostComponents", "context": "MAPREDUCE2", "label": "Restart All", "cssClass": "icon-repeat", "disabled": false},
-            {"action": "runSmokeTest", "label": "Run Service Check", "cssClass": "icon-thumbs-up-alt", "disabled": false},
+            {"action": "startService", "label": "Start", "cssClass": "glyphicon glyphicon-play enabled", "disabled": false},
+            {"action": "stopService", "label": "Stop", "cssClass": "glyphicon glyphicon-stop enabled", "disabled": false},
+            {"action": "restartAllHostComponents", "context": "MAPREDUCE2", "label": "Restart All", "cssClass": "glyphicon glyphicon-time", "disabled": false},
+            {"action": "runSmokeTest", "label": "Run Service Check", "cssClass": "glyphicon glyphicon-thumbs-up", "disabled": false},
             {"action": "turnOnOffPassive", "context": "Turn On Maintenance Mode for MapReduce2", "label": "Turn On Maintenance Mode", "cssClass": "icon-medkit", "disabled": false},
-            {"action": "downloadClientConfigs", "label": "Download Client Configs", "cssClass": "icon-download-alt", "isHidden": false, "disabled": false, "hasSubmenu": false, "submenuOptions": []}
+            {"action": "downloadClientConfigs", "label": "Download Client Configs", "cssClass": "glyphicon glyphicon-download-alt", "isHidden": false, "disabled": false, "hasSubmenu": false, "submenuOptions": []}
           ]
         },
         {
@@ -295,10 +302,12 @@ describe('App.MainServiceItemView', function () {
             })
           ],
           result: [
-            {"action": "restartAllHostComponents", "context": "KAFKA", "label": "Restart All", "cssClass": "icon-repeat", "disabled": false},
-            {"action": "runSmokeTest", "label": "Run Service Check", "cssClass": "icon-thumbs-up-alt", "disabled": false},
+            {"action": "startService", "label": "Start", "cssClass": "glyphicon glyphicon-play enabled", "disabled": false},
+            {"action": "stopService", "label": "Stop", "cssClass": "glyphicon glyphicon-stop enabled", "disabled": false},
+            {"action": "restartAllHostComponents", "context": "KAFKA", "label": "Restart All", "cssClass": "glyphicon glyphicon-time", "disabled": false},
+            {"action": "runSmokeTest", "label": "Run Service Check", "cssClass": "glyphicon glyphicon-thumbs-up", "disabled": false},
             {"action": "turnOnOffPassive", "context": "Turn On Maintenance Mode for Kafka", "label": "Turn On Maintenance Mode", "cssClass": "icon-medkit", "disabled": false},
-            {"action": "downloadClientConfigs", "label": "Download Client Configs", "cssClass": "icon-download-alt", "isHidden": true, "disabled": false, "hasSubmenu": false, "submenuOptions": []}
+            {"action": "downloadClientConfigs", "label": "Download Client Configs", "cssClass": "glyphicon glyphicon-download-alt", "isHidden": true, "disabled": false, "hasSubmenu": false, "submenuOptions": []}
           ]
         },
         {
@@ -319,13 +328,15 @@ describe('App.MainServiceItemView', function () {
             {'isAddDisabled-FLUME_HANDLER': ''}
           ],
           result: [
-            {"action": "refreshConfigs", "label": "Refresh configs", "cssClass": "icon-refresh", "disabled": false},
-            {"action": "restartAllHostComponents", "context": "FLUME", "label": "Restart All", "cssClass": "icon-repeat", "disabled": false},
-            {"action": "rollingRestart", "label": "Restart Flumes", "cssClass": "icon-time", "disabled": false, "context": "FLUME_HANDLER"},
-            {"action": "runSmokeTest", "label": "Run Service Check", "cssClass": "icon-thumbs-up-alt", "disabled": false},
+            {"action": "startService", "label": "Start", "cssClass": "glyphicon glyphicon-play enabled", "disabled": false},
+            {"action": "stopService", "label": "Stop", "cssClass": "glyphicon glyphicon-stop enabled", "disabled": false},
+            {"action": "refreshConfigs", "label": "Refresh configs", "cssClass": "glyphicon glyphicon-refresh", "disabled": false},
+            {"action": "restartAllHostComponents", "context": "FLUME", "label": "Restart All", "cssClass": "glyphicon glyphicon-time", "disabled": false},
+            {"action": "rollingRestart", "label": "Restart Flumes", "cssClass": "glyphicon glyphicon-time", "disabled": false, "context": "FLUME_HANDLER"},
+            {"action": "runSmokeTest", "label": "Run Service Check", "cssClass": "glyphicon glyphicon-thumbs-up", "disabled": false},
             {"action": "turnOnOffPassive", "context": "Turn On Maintenance Mode for Flume", "label": "Turn On Maintenance Mode", "cssClass": "icon-medkit", "disabled": false},
-            {"cssClass": "icon-plus", "label": "Add Flume Component", "service": "FLUME", "component": "FLUME_HANDLER", "action": "addComponent", "disabled": '', tooltip: ''},
-            {"action": "downloadClientConfigs", "label": "Download Client Configs", "cssClass": "icon-download-alt", "isHidden": true, "disabled": false, "hasSubmenu": false, "submenuOptions": []}
+            {"cssClass": "glyphicon glyphicon-plus", "label": "Add Flume Component", "service": "FLUME", "component": "FLUME_HANDLER", "action": "addComponent", "disabled": '', tooltip: ''},
+            {"action": "downloadClientConfigs", "label": "Download Client Configs", "cssClass": "glyphicon glyphicon-download-alt", "isHidden": true, "disabled": false, "hasSubmenu": false, "submenuOptions": []}
           ]
         },
         {
@@ -356,12 +367,14 @@ describe('App.MainServiceItemView', function () {
             {'isAddDisabled-HBASE_MASTER': ''}
           ],
           result: [
-            {"action": "restartAllHostComponents", "context": "HBASE", "label": "Restart All", "cssClass": "icon-repeat", "disabled": false},
-            {"action": "rollingRestart", "label": "Restart RegionServers", "cssClass": "icon-time", "disabled": false, "context": "HBASE_REGIONSERVER"},
-            {"action": "runSmokeTest", "label": "Run Service Check", "cssClass": "icon-thumbs-up-alt", "disabled": false},
+            {"action": "startService", "label": "Start", "cssClass": "glyphicon glyphicon-play enabled", "disabled": false},
+            {"action": "stopService", "label": "Stop", "cssClass": "glyphicon glyphicon-stop enabled", "disabled": false},
+            {"action": "restartAllHostComponents", "context": "HBASE", "label": "Restart All", "cssClass": "glyphicon glyphicon-time", "disabled": false},
+            {"action": "rollingRestart", "label": "Restart RegionServers", "cssClass": "glyphicon glyphicon-time", "disabled": false, "context": "HBASE_REGIONSERVER"},
+            {"action": "runSmokeTest", "label": "Run Service Check", "cssClass": "glyphicon glyphicon-thumbs-up", "disabled": false},
             {"action": "turnOnOffPassive", "context": "Turn On Maintenance Mode for HBase", "label": "Turn On Maintenance Mode", "cssClass": "icon-medkit", "disabled": false},
-            {"cssClass": "icon-plus", "label": "Add HBase Master", "service": "HBASE", "component": "HBASE_MASTER", "action": "addComponent", "disabled": '', tooltip: ''},
-            {"action": "downloadClientConfigs", "label": "Download Client Configs", "cssClass": "icon-download-alt", "isHidden": false, "disabled": false, "hasSubmenu": false, "submenuOptions": []}
+            {"cssClass": "glyphicon glyphicon-plus", "label": "Add HBase Master", "service": "HBASE", "component": "HBASE_MASTER", "action": "addComponent", "disabled": '', tooltip: ''},
+            {"action": "downloadClientConfigs", "label": "Download Client Configs", "cssClass": "glyphicon glyphicon-download-alt", "isHidden": false, "disabled": false, "hasSubmenu": false, "submenuOptions": []}
           ]
         },
         {
@@ -383,12 +396,14 @@ describe('App.MainServiceItemView', function () {
             })
           ],
           result: [
-            {"action": "restartAllHostComponents", "context": "OOZIE", "label": "Restart All", "cssClass": "icon-repeat", "disabled": false},
-            {"action": "reassignMaster", "context": "OOZIE_SERVER", "label": "Move Oozie Server", "cssClass": "icon-share-alt", "disabled": false},
-            {"action": "runSmokeTest", "label": "Run Service Check", "cssClass": "icon-thumbs-up-alt", "disabled": false},
+            {"action": "startService", "label": "Start", "cssClass": "glyphicon glyphicon-play enabled", "disabled": false},
+            {"action": "stopService", "label": "Stop", "cssClass": "glyphicon glyphicon-stop enabled", "disabled": false},
+            {"action": "restartAllHostComponents", "context": "OOZIE", "label": "Restart All", "cssClass": "glyphicon glyphicon-time", "disabled": false},
+            {"action": "reassignMaster", "context": "OOZIE_SERVER", "label": "Move Oozie Server", "cssClass": "glyphicon glyphicon-share-alt", "disabled": false},
+            {"action": "runSmokeTest", "label": "Run Service Check", "cssClass": "glyphicon glyphicon-thumbs-up", "disabled": false},
             {"action": "turnOnOffPassive", "context": "Turn On Maintenance Mode for Oozie", "label": "Turn On Maintenance Mode", "cssClass": "icon-medkit", "disabled": false},
-            {"cssClass": "icon-plus", "label": "Add Oozie Server", "service": "OOZIE", "component": "OOZIE_SERVER", "action": "addComponent", "disabled": "disabled", tooltip: Em.I18n.t('services.summary.allHostsAlreadyRunComponent').format('OOZIE_SERVER')},
-            {"action": "downloadClientConfigs", "label": "Download Client Configs", "cssClass": "icon-download-alt", "isHidden": false, "disabled": false, "hasSubmenu": false, "submenuOptions": []}
+            {"cssClass": "glyphicon glyphicon-plus", "label": "Add Oozie Server", "service": "OOZIE", "component": "OOZIE_SERVER", "action": "addComponent", "disabled": "disabled", tooltip: Em.I18n.t('services.summary.allHostsAlreadyRunComponent').format('OOZIE_SERVER')},
+            {"action": "downloadClientConfigs", "label": "Download Client Configs", "cssClass": "glyphicon glyphicon-download-alt", "isHidden": false, "disabled": false, "hasSubmenu": false, "submenuOptions": []}
           ]
         },
         {
@@ -405,12 +420,14 @@ describe('App.MainServiceItemView', function () {
             })
           ],
           result: [
-            {"action": "restartAllHostComponents", "context": "KNOX", "label": "Restart All", "cssClass": "icon-repeat", "disabled": false},
-            {"action": "runSmokeTest", "label": "Run Service Check", "cssClass": "icon-thumbs-up-alt", "disabled": false},
+            {"action": "startService", "label": "Start", "cssClass": "glyphicon glyphicon-play enabled", "disabled": false},
+            {"action": "stopService", "label": "Stop", "cssClass": "glyphicon glyphicon-stop enabled", "disabled": false},
+            {"action": "restartAllHostComponents", "context": "KNOX", "label": "Restart All", "cssClass": "glyphicon glyphicon-time", "disabled": false},
+            {"action": "runSmokeTest", "label": "Run Service Check", "cssClass": "glyphicon glyphicon-thumbs-up", "disabled": false},
             {"action": "turnOnOffPassive", "context": "Turn On Maintenance Mode for Knox", "label": "Turn On Maintenance Mode", "cssClass": "icon-medkit", "disabled": false},
-            {"action": "startLdapKnox", "customCommand": "STARTDEMOLDAP", "context": "Start Demo LDAP", "label": "Start Demo LDAP", "cssClass": "icon-play-sign", "disabled": false},
-            {"action": "stopLdapKnox", "customCommand": "STOPDEMOLDAP", "context": "Stop Demo LDAP", "label": "Stop Demo LDAP", "cssClass": "icon-stop", "disabled": false},
-            {"action": "downloadClientConfigs", "label": "Download Client Configs", "cssClass": "icon-download-alt", "isHidden": true, "disabled": false, "hasSubmenu": false, "submenuOptions": []}
+            {"action": "startLdapKnox", "customCommand": "STARTDEMOLDAP", "context": "Start Demo LDAP", "label": "Start Demo LDAP", "cssClass": "icon icon-play-sign", "disabled": false},
+            {"action": "stopLdapKnox", "customCommand": "STOPDEMOLDAP", "context": "Stop Demo LDAP", "label": "Stop Demo LDAP", "cssClass": "glyphicon glyphicon-stop", "disabled": false},
+            {"action": "downloadClientConfigs", "label": "Download Client Configs", "cssClass": "glyphicon glyphicon-download-alt", "isHidden": true, "disabled": false, "hasSubmenu": false, "submenuOptions": []}
           ]
         },
         {
@@ -427,17 +444,17 @@ describe('App.MainServiceItemView', function () {
             })
           ],
           result: [
-            {"action": "restartAllHostComponents", "context": "STORM", "label": "Restart All", "cssClass": "icon-repeat", "disabled": false},
-            {"action": "runSmokeTest", "label": "Run Service Check", "cssClass": "icon-thumbs-up-alt", "disabled": false},
+            {"action": "startService", "label": "Start", "cssClass": "glyphicon glyphicon-play enabled", "disabled": false},
+            {"action": "stopService", "label": "Stop", "cssClass": "glyphicon glyphicon-stop enabled", "disabled": false},
+            {"action": "restartAllHostComponents", "context": "STORM", "label": "Restart All", "cssClass": "glyphicon glyphicon-time", "disabled": false},
+            {"action": "runSmokeTest", "label": "Run Service Check", "cssClass": "glyphicon glyphicon-thumbs-up", "disabled": false},
             {"action": "turnOnOffPassive", "context": "Turn On Maintenance Mode for Storm", "label": "Turn On Maintenance Mode", "cssClass": "icon-medkit", "disabled": false},
-            {"action": "downloadClientConfigs", "label": "Download Client Configs", "cssClass": "icon-download-alt", "isHidden": true, "disabled": false, "hasSubmenu": false, "submenuOptions": []}
+            {"action": "downloadClientConfigs", "label": "Download Client Configs", "cssClass": "glyphicon glyphicon-download-alt", "isHidden": true, "disabled": false, "hasSubmenu": false, "submenuOptions": []}
           ]
         }
       ];
 
     beforeEach(function () {
-
-      view = App.MainServiceItemView.create({});
 
       sinon.stub(App, 'get', function (k) {
         switch (k) {
@@ -452,6 +469,8 @@ describe('App.MainServiceItemView', function () {
           case 'components.reassignable':
             return ["NAMENODE", "SECONDARY_NAMENODE", "APP_TIMELINE_SERVER", "RESOURCEMANAGER", "WEBHCAT_SERVER", "OOZIE_SERVER"];
           case 'services.supportsServiceCheck':
+            return ["HDFS", "MAPREDUCE2", "YARN", "HIVE", "HBASE", "PIG", "SQOOP", "OOZIE", "ZOOKEEPER", "FALCON", "STORM", "FLUME", "SLIDER", "KNOX", "KAFKA"];
+          case 'services.supportsDeleteViaUI':
             return ["HDFS", "MAPREDUCE2", "YARN", "HIVE", "HBASE", "PIG", "SQOOP", "OOZIE", "ZOOKEEPER", "FALCON", "STORM", "FLUME", "SLIDER", "KNOX", "KAFKA"];
           case 'components.addableToHost':
             return ["DATANODE", "HDFS_CLIENT", "MAPREDUCE2_CLIENT", "NODEMANAGER", "YARN_CLIENT", "TEZ_CLIENT", "GANGLIA_MONITOR", "HCAT", "HIVE_CLIENT", "HIVE_METASTORE", "HIVE_SERVER", "WEBHCAT_SERVER", "HBASE_CLIENT", "HBASE_MASTER", "HBASE_REGIONSERVER", "PIG", "SQOOP", "OOZIE_CLIENT", "OOZIE_SERVER", "ZOOKEEPER_CLIENT", "ZOOKEEPER_SERVER", "FALCON_CLIENT", "SUPERVISOR", "FLUME_HANDLER", "METRICS_MONITOR", "KAFKA_BROKER", "KERBEROS_CLIENT", "KNOX_GATEWAY", "SLIDER", "SPARK_CLIENT"];
@@ -548,6 +567,7 @@ describe('App.MainServiceItemView', function () {
               }),
               isSeveralClients: false,
               clientComponents: [],
+              isStartDisabled: false,
               isStopDisabled: false,
               isSmokeTestDisabled: false
             }),
@@ -592,5 +612,144 @@ describe('App.MainServiceItemView', function () {
     });
   });
 
+  describe('#isMaintenanceActive', function() {
+
+    it('isMaintenanceActive should be false when maintenance empty', function() {
+      view.set('state', 'inDOM');
+      view.set('maintenance', []);
+      expect(view.get('isMaintenanceActive')).to.be.false;
+    });
+
+    it('isMaintenanceActive should be true when maintenance not empty', function() {
+      view.set('state', 'inDOM');
+      view.set('maintenance', [{}]);
+      expect(view.get('isMaintenanceActive')).to.be.true;
+    });
+
+    it('isMaintenanceActive should be true when state not inDOM', function() {
+      view.set('state', '');
+      view.set('maintenance', [{}]);
+      expect(view.get('isMaintenanceActive')).to.be.true;
+    });
+  });
+
+  describe('#hasConfigTab', function() {
+    beforeEach(function() {
+      this.mockAuthorized = sinon.stub(App, 'havePermissions');
+      this.mockGet = sinon.stub(App, 'get').returns(['S2']);
+    });
+    afterEach(function() {
+      this.mockAuthorized.restore();
+      this.mockGet.restore();
+    });
+
+    it('should return false when have not permissions', function() {
+      this.mockAuthorized.returns(false);
+      view.set('controller.content.serviceName', 'S1');
+      expect(view.get('hasConfigTab')).to.be.false;
+    });
+
+    it('should return false when service does not have config types', function() {
+      this.mockAuthorized.returns(true);
+      view.set('controller.content.serviceName', 'S2');
+      expect(view.get('hasConfigTab')).to.be.false;
+    });
+
+    it('should return true when have permissions', function() {
+      this.mockAuthorized.returns(true);
+      view.set('controller.content.serviceName', 'S1');
+      expect(view.get('hasConfigTab')).to.be.true;
+    });
+  });
+
+  describe('#hasHeatmapTab', function() {
+    beforeEach(function() {
+      sinon.stub(App, 'get').returns(['S1']);
+    });
+    afterEach(function() {
+      App.get.restore();
+    });
+
+    it('should return false when service does not have heatmaps', function() {
+      view.set('controller.content.serviceName', 'S2');
+      expect(view.get('hasHeatmapTab')).to.be.false;
+    });
+    it('should return true when service has heatmaps', function() {
+      view.set('controller.content.serviceName', 'S1');
+      expect(view.get('hasHeatmapTab')).to.be.true;
+    });
+  });
+
+  describe('#didInsertElement', function() {
+
+    it('setStartStopState should be called', function() {
+      view.didInsertElement();
+      expect(view.get('controller').setStartStopState.calledOnce).to.be.true;
+    });
+  });
+
+  describe('#willInsertElement', function() {
+    beforeEach(function() {
+      sinon.stub(view, 'addObserver');
+    });
+    afterEach(function() {
+      view.addObserver.restore();
+    });
+
+    it('loadConfigs should be called', function() {
+      view.willInsertElement();
+      expect(view.get('controller').loadConfigs.calledOnce).to.be.true;
+    });
+    it('addObserver should be called', function() {
+      view.set('maintenanceObsFields', ['foo']);
+      view.willInsertElement();
+      expect(view.addObserver.calledWith('controller.foo')).to.be.true;
+    });
+  });
+
+  describe('#willDestroyElement', function() {
+    beforeEach(function() {
+      sinon.stub(view, 'removeObserver');
+    });
+    afterEach(function() {
+      view.removeObserver.restore();
+    });
+
+    it('addObserver should be called', function() {
+      view.set('maintenanceObsFields', ['foo']);
+      view.willDestroyElement();
+      expect(view.removeObserver.calledWith('controller.foo')).to.be.true;
+    });
+  });
+
+  describe('#service', function() {
+
+    beforeEach(function() {
+      sinon.stub(App.HDFSService, 'find').returns(Em.A([{}]));
+      sinon.stub(App.YARNService, 'find').returns(Em.A([{}]));
+      sinon.stub(App.HBaseService, 'find').returns(Em.A([{}]));
+      sinon.stub(App.FlumeService, 'find').returns(Em.A([{}]));
+    });
+    afterEach(function() {
+      App.HDFSService.find.restore();
+      App.YARNService.find.restore();
+      App.HBaseService.find.restore();
+      App.FlumeService.find.restore();
+    });
+
+    ['HDFS', 'YARN', 'HBASE', 'FLUME'].forEach(function(service) {
+      it('should return object of ' + service, function() {
+        view.set('controller.content.serviceName', service);
+        expect(view.get('service')).to.be.an.object;
+      });
+    });
+
+    it('should return content', function() {
+      view.set('controller.content', Em.Object.create({
+        serviceName: 'S1'
+      }));
+      expect(view.get('service')).to.be.an.object;
+    });
+  });
 });
 

@@ -143,7 +143,7 @@ class TestRangerUsersync(RMFTestCase):
       group = 'ranger',
       conf_dir = '/usr/hdp/current/ranger-usersync/conf',
       configurations = ranger_ugsync_site_copy,
-      configuration_attributes = self.getConfig()['configuration_attributes']['ranger-ugsync-site'],
+      configuration_attributes = self.getConfig()['configurationAttributes']['ranger-ugsync-site'],
       mode = 0644
     )
 
@@ -177,6 +177,14 @@ class TestRangerUsersync(RMFTestCase):
     self.assertResourceCalled('File', '/usr/hdp/current/ranger-usersync/conf/ugsync.jceks',
       owner = 'ranger',
       group = 'ranger',
+      only_if = 'test -e /usr/hdp/current/ranger-usersync/conf/ugsync.jceks',
+      mode = 0640
+    )
+
+    self.assertResourceCalled('File', '/usr/hdp/current/ranger-usersync/conf/.ugsync.jceks.crc',
+      owner = 'ranger',
+      group = 'ranger',
+      only_if = 'test -e /usr/hdp/current/ranger-usersync/conf/.ugsync.jceks.crc',
       mode = 0640
     )
 
@@ -205,6 +213,6 @@ class TestRangerUsersync(RMFTestCase):
       group = 'ranger',
       conf_dir = '/usr/hdp/current/ranger-usersync/conf',
       configurations = self.getConfig()['configurations']['core-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['core-site'],
+      configuration_attributes = self.getConfig()['configurationAttributes']['core-site'],
       mode = 0644
     )

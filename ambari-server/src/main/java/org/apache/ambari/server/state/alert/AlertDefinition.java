@@ -1,4 +1,4 @@
-/**
+/*
 ® * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,10 +17,24 @@
  */
 package org.apache.ambari.server.state.alert;
 
-import java.util.HashSet;
+import static java.util.Collections.emptySet;
+import static org.apache.ambari.server.controller.RootComponent.AMBARI_AGENT;
+import static org.apache.ambari.server.controller.RootService.AMBARI;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import org.apache.ambari.server.AmbariException;
+import org.apache.ambari.server.state.Alert;
+import org.apache.ambari.server.state.AlertState;
+import org.apache.ambari.server.state.Cluster;
+import org.apache.ambari.server.state.Clusters;
+import org.apache.ambari.server.state.ServiceComponentHost;
 import org.apache.commons.lang.StringUtils;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.gson.annotations.SerializedName;
 
 /**
@@ -36,6 +50,7 @@ import com.google.gson.annotations.SerializedName;
  * When making comparisons for equality for things like stack/database merging,
  * use {@link #deeplyEquals(Object)}.
  */
+@JsonInclude(JsonInclude.Include.NON_EMPTY)
 public class AlertDefinition {
 
   private long clusterId;
@@ -57,6 +72,12 @@ public class AlertDefinition {
 
   @SerializedName("help_url")
   private String helpURL = null;
+
+  @JsonProperty("repeat_tolerance")
+  private int repeatTolerance;
+
+  @JsonProperty("repeat_tolerance_enabled")
+  private Boolean repeatToleranceEnabled;
 
   /**
    * Gets the cluster ID for this definition.
@@ -175,6 +196,7 @@ public class AlertDefinition {
   /**
    * @return {@code true} if the host is ignored.
    */
+  @JsonProperty("ignore_host")
   public boolean isHostIgnored() {
     return ignoreHost;
   }
@@ -210,6 +232,7 @@ public class AlertDefinition {
   /**
    * @return the help url for this definition or {@code null} if none.
    */
+  @JsonProperty("help_url")
   public String getHelpURL() {
     return helpURL;
   }
@@ -255,6 +278,22 @@ public class AlertDefinition {
    */
   public String getUuid() {
     return uuid;
+  }
+
+  public int getRepeatTolerance() {
+    return repeatTolerance;
+  }
+
+  public void setRepeatTolerance(int repeatTolerance) {
+    this.repeatTolerance = repeatTolerance;
+  }
+
+  public Boolean getRepeatToleranceEnabled() {
+    return repeatToleranceEnabled;
+  }
+
+  public void setRepeatToleranceEnabled(Boolean repeatToleranceEnabled) {
+    this.repeatToleranceEnabled = repeatToleranceEnabled;
   }
 
   /**
@@ -354,6 +393,16 @@ public class AlertDefinition {
   }
 
   /**
+   * Map the incoming value to {@link AlertState} and generate an alert with that state.
+   */
+  public Alert buildAlert(double value, List<Object> args) {
+    Reporting reporting = source.getReporting();
+    Alert alert = new Alert(name, null, serviceName, componentName, null, reporting.state(value));
+    alert.setText(reporting.formatMessage(value, args));
+    return alert;
+  }
+
+  /**
    * Gets equality based on name only.
    *
    * @see #deeplyEquals(Object)
@@ -378,5 +427,34 @@ public class AlertDefinition {
   @Override
   public String toString() {
     return name;
+  }
+
+  /**
+   * Collect the host names from the cluster where the given alert is allowed to run.
+   * A host is able to run an alert if the service component of the alert is installed on that particular host.
+   * In case of AMBARI server alerts or AGGREGATE alerts, an empty host set is returned.
+   * @return matching host names
+   */
+  public Set<String> matchingHosts(Clusters clusters) throws AmbariException {
+    Cluster cluster = clusters.getCluster(clusterId);
+    if (source.getType() == SourceType.AGGREGATE) {
+      return emptySet();
+    }
+    if (AMBARI.name().equals(serviceName)) {
+      return AMBARI_AGENT.name().equals(componentName) ? cluster.getHostNames() : emptySet();
+    }
+    Set<String> matchingHosts = new HashSet<>();
+    for (String host : cluster.getHostNames()) {
+      for (ServiceComponentHost component : cluster.getServiceComponentHosts(host)) {
+        if (belongsTo(component)) {
+          matchingHosts.add(host);
+        }
+      }
+    }
+    return matchingHosts;
+  }
+
+  private boolean belongsTo(ServiceComponentHost component) {
+    return component.getServiceName().equals(serviceName) && component.getServiceComponentName().equals(componentName);
   }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,11 +17,11 @@
  */
 package org.apache.ambari.server.controller.internal;
 
-import org.apache.ambari.server.controller.spi.SystemException;
-import org.apache.ambari.server.state.Cluster;
-
 import java.util.Collections;
 import java.util.Map;
+
+import org.apache.ambari.server.controller.spi.SystemException;
+import org.apache.ambari.server.state.Cluster;
 
 /**
  * Atlas server specific HTTP property request.

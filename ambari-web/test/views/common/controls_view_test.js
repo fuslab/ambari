@@ -198,14 +198,15 @@ describe('App.ServiceConfigRadioButtons', function () {
       ];
     var rangerVersion = '';
 
-    before(function () {
-      sinon.stub(Em.run, 'next', function (arg) {
-        arg();
-      });
-    });
-
     beforeEach(function () {
       sinon.stub(view, 'sendRequestRorDependentConfigs', Em.K);
+      sinon.stub(Em.run, 'next', function (arg1, arg2) {
+        if (typeof arg1 === 'function') {
+          arg1();
+        } else if (typeof arg1 === 'object' && typeof arg2 === 'function') {
+          arg2();
+        }
+      });
       this.stub = sinon.stub(App, 'get');
       this.stub.withArgs('currentStackName').returns('HDP');
       sinon.stub(App.StackService, 'find', function() {
@@ -217,13 +218,10 @@ describe('App.ServiceConfigRadioButtons', function () {
     });
 
     afterEach(function () {
+      Em.run.next.restore();
       App.get.restore();
       App.StackService.find.restore();
       view.sendRequestRorDependentConfigs.restore();
-    });
-
-    after(function () {
-      Em.run.next.restore();
     });
 
     cases.forEach(function (item) {
@@ -639,7 +637,6 @@ describe('App.CheckDBConnectionView', function () {
         expect(view.get('masterHostName')).to.equal(item.value);
       });
     });
-
   });
 
   describe('#setResponseStatus', function () {
@@ -824,6 +821,79 @@ describe('App.CheckDBConnectionView', function () {
       expect(args[0]).exists;
     });
   });
+
+  describe('#requriedProperties', function() {
+    var cases;
+    beforeEach(function() {
+      this.stackServiceStub = sinon.stub(App.StackService, 'find');
+    });
+    afterEach(function() {
+      this.stackServiceStub.restore();
+    });
+
+    cases = [
+      {
+        stackServices: [
+          {name: 'OOZIE', version: '1.0.0'}
+        ],
+        parentViewServiceName: 'OOZIE',
+        e: ['oozie.db.schema.name', 'oozie.service.JPAService.jdbc.username', 'oozie.service.JPAService.jdbc.password', 'oozie.service.JPAService.jdbc.driver', 'oozie.service.JPAService.jdbc.url'],
+        m: 'should return Oozie specific properties'
+      },
+      {
+        stackServices: [
+          {name: 'HIVE', version: '1.0.0'}
+        ],
+        parentViewServiceName: 'HIVE',
+        e: ['ambari.hive.db.schema.name', 'javax.jdo.option.ConnectionUserName', 'javax.jdo.option.ConnectionPassword', 'javax.jdo.option.ConnectionDriverName', 'javax.jdo.option.ConnectionURL'],
+        m: 'should return Hive specific properties'
+      },
+      {
+        stackServices: [
+          {name: 'KERBEROS', version: '1.0.0'}
+        ],
+        parentViewServiceName: 'KERBEROS',
+        e: ['kdc_hosts'],
+        m: 'should return specific Kerberos specific properties'
+      },
+      {
+        stackServices: [
+          {name: 'RANGER', version: '0.4.9'}
+        ],
+        parentViewServiceName: 'RANGER',
+        e: ['db_user', 'db_password', 'db_name', 'ranger_jdbc_connection_url', 'ranger_jdbc_driver'],
+        m: 'should return specific properties for Ranger when its version < 0.5'
+      },
+      {
+        stackServices: [
+          {name: 'RANGER', version: '1.0.0'}
+        ],
+        parentViewServiceName: 'RANGER',
+        e: ['db_user', 'db_password', 'db_name', 'ranger.jpa.jdbc.url', 'ranger.jpa.jdbc.driver'],
+        m: 'should return specific properties for Ranger when its version > 0.5'
+      }
+    ];
+
+    cases.forEach(function(test) {
+      it(test.m, function() {
+        this.stackServiceStub.returns(test.stackServices.map(function(service) {
+          return Em.Object.create({
+            serviceName: service.name,
+            serviceVersion: service.version,
+            compareCurrentVersion: App.StackService.proto().compareCurrentVersion
+          });
+        }));
+        var view = App.CheckDBConnectionView.create({
+          parentView: {
+            service: {
+              serviceName: test.parentViewServiceName
+            }
+          }
+        });
+        expect(view.get('requiredProperties')).to.be.eql(test.e);
+      });
+    });
+  });
 });
 
 describe('App.BaseUrlTextField', function () {
@@ -895,3 +965,22 @@ describe('App.BaseUrlTextField', function () {
     });
   });
 });
+
+describe('App.ServiceConfigComponentHostsView', function () {
+
+  function getView (value, serviceConfig) {
+    return App.ServiceConfigComponentHostsView.create({
+      value: value,
+      serviceConfig: serviceConfig
+    });
+  }
+
+  App.TestAliases.testAsComputedFirstNotBlank(getView(), 'firstHost', ['value.firstObject', 'serviceConfig.value.firstObject']);
+
+  App.TestAliases.testAsComputedIfThenElseByKeys(getView(), 'formatValue', 'hasOneHost', 'value.firstObject', 'value');
+
+  App.TestAliases.testAsComputedEqual(getView(), 'hasOneHost', 'value.length', 1);
+
+  App.TestAliases.testAsComputedGt(getView(), 'hasMultipleHosts', 'value.length', 1);
+
+})

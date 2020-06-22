@@ -19,7 +19,9 @@
 require('views/common/controls_view');
 
 var App = require('app');
+var dbUtils = require('utils/configs/database');
 
+//@Todo merge with CheckDBConnectionView
 App.TestDbConnectionWidgetView = App.ConfigWidgetView.extend({
   templateName: require('templates/common/configs/widgets/test_db_connection_widget'),
   classNames: ['widget'],
@@ -35,6 +37,8 @@ App.TestDbConnectionWidgetView = App.ConfigWidgetView.extend({
   isValidationPassed: null,
   /** @property {string} db_type- name of current database **/
   db_type: null,
+  /** @property {string} db_type_label - label of current database **/
+  db_type_label: null,
   /** @property {boolean} isRequestResolved - check for finished request to server **/
   isRequestResolved: false,
   /** @property {boolean} isConnectionSuccess - check for successful connection to database **/
@@ -62,12 +66,16 @@ App.TestDbConnectionWidgetView = App.ConfigWidgetView.extend({
   /** @property {String} user_passwd: password for the  user name to be used for performing db connection**/
   user_passwd: null,
 
-
   someRequiredPropertyIsInvalid: Em.computed.someBy('requiredProperties', 'isValid', false),
   /** @property {boolean} isBtnDisabled - disable button on failed validation or active request **/
   isBtnDisabled: Em.computed.or('someRequiredPropertyIsInvalid', 'isConnecting'),
   /** @property {object} requiredProperties - properties that necessary for database connection **/
   requiredProperties: [],
+
+  // define if label of selected database contains "new"
+  isNewSelected: function () {
+    return /new/i.test(this.get('db_type_label.value'));
+  }.property('db_type_label.value'),
 
   /** Check validation and load ambari properties **/
   didInsertElement: function () {
@@ -116,19 +124,21 @@ App.TestDbConnectionWidgetView = App.ConfigWidgetView.extend({
       'db.type' : 'db_type',
       'db.connection.user': 'user_name',
       'db.connection.password': 'user_passwd',
-      'jdbc.driver.url': 'db_connection_url'
+      'jdbc.driver.url': 'db_connection_url',
+      'db.type.label': 'db_type_label'
     };
 
     for (var key in dbProperties) {
       var masterHostNameProperty = requiredProperties[key];
-      var split = masterHostNameProperty.split('/');
-      var fileName =  split[0] + '.xml';
-      var configName =  split[1];
-      var dbConfig = this.get('requiredProperties').filterProperty('filename',fileName).findProperty('name', configName);
-      this.set(dbProperties[key], dbConfig);
+      if (masterHostNameProperty) {
+        var split = masterHostNameProperty.split('/');
+        var fileName = split[0] + '.xml';
+        var configName = split[1];
+        var dbConfig = this.get('requiredProperties').filterProperty('filename', fileName).findProperty('name', configName);
+        this.set(dbProperties[key], dbConfig);
+      }
     }
   },
-
 
   /**
    * Set up ambari properties required for custom action request
@@ -178,6 +188,7 @@ App.TestDbConnectionWidgetView = App.ConfigWidgetView.extend({
   connectToDatabase: function () {
     if (this.get('isBtnDisabled')) return;
     this.set('isRequestResolved', false);
+    App.db.set('tmp', this.get('parentView.service.serviceName') + '_connection', {});
     this.setConnectingStatus(true);
     if (App.get('testMode')) {
       this.startPolling();
@@ -203,7 +214,7 @@ App.TestDbConnectionWidgetView = App.ConfigWidgetView.extend({
    **/
   createCustomAction: function () {
     var connectionProperties = this.getProperties('db_connection_url','user_name', 'user_passwd');
-    var db_name = this.dbInfo.dpPropertiesMap[this.get('db_type').value].db_type;
+    var db_name = this.dbInfo.dpPropertiesMap[dbUtils.getDBType(this.get('db_type').value)].db_type;
     var isServiceInstalled = App.Service.find(this.get('config.serviceName')).get('isLoaded');
     for (var key in connectionProperties) {
       if (connectionProperties.hasOwnProperty(key)) {
@@ -265,6 +276,51 @@ App.TestDbConnectionWidgetView = App.ConfigWidgetView.extend({
     this.set('request', request);
   },
 
+  preparedDBProperties: function() {
+    var propObj = {};
+    var serviceName = this.get('config.serviceName');
+    var serviceConfigs = this.get('controller.stepConfigs').findProperty('serviceName',serviceName).get('configs');
+    for (var key in this.get('propertiesPattern')) {
+      var propName = this.getConnectionProperty(this.get('propertiesPattern')[key], true);
+      propObj[propName] = serviceConfigs.findProperty('name', propName).get('value');
+    }
+    return propObj;
+  }.property(),
+
+  requiredProps: function() {
+    var ranger = App.StackService.find().findProperty('serviceName', 'RANGER');
+    var propertiesMap = {
+      OOZIE: ['oozie.db.schema.name', 'oozie.service.JPAService.jdbc.username', 'oozie.service.JPAService.jdbc.password', 'oozie.service.JPAService.jdbc.driver', 'oozie.service.JPAService.jdbc.url'],
+      HIVE: ['ambari.hive.db.schema.name', 'javax.jdo.option.ConnectionUserName', 'javax.jdo.option.ConnectionPassword', 'javax.jdo.option.ConnectionDriverName', 'javax.jdo.option.ConnectionURL'],
+      KERBEROS: ['kdc_hosts'],
+      RANGER: ranger && ranger.compareCurrentVersion('0.5') > -1 ?
+        ['db_user', 'db_password', 'db_name', 'ranger.jpa.jdbc.url', 'ranger.jpa.jdbc.driver'] :
+        ['db_user', 'db_password', 'db_name', 'ranger_jdbc_connection_url', 'ranger_jdbc_driver'],
+      RANGER_KMS: ['db_user', 'db_password', 'ranger.ks.jpa.jdbc.url', 'ranger.ks.jpa.jdbc.driver']
+    };
+    return propertiesMap[this.get('parentView.content.serviceName')];
+  }.property(),
+
+  getConnectionProperty: function (regexp, isGetName) {
+    var serviceName = this.get('config.serviceName');
+    var serviceConfigs = this.get('controller.stepConfigs').findProperty('serviceName',serviceName).get('configs');
+    var propertyName = this.get('requiredProps').filter(function (item) {
+      return regexp.test(item);
+    })[0];
+    return (isGetName) ? propertyName : serviceConfigs.findProperty('name', propertyName).get('value');
+  },
+
+  propertiesPattern: function() {
+    var patterns = {
+      db_connection_url: /jdbc\.url|connection_url|connectionurl|kdc_hosts/ig
+    };
+    if (this.get('parentView.service.serviceName') != "KERBEROS") {
+      patterns.user_name = /(username|dblogin|db_user)$/ig;
+      patterns.user_passwd = /(dbpassword|password|db_password)$/ig;
+    }
+    return patterns;
+  }.property('parentView.service.serviceName'),
+
   getTaskInfoSuccess: function (data) {
     var task = data.Tasks;
     this.set('responseFromServer', {
@@ -281,6 +337,7 @@ App.TestDbConnectionWidgetView = App.ConfigWidgetView.extend({
         });
         this.setResponseStatus('failed');
       } else {
+        App.db.set('tmp', this.get('parentView.service.serviceName') + '_connection', this.get('preparedDBProperties'));
         this.setResponseStatus('success');
       }
     }
@@ -300,7 +357,7 @@ App.TestDbConnectionWidgetView = App.ConfigWidgetView.extend({
   },
 
   setResponseStatus: function (isSuccess) {
-    var db_type = this.dbInfo.dpPropertiesMap[this.get('db_type').value].db_type.toUpperCase();
+    var db_type = this.dbInfo.dpPropertiesMap[dbUtils.getDBType(this.get('db_type').value)].db_type.toUpperCase();
     var isSuccess = isSuccess == 'success';
     this.setConnectingStatus(false);
     this.set('responseCaption', isSuccess ? Em.I18n.t('services.service.config.database.connection.success') : Em.I18n.t('services.service.config.database.connection.failed'));
@@ -348,7 +405,7 @@ App.TestDbConnectionWidgetView = App.ConfigWidgetView.extend({
   showLogsPopup: function () {
     if (this.get('isConnectionSuccess')) return;
     var _this = this;
-    var db_type = this.dbInfo.dpPropertiesMap[this.get('db_type').value].db_type.toUpperCase();
+    var db_type = this.dbInfo.dpPropertiesMap[dbUtils.getDBType(this.get('db_type').value)].db_type.toUpperCase();
     var statusString = this.get('isRequestResolved') ? 'common.error' : 'common.testing';
     var popup = App.showAlertPopup(Em.I18n.t('services.service.config.connection.logsPopup.header').format(db_type, Em.I18n.t(statusString)), null, function () {
       _this.set('logsPopup', null);

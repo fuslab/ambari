@@ -19,14 +19,14 @@ limitations under the License.
 """
 
 import os
-from resource_management import *
+from resource_management.core.resources.system import Execute
+from resource_management.core.exceptions import ComponentIsNotRunning, Fail
+from resource_management.libraries.functions.format import format
 
-SERVICES_DIR = '/etc/init.d'
-POSSIBLE_DAEMON_NAMES = ['mysql', 'mysqld', 'mariadb']
 
 def get_daemon_name():
   import status_params
-  
+
   for service_file_template in status_params.SERVICE_FILE_TEMPLATES:
     for possible_daemon_name in status_params.POSSIBLE_DAEMON_NAMES:
       daemon_path = service_file_template.format(possible_daemon_name)

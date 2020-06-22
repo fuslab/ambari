@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,6 +30,7 @@ import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 
+import org.apache.ambari.annotations.ApiIgnore;
 import org.apache.ambari.server.api.resources.ResourceInstance;
 import org.apache.ambari.server.controller.spi.Resource;
 
@@ -66,7 +67,7 @@ public class HostStackVersionService extends BaseService {
    *
    * @return information regarding all host stack versions
    */
-  @GET
+  @GET @ApiIgnore // until documented
   @Produces("text/plain")
   public Response getHostStackVersions(@Context HttpHeaders headers, @Context UriInfo ui) {
     return handleRequest(headers, null, ui, Request.Type.GET, createResource(ui, clusterName, hostName, null));
@@ -82,7 +83,7 @@ public class HostStackVersionService extends BaseService {
    *
    * @return information regarding the specific host stack version
    */
-  @GET
+  @GET @ApiIgnore // until documented
   @Path("{stackVersionId}")
   @Produces("text/plain")
   public Response getHostStackVersion(@Context HttpHeaders headers, @Context UriInfo ui,
@@ -99,7 +100,7 @@ public class HostStackVersionService extends BaseService {
    * @param ui          uri info
    * @return information regarding the created services
    */
-  @POST
+  @POST @ApiIgnore // until documented
   @Produces("text/plain")
   public Response createRequests(String body, @Context HttpHeaders headers, @Context UriInfo ui) {
     return handleRequest(headers, body, ui, Request.Type.POST, createResource(ui, clusterName, hostName, null));
@@ -113,7 +114,7 @@ public class HostStackVersionService extends BaseService {
    */
   @Path("{stackVersionId}/repository_versions")
   public RepositoryVersionService getRepositoryVersionHandler(@PathParam("stackVersionId") String stackVersionId) {
-    final Map<Resource.Type, String> stackVersionProperties = new HashMap<Resource.Type, String>();
+    final Map<Resource.Type, String> stackVersionProperties = new HashMap<>();
     stackVersionProperties.put(Resource.Type.Host, hostName);
     stackVersionProperties.put(Resource.Type.HostStackVersion, stackVersionId);
     return new RepositoryVersionService(stackVersionProperties);
@@ -128,7 +129,7 @@ public class HostStackVersionService extends BaseService {
    * @return a host host version resource instance
    */
   private ResourceInstance createResource(UriInfo ui, String clusterName, String hostName, String stackVersionId) {
-    final Map<Resource.Type, String> mapIds = new HashMap<Resource.Type, String>();
+    final Map<Resource.Type, String> mapIds = new HashMap<>();
     if (clusterName != null) {
       mapIds.put(Resource.Type.Cluster, clusterName);
     }

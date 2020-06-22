@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,14 +18,15 @@
 
 package org.apache.ambari.server.view;
 
-import com.google.common.collect.ImmutableMap;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.ambari.server.state.Config;
 import org.apache.ambari.server.state.ServiceComponentHost;
 import org.apache.ambari.view.cluster.Cluster;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import com.google.common.collect.ImmutableMap;
 
 /**
  * View associated cluster implementation.
@@ -74,7 +75,7 @@ public class ClusterImpl implements Cluster {
   @Override
   public List<String> getHostsForServiceComponent(String serviceName, String componentName){
     List<ServiceComponentHost> serviceComponentHosts = cluster.getServiceComponentHosts(serviceName, componentName);
-    List<String> hosts = new ArrayList<String>();
+    List<String> hosts = new ArrayList<>();
     for (ServiceComponentHost serviceComponentHost : serviceComponentHosts) {
       hosts.add(serviceComponentHost.getHostName());
     }

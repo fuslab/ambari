@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,7 +32,7 @@ public class LdapGroupDto {
   /**
    * Set of member attributes. Usually it's either UID or DN of users.
    */
-  private Set<String> memberAttributes = new HashSet<String>();
+  private Set<String> memberAttributes = new HashSet<>();
 
   /**
    * Determines if the LDAP group is synchronized with internal group in database.

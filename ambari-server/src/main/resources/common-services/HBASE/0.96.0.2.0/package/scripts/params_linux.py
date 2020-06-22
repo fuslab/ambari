@@ -53,8 +53,8 @@ exec_tmp_dir = Script.get_tmp_dir()
 sudo = AMBARI_SUDO_BINARY
 
 stack_name = status_params.stack_name
-agent_stack_retry_on_unavailability = config['hostLevelParams']['agent_stack_retry_on_unavailability']
-agent_stack_retry_count = expect("/hostLevelParams/agent_stack_retry_count", int)
+agent_stack_retry_on_unavailability = config['ambariLevelParams']['agent_stack_retry_on_unavailability']
+agent_stack_retry_count = expect("/ambariLevelParams/agent_stack_retry_count", int)
 version = default("/commandParams/version", None)
 component_directory = status_params.component_directory
 etc_prefix_dir = "/etc/hbase"
@@ -117,11 +117,11 @@ security_enabled = config['configurations']['cluster-env']['security_enabled']
 metric_prop_file_name = "hadoop-metrics2-hbase.properties"
 
 # not supporting 32 bit jdk.
-java64_home = config['hostLevelParams']['java_home']
-java_version = expect("/hostLevelParams/java_version", int)
+java64_home = config['ambariLevelParams']['java_home']
+java_version = expect("/ambariLevelParams/java_version", int)
 
 log_dir = config['configurations']['hbase-env']['hbase_log_dir']
-java_io_tmpdir = config['configurations']['hbase-env']['hbase_java_io_tmpdir']
+java_io_tmpdir = default("/configurations/hbase-env/hbase_java_io_tmpdir", "/tmp")
 master_heapsize = ensure_unit_for_memory(config['configurations']['hbase-env']['hbase_master_heapsize'])
 
 regionserver_heapsize = ensure_unit_for_memory(config['configurations']['hbase-env']['hbase_regionserver_heapsize'])
@@ -154,7 +154,7 @@ master_jaas_config_file = format("{hbase_conf_dir}/hbase_master_jaas.conf")
 regionserver_jaas_config_file = format("{hbase_conf_dir}/hbase_regionserver_jaas.conf")
 queryserver_jaas_config_file = format("{hbase_conf_dir}/hbase_queryserver_jaas.conf")
 
-ganglia_server_hosts = default('/clusterHostInfo/ganglia_server_host', []) # is not passed when ganglia is not present
+ganglia_server_hosts = default('/clusterHostInfo/ganglia_server_hosts', []) # is not passed when ganglia is not present
 has_ganglia_server = not len(ganglia_server_hosts) == 0
 if has_ganglia_server:
   ganglia_server_host = ganglia_server_hosts[0]
@@ -186,16 +186,26 @@ if has_metric_collector:
   metric_truststore_path= default("/configurations/ams-ssl-client/ssl.client.truststore.location", "")
   metric_truststore_type= default("/configurations/ams-ssl-client/ssl.client.truststore.type", "")
   metric_truststore_password= default("/configurations/ams-ssl-client/ssl.client.truststore.password", "")
+  metric_legacy_hadoop_sink = check_stack_feature(StackFeature.AMS_LEGACY_HADOOP_SINK, version_for_stack_feature_checks)
 
   pass
 metrics_report_interval = default("/configurations/ams-site/timeline.metrics.sink.report.interval", 60)
 metrics_collection_period = default("/configurations/ams-site/timeline.metrics.sink.collection.period", 10)
 
+host_in_memory_aggregation = default("/configurations/ams-site/timeline.metrics.host.inmemory.aggregation", True)
+host_in_memory_aggregation_port = default("/configurations/ams-site/timeline.metrics.host.inmemory.aggregation.port", 61888)
+is_aggregation_https_enabled = False
+if default("/configurations/ams-site/timeline.metrics.host.inmemory.aggregation.http.policy", "HTTP_ONLY") == "HTTPS_ONLY":
+  host_in_memory_aggregation_protocol = 'https'
+  is_aggregation_https_enabled = True
+else:
+  host_in_memory_aggregation_protocol = 'http'
+
 # if hbase is selected the hbase_rs_hosts, should not be empty, but still default just in case
 if 'slave_hosts' in config['clusterHostInfo']:
-  rs_hosts = default('/clusterHostInfo/hbase_rs_hosts', '/clusterHostInfo/slave_hosts') #if hbase_rs_hosts not given it is assumed that region servers on same nodes as slaves
+  rs_hosts = default('/clusterHostInfo/hbase_regionserver_hosts', '/clusterHostInfo/datanode_hosts') #if hbase_rs_hosts not given it is assumed that region servers on same nodes as slaves
 else:
-  rs_hosts = default('/clusterHostInfo/hbase_rs_hosts', '/clusterHostInfo/all_hosts') 
+  rs_hosts = default('/clusterHostInfo/hbase_regionserver_hosts', '/clusterHostInfo/all_hosts')
 
 smoke_test_user = config['configurations']['cluster-env']['smokeuser']
 smokeuser_principal =  config['configurations']['cluster-env']['smokeuser_principal_name']
@@ -204,7 +214,10 @@ service_check_data = get_unique_id_and_date()
 user_group = config['configurations']['cluster-env']["user_group"]
 
 if security_enabled:
-  _hostname_lowercase = config['hostname'].lower()
+  zk_principal_name = default("/configurations/zookeeper-env/zookeeper_principal_name", "zookeeper/_HOST@EXAMPLE.COM")
+  zk_principal_user = zk_principal_name.split('/')[0]
+  zk_security_opts = format('-Dzookeeper.sasl.client=true -Dzookeeper.sasl.client.username={zk_principal_user} -Dzookeeper.sasl.clientconfig=Client')
+  _hostname_lowercase = config['agentLevelParams']['hostname'].lower()
   master_jaas_princ = config['configurations']['hbase-site']['hbase.master.kerberos.principal'].replace('_HOST',_hostname_lowercase)
   master_keytab_path = config['configurations']['hbase-site']['hbase.master.keytab.file']
   regionserver_jaas_princ = config['configurations']['hbase-site']['hbase.regionserver.kerberos.principal'].replace('_HOST',_hostname_lowercase)
@@ -244,15 +257,15 @@ hbase_hdfs_root_dir = config['configurations']['hbase-site']['hbase.rootdir']
 hbase_hdfs_root_dir_protocol = urlparse(hbase_hdfs_root_dir).scheme
 hbase_staging_dir = "/apps/hbase/staging"
 #for create_hdfs_directory
-hostname = config["hostname"]
+hostname = config['agentLevelParams']['hostname']
 hdfs_user_keytab = config['configurations']['hadoop-env']['hdfs_user_keytab']
 hdfs_user = config['configurations']['hadoop-env']['hdfs_user']
 hdfs_principal_name = config['configurations']['hadoop-env']['hdfs_principal_name']
 
 hdfs_site = config['configurations']['hdfs-site']
-default_fs = config['configurations']['core-site']['fs.defaultFS']
+default_fs = default('configurations/core-site/fs.defaultFS', None)
 
-dfs_type = default("/commandParams/dfs_type", "")
+dfs_type = default("/clusterLevelParams/dfs_type", "")
 
 import functools
 #create partial functions with common arguments for every HdfsResource call
@@ -282,7 +295,7 @@ hadoop_security_authentication = config['configurations']['core-site']['hadoop.s
 # ranger hbase plugin section start
 
 # to get db connector jar
-jdk_location = config['hostLevelParams']['jdk_location']
+jdk_location = config['ambariLevelParams']['jdk_location']
 
 # ranger host
 ranger_admin_hosts = default("/clusterHostInfo/ranger_admin_hosts", [])
@@ -292,7 +305,7 @@ has_ranger_admin = not len(ranger_admin_hosts) == 0
 xml_configurations_supported = check_stack_feature(StackFeature.RANGER_XML_CONFIGURATION, version_for_stack_feature_checks)
 
 # ambari-server hostname
-ambari_server_hostname = config['clusterHostInfo']['ambari_server_host'][0]
+ambari_server_hostname = config['ambariLevelParams']['ambari_server_host']
 
 # ranger hbase plugin enabled property
 enable_ranger_hbase = default("/configurations/ranger-hbase-plugin-properties/ranger-hbase-plugin-enabled", "No")
@@ -445,11 +458,3 @@ if has_atlas:
   atlas_with_managed_hbase = len(zk_hosts_matches) > 0
 else:
   atlas_with_managed_hbase = False
-
-wal_directory = "/apps/hbase/data/MasterProcWALs"
-
-backup_wal_dir = default('/configurations/hbase-env/backup_wal_dir', False)
-
-#Need to make sure not to keep removing WAL logs once EU is finalized.
-upgrade_direction = default("/commandParams/upgrade_direction", None)
-to_backup_wal_dir = upgrade_direction is not None and upgrade_direction == Direction.UPGRADE and backup_wal_dir

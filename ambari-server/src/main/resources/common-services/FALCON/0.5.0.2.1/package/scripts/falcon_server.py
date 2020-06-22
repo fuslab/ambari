@@ -23,18 +23,18 @@ from resource_management.core.logger import Logger
 from resource_management.libraries.script import Script
 from resource_management.libraries.functions import stack_select
 from resource_management.libraries.functions import check_process_status
-from resource_management.libraries.functions import Direction
 from resource_management.libraries.functions.security_commons import build_expectations
 from resource_management.libraries.functions.security_commons import cached_kinit_executor
 from resource_management.libraries.functions.security_commons import get_params_from_filesystem
 from resource_management.libraries.functions.security_commons import validate_security_config_properties
 from resource_management.libraries.functions.security_commons import FILE_TYPE_PROPERTIES
+from resource_management.libraries.functions.stack_features import check_stack_feature
+from resource_management.libraries.functions.constants import StackFeature, Direction
 
 from falcon import falcon
 from ambari_commons import OSConst
 from ambari_commons.os_family_impl import OsFamilyFuncImpl, OsFamilyImpl
-from resource_management.libraries.functions.stack_features import check_stack_feature
-from resource_management.libraries.functions import StackFeature
+
 
 class FalconServer(Script):
   def configure(self, env, upgrade_type=None):
@@ -92,6 +92,9 @@ class FalconServerLinux(FalconServer):
     import params
     return params.falcon_user
 
+  def get_pid_files(self):
+    import status_params
+    return [status_params.server_pid_file]
 
 @OsFamilyImpl(os_family=OSConst.WINSRV_FAMILY)
 class FalconServerWindows(FalconServer):

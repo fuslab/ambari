@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,27 +18,6 @@
 
 package org.apache.ambari.server.state;
 
-import com.google.common.base.Function;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Multimaps;
-import org.apache.ambari.server.api.services.AmbariMetaInfo;
-import org.apache.ambari.server.stack.StackDirectory;
-import org.apache.ambari.server.stack.Validable;
-import org.apache.ambari.server.state.stack.MetricDefinition;
-import org.apache.ambari.server.state.stack.StackRoleCommandOrder;
-import org.codehaus.jackson.annotate.JsonIgnore;
-import org.codehaus.jackson.map.annotate.JsonFilter;
-
-import javax.xml.bind.Unmarshaller;
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElementWrapper;
-import javax.xml.bind.annotation.XmlElements;
-import javax.xml.bind.annotation.XmlTransient;
 import java.io.File;
 import java.util.AbstractMap;
 import java.util.ArrayList;
@@ -51,13 +30,41 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
+import javax.xml.bind.Unmarshaller;
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlElementWrapper;
+import javax.xml.bind.annotation.XmlElements;
+import javax.xml.bind.annotation.XmlEnum;
+import javax.xml.bind.annotation.XmlEnumValue;
+import javax.xml.bind.annotation.XmlTransient;
+
+import org.apache.ambari.server.api.services.AmbariMetaInfo;
+import org.apache.ambari.server.collections.PredicateUtils;
+import org.apache.ambari.server.stack.StackDirectory;
+import org.apache.ambari.server.stack.Validable;
+import org.apache.ambari.server.state.stack.MetricDefinition;
+import org.apache.ambari.server.state.stack.StackRoleCommandOrder;
+import org.apache.commons.lang.StringUtils;
+import org.codehaus.jackson.annotate.JsonIgnore;
+import org.codehaus.jackson.map.annotate.JsonFilter;
+
+import com.google.common.base.Function;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Multimaps;
+
 @XmlAccessorType(XmlAccessType.FIELD)
 @JsonFilter("propertiesfilter")
-public class ServiceInfo implements Validable{
+public class ServiceInfo implements Validable, Cloneable {
 
-  public static final AbstractMap.SimpleEntry<String, String> DEFAULT_SERVICE_INSTALLABLE_PROPERTY = new AbstractMap.SimpleEntry("installable", "true");
-  public static final AbstractMap.SimpleEntry<String, String> DEFAULT_SERVICE_MANAGED_PROPERTY = new AbstractMap.SimpleEntry("managed", "true");
-  public static final AbstractMap.SimpleEntry<String, String> DEFAULT_SERVICE_MONITORED_PROPERTY = new AbstractMap.SimpleEntry("monitored", "true");
+  public static final AbstractMap.SimpleEntry<String, String> DEFAULT_SERVICE_INSTALLABLE_PROPERTY = new AbstractMap.SimpleEntry<>("installable", "true");
+  public static final AbstractMap.SimpleEntry<String, String> DEFAULT_SERVICE_MANAGED_PROPERTY = new AbstractMap.SimpleEntry<>("managed", "true");
+  public static final AbstractMap.SimpleEntry<String, String> DEFAULT_SERVICE_MONITORED_PROPERTY = new AbstractMap.SimpleEntry<>("monitored", "true");
+  public static final String HADOOP_COMPATIBLE_FS = "HCFS";
   /**
    * Format version. Added at schema ver 2
    */
@@ -71,27 +78,47 @@ public class ServiceInfo implements Validable{
   private String serviceType;
   private Selection selection;
 
+  /**
+   * Default to Python if not specified.
+   */
+
+  @XmlEnum
+  public enum ServiceAdvisorType {
+    @XmlEnumValue("PYTHON")
+    PYTHON,
+    @XmlEnumValue("JAVA")
+    JAVA
+  }
+
+  @XmlElement(name = "service_advisor_type")
+  private ServiceAdvisorType serviceAdvisorType = ServiceAdvisorType.PYTHON;
+
   @XmlTransient
   private List<PropertyInfo> properties;
 
-  @XmlElementWrapper(name="components")
-  @XmlElements(@XmlElement(name="component"))
+  @XmlElementWrapper(name = "components")
+  @XmlElements(@XmlElement(name = "component"))
   private List<ComponentInfo> components;
 
-  @XmlElement(name="deleted")
+  @XmlElement(name = "deleted")
   private boolean isDeleted = false;
+
+  @XmlElement(name = "supportDeleteViaUI")
+  private Boolean supportDeleteViaUIField;
+
+  private boolean supportDeleteViaUIInternal = true;
 
   @JsonIgnore
   @XmlTransient
   private volatile Map<String, Set<String>> configLayout = null;
 
-  @XmlElementWrapper(name="configuration-dependencies")
-  @XmlElement(name="config-type")
+  @XmlElementWrapper(name = "configuration-dependencies")
+  @XmlElement(name = "config-type")
   private List<String> configDependencies;
 
-  @XmlElementWrapper(name="excluded-config-types")
-  @XmlElement(name="config-type")
-  private Set<String> excludedConfigTypes = new HashSet<String>();
+  @XmlElementWrapper(name = "excluded-config-types")
+  @XmlElement(name = "config-type")
+  private Set<String> excludedConfigTypes = new HashSet<>();
 
   @XmlTransient
   private Map<String, Map<String, Map<String, String>>> configTypes;
@@ -111,7 +138,7 @@ public class ServiceInfo implements Validable{
   private String parent;
 
   @XmlElement(name = "widgetsFileName")
-  private String widgetsFileName = StackDirectory.WIDGETS_DESCRIPTOR_FILE_NAME;
+  private String widgetsFileName = AmbariMetaInfo.WIDGETS_DESCRIPTOR_FILE_NAME;
 
   @XmlElement(name = "metricsFileName")
   private String metricsFileName = StackDirectory.SERVICE_METRIC_FILE_NAME;
@@ -124,6 +151,20 @@ public class ServiceInfo implements Validable{
    */
   @XmlElements(@XmlElement(name = "credential-store"))
   private CredentialStoreInfo credentialStoreInfo;
+
+  /**
+   * The configuration that can be used to determine if Kerberos has been enabled for this service.
+   * <p>
+   * It is expected that this value is in the form of a valid JSON predicate ({@link PredicateUtils#fromJSON(String)}
+   */
+  @XmlElement(name = "kerberosEnabledTest")
+  private String kerberosEnabledTest = null;
+
+  /**
+   * Single Sign-on support information
+   */
+  @XmlElements(@XmlElement(name = "sso"))
+  private SingleSignOnInfo singleSignOnInfo;
 
   public Boolean isRestartRequiredAfterChange() {
     return restartRequiredAfterChange;
@@ -154,20 +195,20 @@ public class ServiceInfo implements Validable{
   @XmlTransient
   private File widgetsDescriptorFile = null;
 
+  @XmlTransient
   private StackRoleCommandOrder roleCommandOrder;
 
   @XmlTransient
   private boolean valid = true;
 
   @XmlElementWrapper(name = "properties")
-  @XmlElement(name="property")
+  @XmlElement(name = "property")
   private List<ServicePropertyInfo> servicePropertyList = Lists.newArrayList();
 
   @XmlTransient
-  private Map<String, String> servicePropertyMap = ImmutableMap.copyOf(ensureMandatoryServiceProperties(Maps.<String, String>newHashMap()));
+  private Map<String, String> servicePropertyMap = ImmutableMap.copyOf(ensureMandatoryServiceProperties(Maps.newHashMap()));
 
   /**
-   *
    * @return valid xml flag
    */
   @Override
@@ -176,7 +217,6 @@ public class ServiceInfo implements Validable{
   }
 
   /**
-   *
    * @param valid set validity flag
    */
   @Override
@@ -185,7 +225,7 @@ public class ServiceInfo implements Validable{
   }
 
   @XmlTransient
-  private Set<String> errorSet = new HashSet<String>();
+  private Set<String> errorSet = new HashSet<>();
 
   @Override
   public void addError(String error) {
@@ -201,16 +241,17 @@ public class ServiceInfo implements Validable{
   public void addErrors(Collection<String> errors) {
     this.errorSet.addAll(errors);
   }
+
   /**
    * Internal list of os-specific details (loaded from xml). Added at schema ver 2
    */
   @JsonIgnore
-  @XmlElementWrapper(name="osSpecifics")
-  @XmlElements(@XmlElement(name="osSpecific"))
+  @XmlElementWrapper(name = "osSpecifics")
+  @XmlElements(@XmlElement(name = "osSpecific"))
   private List<ServiceOsSpecific> serviceOsSpecifics;
 
   @JsonIgnore
-  @XmlElement(name="configuration-dir")
+  @XmlElement(name = "configuration-dir")
   private String configDir = StackDirectory.SERVICE_CONFIG_FOLDER_NAME;
 
   @JsonIgnore
@@ -242,6 +283,7 @@ public class ServiceInfo implements Validable{
    * at getter.
    * Added at schema ver 2
    */
+  @XmlTransient
   private volatile Map<String, ServiceOsSpecific> serviceOsSpecificsMap;
 
   /**
@@ -253,13 +295,13 @@ public class ServiceInfo implements Validable{
   /**
    * Added at schema ver 2
    */
-  @XmlElementWrapper(name="customCommands")
-  @XmlElements(@XmlElement(name="customCommand"))
+  @XmlElementWrapper(name = "customCommands")
+  @XmlElements(@XmlElement(name = "customCommand"))
   private List<CustomCommandDefinition> customCommands;
 
-  @XmlElementWrapper(name="requiredServices")
-  @XmlElement(name="service")
-  private List<String> requiredServices = new ArrayList<String>();
+  @XmlElementWrapper(name = "requiredServices")
+  @XmlElement(name = "service")
+  private List<String> requiredServices = new ArrayList<>();
 
   /**
    * Meaning: stores subpath from stack root to exact directory, that contains
@@ -296,6 +338,27 @@ public class ServiceInfo implements Validable{
     isDeleted = deleted;
   }
 
+  public Boolean getSupportDeleteViaUIField() {
+    return supportDeleteViaUIField;
+  }
+
+  public void setSupportDeleteViaUIField(Boolean supportDeleteViaUIField) {
+    this.supportDeleteViaUIField = supportDeleteViaUIField;
+  }
+
+  public boolean isSupportDeleteViaUI() {
+    if (null != supportDeleteViaUIField) {
+      return supportDeleteViaUIField.booleanValue();
+    }
+    // If set to null and has a parent, then the value would have already been resolved and set.
+    // Otherwise, return the default value (true).
+    return this.supportDeleteViaUIInternal;
+  }
+
+  public void setSupportDeleteViaUI(boolean supportDeleteViaUI) {
+    this.supportDeleteViaUIInternal = supportDeleteViaUI;
+  }
+
   public String getName() {
     return name;
   }
@@ -320,15 +383,23 @@ public class ServiceInfo implements Validable{
     this.displayName = displayName;
   }
 
+  public void setServiceAdvisorType(ServiceAdvisorType type) {
+    this.serviceAdvisorType = type;
+  }
+
+  public ServiceAdvisorType getServiceAdvisorType() {
+    return serviceAdvisorType;
+  }
+
   public String getServiceType() {
-	return serviceType;
+    return serviceType;
   }
 
   public void setServiceType(String serviceType) {
-	this.serviceType = serviceType;
+    this.serviceType = serviceType;
   }
 
-public String getVersion() {
+  public String getVersion() {
     return version;
   }
 
@@ -350,6 +421,7 @@ public String getVersion() {
   /**
    * Check if selection was presented in xml. We need this for proper stack inheritance, because {@link ServiceInfo#getSelection}
    * by default returns {@link Selection#DEFAULT}, even if no value found in metainfo.xml.
+   *
    * @return true, if selection not defined in metainfo.xml
    */
   public boolean isSelectionEmpty() {
@@ -363,6 +435,7 @@ public String getVersion() {
   public void setComment(String comment) {
     this.comment = comment;
   }
+
   public List<String> getRequiredServices() {
     return requiredServices;
   }
@@ -386,33 +459,90 @@ public String getVersion() {
   public void setRequiredServices(List<String> requiredServices) {
     this.requiredServices = requiredServices;
   }
+
   public List<PropertyInfo> getProperties() {
-    if (properties == null) properties = new ArrayList<PropertyInfo>();
+    if (properties == null) {
+      properties = new ArrayList<>();
+    }
     return properties;
   }
 
-  public void setProperties(List properties) {
+  public void setProperties(List<PropertyInfo> properties) {
     this.properties = properties;
   }
 
+  @Override
+  public Object clone() throws CloneNotSupportedException {
+    ServiceInfo clone = (ServiceInfo) super.clone();
+    clone.setSchemaVersion(schemaVersion);
+    clone.setName(name);
+    clone.setDisplayName(displayName);
+    clone.setVersion(version);
+    clone.setComment(comment);
+    clone.setServiceType(serviceType);
+    clone.setSelection(selection);
+    clone.components = components;
+    clone.setDeleted(isDeleted);
+    clone.setConfigDependencies(configDependencies);
+    clone.setExcludedConfigTypes(excludedConfigTypes);
+    clone.setMonitoringService(monitoringService);
+    clone.setRestartRequiredAfterChange(restartRequiredAfterChange);
+    clone.setRestartRequiredAfterRackChange(restartRequiredAfterRackChange);
+    clone.setParent(parent);
+    if(metricsFile != null) {
+      clone.metricsFileName = metricsFile.getName();
+    }
+    if(widgetsDescriptorFile != null) {
+      clone.widgetsFileName = widgetsDescriptorFile.getName();
+    }
+    clone.setCredentialStoreInfo(credentialStoreInfo);
+    clone.setServicePropertyList(servicePropertyList);
+    clone.configDir = configDir;
+
+    clone.themesDir = themesDir;
+    clone.setThemesMap(themesMap);
+    if(this.themesMap != null) {
+      clone.themes = new ArrayList(this.themesMap.values());
+    }
+
+    clone.quickLinksConfigurationsDir = quickLinksConfigurationsDir;
+    clone.setQuickLinksConfigurationsMap(quickLinksConfigurationsMap);
+    if(this.quickLinksConfigurationsMap != null) {
+      clone.quickLinksConfigurations = new ArrayList(this.quickLinksConfigurationsMap.values());
+    }
+
+    clone.serviceOsSpecificsMap =  serviceOsSpecificsMap;
+    if(this.serviceOsSpecificsMap != null) {
+      clone.serviceOsSpecifics = new ArrayList<>(serviceOsSpecificsMap.values());
+    }
+
+    clone.setCommandScript(commandScript);
+    clone.setRequiredServices(requiredServices);
+    return clone;
+  }
+
   public List<ComponentInfo> getComponents() {
-    if (components == null) components = new ArrayList<ComponentInfo>();
+    if (components == null) {
+      components = new ArrayList<>();
+    }
     return components;
   }
 
   /**
    * Finds ComponentInfo by component name
-   * @param componentName  name of the component
+   *
+   * @param componentName name of the component
    * @return ComponentInfo componentName or null
    */
-  public ComponentInfo getComponentByName(String componentName){
-    for(ComponentInfo componentInfo : getComponents()) {
-      if(componentInfo.getName().equals(componentName)){
+  public ComponentInfo getComponentByName(String componentName) {
+    for (ComponentInfo componentInfo : getComponents()) {
+      if (componentInfo.getName().equals(componentName)) {
         return componentInfo;
       }
     }
     return null;
   }
+
   public boolean isClientOnlyService() {
     if (components == null || components.isEmpty()) {
       return false;
@@ -473,6 +603,7 @@ public String getVersion() {
 
   /**
    * Set a value indicating if this service supports credential store.
+   *
    * @param credentialStoreSupported
    */
   public void setCredentialStoreSupported(boolean credentialStoreSupported) {
@@ -500,6 +631,7 @@ public String getVersion() {
 
   /**
    * Set a value indicating if this service requires credential store.
+   *
    * @param credentialStoreRequired
    */
   public void setCredentialStoreRequired(boolean credentialStoreRequired) {
@@ -527,6 +659,7 @@ public String getVersion() {
 
   /**
    * Set a value indicating if this service is enabled for credential store use.
+   *
    * @param credentialStoreEnabled
    */
   public void setCredentialStoreEnabled(boolean credentialStoreEnabled) {
@@ -554,6 +687,72 @@ public String getVersion() {
     this.credentialStoreInfo = credentialStoreInfo;
   }
 
+  /**
+   * Gets the JSON predicate ({@link PredicateUtils#fromJSON(String)} that can be used to determine
+   * if Kerberos has been enabled for this service or not.
+   *
+   * @return a valid JSON predicate ({@link PredicateUtils#fromJSON(String)}
+   */
+  public String getKerberosEnabledTest() {
+    return kerberosEnabledTest;
+  }
+
+  /**
+   * Sets the JSON predicate ({@link PredicateUtils#fromJSON(String)} that can be used to determine
+   * if Kerberos has been enabled for this service or not.
+   *
+   * @param kerberosEnabledTest a valid JSON predicate ({@link PredicateUtils#fromJSON(String)}
+   */
+  public void setKerberosEnabledTest(String kerberosEnabledTest) {
+    this.kerberosEnabledTest = kerberosEnabledTest;
+  }
+
+
+  /**
+   * Gets the value for the SSO integration support
+   *
+   * @return the {@link SingleSignOnInfo}
+   */
+  public SingleSignOnInfo getSingleSignOnInfo() {
+    return singleSignOnInfo;
+  }
+
+  /**
+   * Set a new value for the SSO integration support
+   *
+   * @param singleSignOnInfo a {@link SingleSignOnInfo}
+   */
+  public void setSingleSignOnInfo(SingleSignOnInfo singleSignOnInfo) {
+    this.singleSignOnInfo = singleSignOnInfo;
+  }
+
+  /**
+   * Indicates if this service supports single sign-on integration.
+   *
+   * @return true or false
+   */
+  public boolean isSingleSignOnSupported() {
+    return (singleSignOnInfo != null) && singleSignOnInfo.isSupported();
+  }
+
+  /**
+   * @deprecated Use {@link #getSingleSignOnEnabledTest()} instead
+   */
+  public String getSingleSignOnEnabledConfiguration() {
+    return singleSignOnInfo != null ? singleSignOnInfo.getEnabledConfiguration() : null;
+  }
+
+  public String getSingleSignOnEnabledTest() {
+    return singleSignOnInfo != null ? singleSignOnInfo.getSsoEnabledTest() : null;
+  }
+
+  /**
+   * @return the boolean flag is Kerberos is required for SSO integration
+   */
+  public boolean isKerberosRequiredForSingleSignOnIntegration() {
+    return singleSignOnInfo != null && singleSignOnInfo.isKerberosRequired();
+  }
+
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
@@ -563,6 +762,8 @@ public String getVersion() {
     sb.append(serviceType);
     sb.append("\nversion:");
     sb.append(version);
+    sb.append("\nKerberos enabled test:");
+    sb.append(kerberosEnabledTest);
     sb.append("\ncomment:");
     sb.append(comment);
 
@@ -584,13 +785,14 @@ public String getVersion() {
   /**
    * Obtain the config types associated with this service.
    * The returned map is an unmodifiable view.
+   *
    * @return unmodifiable map of config types associated with this service
    */
   public synchronized Map<String, Map<String, Map<String, String>>> getConfigTypeAttributes() {
     Map<String, Map<String, Map<String, String>>> tmpConfigTypes = configTypes == null ?
-        new HashMap<String, Map<String, Map<String, String>>>() : configTypes;
+        new HashMap<>() : configTypes;
 
-    for(String excludedtype : excludedConfigTypes){
+    for (String excludedtype : excludedConfigTypes) {
       tmpConfigTypes.remove(excludedtype);
     }
 
@@ -601,12 +803,12 @@ public String getVersion() {
    * Add the given type and set it's attributes.
    * If the type is marked for exclusion, it will not be added.
    *
-   * @param type            configuration type
-   * @param typeAttributes  attributes associated with the type
+   * @param type           configuration type
+   * @param typeAttributes attributes associated with the type
    */
   public synchronized void setTypeAttributes(String type, Map<String, Map<String, String>> typeAttributes) {
     if (this.configTypes == null) {
-      configTypes = new HashMap<String, Map<String, Map<String, String>>>();
+      configTypes = new HashMap<>();
     }
     configTypes.put(type, typeAttributes);
   }
@@ -618,7 +820,7 @@ public String getVersion() {
    * @param types map of type attributes
    */
   public synchronized void setAllConfigAttributes(Map<String, Map<String, Map<String, String>>> types) {
-    configTypes = new HashMap<String, Map<String, Map<String, String>>>();
+    configTypes = new HashMap<>();
     for (Map.Entry<String, Map<String, Map<String, String>>> entry : types.entrySet()) {
       setTypeAttributes(entry.getKey(), entry.getValue());
     }
@@ -626,6 +828,7 @@ public String getVersion() {
 
   /**
    * Determine of the service has a dependency on the provided configuration type.
+   *
    * @param type the config type
    * @return <code>true</code> if the service defines a dependency on the provided type
    */
@@ -635,7 +838,8 @@ public String getVersion() {
 
   /**
    * Determine if the service contains the specified config type
-   * @param type  config type to check
+   *
+   * @param type config type to check
    * @return true if the service has the specified config type; false otherwise
    */
   public boolean hasConfigType(String type) {
@@ -646,21 +850,23 @@ public String getVersion() {
   /**
    * Determine if the service has a dependency on the provided type and contains any of the provided properties.
    * This can be used in determining if a property is stale.
-
-   * @param type the config type
+   *
+   * @param type     the config type
    * @param keyNames the names of all the config keys for the given type
    * @return <code>true</code> if the config is stale
    */
   public boolean hasDependencyAndPropertyFor(String type, Collection<String> keyNames) {
-    if (!hasConfigDependency(type))
+    if (!hasConfigDependency(type)) {
       return false;
+    }
 
     buildConfigLayout();
     Set<String> keys = configLayout.get(type);
 
     for (String staleCheck : keyNames) {
-      if (keys != null && keys.contains(staleCheck))
+      if (keys != null && keys.contains(staleCheck)) {
         return true;
+      }
     }
 
     return false;
@@ -671,17 +877,18 @@ public String getVersion() {
    */
   private void buildConfigLayout() {
     if (null == configLayout) {
-      synchronized(this) {
+      synchronized (this) {
         if (null == configLayout) {
-          configLayout = new HashMap<String, Set<String>>();
+          configLayout = new HashMap<>();
 
           for (PropertyInfo pi : getProperties()) {
             String type = pi.getFilename();
             int idx = type.indexOf(".xml");
             type = type.substring(0, idx);
 
-            if (!configLayout.containsKey(type))
-              configLayout.put(type, new HashSet<String>());
+            if (!configLayout.containsKey(type)) {
+              configLayout.put(type, new HashSet<>());
+            }
 
             configLayout.get(type).add(pi.getName());
           }
@@ -693,14 +900,15 @@ public String getVersion() {
   public List<String> getConfigDependencies() {
     return configDependencies;
   }
-  public List<String> getConfigDependenciesWithComponents(){
-    List<String> retVal = new ArrayList<String>();
-    if(configDependencies != null){
+
+  public List<String> getConfigDependenciesWithComponents() {
+    List<String> retVal = new ArrayList<>();
+    if (configDependencies != null) {
       retVal.addAll(configDependencies);
     }
-    if(components != null){
+    if (components != null) {
       for (ComponentInfo c : components) {
-        if(c.getConfigDependencies() != null){
+        if (c.getConfigDependencies() != null) {
           retVal.addAll(c.getConfigDependencies());
         }
       }
@@ -760,14 +968,15 @@ public String getVersion() {
 
   /**
    * Exposes (and initializes on first use) map of os-specific details.
-   * @return  map of OS specific details keyed by family
+   *
+   * @return map of OS specific details keyed by family
    */
   public Map<String, ServiceOsSpecific> getOsSpecifics() {
     if (serviceOsSpecificsMap == null) {
       synchronized (this) { // Double-checked locking pattern
         if (serviceOsSpecificsMap == null) {
           Map<String, ServiceOsSpecific> tmpMap =
-                  new TreeMap<String, ServiceOsSpecific>();
+              new TreeMap<>();
           if (serviceOsSpecifics != null) {
             for (ServiceOsSpecific osSpecific : serviceOsSpecifics) {
               tmpMap.put(osSpecific.getOsFamily(), osSpecific);
@@ -786,7 +995,7 @@ public String getVersion() {
 
   public List<CustomCommandDefinition> getCustomCommands() {
     if (customCommands == null) {
-      customCommands = new ArrayList<CustomCommandDefinition>();
+      customCommands = new ArrayList<>();
     }
     return customCommands;
   }
@@ -914,10 +1123,10 @@ public String getVersion() {
   public Map<String, PropertyInfo> getRequiredProperties() {
     Map<String, PropertyInfo> result = requiredProperties;
     if (result == null) {
-      synchronized(this) {
+      synchronized (this) {
         result = requiredProperties;
         if (result == null) {
-          requiredProperties = result = new HashMap<String, PropertyInfo>();
+          requiredProperties = result = new HashMap<>();
           List<PropertyInfo> properties = getProperties();
           for (PropertyInfo propertyInfo : properties) {
             if (propertyInfo.isRequireInput()) {
@@ -942,7 +1151,7 @@ public String getVersion() {
   /**
    * Set indicator for required restart after a host rack info change.
    *
-   * @param restartRequiredAfterRackChange  true if a restart is required
+   * @param restartRequiredAfterRackChange true if a restart is required
    */
   public void setRestartRequiredAfterRackChange(Boolean restartRequiredAfterRackChange) {
     this.restartRequiredAfterRackChange = restartRequiredAfterRackChange;
@@ -966,17 +1175,13 @@ public String getVersion() {
 
   public Map<String, ThemeInfo> getThemesMap() {
     if (themesMap == null) {
-      synchronized (this) {
-      }
-      if (themesMap == null) {
-        Map<String, ThemeInfo> tmp = new TreeMap<String, ThemeInfo>();
-        if (themes != null) {
-          for (ThemeInfo theme : themes) {
-            tmp.put(theme.getFileName(), theme);
-          }
+      Map<String, ThemeInfo> tmp = new TreeMap<>();
+      if (themes != null) {
+        for (ThemeInfo theme : themes) {
+          tmp.put(theme.getFileName(), theme);
         }
-        themesMap = tmp;
       }
+      themesMap = tmp;
     }
     return themesMap;
   }
@@ -1004,17 +1209,13 @@ public String getVersion() {
 
   public Map<String, QuickLinksConfigurationInfo> getQuickLinksConfigurationsMap() {
     if (quickLinksConfigurationsMap == null) {
-      synchronized (this) {
-      }
-      if (quickLinksConfigurationsMap == null) {
-        Map<String, QuickLinksConfigurationInfo> tmp = new TreeMap<String, QuickLinksConfigurationInfo>();
-        if (quickLinksConfigurations != null) {
-          for (QuickLinksConfigurationInfo quickLinksConfiguration : quickLinksConfigurations) {
-            tmp.put(quickLinksConfiguration.getFileName(), quickLinksConfiguration);
-          }
+      Map<String, QuickLinksConfigurationInfo> tmp = new TreeMap<>();
+      if (quickLinksConfigurations != null) {
+        for (QuickLinksConfigurationInfo quickLinksConfiguration : quickLinksConfigurations) {
+          tmp.put(quickLinksConfiguration.getFileName(), quickLinksConfiguration);
         }
-        quickLinksConfigurationsMap = tmp;
       }
+      quickLinksConfigurationsMap = tmp;
     }
     return quickLinksConfigurationsMap;
   }
@@ -1032,7 +1233,7 @@ public String getVersion() {
     afterServicePropertyListSet();
   }
 
-  private void afterServicePropertyListSet(){
+  private void afterServicePropertyListSet() {
     validateServiceProperties();
     buildServiceProperties();
   }
@@ -1040,9 +1241,10 @@ public String getVersion() {
 
   /**
    * Returns the service properties defined in the xml service definition.
+   *
    * @return Service property map
    */
-  public Map<String, String> getServiceProperties()  {
+  public Map<String, String> getServiceProperties() {
     return servicePropertyMap;
   }
 
@@ -1058,9 +1260,9 @@ public String getVersion() {
         properties.put(property.getName(), property.getValue());
       }
       servicePropertyMap = ImmutableMap.copyOf(ensureMandatoryServiceProperties(properties));
-    }
-    else
+    } else {
       servicePropertyMap = ImmutableMap.of();
+    }
 
 
   }
@@ -1070,15 +1272,18 @@ public String getVersion() {
   }
 
   private Map<String, String> ensureVisibilityServiceProperties(Map<String, String> properties) {
-    if (!properties.containsKey(DEFAULT_SERVICE_INSTALLABLE_PROPERTY.getKey()))
+    if (!properties.containsKey(DEFAULT_SERVICE_INSTALLABLE_PROPERTY.getKey())) {
       properties.put(DEFAULT_SERVICE_INSTALLABLE_PROPERTY.getKey(), DEFAULT_SERVICE_INSTALLABLE_PROPERTY.getValue());
+    }
 
-    if (!properties.containsKey(DEFAULT_SERVICE_MANAGED_PROPERTY.getKey()))
+    if (!properties.containsKey(DEFAULT_SERVICE_MANAGED_PROPERTY.getKey())) {
       properties.put(DEFAULT_SERVICE_MANAGED_PROPERTY.getKey(), DEFAULT_SERVICE_MANAGED_PROPERTY.getValue());
+    }
 
 
-    if (!properties.containsKey(DEFAULT_SERVICE_MONITORED_PROPERTY.getKey()))
+    if (!properties.containsKey(DEFAULT_SERVICE_MONITORED_PROPERTY.getKey())) {
       properties.put(DEFAULT_SERVICE_MONITORED_PROPERTY.getKey(), DEFAULT_SERVICE_MONITORED_PROPERTY.getValue());
+    }
 
     return properties;
   }
@@ -1091,17 +1296,17 @@ public String getVersion() {
   private void validateServiceProperties() {
     // Verify if there are duplicate service properties by name
     Multimap<String, ServicePropertyInfo> servicePropsByName = Multimaps.index(
-      getServicePropertyList(),
-      new Function<ServicePropertyInfo, String>() {
-        @Override
-        public String apply(ServicePropertyInfo servicePropertyInfo) {
-          return servicePropertyInfo.getName();
+        getServicePropertyList(),
+        new Function<ServicePropertyInfo, String>() {
+          @Override
+          public String apply(ServicePropertyInfo servicePropertyInfo) {
+            return servicePropertyInfo.getName();
+          }
         }
-      }
 
     );
 
-    for (String propertyName: servicePropsByName.keySet()) {
+    for (String propertyName : servicePropsByName.keySet()) {
       if (servicePropsByName.get(propertyName).size() > 1) {
         setValid(false);
         addError("Duplicate service property with name '" + propertyName + "' found in " + getName() + ":" + getVersion() + " service definition !");
@@ -1140,6 +1345,16 @@ public String getVersion() {
       if (credentialStoreInfo.isEnabled() == null) {
         setValid(false);
         addError("Credential store enabled is not specified for service " + getName());
+      }
+    }
+
+    // validate single sign-in support information
+    if (singleSignOnInfo != null) {
+      if (singleSignOnInfo.isSupported()) {
+        if (StringUtils.isEmpty(singleSignOnInfo.getSsoEnabledTest()) && StringUtils.isEmpty(singleSignOnInfo.getEnabledConfiguration())) {
+          setValid(false);
+          addError("Single Sign-on support is indicated for service " + getName() + " but no test configuration has been set (enabledConfiguration or ssoEnabledTest).");
+        }
       }
     }
   }

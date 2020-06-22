@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,6 @@
 
 package org.apache.ambari.server.orm.dao;
 
-import com.google.inject.Inject;
-import com.google.inject.Provider;
-
-import org.junit.Before;
-import org.junit.Test;
-
 import static org.easymock.EasyMock.createStrictMock;
 import static org.easymock.EasyMock.eq;
 import static org.easymock.EasyMock.expect;
@@ -36,6 +30,11 @@ import javax.persistence.EntityManager;
 import javax.persistence.TypedQuery;
 
 import org.apache.ambari.server.orm.entities.GroupEntity;
+import org.junit.Before;
+import org.junit.Test;
+
+import com.google.inject.Inject;
+import com.google.inject.Provider;
 
 /**
  * GroupDAO unit tests.

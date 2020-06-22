@@ -27,7 +27,6 @@ import org.apache.ambari.server.orm.dao.RepositoryVersionDAO;
 import org.apache.ambari.server.orm.entities.RepositoryVersionEntity;
 import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.Clusters;
-import org.apache.ambari.server.state.Host;
 import org.apache.ambari.server.state.RepositoryType;
 import org.apache.ambari.server.state.Service;
 import org.apache.ambari.server.state.StackId;
@@ -36,7 +35,6 @@ import org.apache.ambari.server.state.repository.VersionDefinitionXml;
 import org.apache.ambari.server.state.stack.PrereqCheckStatus;
 import org.apache.ambari.server.state.stack.PrerequisiteCheck;
 import org.apache.ambari.server.state.stack.UpgradePack;
-import org.apache.ambari.server.state.stack.UpgradePack.ProcessingComponent;
 import org.apache.ambari.server.state.stack.upgrade.RepositoryVersionHelper;
 import org.apache.ambari.server.state.stack.upgrade.UpgradeType;
 import org.junit.Assert;
@@ -141,16 +139,18 @@ public class HostsMasterMaintenanceCheckTest {
 
     PrerequisiteCheck check = new PrerequisiteCheck(null, null);
     PrereqCheckRequest checkRequest = new PrereqCheckRequest("cluster");
+    checkRequest.setSourceStackId(new StackId("HDP-1.0"));
     checkRequest.setTargetRepositoryVersion(m_repositoryVersion);
 
     hostsMasterMaintenanceCheck.perform(check, checkRequest);
     Assert.assertEquals(PrereqCheckStatus.FAIL, check.getStatus());
 
     Mockito.when(repositoryVersionHelper.getUpgradePackageName(Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), (UpgradeType) Mockito.anyObject())).thenReturn(upgradePackName);
-    Mockito.when(ambariMetaInfo.getUpgradePacks(Mockito.anyString(), Mockito.anyString())).thenReturn(new HashMap<String, UpgradePack>());
+    Mockito.when(ambariMetaInfo.getUpgradePacks(Mockito.anyString(), Mockito.anyString())).thenReturn(new HashMap<>());
 
     check = new PrerequisiteCheck(null, null);
     checkRequest = new PrereqCheckRequest("cluster");
+    checkRequest.setSourceStackId(new StackId("HDP-1.0"));
     checkRequest.setTargetRepositoryVersion(m_repositoryVersion);
 
     hostsMasterMaintenanceCheck.perform(check, checkRequest);
@@ -161,12 +161,13 @@ public class HostsMasterMaintenanceCheckTest {
     Mockito.when(upgradePack.getName()).thenReturn(upgradePackName);
     upgradePacks.put(upgradePack.getName(), upgradePack);
     Mockito.when(ambariMetaInfo.getUpgradePacks(Mockito.anyString(), Mockito.anyString())).thenReturn(upgradePacks);
-    Mockito.when(upgradePack.getTasks()).thenReturn(new HashMap<String, Map<String,ProcessingComponent>>());
-    Mockito.when(cluster.getServices()).thenReturn(new HashMap<String, Service>());
-    Mockito.when(clusters.getHostsForCluster(Mockito.anyString())).thenReturn(new HashMap<String, Host>());
+    Mockito.when(upgradePack.getTasks()).thenReturn(new HashMap<>());
+    Mockito.when(cluster.getServices()).thenReturn(new HashMap<>());
+    Mockito.when(clusters.getHostsForCluster(Mockito.anyString())).thenReturn(new HashMap<>());
 
     check = new PrerequisiteCheck(null, null);
     checkRequest = new PrereqCheckRequest("cluster");
+    checkRequest.setSourceStackId(new StackId("HDP-1.0"));
     checkRequest.setTargetRepositoryVersion(m_repositoryVersion);
 
     hostsMasterMaintenanceCheck.perform(check, checkRequest);

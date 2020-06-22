@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,11 +19,12 @@
 package org.apache.ambari.server.api.predicate.operators;
 
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
+
 import org.apache.ambari.server.controller.predicate.EqualsPredicate;
 import org.apache.ambari.server.controller.predicate.OrPredicate;
 import org.junit.Test;
-
-import static org.junit.Assert.*;
 
 
 /**
@@ -38,8 +39,8 @@ public class OrOperatorTest {
 
   @Test
   public void testToPredicate() {
-    EqualsPredicate p1 = new EqualsPredicate<String>("p1", "one");
-    EqualsPredicate p2 = new EqualsPredicate<String>("p2", "two");
+    EqualsPredicate p1 = new EqualsPredicate<>("p1", "one");
+    EqualsPredicate p2 = new EqualsPredicate<>("p2", "two");
     OrPredicate orPRedicate = new OrPredicate(p1, p2);
 
     assertEquals(orPRedicate, new OrOperator(1).toPredicate(p1, p2));

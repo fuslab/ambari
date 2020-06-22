@@ -18,6 +18,8 @@
 
 package org.apache.ambari.server.state;
 
+import static java.util.stream.Collectors.toSet;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -26,8 +28,10 @@ import java.util.Set;
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.controller.ClusterResponse;
 import org.apache.ambari.server.controller.ServiceConfigVersionResponse;
+import org.apache.ambari.server.controller.internal.DeleteHostComponentStatusMetaData;
 import org.apache.ambari.server.events.ClusterConfigChangedEvent;
 import org.apache.ambari.server.metadata.RoleCommandOrder;
+import org.apache.ambari.server.orm.entities.ClusterEntity;
 import org.apache.ambari.server.orm.entities.PrivilegeEntity;
 import org.apache.ambari.server.orm.entities.RepositoryVersionEntity;
 import org.apache.ambari.server.orm.entities.UpgradeEntity;
@@ -129,6 +133,7 @@ public interface Cluster {
    * @return collection of hosts that are associated with this cluster
    */
   Collection<Host> getHosts();
+  default Set<String> getHostNames() { return getHosts().stream().map(Host::getHostName).collect(toSet()); }
 
   /**
    * Get all of the hosts running the provided service and component.
@@ -145,6 +150,14 @@ public interface Cluster {
    * @return Host info {@link Host}
    */
   Host getHost(String hostName);
+
+  /**
+   * Get specific host info using host id.
+   *
+   * @param hostId the host id
+   * @return Host info {@link Host}
+   */
+  Host getHost(Long hostId);
 
 
   /**
@@ -272,6 +285,13 @@ public interface Cluster {
   Config getConfig(String configType, String versionTag);
 
   /**
+   * Get latest (including inactive ones) configurations with any of the given types.
+   * This method does not take into account the configuration being enabled.
+   * @return the list of configurations with the given types
+   */
+  List<Config> getLatestConfigsWithTypes(Collection<String> types);
+
+  /**
    * Gets the specific config that matches the specified type and version.  This not
    * necessarily a DESIRED configuration that applies to a cluster.
    * @param configType  the config type to find
@@ -302,7 +322,7 @@ public interface Cluster {
    * @return <code>true</code> if the config was added, or <code>false</code>
    * if the config is already set as the current
    */
-  ServiceConfigVersionResponse addDesiredConfig(String user, Set<Config> configs);
+  ServiceConfigVersionResponse addDesiredConfig(String user, Set<Config> configs) throws AmbariException;
 
   /**
    * Adds and sets a DESIRED configuration to be applied to a cluster.  There
@@ -313,10 +333,10 @@ public interface Cluster {
    * @return <code>true</code> if the config was added, or <code>false</code>
    * if the config is already set as the current
    */
-  ServiceConfigVersionResponse addDesiredConfig(String user, Set<Config> configs, String serviceConfigVersionNote);
+  ServiceConfigVersionResponse addDesiredConfig(String user, Set<Config> configs, String serviceConfigVersionNote) throws AmbariException;
 
   ServiceConfigVersionResponse createServiceConfigVersion(String serviceName, String user, String note,
-                                                          ConfigGroup configGroup);
+                                                          ConfigGroup configGroup) throws AmbariException;
 
   String getServiceForConfigTypes(Collection<String> configTypes);
 
@@ -371,6 +391,15 @@ public interface Cluster {
   Map<String, DesiredConfig> getDesiredConfigs();
 
   /**
+   * Gets the active desired configurations for the cluster.
+   * @param cachedConfigEntities retrieves cluster config entities from the cache if true, otherwise from the DB directly.
+   * @return a map of type-to-configuration information.
+   */
+  Map<String, DesiredConfig> getDesiredConfigs(boolean cachedConfigEntities);
+
+  ClusterEntity getClusterEntity();
+
+  /**
    * Gets all versions of the desired configurations for the cluster.
    * @return a map of type-to-configuration information.
    */
@@ -406,7 +435,7 @@ public interface Cluster {
    * @param serviceName
    * @throws AmbariException
    */
-  void deleteService(String serviceName) throws AmbariException;
+  void deleteService(String serviceName, DeleteHostComponentStatusMetaData deleteMetaData) throws AmbariException;
 
   /**
    * Gets if the cluster can be deleted
@@ -551,18 +580,6 @@ public interface Cluster {
    * @return the map of session attributes for this cluster; never null
    */
   Map<String, Object> getSessionAttributes();
-
-  /**
-   * Makes the most recent configurations for the specified stack current.
-   * <p/>
-   * When completed, all other configurations for any other stack will remain,
-   * but will not be marked as selected.
-   *
-   * @param stackId
-   *          the stack to use when finding the latest configurations (not
-   *          {@code null}).
-   */
-  void applyLatestConfigurations(StackId stackId);
 
   /**
    * Makes the most recent configurations for the specified stack current. This

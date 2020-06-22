@@ -50,8 +50,6 @@ import org.apache.ambari.server.controller.AmbariManagementController;
 import org.apache.ambari.server.controller.KerberosHelper;
 import org.apache.ambari.server.controller.MaintenanceStateHelper;
 import org.apache.ambari.server.controller.RequestStatusResponse;
-import org.apache.ambari.server.controller.ServiceComponentHostRequest;
-import org.apache.ambari.server.controller.ServiceComponentHostResponse;
 import org.apache.ambari.server.controller.ServiceRequest;
 import org.apache.ambari.server.controller.ServiceResponse;
 import org.apache.ambari.server.controller.spi.Predicate;
@@ -61,6 +59,7 @@ import org.apache.ambari.server.controller.spi.ResourceProvider;
 import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.ambari.server.controller.utilities.PredicateBuilder;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
+import org.apache.ambari.server.controller.utilities.state.DefaultServiceCalculatedState;
 import org.apache.ambari.server.metadata.RoleCommandOrder;
 import org.apache.ambari.server.orm.dao.RepositoryVersionDAO;
 import org.apache.ambari.server.orm.entities.RepositoryVersionEntity;
@@ -78,10 +77,12 @@ import org.apache.ambari.server.state.ServiceFactory;
 import org.apache.ambari.server.state.ServiceInfo;
 import org.apache.ambari.server.state.StackId;
 import org.apache.ambari.server.state.State;
+import org.apache.ambari.server.topology.STOMPComponentsDeleteHandler;
 import org.easymock.Capture;
 import org.easymock.EasyMock;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -92,6 +93,14 @@ import com.google.common.collect.ImmutableMap;
  * ServiceResourceProvider tests.
  */
 public class ServiceResourceProviderTest {
+
+  @BeforeClass
+  public static void resetDefaultServiceCalculatedState() throws NoSuchFieldException, IllegalAccessException {
+    Field clustersProviderField = DefaultServiceCalculatedState.class.getDeclaredField("clustersProvider");
+    clustersProviderField.setAccessible(true);
+    clustersProviderField.set(null, null);
+  }
+
   @Before
   public void clearAuthentication() {
     SecurityContextHolder.getContext().setAuthentication(null);
@@ -214,8 +223,8 @@ public class ServiceResourceProviderTest {
     // set expectations
     expect(managementController.getClusters()).andReturn(clusters).anyTimes();
     expect(managementController.getAmbariMetaInfo()).andReturn(ambariMetaInfo).anyTimes();
-    expect(managementController.getHostComponents(EasyMock.<Set<ServiceComponentHostRequest>>anyObject())).
-        andReturn(Collections.<ServiceComponentHostResponse>emptySet()).anyTimes();
+    expect(managementController.getHostComponents(EasyMock.anyObject())).
+        andReturn(Collections.emptySet()).anyTimes();
 
     expect(clusters.getCluster("Cluster100")).andReturn(cluster).anyTimes();
 
@@ -332,8 +341,8 @@ public class ServiceResourceProviderTest {
     // set expectations
     expect(managementController.getClusters()).andReturn(clusters).anyTimes();
     expect(managementController.getAmbariMetaInfo()).andReturn(ambariMetaInfo).anyTimes();
-    expect(managementController.getHostComponents(EasyMock.<Set<ServiceComponentHostRequest>>anyObject())).
-        andReturn(Collections.<ServiceComponentHostResponse>emptySet()).anyTimes();
+    expect(managementController.getHostComponents(EasyMock.anyObject())).
+        andReturn(Collections.emptySet()).anyTimes();
 
     expect(clusters.getCluster("Cluster100")).andReturn(cluster).anyTimes();
 
@@ -400,8 +409,8 @@ public class ServiceResourceProviderTest {
     // set expectations
     expect(managementController.getClusters()).andReturn(clusters).anyTimes();
     expect(managementController.getAmbariMetaInfo()).andReturn(ambariMetaInfo).anyTimes();
-    expect(managementController.getHostComponents(EasyMock.<Set<ServiceComponentHostRequest>>anyObject())).
-        andReturn(Collections.<ServiceComponentHostResponse>emptySet()).anyTimes();
+    expect(managementController.getHostComponents(EasyMock.anyObject())).
+        andReturn(Collections.emptySet()).anyTimes();
 
     expect(clusters.getCluster("Cluster100")).andReturn(cluster).anyTimes();
 
@@ -467,8 +476,8 @@ public class ServiceResourceProviderTest {
     // set expectations
     expect(managementController.getClusters()).andReturn(clusters).anyTimes();
     expect(managementController.getAmbariMetaInfo()).andReturn(ambariMetaInfo).anyTimes();
-    expect(managementController.getHostComponents(EasyMock.<Set<ServiceComponentHostRequest>>anyObject())).
-        andReturn(Collections.<ServiceComponentHostResponse>emptySet()).anyTimes();
+    expect(managementController.getHostComponents(EasyMock.anyObject())).
+        andReturn(Collections.emptySet()).anyTimes();
 
     expect(clusters.getCluster("Cluster100")).andReturn(cluster).anyTimes();
 
@@ -536,8 +545,8 @@ public class ServiceResourceProviderTest {
     // set expectations
     expect(managementController.getClusters()).andReturn(clusters).anyTimes();
     expect(managementController.getAmbariMetaInfo()).andReturn(ambariMetaInfo).anyTimes();
-    expect(managementController.getHostComponents(EasyMock.<Set<ServiceComponentHostRequest>>anyObject())).
-        andReturn(Collections.<ServiceComponentHostResponse>emptySet()).anyTimes();
+    expect(managementController.getHostComponents(EasyMock.anyObject())).
+        andReturn(Collections.emptySet()).anyTimes();
 
     expect(clusters.getCluster("Cluster100")).andReturn(cluster).anyTimes();
 
@@ -629,7 +638,7 @@ public class ServiceResourceProviderTest {
     expect(cluster.getService("Service102")).andReturn(service0);
 
     expect(service0.getDesiredState()).andReturn(State.INSTALLED).anyTimes();
-    expect(service0.getServiceComponents()).andReturn(Collections.<String, ServiceComponent>emptyMap()).anyTimes();
+    expect(service0.getServiceComponents()).andReturn(Collections.emptyMap()).anyTimes();
 
     expect(stackId.getStackId()).andReturn("HDP-2.5").anyTimes();
     expect(stackId.getStackName()).andReturn("HDP").anyTimes();
@@ -650,7 +659,7 @@ public class ServiceResourceProviderTest {
 
     expect(managementController.addStages((RequestStageContainer) isNull(), capture(clusterCapture), capture(requestPropertiesCapture),
         capture(requestParametersCapture), capture(changedServicesCapture), capture(changedCompsCapture),
-        capture(changedScHostsCapture), capture(ignoredScHostsCapture), anyBoolean(), anyBoolean()
+        capture(changedScHostsCapture), capture(ignoredScHostsCapture), anyBoolean(), anyBoolean(), anyBoolean()
     )).andReturn(requestStages);
     requestStages.persist();
     expect(requestStages.getRequestStatusResponse()).andReturn(requestStatusResponse);
@@ -660,7 +669,7 @@ public class ServiceResourceProviderTest {
     expect(managementController.getRoleCommandOrder(cluster)).andReturn(rco).
     anyTimes();
     expect(rco.getTransitiveServices(eq(service0), eq(RoleCommand.START))).
-    andReturn(Collections.<Service>emptySet()).anyTimes();
+    andReturn(Collections.emptySet()).anyTimes();
 
     // replay
     replay(managementController, clusters, cluster, rco, maintenanceStateHelper,
@@ -731,10 +740,10 @@ public class ServiceResourceProviderTest {
     mapRequestProps.put("context", "Called from a test");
 
     // set expectations
-    expect(managementController1.getHostComponents(EasyMock.<Set<ServiceComponentHostRequest>>anyObject())).
-        andReturn(Collections.<ServiceComponentHostResponse>emptySet()).anyTimes();
-    expect(managementController2.getHostComponents(EasyMock.<Set<ServiceComponentHostRequest>>anyObject())).
-        andReturn(Collections.<ServiceComponentHostResponse>emptySet()).anyTimes();
+    expect(managementController1.getHostComponents(EasyMock.anyObject())).
+        andReturn(Collections.emptySet()).anyTimes();
+    expect(managementController2.getHostComponents(EasyMock.anyObject())).
+        andReturn(Collections.emptySet()).anyTimes();
 
     expect(clusters.getCluster("Cluster100")).andReturn(cluster).anyTimes();
 
@@ -758,7 +767,7 @@ public class ServiceResourceProviderTest {
 
     expect(service0.convertToResponse()).andReturn(serviceResponse0).anyTimes();
     expect(service0.getDesiredState()).andReturn(State.INSTALLED).anyTimes();
-    expect(service0.getServiceComponents()).andReturn(Collections.<String, ServiceComponent>emptyMap()).anyTimes();
+    expect(service0.getServiceComponents()).andReturn(Collections.emptyMap()).anyTimes();
 
     expect(serviceResponse0.getClusterName()).andReturn("Cluster100").anyTimes();
     expect(serviceResponse0.getServiceName()).andReturn("Service102").anyTimes();
@@ -773,12 +782,12 @@ public class ServiceResourceProviderTest {
 
     expect(managementController1.addStages((RequestStageContainer) isNull(), capture(clusterCapture), capture(requestPropertiesCapture),
         capture(requestParametersCapture), capture(changedServicesCapture), capture(changedCompsCapture),
-        capture(changedScHostsCapture), capture(ignoredScHostsCapture), anyBoolean(), anyBoolean()
+        capture(changedScHostsCapture), capture(ignoredScHostsCapture), anyBoolean(), anyBoolean(), anyBoolean()
     )).andReturn(requestStages1);
 
     expect(managementController2.addStages((RequestStageContainer) isNull(), capture(clusterCapture), capture(requestPropertiesCapture),
         capture(requestParametersCapture), capture(changedServicesCapture), capture(changedCompsCapture),
-        capture(changedScHostsCapture), capture(ignoredScHostsCapture), anyBoolean(), anyBoolean()
+        capture(changedScHostsCapture), capture(ignoredScHostsCapture), anyBoolean(), anyBoolean(), anyBoolean()
     )).andReturn(requestStages2);
 
     requestStages1.persist();
@@ -795,7 +804,7 @@ public class ServiceResourceProviderTest {
     expect(managementController2.getRoleCommandOrder(cluster)).andReturn(rco).
     anyTimes();
     expect(rco.getTransitiveServices(eq(service0), eq(RoleCommand.START))).
-    andReturn(Collections.<Service>emptySet()).anyTimes();
+    andReturn(Collections.emptySet()).anyTimes();
 
     // replay
     replay(managementController1, response1, managementController2, requestStages1, requestStages2,
@@ -870,9 +879,9 @@ public class ServiceResourceProviderTest {
     expect(cluster.getService(serviceName)).andReturn(service).anyTimes();
     expect(service.getDesiredState()).andReturn(State.INSTALLED).anyTimes();
     expect(service.getName()).andReturn(serviceName).anyTimes();
-    expect(service.getServiceComponents()).andReturn(new HashMap<String, ServiceComponent>());
+    expect(service.getServiceComponents()).andReturn(new HashMap<>());
     expect(service.getCluster()).andReturn(cluster);
-    cluster.deleteService(serviceName);
+    cluster.deleteService(eq(serviceName), anyObject(DeleteHostComponentStatusMetaData.class));
 
     // replay
     replay(managementController, clusters, cluster, service);
@@ -918,9 +927,9 @@ public class ServiceResourceProviderTest {
     expect(cluster.getService(serviceName)).andReturn(service).anyTimes();
     expect(service.getDesiredState()).andReturn(State.STARTED).anyTimes();
     expect(service.getName()).andReturn(serviceName).anyTimes();
-    expect(service.getServiceComponents()).andReturn(new HashMap<String, ServiceComponent>());
+    expect(service.getServiceComponents()).andReturn(new HashMap<>());
     expect(service.getCluster()).andReturn(cluster);
-    cluster.deleteService(serviceName);
+    cluster.deleteService(eq(serviceName), anyObject(DeleteHostComponentStatusMetaData.class));
 
     // replay
     replay(managementController, clusters, cluster, service);
@@ -1088,7 +1097,7 @@ public class ServiceResourceProviderTest {
     expect(sch3.canBeRemoved()).andReturn(sch3State.isRemovableState()).anyTimes();
 
     expect(service.getCluster()).andReturn(cluster);
-    cluster.deleteService(serviceName);
+    cluster.deleteService(eq(serviceName), anyObject(DeleteHostComponentStatusMetaData.class));
 
     // replay
     replay(managementController, clusters, cluster, service,
@@ -1369,7 +1378,7 @@ public class ServiceResourceProviderTest {
   }
 
   private static ServiceResourceProvider getServiceProvider(AmbariManagementController managementController,
-      boolean mockFindByStack, Capture<Long> pkCapture) throws  AmbariException {
+      boolean mockFindByStack, Capture<Long> pkCapture) throws AmbariException, NoSuchFieldException, IllegalAccessException {
     MaintenanceStateHelper maintenanceStateHelperMock = createNiceMock(MaintenanceStateHelper.class);
     RepositoryVersionDAO repositoryVersionDAO = createNiceMock(RepositoryVersionDAO.class);
     expect(maintenanceStateHelperMock.isOperationAllowed(anyObject(Resource.Type.class), anyObject(Service.class))).andReturn(true).anyTimes();
@@ -1396,7 +1405,8 @@ public class ServiceResourceProviderTest {
    * This factory method creates default MaintenanceStateHelper mock.
    * It's useful in most cases (when we don't care about Maintenance State)
    */
-  public static ServiceResourceProvider getServiceProvider(AmbariManagementController managementController) throws  AmbariException {
+  public static ServiceResourceProvider getServiceProvider(AmbariManagementController managementController)
+      throws AmbariException, NoSuchFieldException, IllegalAccessException {
     return getServiceProvider(managementController, false, null);
   }
 
@@ -1405,21 +1415,31 @@ public class ServiceResourceProviderTest {
    */
   public static ServiceResourceProvider getServiceProvider(
       AmbariManagementController managementController,
-      MaintenanceStateHelper maintenanceStateHelper, RepositoryVersionDAO repositoryVersionDAO) {
+      MaintenanceStateHelper maintenanceStateHelper, RepositoryVersionDAO repositoryVersionDAO)
+      throws NoSuchFieldException, IllegalAccessException {
     Resource.Type type = Resource.Type.Service;
-    return new ServiceResourceProvider(managementController, maintenanceStateHelper, repositoryVersionDAO);
+    ServiceResourceProvider serviceResourceProvider =
+        new ServiceResourceProvider(managementController, maintenanceStateHelper, repositoryVersionDAO);
+
+    Field STOMPComponentsDeleteHandlerField = ServiceResourceProvider.class.getDeclaredField("STOMPComponentsDeleteHandler");
+    STOMPComponentsDeleteHandlerField.setAccessible(true);
+    STOMPComponentsDeleteHandler STOMPComponentsDeleteHandler = createNiceMock(STOMPComponentsDeleteHandler.class);
+    STOMPComponentsDeleteHandlerField.set(serviceResourceProvider, STOMPComponentsDeleteHandler);
+    replay(STOMPComponentsDeleteHandler);
+    return serviceResourceProvider;
   }
 
   public static void createServices(AmbariManagementController controller,
       RepositoryVersionDAO repositoryVersionDAO, Set<ServiceRequest> requests)
-      throws AmbariException, AuthorizationException {
+      throws AmbariException, AuthorizationException, NoSuchFieldException, IllegalAccessException {
     MaintenanceStateHelper maintenanceStateHelperMock = createNiceMock(MaintenanceStateHelper.class);
     ServiceResourceProvider provider = getServiceProvider(controller, maintenanceStateHelperMock, repositoryVersionDAO);
     provider.createServices(requests);
   }
 
   public static Set<ServiceResponse> getServices(AmbariManagementController controller,
-                                                 Set<ServiceRequest> requests) throws AmbariException {
+                                                 Set<ServiceRequest> requests)
+      throws AmbariException, NoSuchFieldException, IllegalAccessException {
     ServiceResourceProvider provider = getServiceProvider(controller);
     return provider.getServices(requests);
   }
@@ -1428,7 +1448,7 @@ public class ServiceResourceProviderTest {
                                                      Set<ServiceRequest> requests,
                                                      Map<String, String> requestProperties, boolean runSmokeTest,
                                                      boolean reconfigureClients)
-      throws AmbariException, AuthorizationException {
+      throws AmbariException, AuthorizationException, NoSuchFieldException, IllegalAccessException {
     return updateServices(controller, requests, requestProperties, runSmokeTest, reconfigureClients, null);
   }
 
@@ -1441,7 +1461,7 @@ public class ServiceResourceProviderTest {
                                                      Map<String, String> requestProperties, boolean runSmokeTest,
                                                      boolean reconfigureClients,
                                                      MaintenanceStateHelper maintenanceStateHelper)
-      throws AmbariException, AuthorizationException {
+      throws AmbariException, AuthorizationException, NoSuchFieldException, IllegalAccessException {
     ServiceResourceProvider provider;
     if (maintenanceStateHelper != null) {
       provider = getServiceProvider(controller, maintenanceStateHelper, null);
@@ -1455,7 +1475,7 @@ public class ServiceResourceProviderTest {
   }
 
   public static RequestStatusResponse deleteServices(AmbariManagementController controller, Set<ServiceRequest> requests)
-      throws AmbariException, AuthorizationException {
+      throws AmbariException, AuthorizationException, NoSuchFieldException, IllegalAccessException {
     ServiceResourceProvider provider = getServiceProvider(controller);
     return provider.deleteServices(requests);
   }

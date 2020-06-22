@@ -21,20 +21,28 @@ import os
 import socket
 from unittest import TestCase
 from mock.mock import patch
-
+import unittest
 
 class TestHDP23StackAdvisor(TestCase):
 
   def setUp(self):
     import imp
     self.maxDiff = None
+    if 'util' in dir(unittest): unittest.util._MAX_LENGTH=2000
     self.testDirectory = os.path.dirname(os.path.abspath(__file__))
-    stackAdvisorPath = os.path.join(self.testDirectory, '../../../../../main/resources/stacks/stack_advisor.py')
-    hdp206StackAdvisorPath = os.path.join(self.testDirectory, '../../../../../main/resources/stacks/HDP/2.0.6/services/stack_advisor.py')
-    hdp21StackAdvisorPath = os.path.join(self.testDirectory, '../../../../../main/resources/stacks/HDP/2.1/services/stack_advisor.py')
-    hdp22StackAdvisorPath = os.path.join(self.testDirectory, '../../../../../main/resources/stacks/HDP/2.2/services/stack_advisor.py')
-    hdp23StackAdvisorPath = os.path.join(self.testDirectory, '../../../../../main/resources/stacks/HDP/2.3/services/stack_advisor.py')
+
+    stacksPath = os.path.join(self.testDirectory, '../../../../../main/resources/stacks')
+    stackAdvisorPath = os.path.join(stacksPath, 'stack_advisor.py')
+    ambariConfigurationPath = os.path.abspath(os.path.join(stacksPath, 'ambari_configuration.py'))
+    hdp206StackAdvisorPath = os.path.join(stacksPath, 'HDP/2.0.6/services/stack_advisor.py')
+    hdp21StackAdvisorPath = os.path.join(stacksPath, 'HDP/2.1/services/stack_advisor.py')
+    hdp22StackAdvisorPath = os.path.join(stacksPath, 'HDP/2.2/services/stack_advisor.py')
+    hdp23StackAdvisorPath = os.path.join(stacksPath, 'HDP/2.3/services/stack_advisor.py')
+
     hdp23StackAdvisorClassName = 'HDP23StackAdvisor'
+
+    with open(ambariConfigurationPath, 'rb') as fp:
+      imp.load_module('ambari_configuration', fp, ambariConfigurationPath, ('.py', 'rb', imp.PY_SOURCE))
     with open(stackAdvisorPath, 'rb') as fp:
       imp.load_module('stack_advisor', fp, stackAdvisorPath, ('.py', 'rb', imp.PY_SOURCE))
     with open(hdp206StackAdvisorPath, 'rb') as fp:
@@ -105,7 +113,7 @@ class TestHDP23StackAdvisor(TestCase):
     self.assertEquals(len(hiveMetaStore), 0)
 
     validations = self.stackAdvisor.getComponentLayoutValidations(services, hosts)
-    expected = {'component-name': 'SPARK_THRIFTSERVER', 'message': 'SPARK_THRIFTSERVER requires HIVE_METASTORE to be selected/deployed.', 'type': 'host-component', 'level': 'ERROR'}
+    expected = {'component-name': 'SPARK_THRIFTSERVER', 'message': 'Spark Thrift Server requires HIVE_METASTORE to be present in the cluster.', 'type': 'host-component', 'level': 'ERROR'}
     self.assertEquals(validations[0], expected)
 
 
@@ -323,11 +331,6 @@ class TestHDP23StackAdvisor(TestCase):
             "security_enabled" : "true"
           },
           "property_attributes": {}
-        },
-        "kafka-env": {
-          "properties": {
-            "kafka_user" : "custom_kafka"
-          }
         },
         "kafka-broker": {
           "properties": {
@@ -1695,6 +1698,11 @@ class TestHDP23StackAdvisor(TestCase):
         'hadoop.kms.proxyuser.root.hosts': {'delete': 'true'},
         'hadoop.kms.proxyuser.root.users': {'delete': 'true'}
         }
+      },
+      'kms-env': {
+        'properties': {
+          'ranger_kms_privelege_user_jdbc_url': 'jdbc:oracle:thin:@c6401.ambari.apache.org:1521:XE'
+        }
       }
     }
 
@@ -1737,6 +1745,11 @@ class TestHDP23StackAdvisor(TestCase):
         'hadoop.kms.proxyuser.HTTP.users': '*',
         'hadoop.kms.proxyuser.ambari-cl1.hosts': '*',
         'hadoop.kms.proxyuser.ambari-cl1.users': '*'
+        }
+      },
+      'kms-env': {
+        'properties': {
+          'ranger_kms_privelege_user_jdbc_url': 'jdbc:oracle:thin:@c6401.ambari.apache.org:1521:XE'
         }
       }
     }
@@ -1985,114 +1998,6 @@ class TestHDP23StackAdvisor(TestCase):
 
     services['ambari-server-properties'] = {'java.home': '/usr/jdk64/jdk1.7.3_23'}
     self.stackAdvisor.recommendSqoopConfigurations(configurations, clusterData, services, hosts)
-    self.assertEquals(configurations, expected)
-
-  def test_recommendLogsearchConfiguration(self):
-    configurations = {
-      "logsearch-properties": {
-        "properties": {
-          "logsearch.collection.service.logs.numshards" : "5",
-          "logsearch.collection.service.logs.replication.factor": "0",
-          "logsearch.collection.audit.logs.numshards" : "5",
-          "logsearch.collection.audit.logs.replication.factor": "0"
-        }
-      }
-    }
-
-    clusterData = {
-      "cpu": 4,
-      "mapMemory": 3000,
-      "amMemory": 2000,
-      "reduceMemory": 2056,
-      "containers": 3,
-      "ramPerContainer": 256
-    }
-    expected = {
-      'logfeeder-env': {'property_attributes': {'logfeeder_external_solr_kerberos_keytab': {'visible': 'false'},
-                                                'logfeeder_external_solr_kerberos_principal': {'visible': 'false'}}},
-      'logsearch-common-env': {'properties': {'logsearch_external_solr_kerberos_enabled': 'false'},
-                               'property_attributes': {'logsearch_external_solr_kerberos_enabled': {'visible': 'false'}}},
-      'logsearch-env': {'property_attributes': {'logsearch_external_solr_kerberos_keytab': {'visible': 'false'},
-                                                'logsearch_external_solr_kerberos_principal': {'visible': 'false'}}},
-      'logsearch-properties': {
-        'properties': {
-          "logsearch.collection.service.logs.numshards" : "2",
-          "logsearch.collection.service.logs.replication.factor": "1",
-          "logsearch.collection.audit.logs.numshards" : "2",
-          "logsearch.collection.audit.logs.replication.factor": "1"
-        },
-        "property_attributes": {
-          "logsearch.collection.service.logs.numshards": {
-            "minimum": "1",
-            "maximum": "5"
-          },
-          "logsearch.collection.audit.logs.numshards": {
-            "minimum": "1",
-            "maximum": "5"
-          }
-        }
-      }
-    }
-    services = {
-      "services": [
-        {
-          "href": "/api/v1/stacks/HDP/versions/2.3/services/AMBARI_INFRA",
-          "StackServices": {
-            "service_name": "AMBARI_INFRA",
-            "service_version": "2.6.0.2.2",
-            "stack_name": "HDP",
-            "stack_version": "2.3"
-          },
-          "components": [
-            {
-              "StackServiceComponents": {
-                "advertise_version": "false",
-                "cardinality": "1",
-                "component_category": "MASTER",
-                "component_name": "INFRA_SOLR",
-                "display_name": "Infra Solr Instance",
-                "is_client": "false",
-                "is_master": "true",
-                "hostnames": []
-              },
-              "dependencies": []
-            }
-          ]
-        },
-      ],
-      "configurations": {
-        "logsearch-properties": {
-          "properties": {
-            "logsearch.collection.numshards" : "5",
-            "logsearch.collection.replication.factor": "0"
-          }
-        }
-      },
-      "changed-configurations": [ ]
-
-    }
-
-    hosts = {
-      "items" : [
-        {
-          "href" : "/api/v1/hosts/c6401.ambari.apache.org",
-          "Hosts" : {
-            "cpu_count" : 1,
-            "host_name" : "c6401.ambari.apache.org",
-            "os_arch" : "x86_64",
-            "os_type" : "centos6",
-            "ph_cpu_count" : 1,
-            "public_host_name" : "c6401.ambari.apache.org",
-            "rack_info" : "/default-rack",
-            "total_mem" : 1922680
-          }
-        }
-      ]
-    }
-    def return_c6401_hostname(services, service_name, component_name):
-      return ["c6401.ambari.apache.org"]
-    self.stackAdvisor.getComponentHostNames = return_c6401_hostname
-    self.stackAdvisor.recommendLogsearchConfigurations(configurations, clusterData, services, hosts)
     self.assertEquals(configurations, expected)
 
   def test_validateRangerConfigurationsEnv(self):

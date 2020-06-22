@@ -20,25 +20,33 @@ package org.apache.ambari.server.serveraction.kerberos;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 
-import com.google.inject.Inject;
 import org.apache.ambari.server.AmbariException;
-import org.apache.ambari.server.actionmanager.HostRoleStatus;
 import org.apache.ambari.server.agent.CommandReport;
-import org.apache.ambari.server.controller.KerberosHelper;
+import org.apache.ambari.server.controller.RootService;
 import org.apache.ambari.server.controller.utilities.KerberosChecker;
 import org.apache.ambari.server.orm.dao.HostDAO;
-import org.apache.ambari.server.orm.dao.KerberosPrincipalHostDAO;
+import org.apache.ambari.server.orm.dao.KerberosKeytabDAO;
+import org.apache.ambari.server.orm.dao.KerberosKeytabPrincipalDAO;
+import org.apache.ambari.server.orm.dao.KerberosPrincipalDAO;
 import org.apache.ambari.server.orm.entities.HostEntity;
+import org.apache.ambari.server.orm.entities.KerberosKeytabEntity;
+import org.apache.ambari.server.orm.entities.KerberosKeytabPrincipalEntity;
+import org.apache.ambari.server.orm.entities.KerberosPrincipalEntity;
 import org.apache.ambari.server.serveraction.ActionLog;
+import org.apache.ambari.server.serveraction.kerberos.stageutils.ResolvedKerberosKeytab;
+import org.apache.ambari.server.serveraction.kerberos.stageutils.ResolvedKerberosPrincipal;
 import org.apache.ambari.server.utils.ShellCommandUtil;
 import org.apache.ambari.server.utils.StageUtils;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.inject.Inject;
 
 /**
  * ConfigureAmbariIdentitiesServerAction is a ServerAction implementation that creates keytab files as
@@ -47,7 +55,7 @@ import org.slf4j.LoggerFactory;
  * This class mainly relies on the KerberosServerAction to iterate through metadata identifying
  * the Kerberos keytab files that need to be created. For each identity in the metadata, this
  * implementation's
- * {@link KerberosServerAction#processIdentity(Map, String, KerberosOperationHandler, Map, Map)}
+ * {@link KerberosServerAction#processIdentity(ResolvedKerberosPrincipal, KerberosOperationHandler, Map, boolean, Map)}
  * is invoked attempting the creation of the relevant keytab file.
  */
 public class ConfigureAmbariIdentitiesServerAction extends KerberosServerAction {
@@ -59,7 +67,13 @@ public class ConfigureAmbariIdentitiesServerAction extends KerberosServerAction 
   private final static Logger LOG = LoggerFactory.getLogger(ConfigureAmbariIdentitiesServerAction.class);
 
   @Inject
-  private KerberosPrincipalHostDAO kerberosPrincipalHostDAO;
+  private KerberosKeytabDAO kerberosKeytabDAO;
+
+  @Inject
+  private KerberosKeytabPrincipalDAO kerberosKeytabPrincipalDAO;
+
+  @Inject
+  private KerberosPrincipalDAO kerberosPrincipalDAO;
 
   @Inject
   private HostDAO hostDAO;
@@ -90,56 +104,49 @@ public class ConfigureAmbariIdentitiesServerAction extends KerberosServerAction 
    * It is expected that the {@link CreatePrincipalsServerAction}
    * (or similar) and {@link CreateKeytabFilesServerAction} has executed before this action.
    *
-   * @param identityRecord           a Map containing the data for the current identity record
-   * @param evaluatedPrincipal       a String indicating the relevant principal
+   * @param resolvedPrincipal        a ResolvedKerberosPrincipal object to process
    * @param operationHandler         a KerberosOperationHandler used to perform Kerberos-related
    *                                 tasks for specific Kerberos implementations
    *                                 (MIT, Active Directory, etc...)
    * @param kerberosConfiguration    a Map of configuration properties from kerberos-env
+   * @param includedInFilter         a Boolean value indicating whather the principal is included in
+   *                                 the current filter or not
    * @param requestSharedDataContext a Map to be used a shared data among all ServerActions related
    *                                 to a given request  @return a CommandReport, indicating an error
    *                                 condition; or null, indicating a success condition
    * @throws AmbariException if an error occurs while processing the identity record
    */
   @Override
-  protected CommandReport processIdentity(Map<String, String> identityRecord, String evaluatedPrincipal,
+  protected CommandReport processIdentity(ResolvedKerberosPrincipal resolvedPrincipal,
                                           KerberosOperationHandler operationHandler,
                                           Map<String, String> kerberosConfiguration,
+                                          boolean includedInFilter,
                                           Map<String, Object> requestSharedDataContext)
       throws AmbariException {
     CommandReport commandReport = null;
 
-    if (identityRecord != null) {
-      String message;
-      String dataDirectory = getDataDirectoryPath();
-
-      if (dataDirectory == null) {
-        message = "The data directory has not been set. Generated keytab files can not be stored.";
-        LOG.error(message);
-        commandReport = createCommandReport(1, HostRoleStatus.FAILED, "{}", actionLog.getStdOut(), actionLog.getStdErr());
-      } else {
-
-        String hostName = identityRecord.get(KerberosIdentityDataFileReader.HOSTNAME);
-        if (hostName != null && hostName.equalsIgnoreCase(KerberosHelper.AMBARI_SERVER_HOST_NAME)) {
-          String destKeytabFilePath = identityRecord.get(KerberosIdentityDataFileReader.KEYTAB_FILE_PATH);
+    if (includedInFilter && resolvedPrincipal != null && StageUtils.getHostName().equals(resolvedPrincipal.getHostName())) {
+      final String hostName = resolvedPrincipal.getHostName();
+      final String dataDirectory = getDataDirectoryPath();
+      for (Map.Entry<String, String> serviceMappingEntry : resolvedPrincipal.getServiceMapping().entries()) {
+        // TODO check if changes needed for multiple principals in one keytab
+        if (RootService.AMBARI.name().equals(serviceMappingEntry.getKey())) {
+          ResolvedKerberosKeytab keytab = resolvedPrincipal.getResolvedKerberosKeytab();
+          String destKeytabFilePath = resolvedPrincipal.getResolvedKerberosKeytab().getFile();
           File hostDirectory = new File(dataDirectory, hostName);
-          File srcKeytabFile = new File(hostDirectory, DigestUtils.sha1Hex(destKeytabFilePath));
+          File srcKeytabFile = new File(hostDirectory, DigestUtils.sha256Hex(destKeytabFilePath));
 
           if (srcKeytabFile.exists()) {
-            String ownerAccess = identityRecord.get(KerberosIdentityDataFileReader.KEYTAB_FILE_OWNER_ACCESS);
-            boolean ownerWritable = "w".equalsIgnoreCase(ownerAccess) || "rw".equalsIgnoreCase(ownerAccess);
-            boolean ownerReadable = "r".equalsIgnoreCase(ownerAccess) || "rw".equalsIgnoreCase(ownerAccess);
-            String groupAccess = identityRecord.get(KerberosIdentityDataFileReader.KEYTAB_FILE_OWNER_ACCESS);
-            boolean groupWritable = "w".equalsIgnoreCase(groupAccess) || "rw".equalsIgnoreCase(groupAccess);
-            boolean groupReadable = "r".equalsIgnoreCase(groupAccess) || "rw".equalsIgnoreCase(groupAccess);
+            String ownerAccess = keytab.getOwnerAccess();
+            String groupAccess = keytab.getGroupAccess();
 
-            installAmbariServerIdentity(evaluatedPrincipal, srcKeytabFile.getAbsolutePath(), destKeytabFilePath,
-                identityRecord.get(KerberosIdentityDataFileReader.KEYTAB_FILE_OWNER_NAME), ownerReadable, ownerWritable,
-                identityRecord.get(KerberosIdentityDataFileReader.KEYTAB_FILE_GROUP_NAME), groupReadable, groupWritable, actionLog);
+            installAmbariServerIdentity(resolvedPrincipal, srcKeytabFile.getAbsolutePath(), destKeytabFilePath,
+              keytab.getOwnerName(), ownerAccess,
+              keytab.getGroupName(), groupAccess, actionLog);
 
-            if ("AMBARI_SERVER_SELF".equals(identityRecord.get(KerberosIdentityDataFileReader.COMPONENT))) {
+            if (serviceMappingEntry.getValue().contains("AMBARI_SERVER_SELF")) {
               // Create/update the JAASFile...
-              configureJAAS(evaluatedPrincipal, destKeytabFilePath, actionLog);
+              configureJAAS(resolvedPrincipal.getPrincipal(), destKeytabFilePath, actionLog);
             }
           }
         }
@@ -157,46 +164,67 @@ public class ConfigureAmbariIdentitiesServerAction extends KerberosServerAction 
    * @param srcKeytabFilePath  the source location of the ambari server keytab file
    * @param destKeytabFilePath the destination location of the ambari server keytab file
    * @param ownerName          the username for the owner of the generated keytab file
-   * @param ownerReadable      true if the owner should be able to read this file; otherwise false
-   * @param ownerWritable      true if the owner should be able to write to this file; otherwise false
+   * @param ownerAccess        the user file access, "", "r" or "rw"
    * @param groupName          the name of the group for the generated keytab file
-   * @param groupReadable      true if the group should be able to read this file; otherwise false
-   * @param groupWritable      true if the group should be able to write to this file; otherwise false
+   * @param groupAccess        the group file access, "", "r" or "rw"
    * @param actionLog          the logger
    * @return true if success; false otherwise
    * @throws AmbariException
    */
-  public boolean installAmbariServerIdentity(String principal,
+  public boolean installAmbariServerIdentity(ResolvedKerberosPrincipal principal,
                                              String srcKeytabFilePath,
                                              String destKeytabFilePath,
-                                             String ownerName, boolean ownerReadable, boolean ownerWritable,
-                                             String groupName, boolean groupReadable, boolean groupWritable,
+                                             String ownerName, String ownerAccess,
+                                             String groupName, String groupAccess,
                                              ActionLog actionLog) throws AmbariException {
 
     try {
       // Copy the keytab file into place (creating the parent directory, if necessary...
+      boolean ownerWritable = "w".equalsIgnoreCase(ownerAccess) || "rw".equalsIgnoreCase(ownerAccess);
+      boolean ownerReadable = "r".equalsIgnoreCase(ownerAccess) || "rw".equalsIgnoreCase(ownerAccess);
+      boolean groupWritable = "w".equalsIgnoreCase(groupAccess) || "rw".equalsIgnoreCase(groupAccess);
+      boolean groupReadable = "r".equalsIgnoreCase(groupAccess) || "rw".equalsIgnoreCase(groupAccess);
+
       copyFile(srcKeytabFilePath, destKeytabFilePath);
       setFileACL(destKeytabFilePath,
           ownerName, ownerReadable, ownerWritable,
           groupName, groupReadable, groupWritable);
 
-      String ambariServerHostName = StageUtils.getHostName();
-      HostEntity ambariServerHostEntity = hostDAO.findByName(ambariServerHostName);
-      Long ambariServerHostID = (ambariServerHostEntity == null)
-          ? null
-          : ambariServerHostEntity.getHostId();
+      Long ambariServerHostID = ambariServerHostID();
+      HostEntity hostEntity = null;
+      if (ambariServerHostID != null) {
+        hostEntity = hostDAO.findById(ambariServerHostID);
+      }
 
-      if (ambariServerHostID == null) {
-        String message = String.format("Failed to add the kerberos_principal_host record for %s on " +
-                "the Ambari server host since the host id for Ambari server host, %s, was not found." +
-                "  This is not an error if an Ambari agent is not installed on the Ambari server host.",
-            principal, ambariServerHostName);
-        LOG.warn(message);
-        if (actionLog != null) {
-          actionLog.writeStdErr(message);
-        }
-      } else if (!kerberosPrincipalHostDAO.exists(principal, ambariServerHostID)) {
-        kerberosPrincipalHostDAO.create(principal, ambariServerHostID);
+      KerberosKeytabEntity kke = kerberosKeytabDAO.find(destKeytabFilePath);
+      if (kke == null) {
+        kke = new KerberosKeytabEntity(destKeytabFilePath);
+        kke.setOwnerName(ownerName);
+        kke.setOwnerAccess(ownerAccess);
+        kke.setGroupName(groupName);
+        kke.setGroupAccess(groupAccess);
+        kerberosKeytabDAO.create(kke);
+      }
+
+      KerberosPrincipalEntity kpe = kerberosPrincipalDAO.find(principal.getPrincipal());
+      if(kpe == null) {
+        kpe = new KerberosPrincipalEntity(principal.getPrincipal(), principal.isService(), principal.getCacheFile());
+        kerberosPrincipalDAO.create(kpe);
+      }
+
+      for(Map.Entry<String, String> mapping : principal.getServiceMapping().entries()) {
+        String serviceName = mapping.getKey();
+        String componentName = mapping.getValue();
+        KerberosKeytabPrincipalEntity entity = kerberosKeytabPrincipalDAO.findOrCreate(kke, hostEntity, kpe);
+        entity.setDistributed(true);
+        entity.putServiceMapping(serviceName, componentName);
+        kerberosKeytabPrincipalDAO.merge(entity);
+
+        kke.addKerberosKeytabPrincipal(entity);
+        kerberosKeytabDAO.merge(kke);
+
+        kpe.addKerberosKeytabPrincipal(entity);
+        kerberosPrincipalDAO.merge(kpe);
       }
 
       if (actionLog != null) {
@@ -222,14 +250,14 @@ public class ConfigureAmbariIdentitiesServerAction extends KerberosServerAction 
     if (jaasConfPath != null) {
       File jaasConfigFile = new File(jaasConfPath);
       try {
-        String jaasConfig = FileUtils.readFileToString(jaasConfigFile);
+        String jaasConfig = FileUtils.readFileToString(jaasConfigFile, Charset.defaultCharset());
         File oldJaasConfigFile = new File(jaasConfPath + ".bak");
-        FileUtils.writeStringToFile(oldJaasConfigFile, jaasConfig);
+        FileUtils.writeStringToFile(oldJaasConfigFile, jaasConfig, Charset.defaultCharset());
         jaasConfig = jaasConfig.replaceFirst(KEYTAB_PATTERN, "keyTab=\"" + keytabFilePath + "\"");
         jaasConfig = jaasConfig.replaceFirst(PRINCIPAL_PATTERN, "principal=\"" + principal + "\"");
-        FileUtils.writeStringToFile(jaasConfigFile, jaasConfig);
-        String message = String.format("JAAS config file %s modified successfully for principal %s.", jaasConfigFile
-            .getName(), principal);
+        FileUtils.writeStringToFile(jaasConfigFile, jaasConfig, Charset.defaultCharset());
+        String message = String.format("JAAS config file %s modified successfully for principal %s.",
+            jaasConfigFile.getName(), principal);
         if (actionLog != null) {
           actionLog.writeStdOut(message);
         }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,13 +18,13 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.ivory.IvoryService;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.spi.ResourceProvider;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
-
-import java.util.Map;
-import java.util.Set;
 
 /**
  * Extension of the default provider module that registers the mirroring resources with a test Ivory service.
@@ -40,11 +40,11 @@ public class TestIvoryProviderModule extends DefaultProviderModule{
 
     switch (type.getInternalType()) {
       case DRFeed:
-        return new FeedResourceProvider(service, propertyIds, keyPropertyIds);
+        return new FeedResourceProvider(service);
       case DRTargetCluster:
-        return new TargetClusterResourceProvider(service, propertyIds, keyPropertyIds);
+        return new TargetClusterResourceProvider(service);
       case DRInstance:
-        return new InstanceResourceProvider(service, propertyIds, keyPropertyIds);
+        return new InstanceResourceProvider(service);
     }
     return super.createResourceProvider(type);
   }

@@ -163,6 +163,36 @@
         }
       },
       {
+        "name": "ambari_agent_ulimit",
+        "label": "Ulimit for open files",
+        "description": "This host-level alert is triggered if value of ulimit for open files (-n) goes above specific thresholds. The default threshold values are 200000 for WARNING and 800000 for CRITICAL.",
+        "interval": 1,
+        "scope": "HOST",
+        "enabled": true,
+        "source": {
+          "type": "SCRIPT",
+          "path": "alert_ulimit.py",
+          "parameters": [
+            {
+              "name": "ulimit.warning.threshold",
+              "display_name": "Warning",
+              "value": 200000,
+              "type": "NUMERIC",
+              "description": "The threshold of ulimit for open files (-n) for WARNING alert.",
+              "threshold": "WARNING"
+            },
+            {
+              "name": "ulimit.critical.threshold",
+              "display_name": "Critical",
+              "value": 800000,
+              "type": "NUMERIC",
+              "description": "The threshold of ulimit for open files (-n) for CRITICAL alert.",
+              "threshold": "CRITICAL"
+            }
+          ]
+        }
+      },
+      {
         "name": "ambari_agent_version_select",
         "label": "Ambari Agent Distro/Conf Select Versions",
         "description": "This host-level alert is triggered if the distro selector such as hdp-select cannot calculate versions available on this host. This may indicate that /usr/$stack/ directory has links/dirs that do not belong inside of it.",
@@ -174,6 +204,7 @@
           "path": "alert_version_select.py"
         }
       }
+
     ]
   }
 }

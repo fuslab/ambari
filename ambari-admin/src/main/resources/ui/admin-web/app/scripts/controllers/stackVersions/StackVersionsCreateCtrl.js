@@ -29,11 +29,11 @@ angular.module('ambariAdminConsole')
   $scope.stackIds = [];
   $scope.allVersions = [];
   $scope.networkLost = false;
+  $scope.stackRepoUpdateLinkExists = true;
   $scope.skipValidation = false;
   $scope.useRedhatSatellite = false;
 
   $scope.clusterName = $routeParams.clusterName;
-  $scope.subversionPattern = /^\d+\.\d+(-\d+)?$/;
   $scope.upgradeStack = {
     stack_name: '',
     stack_version: '',
@@ -43,7 +43,7 @@ angular.module('ambariAdminConsole')
   $scope.isGPLAccepted = false;
 
   $scope.isGPLRepo = function (repository) {
-    return repository.Repositories.tags.indexOf('GPL') >= 0;
+    return  repository.Repositories.tags && repository.Repositories.tags.indexOf('GPL') >= 0;
   };
 
   $scope.showRepo = function (repository) {
@@ -215,6 +215,7 @@ angular.module('ambariAdminConsole')
             stackOs.selected = false;
             stackOs.repositories.forEach(function(repo) {
               repo.Repositories.initial_base_url = repo.Repositories.default_base_url;
+              repo.Repositories.initial_repo_id = repo.Repositories.repo_id;
             });
             $scope.osList.push(stackOs);
           }
@@ -274,7 +275,7 @@ angular.module('ambariAdminConsole')
       $scope.osList.forEach(function(os) {
         if (os.repositories && os.selected) {
           os.repositories.forEach(function(repo) {
-            if (repo.invalidBaseUrl) {
+            if (repo.invalidBaseUrl && $scope.showRepo(repo)) {
               validBaseUrlsExist = false;
             }
           })
@@ -292,7 +293,7 @@ angular.module('ambariAdminConsole')
         enabled = true
       }
     });
-    return !(enabled && $scope.validBaseUrlsExist());
+    return !($scope.useRedhatSatellite || (enabled && $scope.validBaseUrlsExist()));
   };
 
   $scope.defaulfOSRepos = {};
@@ -346,12 +347,12 @@ angular.module('ambariAdminConsole')
                 $t('versions.register.error.body'),
                 null,
                 null,
-                true
+                {hideCancelButton: true}
               )
             });
           }
         })
-        .catch(function (data) {
+        .catch(function (resp) {
           Alert.error($t('versions.alerts.readVersionInfoError'), data.message);
         });
       } else {
@@ -399,15 +400,28 @@ angular.module('ambariAdminConsole')
         }
       });
     }
+  };
+
+  $scope.useRedHatCheckbox = function() {
     if ($scope.useRedhatSatellite) {
       ConfirmationModal.show(
-          $t('common.important'),
-          {
-            "url": 'views/modals/BodyForUseRedhatSatellite.html'
-          }
+        $t('versions.useRedhatSatellite.title'),
+        {
+          "url": 'views/modals/BodyForUseRedhatSatellite.html'
+        }
       ).catch(function () {
         $scope.useRedhatSatellite = !$scope.useRedhatSatellite;
       });
+    } else {
+      if ($scope.osList) {
+        $scope.osList.forEach(function(os) {
+          if (os.repositories) {
+            os.repositories.forEach(function(repo) {
+              repo.isEditing = false;
+            })
+          }
+        });
+      }
     }
   };
 
@@ -419,7 +433,7 @@ angular.module('ambariAdminConsole')
       },
       $t('common.controls.ok'),
       $t('common.controls.cancel'),
-      true
+      {hideCancelButton: true}
     )
   };
 
@@ -566,6 +580,23 @@ angular.module('ambariAdminConsole')
     })[0];
   };
 
+  /**
+   * Return true if at least one stacks have the repo URL link in the repoinfo.xml
+   * @return boolean
+   * */
+  $scope.setStackRepoUpdateLinkExists = function (versions) {
+    var stackRepoUpdateLinkExists = versions.find(function(_version){
+      return _version.stackRepoUpdateLinkExists;
+    });
+
+    //Found at least one version with the stack repo update link
+    if (stackRepoUpdateLinkExists){
+      $scope.stackRepoUpdateLinkExists = true;
+    } else {
+      $scope.stackRepoUpdateLinkExists = false;
+    }
+  };
+
   $scope.setNetworkIssues = function (versions) {
    $scope.networkLost = !versions.find(function(_version){
      return !_version.stackDefault;
@@ -599,6 +630,7 @@ angular.module('ambariAdminConsole')
         $scope.selectedPublicRepoVersion = $scope.activeStackVersion;
         $scope.setVersionSelected($scope.activeStackVersion);
         $scope.setNetworkIssues(versions);
+        $scope.setStackRepoUpdateLinkExists(versions);
         $scope.validateRepoUrl();
         $scope.availableStackRepoList = versions.length == 1 ? [] : versions;
       }

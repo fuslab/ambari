@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,9 +17,14 @@
  */
 package org.apache.ambari.server.state.alert;
 
-import com.google.gson.annotations.SerializedName;
-
 import java.util.List;
+import java.util.Objects;
+
+import org.apache.ambari.server.state.UriInfo;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.gson.annotations.SerializedName;
 
 /**
  * Alert when the source type is defined as {@link org.apache.ambari.server.state.alert.SourceType#METRIC}
@@ -27,10 +32,11 @@ import java.util.List;
  * Equality checking for instances of this class should be executed on every
  * member to ensure that reconciling stack differences is correct.
  */
+@JsonInclude(JsonInclude.Include.NON_EMPTY)
 public class AmsSource extends Source {
 
   @SerializedName("uri")
-  private AlertUri uri = null;
+  private UriInfo uri = null;
 
   @SerializedName("ams")
   private AmsInfo amsInfo = null;
@@ -38,6 +44,7 @@ public class AmsSource extends Source {
   /**
    * @return the ams info, if this metric is ams-based
    */
+  @JsonProperty("ams")
   public AmsInfo getAmsInfo() {
     return amsInfo;
   }
@@ -45,26 +52,16 @@ public class AmsSource extends Source {
   /**
    * @return the uri info, which may include port information
    */
-  public AlertUri getUri() {
+  @JsonProperty("uri")
+  public UriInfo getUri() {
     return uri;
   }
 
-  /**
-   *
-   */
   @Override
   public int hashCode() {
-    final int prime = 31;
-    int result = super.hashCode();
-    result = prime * result + ((uri == null) ? 0 : uri.hashCode());
-    result = prime * result + ((amsInfo == null) ? 0 : amsInfo.hashCode());
-
-    return result;
+    return Objects.hash(super.hashCode(), uri, amsInfo);
   }
 
-  /**
-   *
-   */
   @Override
   public boolean equals(Object obj) {
     if (this == obj) {
@@ -80,29 +77,14 @@ public class AmsSource extends Source {
     }
 
     AmsSource other = (AmsSource) obj;
-
-    if (uri == null) {
-      if (other.uri != null) {
-        return false;
-      }
-    } else if (!uri.equals(other.uri)) {
-      return false;
-    }
-
-    if (amsInfo == null) {
-      if (other.amsInfo != null) {
-        return false;
-      }
-    } else if (!amsInfo.equals(other.amsInfo)) {
-      return false;
-    }
-
-    return true;
+    return Objects.equals(uri, other.uri) &&
+      Objects.equals(amsInfo, other.amsInfo);
   }
 
   /**
    * Represents the {@code ams} element in a Metric alert.
    */
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public static class AmsInfo {
 
     @SerializedName("metric_list")
@@ -120,6 +102,7 @@ public class AmsSource extends Source {
     @SerializedName("minimum_value")
     private int minimumValue;
 
+    @JsonProperty("app_id")
     public String getAppId() {
       return appId;
     }
@@ -132,6 +115,7 @@ public class AmsSource extends Source {
       return compute;
     }
 
+    @JsonProperty("metric_list")
     public List<String> getMetricList() {
       return metricList;
     }
@@ -140,6 +124,7 @@ public class AmsSource extends Source {
       return value;
     }
 
+    @JsonProperty("minimum_value")
     public int getMinimumValue() {
       return minimumValue;
     }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -54,7 +54,6 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.metrics2.sink.timeline.AbstractTimelineMetricsSink;
 import org.apache.hadoop.metrics2.sink.timeline.TimelineMetric;
 import org.apache.hadoop.metrics2.sink.timeline.TimelineMetrics;
-
 import org.apache.hadoop.metrics2.sink.timeline.cache.TimelineMetricsCache;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -128,20 +127,18 @@ public class AmbariMetricSinkImpl extends AbstractTimelineMetricsSink implements
         }
       }
 
-      Set<String> propertyIds = new HashSet<String>();
-      propertyIds.add(ServiceConfigVersionResourceProvider.SERVICE_CONFIG_VERSION_CONFIGURATIONS_PROPERTY_ID);
+      Set<String> propertyIds = new HashSet<>();
+      propertyIds.add(ServiceConfigVersionResourceProvider.CONFIGURATIONS_PROPERTY_ID);
 
       Predicate predicate = new PredicateBuilder().property(
-        ServiceConfigVersionResourceProvider.SERVICE_CONFIG_VERSION_CLUSTER_NAME_PROPERTY_ID).equals(clusterName).and().property(
-        ServiceConfigVersionResourceProvider.SERVICE_CONFIG_VERSION_SERVICE_NAME_PROPERTY_ID).equals(ambariMetricsServiceName).and().property(
-        ServiceConfigVersionResourceProvider.SERVICE_CONFIG_VERSION_IS_CURRENT_PROPERTY_ID).equals("true").toPredicate();
+        ServiceConfigVersionResourceProvider.CLUSTER_NAME_PROPERTY_ID).equals(clusterName).and().property(
+        ServiceConfigVersionResourceProvider.SERVICE_NAME_PROPERTY_ID).equals(ambariMetricsServiceName).and().property(
+        ServiceConfigVersionResourceProvider.IS_CURRENT_PROPERTY_ID).equals("true").toPredicate();
 
       Request request = PropertyHelper.getReadRequest(propertyIds);
 
       ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
         type,
-        PropertyHelper.getPropertyIds(type),
-        PropertyHelper.getKeyPropertyIds(type),
         ambariManagementController);
 
       try {
@@ -166,7 +163,7 @@ public class AmbariMetricSinkImpl extends AbstractTimelineMetricsSink implements
         for (Resource resource : resources) {
           if (resource != null) {
             ArrayList<LinkedHashMap<Object, Object>> configs = (ArrayList<LinkedHashMap<Object, Object>>)
-              resource.getPropertyValue(ServiceConfigVersionResourceProvider.SERVICE_CONFIG_VERSION_CONFIGURATIONS_PROPERTY_ID);
+              resource.getPropertyValue(ServiceConfigVersionResourceProvider.CONFIGURATIONS_PROPERTY_ID);
             for (LinkedHashMap<Object, Object> config : configs) {
               if (config != null && config.get("type").equals("ams-site")) {
                 TreeMap<Object, Object> properties = (TreeMap<Object, Object>) config.get("properties");
@@ -301,6 +298,21 @@ public class AmbariMetricSinkImpl extends AbstractTimelineMetricsSink implements
   @Override
   protected String getHostname() {
     return hostName;
+  }
+
+  @Override
+  protected boolean isHostInMemoryAggregationEnabled() {
+    return false;
+  }
+
+  @Override
+  protected int getHostInMemoryAggregationPort() {
+    return 0;
+  }
+
+  @Override
+  protected String getHostInMemoryAggregationProtocol() {
+    return "http";
   }
 
   private List<TimelineMetric> getFilteredMetricList(List<SingleMetric> metrics) {

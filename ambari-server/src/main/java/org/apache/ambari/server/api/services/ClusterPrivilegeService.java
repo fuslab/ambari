@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,11 @@
 
 package org.apache.ambari.server.api.services;
 
-import org.apache.ambari.server.api.resources.ResourceInstance;
-import org.apache.ambari.server.controller.spi.Resource;
-
 import java.util.HashMap;
 import java.util.Map;
+
+import org.apache.ambari.server.api.resources.ResourceInstance;
+import org.apache.ambari.server.controller.spi.Resource;
 
 /**
  *  Service responsible for cluster privilege resource requests.
@@ -50,7 +50,7 @@ public class ClusterPrivilegeService extends PrivilegeService {
 
   @Override
   protected ResourceInstance createPrivilegeResource(String privilegeId) {
-    Map<Resource.Type,String> mapIds = new HashMap<Resource.Type, String>();
+    Map<Resource.Type,String> mapIds = new HashMap<>();
     mapIds.put(Resource.Type.Cluster, clusterName);
     mapIds.put(Resource.Type.ClusterPrivilege, privilegeId);
 

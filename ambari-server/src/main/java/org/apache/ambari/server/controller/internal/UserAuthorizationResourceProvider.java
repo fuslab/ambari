@@ -18,9 +18,16 @@
 
 package org.apache.ambari.server.controller.internal;
 
-import com.google.inject.Inject;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.StaticallyInject;
 import org.apache.ambari.server.controller.AmbariManagementController;
+import org.apache.ambari.server.controller.UserAuthorizationResponse;
 import org.apache.ambari.server.controller.predicate.EqualsPredicate;
 import org.apache.ambari.server.controller.spi.ClusterController;
 import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
@@ -44,12 +51,7 @@ import org.apache.ambari.server.security.authorization.AuthorizationHelper;
 import org.apache.ambari.server.security.authorization.ResourceType;
 import org.apache.ambari.server.security.authorization.RoleAuthorization;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import com.google.inject.Inject;
 
 /**
  * A write-only resource provider for securely stored credentials
@@ -74,13 +76,13 @@ public class UserAuthorizationResourceProvider extends ReadOnlyResourceProvider 
 
   static {
     Set<String> set;
-    set = new HashSet<String>();
+    set = new HashSet<>();
     set.add(AUTHORIZATION_ID_PROPERTY_ID);
     set.add(USERNAME_PROPERTY_ID);
     set.add(AUTHORIZATION_RESOURCE_TYPE_PROPERTY_ID);
     PK_PROPERTY_IDS = Collections.unmodifiableSet(set);
 
-    set = new HashSet<String>();
+    set = new HashSet<>();
     set.add(AUTHORIZATION_ID_PROPERTY_ID);
     set.add(USERNAME_PROPERTY_ID);
     set.add(AUTHORIZATION_NAME_PROPERTY_ID);
@@ -91,7 +93,7 @@ public class UserAuthorizationResourceProvider extends ReadOnlyResourceProvider 
     set.add(AUTHORIZATION_VIEW_INSTANCE_NAME_PROPERTY_ID);
     PROPERTY_IDS = Collections.unmodifiableSet(set);
 
-    HashMap<Type, String> map = new HashMap<Type, String>();
+    HashMap<Type, String> map = new HashMap<>();
     map.put(Type.User, USERNAME_PROPERTY_ID);
     map.put(Type.UserAuthorization, AUTHORIZATION_ID_PROPERTY_ID);
     KEY_PROPERTY_IDS = Collections.unmodifiableMap(map);
@@ -126,7 +128,7 @@ public class UserAuthorizationResourceProvider extends ReadOnlyResourceProvider 
    * Create a new resource provider.
    */
   public UserAuthorizationResourceProvider(AmbariManagementController managementController) {
-    super(PROPERTY_IDS, KEY_PROPERTY_IDS, managementController);
+    super(Type.UserAuthorization, PROPERTY_IDS, KEY_PROPERTY_IDS, managementController);
 
     clusterController = ClusterControllerHelper.getClusterController();
   }
@@ -136,7 +138,7 @@ public class UserAuthorizationResourceProvider extends ReadOnlyResourceProvider 
       throws SystemException, UnsupportedPropertyException, NoSuchResourceException, NoSuchParentResourceException {
 
     Set<String> requestedIds = getRequestPropertyIds(request, predicate);
-    Set<Resource> resources = new HashSet<Resource>();
+    Set<Resource> resources = new HashSet<>();
 
     // Use the UserPrivilegeProvider to get the set of privileges the user has. This set of privileges
     // is used to generate a composite set of authorizations the user has been granted.
@@ -159,8 +161,8 @@ public class UserAuthorizationResourceProvider extends ReadOnlyResourceProvider 
       Set<Resource> internalResources = userPrivilegeProvider.getResources(internalRequest, internalPredicate);
       if (internalResources != null) {
         for (Resource internalResource : internalResources) {
-          String permissionName = (String) internalResource.getPropertyValue(UserPrivilegeResourceProvider.PRIVILEGE_PERMISSION_NAME_PROPERTY_ID);
-          String resourceType = (String) internalResource.getPropertyValue(UserPrivilegeResourceProvider.PRIVILEGE_TYPE_PROPERTY_ID);
+          String permissionName = (String) internalResource.getPropertyValue(UserPrivilegeResourceProvider.PERMISSION_NAME);
+          String resourceType = (String) internalResource.getPropertyValue(UserPrivilegeResourceProvider.TYPE);
           Collection<RoleAuthorizationEntity> authorizationEntities;
           ResourceTypeEntity resourceTypeEntity = resourceTypeDAO.findByName(resourceType);
 
@@ -202,7 +204,7 @@ public class UserAuthorizationResourceProvider extends ReadOnlyResourceProvider 
    * @return a predicate
    */
   private Predicate createUserPrivilegePredicate(String username) {
-    return new EqualsPredicate<String>(UserPrivilegeResourceProvider.PRIVILEGE_USER_NAME_PROPERTY_ID, username);
+    return new EqualsPredicate<>(UserPrivilegeResourceProvider.USER_NAME, username);
   }
 
   /**
@@ -212,13 +214,13 @@ public class UserAuthorizationResourceProvider extends ReadOnlyResourceProvider 
    */
   private Request createUserPrivilegeRequest() {
     Set<String> propertyIds = new HashSet<>();
-    propertyIds.add(UserPrivilegeResourceProvider.PRIVILEGE_PRIVILEGE_ID_PROPERTY_ID);
-    propertyIds.add(UserPrivilegeResourceProvider.PRIVILEGE_PERMISSION_NAME_PROPERTY_ID);
-    propertyIds.add(UserPrivilegeResourceProvider.PRIVILEGE_TYPE_PROPERTY_ID);
-    propertyIds.add(UserPrivilegeResourceProvider.PRIVILEGE_CLUSTER_NAME_PROPERTY_ID);
-    propertyIds.add(UserPrivilegeResourceProvider.PRIVILEGE_VIEW_NAME_PROPERTY_ID);
-    propertyIds.add(UserPrivilegeResourceProvider.PRIVILEGE_VIEW_VERSION_PROPERTY_ID);
-    propertyIds.add(UserPrivilegeResourceProvider.PRIVILEGE_INSTANCE_NAME_PROPERTY_ID);
+    propertyIds.add(UserPrivilegeResourceProvider.PRIVILEGE_ID);
+    propertyIds.add(UserPrivilegeResourceProvider.PERMISSION_NAME);
+    propertyIds.add(UserPrivilegeResourceProvider.TYPE);
+    propertyIds.add(UserPrivilegeResourceProvider.CLUSTER_NAME);
+    propertyIds.add(UserPrivilegeResourceProvider.VIEW_NAME);
+    propertyIds.add(UserPrivilegeResourceProvider.VIEW_VERSION);
+    propertyIds.add(UserPrivilegeResourceProvider.INSTANCE_NAME);
 
     return new RequestImpl(propertyIds, null, null, null);
   }
@@ -250,17 +252,21 @@ public class UserAuthorizationResourceProvider extends ReadOnlyResourceProvider 
 
     for (RoleAuthorizationEntity entity : authorizationEntities) {
       Resource resource = new ResourceImpl(Type.UserAuthorization);
-      setResourceProperty(resource, AUTHORIZATION_ID_PROPERTY_ID, entity.getAuthorizationId(), requestedIds);
+      String clusterName = (String)privilegeResource.getPropertyValue(UserPrivilegeResourceProvider.CLUSTER_NAME);
+      UserAuthorizationResponse userAuthorizationResponse = getResponse(entity.getAuthorizationId(),
+        entity.getAuthorizationName(), clusterName, resourceType, username);
+      setResourceProperty(resource, AUTHORIZATION_ID_PROPERTY_ID, userAuthorizationResponse.getAuthorizationId(), requestedIds);
       setResourceProperty(resource, USERNAME_PROPERTY_ID, username, requestedIds);
       setResourceProperty(resource, AUTHORIZATION_NAME_PROPERTY_ID, entity.getAuthorizationName(), requestedIds);
       setResourceProperty(resource, AUTHORIZATION_RESOURCE_TYPE_PROPERTY_ID, resourceType, requestedIds);
       setResourceProperty(resource, AUTHORIZATION_CLUSTER_NAME_PROPERTY_ID,
-          privilegeResource.getPropertyValue(UserPrivilegeResourceProvider.PRIVILEGE_CLUSTER_NAME_PROPERTY_ID),
+          privilegeResource.getPropertyValue(UserPrivilegeResourceProvider.CLUSTER_NAME),
           requestedIds);
 
       resources.add(resource);
     }
   }
+
 
   /**
    * Creates and adds resources to the results where each resource properly identities the view
@@ -290,21 +296,58 @@ public class UserAuthorizationResourceProvider extends ReadOnlyResourceProvider 
                                 Set<String> requestedIds) {
     for (RoleAuthorizationEntity entity : authorizationEntities) {
       Resource resource = new ResourceImpl(Type.UserAuthorization);
-      setResourceProperty(resource, AUTHORIZATION_ID_PROPERTY_ID, entity.getAuthorizationId(), requestedIds);
-      setResourceProperty(resource, USERNAME_PROPERTY_ID, username, requestedIds);
-      setResourceProperty(resource, AUTHORIZATION_NAME_PROPERTY_ID, entity.getAuthorizationName(), requestedIds);
-      setResourceProperty(resource, AUTHORIZATION_RESOURCE_TYPE_PROPERTY_ID, resourceType, requestedIds);
-      setResourceProperty(resource, AUTHORIZATION_VIEW_NAME_PROPERTY_ID,
-          privilegeResource.getPropertyValue(UserPrivilegeResourceProvider.PRIVILEGE_VIEW_NAME_PROPERTY_ID),
+      String viewName = (String)privilegeResource.getPropertyValue(UserPrivilegeResourceProvider.VIEW_NAME);
+      String viewVersion = (String)privilegeResource.getPropertyValue(UserPrivilegeResourceProvider.VIEW_VERSION);
+      String viewInstanceName = (String)privilegeResource.getPropertyValue(UserPrivilegeResourceProvider.INSTANCE_NAME);
+      UserAuthorizationResponse userAuthorizationResponse = getResponse(entity.getAuthorizationId(),
+        entity.getAuthorizationName(), resourceType, username, viewName, viewVersion, viewInstanceName);
+      setResourceProperty(resource, AUTHORIZATION_ID_PROPERTY_ID, userAuthorizationResponse.getAuthorizationId(), requestedIds);
+      setResourceProperty(resource, USERNAME_PROPERTY_ID, userAuthorizationResponse.getUserName(), requestedIds);
+      setResourceProperty(resource, AUTHORIZATION_NAME_PROPERTY_ID, userAuthorizationResponse.getAuthorizationName(), requestedIds);
+      setResourceProperty(resource, AUTHORIZATION_RESOURCE_TYPE_PROPERTY_ID, userAuthorizationResponse.getResourceType(), requestedIds);
+      setResourceProperty(resource, AUTHORIZATION_VIEW_NAME_PROPERTY_ID, userAuthorizationResponse.getViewName(),
           requestedIds);
-      setResourceProperty(resource, AUTHORIZATION_VIEW_VERSION_PROPERTY_ID,
-          privilegeResource.getPropertyValue(UserPrivilegeResourceProvider.PRIVILEGE_VIEW_VERSION_PROPERTY_ID),
+      setResourceProperty(resource, AUTHORIZATION_VIEW_VERSION_PROPERTY_ID, userAuthorizationResponse.getViewVersion(),
           requestedIds);
-      setResourceProperty(resource, AUTHORIZATION_VIEW_INSTANCE_NAME_PROPERTY_ID,
-          privilegeResource.getPropertyValue(UserPrivilegeResourceProvider.PRIVILEGE_INSTANCE_NAME_PROPERTY_ID),
+      setResourceProperty(resource, AUTHORIZATION_VIEW_INSTANCE_NAME_PROPERTY_ID, userAuthorizationResponse.getViewInstanceName(),
           requestedIds);
 
       resources.add(resource);
     }
+  }
+
+  /**
+   *  Returns user authorization response instance that represents the response schema
+   *  for /users/{userName}/authorizations REST endpoint
+   * @param authorizationId     authorization id
+   * @param authorizationName   authorization name
+   * @param clusterName         cluster name
+   * @param resourceType        resource type
+   * @param userName            user name
+   * @return {@link UserAuthorizationResponse}
+   */
+  private UserAuthorizationResponse getResponse(String authorizationId, String authorizationName,
+                                                                     String clusterName, String resourceType, String userName) {
+    return new UserAuthorizationResponse(authorizationId, authorizationName, clusterName, resourceType, userName);
+
+  }
+
+  /**
+   * Returns user authorization response instance that represents the response schema
+   * for /users/{userName}/authorizations REST endpoint
+   * @param authorizationId      authorization id
+   * @param authorizationName    authorization name
+   * @param resourceType         resource type
+   * @param userName             user name
+   * @param viewName             view name
+   * @param viewVersion          view version
+   * @param viewInstanceName     view instance name
+   * @return  {@link UserAuthorizationResponse}
+   */
+  private UserAuthorizationResponse getResponse(String authorizationId, String authorizationName,
+                                                                     String resourceType, String userName, String viewName,
+                                                                     String viewVersion, String viewInstanceName) {
+    return new UserAuthorizationResponse(authorizationId, authorizationName, resourceType, userName, viewName, viewVersion, viewInstanceName);
+
   }
 }

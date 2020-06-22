@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,9 +17,10 @@
  */
 package org.apache.ambari.server.security.encryption;
 
+import org.junit.Test;
+
 import junit.framework.Assert;
 import junit.framework.TestCase;
-import org.junit.Test;
 
 public class AESEncryptorTest extends TestCase {
 

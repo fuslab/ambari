@@ -44,7 +44,7 @@ import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.ParentObjectNotFoundException;
 import org.apache.ambari.server.StackAccessException;
 import org.apache.ambari.server.configuration.Configuration;
-import org.apache.ambari.server.controller.RootServiceResponseFactory.Services;
+import org.apache.ambari.server.controller.RootService;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.apache.ambari.server.customactions.ActionDefinition;
 import org.apache.ambari.server.customactions.ActionDefinitionManager;
@@ -55,7 +55,6 @@ import org.apache.ambari.server.metadata.AmbariServiceAlertDefinitions;
 import org.apache.ambari.server.orm.dao.AlertDefinitionDAO;
 import org.apache.ambari.server.orm.dao.MetainfoDAO;
 import org.apache.ambari.server.orm.entities.AlertDefinitionEntity;
-import org.apache.ambari.server.orm.entities.MetainfoEntity;
 import org.apache.ambari.server.stack.StackManager;
 import org.apache.ambari.server.stack.StackManagerFactory;
 import org.apache.ambari.server.state.Cluster;
@@ -110,21 +109,26 @@ public class AmbariMetaInfo {
    * Version of XML files with support of custom services and custom commands
    */
   public static final String SCHEMA_VERSION_2 = "2.0";
+
+  /**
+   * The filename for a Kerberos descriptor file at either the stack or service level
+   */
+  public static final String KERBEROS_DESCRIPTOR_FILE_NAME = "kerberos.json";
+
+  /**
+   * The filename for a Widgets descriptor file at either the stack or service level
+   */
+  public static final String WIDGETS_DESCRIPTOR_FILE_NAME = "widgets.json";
+
   private final static Logger LOG = LoggerFactory.getLogger(AmbariMetaInfo.class);
 
-  /**
-   * Repository XML base url property name
-   */
-  public static final String REPOSITORY_XML_PROPERTY_BASEURL = "baseurl";
-
-  /**
-   * Repository XML mirrors list property name
-   */
-  public static final String REPOSITORY_XML_PROPERTY_MIRRORSLIST = "mirrorslist";
 
   // all the supported OS'es
   @Inject
   private OsFamily osFamily;
+
+  @Inject
+  private Gson gson;
 
   /**
    * ALL_SUPPORTED_OS is dynamically generated list from loaded families from os_family.json
@@ -139,8 +143,9 @@ public class AmbariMetaInfo {
   private File commonServicesRoot;
   private File extensionsRoot;
   private File serverVersionFile;
+  private File commonWidgetsDescriptorFile;
   private File customActionRoot;
-
+  private String commonKerberosDescriptorFileLocation;
   Map<String, VersionDefinitionXml> versionDefinitions = null;
 
 
@@ -229,6 +234,9 @@ public class AmbariMetaInfo {
     serverVersionFile = new File(serverVersionFilePath);
 
     customActionRoot = new File(conf.getCustomActionDefinitionPath());
+
+    commonKerberosDescriptorFileLocation = new File(conf.getResourceDirPath(), KERBEROS_DESCRIPTOR_FILE_NAME).getAbsolutePath();
+    commonWidgetsDescriptorFile = new File(conf.getResourceDirPath(), WIDGETS_DESCRIPTOR_FILE_NAME);
   }
 
   /**
@@ -367,8 +375,7 @@ public class AmbariMetaInfo {
     Map<String, List<RepositoryInfo>> reposResult = new HashMap<>();
     for (RepositoryInfo repo : repository) {
       if (!reposResult.containsKey(repo.getOsType())) {
-        reposResult.put(repo.getOsType(),
-          new ArrayList<RepositoryInfo>());
+        reposResult.put(repo.getOsType(), new ArrayList<>());
       }
       reposResult.get(repo.getOsType()).add(repo);
     }
@@ -543,6 +550,11 @@ public class AmbariMetaInfo {
     return removedServices.contains(serviceName);
   }
 
+  public boolean isServiceWithNoConfigs(String stackName, String version, String serviceName) throws AmbariException{
+    StackInfo stack = getStack(stackName, version);
+    List<String> servicesWithNoConfigs = stack.getServicesWithNoConfigs();
+    return servicesWithNoConfigs.contains(serviceName);
+  }
 
   public Collection<String> getMonitoringServiceNames(String stackName, String version)
     throws AmbariException{
@@ -843,51 +855,13 @@ public class AmbariMetaInfo {
     return ALL_SUPPORTED_OS.contains(osType);
   }
 
-  /**
-   * Returns a suitable key for use with stack url overrides.
-   * @param stackName the stack name
-   * @param stackVersion the stack version
-   * @param osType the os
-   * @param repoId the repo id
-   * @param field the field name
-   * @return the key for any repo value override
-   */
-  public static String generateRepoMetaKey(String stackName, String stackVersion,
-      String osType, String repoId, String field) {
-
-    StringBuilder sb = new StringBuilder("repo:/");
-    sb.append(stackName).append('/');
-    sb.append(stackVersion).append('/');
-    sb.append(osType).append('/');
-    sb.append(repoId);
-    sb.append(':').append(field);
-
-    return sb.toString();
-  }
-
-  public void createRepo(String stackName, String stackVersion, String osType, String repoId, String baseUrl, String mirrorsList) throws AmbariException {
-    if (!stackRoot.exists()) {
-      throw new StackAccessException("Create repo - Stack root does not exist.");
-    }
-
-    if (null != baseUrl) {
-      createRepoInMetaInfo(stackName, stackVersion, osType, repoId, baseUrl, REPOSITORY_XML_PROPERTY_BASEURL);
-    } else if (null != mirrorsList) {
-      createRepoInMetaInfo(stackName, stackVersion, osType, repoId, mirrorsList, REPOSITORY_XML_PROPERTY_MIRRORSLIST);
-    }
-  }
-
-  private void createRepoInMetaInfo(String stackName, String stackVersion, String osType, String repoId, String value, String repositoryXmlProperty) {
-    String metaKey = generateRepoMetaKey(stackName, stackVersion, osType,
-        repoId, repositoryXmlProperty);
-    MetainfoEntity entity = new MetainfoEntity();
-    entity.setMetainfoName(metaKey);
-    entity.setMetainfoValue(value);
-    metaInfoDAO.create(entity);
-  }
 
   public File getStackRoot() {
     return stackRoot;
+  }
+
+  public File getCommonServicesRoot() {
+    return commonServicesRoot;
   }
 
   public File getExtensionsRoot() {
@@ -1105,9 +1079,7 @@ public class AmbariMetaInfo {
    * @param updateScriptPaths whether existing script-based alerts should be updated
    *        with possibly new paths from the stack definition
    */
-  public void reconcileAlertDefinitions(Clusters clusters, boolean updateScriptPaths)
-      throws AmbariException {
-
+  public void reconcileAlertDefinitions(Clusters clusters, boolean updateScriptPaths)  throws AmbariException {
     Map<String, Cluster> clusterMap = clusters.getClusters();
     if (null == clusterMap || clusterMap.size() == 0) {
       return;
@@ -1115,6 +1087,29 @@ public class AmbariMetaInfo {
 
     // for every cluster
     for (Cluster cluster : clusterMap.values()) {
+       reconcileAlertDefinitions(cluster, updateScriptPaths);
+    }
+
+  }
+
+  /**
+   * Compares the alert definitions defined on the stack with those in the
+   * database and merges any new or updated definitions. This method will first
+   * determine the services that are installed on each cluster to prevent alert
+   * definitions from undeployed services from being shown.
+   * <p/>
+   * This method will also detect "agent" alert definitions, which are
+   * definitions that should be run on agent hosts but are not associated with a
+   * service.
+   *
+   * @param cluster cluster
+   * @param updateScriptPaths whether existing script-based alerts should be updated
+   *        with possibly new paths from the stack definition
+   */
+  public void reconcileAlertDefinitions(Cluster cluster, boolean updateScriptPaths) throws AmbariException {
+      if (null == cluster) {
+        return;
+      }
 
       long clusterId = cluster.getClusterId();
       Map<String, ServiceInfo> stackServiceMap = new HashMap<>();
@@ -1167,11 +1162,6 @@ public class AmbariMetaInfo {
         // use the REST APIs to modify them instead
         AlertDefinition databaseDefinition = alertDefinitionFactory.coerce(entity);
         if (!stackDefinition.deeplyEquals(databaseDefinition)) {
-
-          LOG.debug(
-              "The alert named {} has been modified from the stack definition and will not be merged",
-              stackDefinition.getName());
-
           if (updateScriptPaths) {
             Source databaseSource = databaseDefinition.getSource();
             Source stackSource = stackDefinition.getSource();
@@ -1190,6 +1180,9 @@ public class AmbariMetaInfo {
                 );
               }
             }
+          } else {
+            LOG.debug("The alert named {} has been modified from the stack definition and will not be merged",
+              stackDefinition.getName());
           }
         }
       }
@@ -1209,9 +1202,7 @@ public class AmbariMetaInfo {
       // all definition resolved; publish their registration
       for (AlertDefinitionEntity def : alertDefinitionDao.findAll(cluster.getClusterId())) {
         AlertDefinition realDef = alertDefinitionFactory.coerce(def);
-
-        AlertDefinitionRegistrationEvent event = new AlertDefinitionRegistrationEvent(
-            cluster.getClusterId(), realDef);
+        AlertDefinitionRegistrationEvent event = new AlertDefinitionRegistrationEvent(cluster.getClusterId(), realDef);
 
         eventPublisher.publish(event);
       }
@@ -1229,7 +1220,7 @@ public class AmbariMetaInfo {
         String componentName = definition.getComponentName();
 
         // the AMBARI service is special, skip it here
-        if (Services.AMBARI.name().equals(serviceName)) {
+        if (RootService.AMBARI.name().equals(serviceName)) {
           continue;
         }
 
@@ -1253,13 +1244,9 @@ public class AmbariMetaInfo {
       for (AlertDefinitionEntity definition : definitionsToDisable) {
         definition.setEnabled(false);
         alertDefinitionDao.merge(definition);
-
-        AlertDefinitionDisabledEvent event = new AlertDefinitionDisabledEvent(
-            clusterId, definition.getDefinitionId());
-
-        eventPublisher.publish(event);
+        eventPublisher.publish(new AlertDefinitionDisabledEvent(clusterId, definition.getDefinitionId(),
+            definition.getDefinitionName()));
       }
-    }
   }
 
   /**
@@ -1273,7 +1260,7 @@ public class AmbariMetaInfo {
     try {
       StackInfo stack = getStack(stackName, stackVersion);
       return stack.getUpgradePacks() == null ?
-          Collections.<String, UpgradePack>emptyMap() : stack.getUpgradePacks();
+          Collections.emptyMap() : stack.getUpgradePacks();
 
     } catch (AmbariException e) {
       LOG.debug("Cannot load upgrade packs for non-existent stack {}-{}", stackName, stackVersion, e);
@@ -1316,40 +1303,25 @@ public class AmbariMetaInfo {
   public KerberosDescriptor getKerberosDescriptor(String stackName, String stackVersion, boolean includePreconfigureData) throws AmbariException {
     StackInfo stackInfo = getStack(stackName, stackVersion);
 
-    KerberosDescriptor kerberosDescriptor = null;
+    KerberosDescriptor kerberosDescriptor = readKerberosDescriptorFromFile(getCommonKerberosDescriptorFileLocation());
 
+    if (kerberosDescriptor == null) {
+      LOG.warn("Couldn't read common Kerberos descriptor with path {%s}", getCommonKerberosDescriptorFileLocation());
+      kerberosDescriptor = new KerberosDescriptor();
+    }
     // Read in the stack-level Kerberos descriptor pre-configuration data
     if (includePreconfigureData) {
-      kerberosDescriptor = readKerberosDescriptorFromFile(stackInfo.getKerberosDescriptorPreConfigurationFileLocation());
+      KerberosDescriptor preConfigureKerberosDescriptor = readKerberosDescriptorFromFile(stackInfo.getKerberosDescriptorPreConfigurationFileLocation());
 
-      if(kerberosDescriptor != null) {
+      if (preConfigureKerberosDescriptor != null) {
         // Ensure the all services to be pre-configured are flagged appropriately.
-        Map<String, KerberosServiceDescriptor> serviceDescriptors = kerberosDescriptor.getServices();
+        Map<String, KerberosServiceDescriptor> serviceDescriptors = preConfigureKerberosDescriptor.getServices();
         if (serviceDescriptors != null) {
           for (KerberosServiceDescriptor serviceDescriptor : serviceDescriptors.values()) {
             serviceDescriptor.setPreconfigure(true);
           }
         }
-      }
-    }
-
-    // Read in the base stack-level Kerberos descriptor.
-    KerberosDescriptor stackKerberosDescriptor = readKerberosDescriptorFromFile(stackInfo.getKerberosDescriptorFileLocation());
-    if(stackKerberosDescriptor == null) {
-      // If kerberosDescriptor is null and stackKerberosDescriptor is null, then ensure
-      // kerberosDescriptor is an empty KerberosDescriptor.
-      if(kerberosDescriptor == null) {
-        kerberosDescriptor = new KerberosDescriptor();
-      }
-    }
-    else {
-      if(kerberosDescriptor == null) {
-        // If kerberosDescriptor is null; then set it to stackKerberosDescriptor.
-        kerberosDescriptor = stackKerberosDescriptor;
-      }
-      else {
-        // If kerberosDescriptor is not null; then update it using stackKerberosDescriptor.
-        kerberosDescriptor.update(stackKerberosDescriptor);
+        kerberosDescriptor.update(preConfigureKerberosDescriptor);
       }
     }
 
@@ -1372,6 +1344,15 @@ public class AmbariMetaInfo {
     }
 
     return kerberosDescriptor;
+  }
+
+  /**
+   * Gets the path to the common Kerberos descriptor file
+   *
+   * @return a String containing the path to the common Kerberos descriptor file
+   */
+  protected String getCommonKerberosDescriptorFileLocation() {
+    return commonKerberosDescriptorFileLocation;
   }
 
   /**
@@ -1494,11 +1475,14 @@ public class AmbariMetaInfo {
         throw new AmbariException(String.format("Unable to read Kerberos descriptor file %s",
             file.getAbsolutePath()));
       }
-    }
-    else {
+    } else {
       LOG.debug("Missing path to Kerberos descriptor, returning null");
     }
 
     return null;
+  }
+
+  public File getCommonWidgetsDescriptorFile() {
+    return commonWidgetsDescriptorFile;
   }
 }

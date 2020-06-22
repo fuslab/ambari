@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,9 +23,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.ambari.server.audit.request.eventcreator.RequestAuditEventCreator;
 import org.apache.ambari.server.audit.request.RequestAuditLogger;
 import org.apache.ambari.server.audit.request.RequestAuditLoggerImpl;
+import org.apache.ambari.server.audit.request.eventcreator.RequestAuditEventCreator;
 import org.apache.ambari.server.cleanup.ClasspathScannerUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

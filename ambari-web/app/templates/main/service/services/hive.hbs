@@ -16,31 +16,44 @@
 * limitations under the License.
 }}
 
-{{view App.SummaryMasterComponentsView mastersCompBinding="view.parentView.mastersObj"}}
-{{view App.SummaryClientComponentsView clientsObjBinding="view.parentView.clientObj"}}
-
-<tr class="hidden"><td></td></tr>
-
+<div class="row component-summary">
+  {{view view.dashboardMasterComponentView}}
+  <div class="col-md-12">
+    <div class="col-md-2">
+      {{#if view.hasMultipleMasterGroups}}
+        {{t dashboard.services.hdfs.summary.components}}
+      {{/if}}
+    </div>
+    <div class="col-md-10">
+      {{view App.SummaryClientComponentsView clientsObjBinding="view.parentView.clientObj"}}
+    </div>
+  </div>
+</div>
 {{#each endpoint in hiveServerEndPoints}}
   {{#if endpoint.isVisible}}
-   <tr {{bindAttr class=":component endpoint.componentName"}}>
-     <td class="summary-label">{{endpoint.label}}</td>
-     <td class="summary-value" >
-       {{#view view.summaryValueView titleBinding="endpoint.tooltipText" data-toggle="tooltip"}}
-         {{endpoint.value}}
-       {{/view}}
-       {{#view view.clipBoardView data-clipboard-action= "copy" data-clipboard-textBinding="endpoint.value"}}
-         <img src="/img/clippy.svg" alt="Copy" rel="clipboard-tooltip" data-toggle="tooltip" data-placement="bottom" title="Copied!"/>
-       {{/view}}
-     </td>
-   </tr>
+    <div {{bindAttr class=":row :component endpoint.componentName"}}>
+      <div class="col-md-2 col-lg-2 summary-label" style="margin-top: 0px;">{{endpoint.label}}</div>
+      <div class="col-md-10 col-lg-10 summary-value">
+        <span class="endpoint-value">
+          {{endpoint.value}}
+          {{#view view.clipBoardView data-clipboard-action= "copy" data-clipboard-textBinding="endpoint.value"}}
+            <img src="/img/clippy.svg" alt="Copy" rel="clipboard-tooltip" data-toggle="tooltip" data-placement="bottom" title="Copied!"/>
+          {{/view}}
+        </span>
+      </div>
+    </div>
   {{/if}}
 {{/each}}
-{{#each link in view.viewLinks}}
-    <tr>
-        <td class="summary-label">{{link.label}}</td>
-        <td class="summary-value" >
-            <a href="#" target="_blank" {{action goToView link.viewInstance target="controller"}}>{{t app.goToView}}</a>
-        </td>
-    </tr>
-{{/each}}
+
+<div class="row">
+  <div class="col-md-6">
+    {{#each link in view.viewLinks}}
+      <div class="row">
+        <div class="col-md-6 summary-label" style="margin-top: 0px;">{{link.label}}</div>
+        <div class="col-md-6 summary-value">
+          <a href="#" target="_blank" {{action goToView link.viewInstance target="controller"}}>{{t app.goToView}}</a>
+        </div>
+      </div>
+    {{/each}}
+  </div>
+</div>

@@ -18,8 +18,6 @@
 
 package org.apache.ambari.server.audit.request.creator;
 
-import junit.framework.Assert;
-
 import java.util.HashMap;
 import java.util.Map;
 
@@ -37,6 +35,8 @@ import org.apache.ambari.server.controller.internal.ResourceImpl;
 import org.apache.ambari.server.controller.internal.ServiceConfigVersionResourceProvider;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.junit.Test;
+
+import junit.framework.Assert;
 
 public class ConfigurationChangeEventCreatorTest extends AuditEventCreatorTestBase {
 
@@ -78,7 +78,7 @@ public class ConfigurationChangeEventCreatorTest extends AuditEventCreatorTestBa
     resourceNode.addChild(versionNode);
     resultTree.addChild(resourceNode);
 
-    Request request = AuditEventCreatorTestHelper.createRequest(Request.Type.PUT, Resource.Type.Cluster, new HashMap<String, Object>(), null);
+    Request request = AuditEventCreatorTestHelper.createRequest(Request.Type.PUT, Resource.Type.Cluster, new HashMap<>(), null);
     Result result = AuditEventCreatorTestHelper.createResult(new ResultStatus(ResultStatus.STATUS.OK), resultTree);
 
     AuditEvent event = AuditEventCreatorTestHelper.getEvent(creator, request, result);

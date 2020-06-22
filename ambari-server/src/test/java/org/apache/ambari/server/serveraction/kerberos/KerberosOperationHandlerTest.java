@@ -18,7 +18,15 @@
 
 package org.apache.ambari.server.serveraction.kerberos;
 
-import junit.framework.Assert;
+import java.io.File;
+import java.io.FileInputStream;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.security.credential.PrincipalKeyCredential;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.directory.server.kerberos.shared.keytab.Keytab;
@@ -29,18 +37,139 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import junit.framework.Assert;
 
 public abstract class KerberosOperationHandlerTest extends EasyMockSupport {
 
+  static final String DEFAULT_ADMIN_PRINCIPAL = "admin";
+  static final String DEFAULT_ADMIN_PASSWORD = "hadoop";
+  static final String DEFAULT_REALM = "EXAMPLE.COM";
+  static final PrincipalKeyCredential DEFAULT_ADMIN_CREDENTIALS = new PrincipalKeyCredential(DEFAULT_ADMIN_PRINCIPAL, DEFAULT_ADMIN_PASSWORD);
+  static final Map<String, String> DEFAULT_KERBEROS_ENV_MAP;
+
+  static {
+    Map<String, String> map = new HashMap<>();
+    map.put(KerberosOperationHandler.KERBEROS_ENV_ENCRYPTION_TYPES, "aes des3-cbc-sha1 rc4 des-cbc-md5");
+    map.put(IPAKerberosOperationHandler.KERBEROS_ENV_KDC_HOSTS, "localhost");
+    map.put(IPAKerberosOperationHandler.KERBEROS_ENV_ADMIN_SERVER_HOST, "localhost");
+    DEFAULT_KERBEROS_ENV_MAP = Collections.unmodifiableMap(map);
+  }
+
   @Rule
   public TemporaryFolder folder = new TemporaryFolder();
+
+  @Test
+  public void testOpenSucceeded() throws Exception {
+    KerberosOperationHandler handler = createMockedHandler();
+
+    setupOpenSuccess(handler);
+
+    replayAll();
+
+    handler.open(getAdminCredentials(), DEFAULT_REALM, getKerberosEnv());
+
+    verifyAll();
+
+    Assert.assertTrue(handler.isOpen());
+  }
+
+  @Test
+  public void testOpenFailed() throws Exception {
+    KerberosOperationHandler handler = createMockedHandler();
+
+    setupOpenFailure(handler);
+
+    replayAll();
+
+    try {
+      handler.open(getAdminCredentials(), DEFAULT_REALM, getKerberosEnv());
+      Assert.fail("KerberosAdminAuthenticationException expected");
+    } catch (KerberosAdminAuthenticationException e) {
+      // This is expected
+    }
+
+    verifyAll();
+
+    Assert.assertFalse(handler.isOpen());
+  }
+
+  @Test(expected = KerberosPrincipalAlreadyExistsException.class)
+  public void testCreateUserPrincipalPrincipalAlreadyExists() throws Exception {
+    testCreatePrincipalPrincipalAlreadyExists(false);
+  }
+
+  @Test(expected = KerberosPrincipalAlreadyExistsException.class)
+  public void testCreateServicePrincipalPrincipalAlreadyExists() throws Exception {
+    testCreatePrincipalPrincipalAlreadyExists(true);
+  }
+
+  private void testCreatePrincipalPrincipalAlreadyExists(boolean service) throws Exception {
+    KerberosOperationHandler handler = createMockedHandler();
+
+    setupOpenSuccess(handler);
+    setupPrincipalAlreadyExists(handler, service);
+
+    replayAll();
+
+    handler.open(getAdminCredentials(), DEFAULT_REALM, getKerberosEnv());
+    handler.createPrincipal(createPrincipal(service), "password", service);
+    handler.close();
+
+    verifyAll();
+
+  }
+
+
+  @Test
+  public void testUserPrincipalExistsNotFound() throws Exception {
+    testPrincipalExistsNotFound(false);
+  }
+
+  @Test
+  public void testServicePrincipalExistsNotFound() throws Exception {
+    testPrincipalExistsNotFound(true);
+  }
+
+  private void testPrincipalExistsNotFound(boolean service) throws Exception {
+    KerberosOperationHandler handler = createMockedHandler();
+
+    setupOpenSuccess(handler);
+    setupPrincipalDoesNotExist(handler, service);
+
+    replayAll();
+
+    handler.open(getAdminCredentials(), DEFAULT_REALM, getKerberosEnv());
+    Assert.assertFalse(handler.principalExists(createPrincipal(service), service));
+    handler.close();
+
+    verifyAll();
+  }
+
+  @Test
+  public void testUserPrincipalExistsFound() throws Exception {
+    testPrincipalExistsFound(false);
+  }
+
+  @Test
+  public void testServicePrincipalExistsFound() throws Exception {
+    testPrincipalExistsFound(true);
+  }
+
+  private void testPrincipalExistsFound(boolean service) throws Exception {
+    KerberosOperationHandler handler = createMockedHandler();
+
+    setupOpenSuccess(handler);
+    setupPrincipalExists(handler, service);
+
+    replayAll();
+
+    handler.open(getAdminCredentials(), DEFAULT_REALM, getKerberosEnv());
+    Assert.assertTrue(handler.principalExists(createPrincipal(service), service));
+    handler.close();
+
+    verifyAll();
+
+  }
 
   @Test
   public void testCreateKeytabFileOneAtATime() throws Exception {
@@ -83,7 +212,7 @@ public abstract class KerberosOperationHandlerTest extends EasyMockSupport {
     File file = folder.newFile();
     final String principal1 = "principal1@REALM.COM";
     final String principal2 = "principal2@REALM.COM";
-    Set<String> seenEntries = new HashSet<String>();
+    Set<String> seenEntries = new HashSet<>();
 
     Assert.assertTrue(handler.createKeytabFile(principal1, "some password", 0, file));
     Assert.assertTrue(handler.createKeytabFile(principal2, "some password", 0, file));
@@ -232,6 +361,12 @@ public abstract class KerberosOperationHandlerTest extends EasyMockSupport {
     );
   }
 
+  @Test(expected = KerberosOperationException.class)
+  public void testTranslateWrongEncryptionTypes() throws Exception {
+    KerberosOperationHandler handler = createHandler();
+    handler.translateEncryptionTypes("aes-255", " ");
+  }
+
   @Test
   public void testEscapeCharacters() throws KerberosOperationException {
     KerberosOperationHandler handler = createHandler();
@@ -259,7 +394,7 @@ public abstract class KerberosOperationHandlerTest extends EasyMockSupport {
     Assert.assertEquals("\\/\\,\\\\\\#\\+\\<\\>\\;\\\"\\=\\ ", handler.escapeCharacters("/,\\#+<>;\"= ", specialCharacters, '\\'));
 
     Assert.assertEquals("nothing<>special#here!", handler.escapeCharacters("nothing<>special#here!", null, '\\'));
-    Assert.assertEquals("nothing<>special#here!", handler.escapeCharacters("nothing<>special#here!", Collections.<Character>emptySet(), '\\'));
+    Assert.assertEquals("nothing<>special#here!", handler.escapeCharacters("nothing<>special#here!", Collections.emptySet(), '\\'));
     Assert.assertEquals("nothing<>special#here!", handler.escapeCharacters("nothing<>special#here!", Collections.singleton('?'), '\\'));
     Assert.assertEquals("\\A's are special!", handler.escapeCharacters("A's are special!", Collections.singleton('A'), '\\'));
   }
@@ -284,7 +419,7 @@ public abstract class KerberosOperationHandlerTest extends EasyMockSupport {
   public void testAdminCredentialsNullCredential() throws KerberosOperationException {
     KerberosOperationHandler handler = createHandler();
 
-    PrincipalKeyCredential credentials = new PrincipalKeyCredential("principal", (char[])null);
+    PrincipalKeyCredential credentials = new PrincipalKeyCredential("principal", (char[]) null);
     handler.setAdministratorCredential(credentials);
   }
 
@@ -300,10 +435,10 @@ public abstract class KerberosOperationHandlerTest extends EasyMockSupport {
   public void testSetExecutableSearchPaths() throws KerberosOperationException {
     KerberosOperationHandler handler = createHandler();
 
-    handler.setExecutableSearchPaths((String)null);
+    handler.setExecutableSearchPaths((String) null);
     Assert.assertNull(handler.getExecutableSearchPaths());
 
-    handler.setExecutableSearchPaths((String[])null);
+    handler.setExecutableSearchPaths((String[]) null);
     Assert.assertNull(handler.getExecutableSearchPaths());
 
     handler.setExecutableSearchPaths("");
@@ -340,6 +475,24 @@ public abstract class KerberosOperationHandlerTest extends EasyMockSupport {
     Assert.assertEquals("path3/", handler.getExecutableSearchPaths()[2]);
   }
 
+  protected abstract KerberosOperationHandler createMockedHandler() throws KerberosOperationException;
+
+  protected abstract void setupOpenSuccess(KerberosOperationHandler handler) throws Exception;
+
+  protected abstract void setupOpenFailure(KerberosOperationHandler handler) throws Exception;
+
+  protected abstract void setupPrincipalAlreadyExists(KerberosOperationHandler handler, boolean service) throws Exception;
+
+  protected abstract void setupPrincipalDoesNotExist(KerberosOperationHandler handler, boolean service) throws Exception;
+
+  protected abstract void setupPrincipalExists(KerberosOperationHandler handler, boolean service) throws Exception;
+
+  protected abstract Map<String, String> getKerberosEnv();
+
+  protected PrincipalKeyCredential getAdminCredentials() {
+    return DEFAULT_ADMIN_CREDENTIALS;
+  }
+
   private KerberosOperationHandler createHandler() throws KerberosOperationException {
     KerberosOperationHandler handler = new KerberosOperationHandler() {
 
@@ -356,7 +509,7 @@ public abstract class KerberosOperationHandlerTest extends EasyMockSupport {
       }
 
       @Override
-      public boolean principalExists(String principal) throws KerberosOperationException {
+      public boolean principalExists(String principal, boolean service) throws KerberosOperationException {
         return false;
       }
 
@@ -366,17 +519,21 @@ public abstract class KerberosOperationHandlerTest extends EasyMockSupport {
       }
 
       @Override
-      public Integer setPrincipalPassword(String principal, String password) throws KerberosOperationException {
+      public Integer setPrincipalPassword(String principal, String password, boolean service) throws KerberosOperationException {
         return 0;
       }
 
       @Override
-      public boolean removePrincipal(String principal) throws KerberosOperationException {
+      public boolean removePrincipal(String principal, boolean service) throws KerberosOperationException {
         return false;
       }
     };
 
     handler.open(new PrincipalKeyCredential("admin/admin", "hadoop"), "EXAMPLE.COM", null);
     return handler;
+  }
+
+  private String createPrincipal(boolean service) {
+    return String.format("%s@%s", (service) ? "service/host" : "user", DEFAULT_REALM);
   }
 }

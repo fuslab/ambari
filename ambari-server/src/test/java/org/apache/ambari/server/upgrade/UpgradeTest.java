@@ -193,7 +193,7 @@ public class UpgradeTest {
     UpgradeCatalog targetUpgradeCatalog = AbstractUpgradeCatalog
         .getUpgradeCatalog(targetVersion);
 
-    LOG.debug("Target upgrade catalog. " + targetUpgradeCatalog);
+    LOG.debug("Target upgrade catalog. {}", targetUpgradeCatalog);
 
     // Read source version from DB
     String sourceVersion = schemaUpgradeHelper.readSourceVersion();
@@ -217,8 +217,6 @@ public class UpgradeTest {
       }
      }
 
-    schemaUpgradeHelper.startPersistenceService();
-
     schemaUpgradeHelper.executePreDMLUpdates(upgradeCatalogs);
 
     schemaUpgradeHelper.executeDMLUpdates(upgradeCatalogs, "test");
@@ -226,8 +224,6 @@ public class UpgradeTest {
     schemaUpgradeHelper.executeOnPostUpgrade(upgradeCatalogs);
 
     LOG.info("Upgrade successful.");
-
-    schemaUpgradeHelper.stopPersistenceService();
   }
 
   private String getLastVersion() throws Exception {
@@ -255,7 +251,7 @@ public class UpgradeTest {
 
   @Parameterized.Parameters
   public static Collection<Object[]> data() {
-    Collection<Object[]> data = new ArrayList<Object[]>();
+    Collection<Object[]> data = new ArrayList<>();
     for (String s : VERSIONS) {
       data.add(new Object[]{s});
     }

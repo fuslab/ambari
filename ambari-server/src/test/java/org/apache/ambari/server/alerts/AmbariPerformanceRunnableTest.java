@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,12 @@
 
 package org.apache.ambari.server.alerts;
 
-import static junit.framework.Assert.assertEquals;
-import static junit.framework.Assert.assertTrue;
 import static org.easymock.EasyMock.createNiceMock;
 import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.replay;
 import static org.easymock.EasyMock.verify;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -31,11 +31,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.persistence.EntityManager;
-
 import org.apache.ambari.server.actionmanager.ActionManager;
 import org.apache.ambari.server.alerts.AmbariPerformanceRunnable.PerformanceArea;
-import org.apache.ambari.server.controller.AmbariManagementController;
 import org.apache.ambari.server.controller.internal.ClusterResourceProvider;
 import org.apache.ambari.server.controller.spi.ClusterController;
 import org.apache.ambari.server.controller.utilities.ClusterControllerHelper;
@@ -43,7 +40,6 @@ import org.apache.ambari.server.events.AlertEvent;
 import org.apache.ambari.server.events.AlertReceivedEvent;
 import org.apache.ambari.server.events.MockEventListener;
 import org.apache.ambari.server.events.publishers.AlertEventPublisher;
-import org.apache.ambari.server.orm.DBAccessor;
 import org.apache.ambari.server.orm.dao.AlertDefinitionDAO;
 import org.apache.ambari.server.orm.dao.AlertsDAO;
 import org.apache.ambari.server.orm.dao.HostRoleCommandDAO;
@@ -57,7 +53,7 @@ import org.apache.ambari.server.state.Clusters;
 import org.apache.ambari.server.state.alert.AlertDefinition;
 import org.apache.ambari.server.state.alert.AlertDefinitionFactory;
 import org.apache.ambari.server.state.alert.ServerSource;
-import org.apache.ambari.server.state.stack.OsFamily;
+import org.apache.ambari.server.testutils.PartialNiceMockBinder;
 import org.easymock.EasyMock;
 import org.junit.After;
 import org.junit.Before;
@@ -96,7 +92,7 @@ public class AmbariPerformanceRunnableTest {
   private AlertsDAO m_alertsDao;
   private AlertDefinitionDAO m_definitionDao;
   private AlertDefinitionEntity m_definition;
-  private List<AlertCurrentEntity> m_currentAlerts = new ArrayList<AlertCurrentEntity>();
+  private List<AlertCurrentEntity> m_currentAlerts = new ArrayList<>();
   private MockEventListener m_listener;
 
   private AlertEventPublisher m_eventPublisher;
@@ -126,7 +122,7 @@ public class AmbariPerformanceRunnableTest {
     m_synchronizedBus.register(m_listener);
 
     // create the cluster map
-    Map<String,Cluster> clusterMap = new HashMap<String, Cluster>();
+    Map<String,Cluster> clusterMap = new HashMap<>();
     clusterMap.put(CLUSTER_NAME, m_cluster);
 
     // mock the definition for the alert
@@ -218,8 +214,7 @@ public class AmbariPerformanceRunnableTest {
   public void testAlertFiresUnknownEvent() {
     // mock one area, leaving others to fail
     RequestDAO requestDAO = m_injector.getInstance(RequestDAO.class);
-    expect(requestDAO.findAllRequestIds(EasyMock.anyInt(), EasyMock.anyBoolean())).andReturn(
-        new ArrayList<Long>());
+    expect(requestDAO.findAllRequestIds(EasyMock.anyInt(), EasyMock.anyBoolean())).andReturn(new ArrayList<>());
 
     replay(requestDAO);
 
@@ -253,22 +248,6 @@ public class AmbariPerformanceRunnableTest {
   }
 
   /**
-   * Tests that the event is triggerd with a status of UNKNOWN.
-   */
-  @Test
-  public void testThresholdCalculations() {
-    // instantiate and inject mocks
-    AmbariPerformanceRunnable runnable = new AmbariPerformanceRunnable(
-        m_definition.getDefinitionName());
-
-    assertEquals(1, runnable.getThresholdValue(1, 2));
-    assertEquals(1, runnable.getThresholdValue("1", 2));
-    assertEquals(1, runnable.getThresholdValue("1.00", 2));
-    assertEquals(1, runnable.getThresholdValue("foo", 1));
-    assertEquals(1, runnable.getThresholdValue(new Object(), 1));
-  }
-
-  /**
    *
    */
   private class MockModule implements Module {
@@ -277,18 +256,15 @@ public class AmbariPerformanceRunnableTest {
      */
     @Override
     public void configure(Binder binder) {
-      Cluster cluster = EasyMock.createNiceMock(Cluster.class);
 
-      binder.bind(Clusters.class).toInstance(createNiceMock(Clusters.class));
-      binder.bind(OsFamily.class).toInstance(createNiceMock(OsFamily.class));
-      binder.bind(DBAccessor.class).toInstance(createNiceMock(DBAccessor.class));
-      binder.bind(Cluster.class).toInstance(cluster);
-      binder.bind(AlertDefinitionDAO.class).toInstance(createNiceMock(AlertDefinitionDAO.class));
+
+      PartialNiceMockBinder.newBuilder().addConfigsBindings()
+          .addLdapBindings()
+          .addAlertDefinitionBinding().build().configure(binder);
+
       binder.bind(AlertsDAO.class).toInstance(createNiceMock(AlertsDAO.class));
-      binder.bind(EntityManager.class).toInstance(createNiceMock(EntityManager.class));
       binder.bind(ActionManager.class).toInstance(createNiceMock(ActionManager.class));
       binder.bind(HostRoleCommandDAO.class).toInstance(createNiceMock(HostRoleCommandDAO.class));
-      binder.bind(AmbariManagementController.class).toInstance(createNiceMock(AmbariManagementController.class));
       binder.bind(AlertDefinitionFactory.class).toInstance(createNiceMock(AlertDefinitionFactory.class));
       binder.bind(ClusterResourceProvider.class).toInstance(createNiceMock(ClusterResourceProvider.class));
       binder.bind(ClusterController.class).toInstance(createNiceMock(ClusterController.class));

@@ -26,6 +26,7 @@ import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlElementWrapper;
 import javax.xml.bind.annotation.XmlElements;
+import javax.xml.bind.annotation.XmlTransient;
 
 import org.apache.commons.lang.builder.ToStringBuilder;
 import org.apache.commons.lang.builder.ToStringStyle;
@@ -53,6 +54,7 @@ public class ComponentInfo {
    * This is the translation of the xml element ["true", "false", null] (note that if a value is not specified,
    * it will inherit from the parent) into a boolean after actually resolving it.
    */
+  @XmlTransient
   private boolean versionAdvertisedInternal = false;
 
   /**
@@ -65,8 +67,8 @@ public class ComponentInfo {
   private UnlimitedKeyJCERequirement unlimitedKeyJCERequired;
 
   /**
-  * Used to determine if rolling restart is supported
-  * */
+   * Used to determine if rolling restart is supported
+   * */
   @XmlElements(@XmlElement(name = "rollingRestartSupported"))
   private boolean rollingRestartSupported;
 
@@ -117,7 +119,7 @@ public class ComponentInfo {
    */
   @XmlElementWrapper(name="dependencies")
   @XmlElements(@XmlElement(name="dependency"))
-  private List<DependencyInfo> dependencies = new ArrayList<DependencyInfo>();
+  private List<DependencyInfo> dependencies = new ArrayList<>();
 
   @XmlElementWrapper(name="configuration-dependencies")
   @XmlElements(@XmlElement(name="config-type"))
@@ -144,6 +146,12 @@ public class ComponentInfo {
 
   @XmlElement(name="customFolder")
   private String customFolder;
+
+  /**
+   * Optional component type like HCFS_CLIENT.
+   * HCFS_CLIENT indicates compatibility with HDFS_CLIENT
+   */
+  private String componentType;
 
   public ComponentInfo() {
   }
@@ -173,6 +181,7 @@ public class ComponentInfo {
     reassignAllowed = prototype.reassignAllowed;
     customFolder = prototype.customFolder;
     rollingRestartSupported = prototype.rollingRestartSupported;
+    componentType = prototype.componentType;
   }
 
   public String getName() {
@@ -229,7 +238,7 @@ public class ComponentInfo {
 
   public List<LogDefinition> getLogs() {
     if (logs == null) {
-      logs = new ArrayList<LogDefinition>();
+      logs = new ArrayList<>();
     }
     
     return logs;
@@ -259,7 +268,7 @@ public class ComponentInfo {
 
   public List<CustomCommandDefinition> getCustomCommands() {
     if (customCommands == null) {
-      customCommands = new ArrayList<CustomCommandDefinition>();
+      customCommands = new ArrayList<>();
     }
     return customCommands;
   }
@@ -375,16 +384,16 @@ public class ComponentInfo {
     return decommissionAllowed;
   }
 
+  public void setDecommissionAllowed(String decommissionAllowed) {
+    this.decommissionAllowed = decommissionAllowed;
+  }
+
   public boolean getRollingRestartSupported() {
     return rollingRestartSupported;
   }
 
   public void setRollingRestartSupported(boolean rollingRestartSupported) {
     this.rollingRestartSupported = rollingRestartSupported;
-  }
-
-  public void setDecommissionAllowed(String decommissionAllowed) {
-    this.decommissionAllowed = decommissionAllowed;
   }
 
   public UnlimitedKeyJCERequirement getUnlimitedKeyJCERequired() {
@@ -433,6 +442,14 @@ public class ComponentInfo {
 
   public void setCustomFolder(String customFolder) {
     this.customFolder = customFolder;
+  }
+
+  public String getComponentType() {
+    return componentType;
+  }
+
+  public void setComponentType(String componentType) {
+    this.componentType = componentType;
   }
 
   @Override

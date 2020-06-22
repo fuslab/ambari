@@ -19,13 +19,16 @@ limitations under the License.
 """
 
 import sys
-from resource_management import *
+from resource_management.libraries.script.script import Script
 from resource_management.libraries.functions import stack_select
-from resource_management.libraries.functions import StackFeature
+from resource_management.libraries.functions.constants import StackFeature
 from resource_management.libraries.functions.stack_features import check_stack_feature
+from resource_management.core.logger import Logger
+from resource_management.core.exceptions import ClientComponentHasNoStatus
+
 from oozie import oozie
 from oozie_service import oozie_service
-from resource_management.core.exceptions import ClientComponentHasNoStatus
+
 
 class OozieClient(Script):
 
@@ -63,7 +66,7 @@ class OozieClient(Script):
       import params
       config = self.get_config()
       return {'configurations': params.oozie_site,
-              'configuration_attributes': config['configuration_attributes'][dictionary]}
+              'configurationAttributes': config['configurationAttributes'][dictionary]}
     else:
       return super(OozieClient, self).generate_configs_get_xml_file_content(filename, dictionary)
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,13 +17,14 @@
  */
 package org.apache.ambari.server.state;
 
-import org.apache.ambari.server.state.theme.Theme;
+import java.util.Map;
 
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlTransient;
-import java.util.Map;
+
+import org.apache.ambari.server.state.theme.Theme;
 
 /**
  * Wrapper for theme description

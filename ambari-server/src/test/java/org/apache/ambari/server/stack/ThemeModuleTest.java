@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,13 +18,14 @@
 
 package org.apache.ambari.server.stack;
 
-import org.apache.ambari.server.state.theme.Theme;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 import java.io.File;
 import java.util.Set;
 
-import static org.junit.Assert.*;
+import org.apache.ambari.server.state.theme.Theme;
+import org.junit.Test;
 
 import com.google.common.collect.ImmutableSet;
 

@@ -40,6 +40,7 @@ App.stackServiceMapper = App.QuickDataMapper.create({
     is_service_with_widgets: 'is_service_with_widgets',
     required_services: 'required_services',
     service_check_supported: 'service_check_supported',
+    support_delete_via_ui: 'support_delete_via_ui',
     service_components_key: 'service_components',
     service_components_type: 'array',
     service_components: {
@@ -63,6 +64,7 @@ App.stackServiceMapper = App.QuickDataMapper.create({
     rolling_restart_supported: 'rolling_restart_supported',
     is_master: 'is_master',
     is_client: 'is_client',
+    component_type: 'component_type',
     stack_name: 'stack_name',
     stack_version: 'stack_version',
     stack_service_id: 'service_name',
@@ -75,7 +77,7 @@ App.stackServiceMapper = App.QuickDataMapper.create({
 
   mapStackServices: function(json) {
     App.set('isStackServicesLoaded',false);
-    this.clearStackModels();
+    App.clearModels([this.get('model'), this.get('component_model')]);
     App.resetDsStoreTypeMap(App.StackServiceComponent);
     App.resetDsStoreTypeMap(App.StackService);
     this.map(json);
@@ -125,22 +127,7 @@ App.stackServiceMapper = App.QuickDataMapper.create({
     }, this);
     App.store.safeLoadMany(this.get('component_model'), stackServiceComponents);
     App.store.safeLoadMany(model, result);
-  },
-
-  /**
-   * Clean store from already loaded data.
-   **/
-  clearStackModels: function () {
-    var models = [App.StackServiceComponent, App.StackService];
-    models.forEach(function (model) {
-      var records = App.get('store').findAll(model).filterProperty('id');
-      records.forEach(function (rec) {
-        Ember.run(this, function () {
-          rec.deleteRecord();
-          App.store.fastCommit();
-        });
-      }, this);
-    }, this);
   }
+
 });
 

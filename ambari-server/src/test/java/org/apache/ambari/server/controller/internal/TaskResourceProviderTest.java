@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,7 +27,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -75,14 +74,12 @@ public class TaskResourceProviderTest {
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
         type,
-        PropertyHelper.getPropertyIds(type),
-        PropertyHelper.getKeyPropertyIds(type),
         managementController);
 
     // add the property map to a set for the request.  add more maps for multiple creates
-    Set<Map<String, Object>> propertySet = new LinkedHashSet<Map<String, Object>>();
+    Set<Map<String, Object>> propertySet = new LinkedHashSet<>();
 
-    Map<String, Object> properties = new LinkedHashMap<String, Object>();
+    Map<String, Object> properties = new LinkedHashMap<>();
 
     // add properties to the request map
     properties.put(TaskResourceProvider.TASK_REQUEST_ID_PROPERTY_ID, 100);
@@ -113,7 +110,7 @@ public class TaskResourceProviderTest {
 
     Injector m_injector = Guice.createInjector(new InMemoryDefaultTestModule());
     TaskResourceProvider provider = (TaskResourceProvider) AbstractControllerResourceProvider.getResourceProvider(
-        type, PropertyHelper.getPropertyIds(type), PropertyHelper.getKeyPropertyIds(type), amc);
+        type, amc);
 
     m_injector.injectMembers(provider);
     TaskResourceProvider.s_dao = hostRoleCommandDAO;
@@ -126,6 +123,7 @@ public class TaskResourceProviderTest {
     hostRoleCommandEntity.setRole(Role.DATANODE);
     hostRoleCommandEntity.setCustomCommandName("customCommandName");
     hostRoleCommandEntity.setCommandDetail("commandDetail");
+    hostRoleCommandEntity.setOpsDisplayName("opsDisplayName");
     entities.add(hostRoleCommandEntity);
 
     // set expectations
@@ -135,11 +133,12 @@ public class TaskResourceProviderTest {
     // replay
     replay(hostRoleCommandDAO);
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     propertyIds.add(TaskResourceProvider.TASK_ID_PROPERTY_ID);
     propertyIds.add(TaskResourceProvider.TASK_REQUEST_ID_PROPERTY_ID);
     propertyIds.add(TaskResourceProvider.TASK_COMMAND_DET_PROPERTY_ID);
+    propertyIds.add(TaskResourceProvider.TASK_COMMAND_OPS_DISPLAY_NAME);
 
     Predicate predicate = new PredicateBuilder().property(TaskResourceProvider.TASK_ID_PROPERTY_ID).equals("100").
                           and().property(TaskResourceProvider.TASK_REQUEST_ID_PROPERTY_ID).equals("100").toPredicate();
@@ -154,6 +153,8 @@ public class TaskResourceProviderTest {
           .TASK_CUST_CMD_NAME_PROPERTY_ID));
       Assert.assertEquals("commandDetail", resource.getPropertyValue(TaskResourceProvider
           .TASK_COMMAND_DET_PROPERTY_ID));
+      Assert.assertEquals("opsDisplayName",resource.getPropertyValue(TaskResourceProvider
+          .TASK_COMMAND_OPS_DISPLAY_NAME));
     }
 
     // verify
@@ -173,7 +174,7 @@ public class TaskResourceProviderTest {
 
     Injector m_injector = Guice.createInjector(new InMemoryDefaultTestModule());
     TaskResourceProvider provider = (TaskResourceProvider) AbstractControllerResourceProvider.getResourceProvider(
-      type, PropertyHelper.getPropertyIds(type), PropertyHelper.getKeyPropertyIds(type), amc);
+      type, amc);
 
     m_injector.injectMembers(provider);
     TaskResourceProvider.s_dao = hostRoleCommandDAO;
@@ -189,6 +190,7 @@ public class TaskResourceProviderTest {
     hostRoleCommandEntity.setRole(Role.DATANODE);
     hostRoleCommandEntity.setCustomCommandName("customCommandName");
     hostRoleCommandEntity.setCommandDetail("commandDetail");
+    hostRoleCommandEntity.setOpsDisplayName("opsDisplayName");
     commands.add(new HostRoleCommand(hostRoleCommandEntity, hostDAO, executionCommandDAO, ecwFactory));
 
     // set expectations
@@ -199,11 +201,12 @@ public class TaskResourceProviderTest {
     // replay
     replay(hostRoleCommandDAO, topologyManager);
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     propertyIds.add(TaskResourceProvider.TASK_ID_PROPERTY_ID);
     propertyIds.add(TaskResourceProvider.TASK_REQUEST_ID_PROPERTY_ID);
     propertyIds.add(TaskResourceProvider.TASK_COMMAND_DET_PROPERTY_ID);
+    propertyIds.add(TaskResourceProvider.TASK_COMMAND_OPS_DISPLAY_NAME);
 
     Predicate predicate = new PredicateBuilder().property(TaskResourceProvider.TASK_ID_PROPERTY_ID).equals("100").
       and().property(TaskResourceProvider.TASK_REQUEST_ID_PROPERTY_ID).equals("100").toPredicate();
@@ -219,6 +222,8 @@ public class TaskResourceProviderTest {
         .TASK_CUST_CMD_NAME_PROPERTY_ID));
       Assert.assertEquals("commandDetail", resource.getPropertyValue(TaskResourceProvider
         .TASK_COMMAND_DET_PROPERTY_ID));
+      Assert.assertEquals("opsDisplayName",resource.getPropertyValue(TaskResourceProvider
+          .TASK_COMMAND_OPS_DISPLAY_NAME));
     }
 
     // verify
@@ -238,12 +243,10 @@ public class TaskResourceProviderTest {
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
         type,
-        PropertyHelper.getPropertyIds(type),
-        PropertyHelper.getKeyPropertyIds(type),
         managementController);
 
     // add the property map to a set for the request.
-    Map<String, Object> properties = new LinkedHashMap<String, Object>();
+    Map<String, Object> properties = new LinkedHashMap<>();
 
     // create the request
     Request request = PropertyHelper.getUpdateRequest(properties, null);
@@ -273,8 +276,6 @@ public class TaskResourceProviderTest {
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
         type,
-        PropertyHelper.getPropertyIds(type),
-        PropertyHelper.getKeyPropertyIds(type),
         managementController);
 
     Predicate predicate = new PredicateBuilder().property(TaskResourceProvider.TASK_ID_PROPERTY_ID).equals("Task100").toPredicate();
@@ -289,9 +290,7 @@ public class TaskResourceProviderTest {
     // Test general case
     AmbariManagementController managementController = createMock(AmbariManagementController.class);
 
-    TaskResourceProvider taskResourceProvider = new TaskResourceProvider(
-            PropertyHelper.getPropertyIds(type),
-            PropertyHelper.getKeyPropertyIds(type), managementController);
+    TaskResourceProvider taskResourceProvider = new TaskResourceProvider(managementController);
 
     replay(managementController);
 
@@ -325,9 +324,7 @@ public class TaskResourceProviderTest {
     // Test general case
     AmbariManagementController managementController = createMock(AmbariManagementController.class);
 
-    TaskResourceProvider taskResourceProvider = new TaskResourceProvider(
-            PropertyHelper.getPropertyIds(type),
-            PropertyHelper.getKeyPropertyIds(type), managementController);
+    TaskResourceProvider taskResourceProvider = new TaskResourceProvider(managementController);
 
     replay(managementController);
 
@@ -349,9 +346,7 @@ public class TaskResourceProviderTest {
     // Test general case
     AmbariManagementController managementController = createMock(AmbariManagementController.class);
 
-    TaskResourceProvider taskResourceProvider = new TaskResourceProvider(
-        PropertyHelper.getPropertyIds(type),
-        PropertyHelper.getKeyPropertyIds(type), managementController);
+    TaskResourceProvider taskResourceProvider = new TaskResourceProvider(managementController);
 
     replay(managementController);
 

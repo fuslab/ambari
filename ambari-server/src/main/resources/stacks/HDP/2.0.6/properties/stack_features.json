@@ -434,9 +434,24 @@
         "min_version": "2.6.3.0"
       },
       {
+        "name": "registry_allowed_resources_support",
+        "description": "Registry allowed resources",
+        "min_version": "2.6.3.0"
+      },
+      {
+        "name": "registry_rewriteuri_filter_support",
+        "description": "Registry RewriteUri servlet filter",
+        "min_version": "2.6.3.0"
+      },
+      {
+        "name": "sam_storage_core_in_registry",
+        "description": "Storage core module moved to registry",
+        "min_version": "2.6.3.0"
+      },
+      {
         "name": "kafka_extended_sasl_support",
         "description": "Support SASL PLAIN and GSSAPI",
-        "min_version": "2.6.99.99"
+        "min_version": "2.6.5.0"
       },
       {
         "name": "oozie_extjs_included",
@@ -445,9 +460,9 @@
         "max_version": "2.6.0.0"
       },
       {
-        "name": "nifi_encrypted_authorizers_config",
-        "description": "Support encrypted authorizers.xml configuration for version 3.1 onwards",
-        "min_version": "2.6.5.0"
+        "name": "ams_legacy_hadoop_sink",
+        "description": "Legacy AMS hadoop sink should be used",
+        "max_version": "2.6.99.99"
       }
     ]
   }

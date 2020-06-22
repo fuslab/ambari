@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,9 +19,9 @@
 package org.apache.ambari.server.api.services;
 
 
-import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.api.util.TreeNode;
 import org.apache.ambari.server.api.util.TreeNodeImpl;
+import org.apache.ambari.server.controller.spi.Resource;
 
 
 /**
@@ -47,7 +47,7 @@ public class ResultImpl implements Result {
   /**
    * Tree structure which holds the results
    */
-  private TreeNode<Resource> m_tree = new TreeNodeImpl<Resource>(null, null, null);
+  private TreeNode<Resource> m_tree = new TreeNodeImpl<>(null, null, null);
 
 
   /**

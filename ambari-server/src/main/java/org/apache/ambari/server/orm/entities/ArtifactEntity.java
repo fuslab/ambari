@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,7 +32,6 @@ import javax.persistence.Table;
 import javax.persistence.Transient;
 
 import com.google.gson.Gson;
-
 /**
  * Entity representing an Artifact.
  */
@@ -123,7 +122,7 @@ public class ArtifactEntity {
    */
   public Map<String, String> getForeignKeys() {
     return foreignKeys == null ?
-        Collections.<String, String>emptyMap() :
+        Collections.emptyMap() :
         jsonSerializer.<Map<String, String>>fromJson(foreignKeys, Map.class);
   }
 

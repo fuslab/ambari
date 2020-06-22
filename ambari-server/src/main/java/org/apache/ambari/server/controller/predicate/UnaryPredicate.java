@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,10 +17,10 @@
  */
 package org.apache.ambari.server.controller.predicate;
 
+import java.util.Set;
+
 import org.apache.ambari.server.controller.spi.Predicate;
 import org.apache.ambari.server.controller.utilities.PredicateHelper;
-
-import java.util.Set;
 
 /**
  * Predicate that operates on one other predicate.

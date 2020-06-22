@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,7 @@ import static org.easymock.EasyMock.anyString;
 import static org.easymock.EasyMock.createMock;
 import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.replay;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -41,9 +42,7 @@ import org.apache.ambari.server.state.ServiceInfo;
 import org.apache.ambari.server.state.StackInfo;
 import org.apache.ambari.server.state.quicklinks.Link;
 import org.apache.ambari.server.state.quicklinks.QuickLinks;
-import org.apache.ambari.server.state.quicklinksprofile.QuickLinkVisibilityController;
 import org.apache.ambari.server.state.quicklinksprofile.QuickLinkVisibilityControllerFactory;
-import org.easymock.IAnswer;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -87,13 +86,35 @@ public class QuickLinkArtifactResourceProviderTest {
         property(QuickLinkArtifactResourceProvider.STACK_SERVICE_NAME_PROPERTY_ID).equals("YARN").
         toPredicate();
     Set<Resource> resources =
-        provider.getResources(PropertyHelper.getReadRequest(Sets.<String>newHashSet()), predicate);
+        provider.getResources(PropertyHelper.getReadRequest(Sets.newHashSet()), predicate);
     Map<String, Link> linkMap = getLinks(resources);
 
     for (Map.Entry<String, Link> entry: linkMap.entrySet()) {
       assertTrue("Only resourcemanager_ui should be visible.",
           entry.getValue().isVisible() == entry.getKey().equals("resourcemanager_ui"));
     }
+  }
+
+  /**
+   * Test the application of link url override in the quick links profile
+   */
+  @Test
+  public void getResourcesWithUrlOverride() throws Exception {
+    quicklinkProfile = Resources.toString(Resources.getResource("example_quicklinks_profile.json"), Charsets.UTF_8);
+
+    QuickLinkArtifactResourceProvider provider = createProvider();
+    Predicate predicate = new PredicateBuilder().property(
+      QuickLinkArtifactResourceProvider.STACK_NAME_PROPERTY_ID).equals("HDP").
+      and().
+      property(QuickLinkArtifactResourceProvider.STACK_VERSION_PROPERTY_ID).equals("2.0.6").
+      and().
+      property(QuickLinkArtifactResourceProvider.STACK_SERVICE_NAME_PROPERTY_ID).equals("YARN").
+      toPredicate();
+    Set<Resource> resources =
+      provider.getResources(PropertyHelper.getReadRequest(Sets.newHashSet()), predicate);
+    Map<String, Link> linkMap = getLinks(resources);
+
+    assertEquals("http://customlink.org/resourcemanager", linkMap.get("resourcemanager_ui").getUrl());
   }
 
   /**
@@ -112,7 +133,7 @@ public class QuickLinkArtifactResourceProviderTest {
         property(QuickLinkArtifactResourceProvider.STACK_SERVICE_NAME_PROPERTY_ID).equals("YARN").
         toPredicate();
     Set<Resource> resources =
-        provider.getResources(PropertyHelper.getReadRequest(Sets.<String>newHashSet()), predicate);
+        provider.getResources(PropertyHelper.getReadRequest(Sets.newHashSet()), predicate);
     Map<String, Link> linkMap = getLinks(resources);
 
     for (Link link: linkMap.values()) {
@@ -136,7 +157,7 @@ public class QuickLinkArtifactResourceProviderTest {
         property(QuickLinkArtifactResourceProvider.STACK_SERVICE_NAME_PROPERTY_ID).equals("YARN").
         toPredicate();
     Set<Resource> resources =
-        provider.getResources(PropertyHelper.getReadRequest(Sets.<String>newHashSet()), predicate);
+        provider.getResources(PropertyHelper.getReadRequest(Sets.newHashSet()), predicate);
     Map<String, Link> linkMap = getLinks(resources);
 
     for (Link link: linkMap.values()) {
@@ -171,14 +192,8 @@ public class QuickLinkArtifactResourceProviderTest {
 
       AmbariManagementController amc = createMock(AmbariManagementController.class);
       expect(amc.getAmbariMetaInfo()).andReturn(metaInfo).anyTimes();
-      expect(amc.getQuicklinkVisibilityController()).andAnswer(
-          new IAnswer<QuickLinkVisibilityController>() {
-            @Override
-            public QuickLinkVisibilityController answer() throws Throwable {
-              return QuickLinkVisibilityControllerFactory.get(quicklinkProfile);
-            }
-          }
-      ).anyTimes();
+      expect(amc.getQuicklinkVisibilityController())
+        .andAnswer(() -> QuickLinkVisibilityControllerFactory.get(quicklinkProfile)).anyTimes();
 
       try {
         expect(metaInfo.getStack(anyString(), anyString())).andReturn(stack).anyTimes();

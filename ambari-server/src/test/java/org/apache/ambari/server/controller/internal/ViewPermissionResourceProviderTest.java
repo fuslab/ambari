@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,19 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.createStrictMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.reset;
+import static org.easymock.EasyMock.verify;
+
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.apache.ambari.server.orm.dao.PermissionDAO;
@@ -30,29 +43,12 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
-
-import static org.easymock.EasyMock.createMock;
-import static org.easymock.EasyMock.createNiceMock;
-import static org.easymock.EasyMock.createStrictMock;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.reset;
-import static org.easymock.EasyMock.verify;
-
 /**
  * ViewPermissionResourceProvider tests.
  */
 public class ViewPermissionResourceProviderTest {
   private final static PermissionDAO dao = createStrictMock(PermissionDAO.class);
   private static final ViewRegistry viewRegistry = createMock(ViewRegistry.class);
-
-  static {
-    ViewRegistry.initInstance(viewRegistry);
-  }
 
   @BeforeClass
   public static void initClass() {
@@ -61,12 +57,13 @@ public class ViewPermissionResourceProviderTest {
 
   @Before
   public void resetGlobalMocks() {
+    ViewRegistry.initInstance(viewRegistry);
     reset(dao, viewRegistry);
   }
 
   @Test
   public void testGetResources() throws Exception {
-    List<PermissionEntity> permissionEntities = new LinkedList<PermissionEntity>();
+    List<PermissionEntity> permissionEntities = new LinkedList<>();
 
     PermissionEntity permissionEntity = createNiceMock(PermissionEntity.class);
     PermissionEntity viewUsePermissionEntity = createNiceMock(PermissionEntity.class);
@@ -104,7 +101,7 @@ public class ViewPermissionResourceProviderTest {
 
   @Test
   public void testGetResources_viewNotLoaded() throws Exception {
-    List<PermissionEntity> permissionEntities = new LinkedList<PermissionEntity>();
+    List<PermissionEntity> permissionEntities = new LinkedList<>();
 
     PermissionEntity permissionEntity = createNiceMock(PermissionEntity.class);
     PermissionEntity viewUsePermissionEntity = createNiceMock(PermissionEntity.class);

@@ -65,6 +65,7 @@ App.WidgetWizardStep2View = Em.View.extend({
 App.WidgetPropertyTextFieldView = Em.TextField.extend({
   valueBinding: 'property.value',
   placeholderBinding: 'property.placeholder',
+  classNames: ['form-control'],
   classNameBindings: ['property.classNames', 'parentView.basicClass']
 });
 
@@ -76,6 +77,7 @@ App.WidgetPropertyThresholdView = Em.View.extend({
 App.WidgetPropertySelectView = Em.Select.extend({
   contentBinding: 'property.options',
   classNameBindings: ['property.classNames', 'parentView.basicClass'],
+  classNames: ['form-control'],
   optionLabelPath: "content.label",
   optionValuePath: "content.value",
   didInsertElement: function () {
@@ -91,5 +93,15 @@ App.WidgetPropertySelectView = Em.Select.extend({
   }
 });
 
+App.WidgetWizardComponentDropdownView = Em.View.extend({
 
+  templateName: require('templates/main/service/widgets/create/step2_component_dropdown'),
+
+  tagName: 'li',
+
+  classNames: ['dropdown-submenu'],
+
+  displayName: ''
+
+});
 

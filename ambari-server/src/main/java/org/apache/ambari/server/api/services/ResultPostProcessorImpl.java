@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,18 @@
 
 package org.apache.ambari.server.api.services;
 
-import org.apache.ambari.server.api.resources.RequestResourceDefinition;
-import org.apache.ambari.server.api.resources.ResourceDefinition;
-import org.apache.ambari.server.api.resources.ResourceInstance;
-import org.apache.ambari.server.controller.spi.Resource;
-import org.apache.ambari.server.api.util.TreeNode;
-
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.apache.ambari.server.api.resources.RequestResourceDefinition;
+import org.apache.ambari.server.api.resources.ResourceDefinition;
+import org.apache.ambari.server.api.resources.ResourceInstance;
+import org.apache.ambari.server.api.util.TreeNode;
+import org.apache.ambari.server.controller.spi.Resource;
 
 /**
  * Processes returned results to add href's and other content.
@@ -45,7 +45,7 @@ public class ResultPostProcessorImpl implements ResultPostProcessor {
    * These are used to act on specific resource types contained in the result.
    */
   Map<Resource.Type, List<ResourceDefinition.PostProcessor>>
-      m_mapPostProcessors = new HashMap<Resource.Type, List<ResourceDefinition.PostProcessor>>();
+      m_mapPostProcessors = new HashMap<>();
 
 
   /**
@@ -132,7 +132,7 @@ public class ResultPostProcessorImpl implements ResultPostProcessor {
     Resource.Type type = resource.getResourceDefinition().getType();
     List<ResourceDefinition.PostProcessor> listProcessors = m_mapPostProcessors.get(type);
     if (listProcessors == null) {
-      listProcessors = new ArrayList<ResourceDefinition.PostProcessor>();
+      listProcessors = new ArrayList<>();
       m_mapPostProcessors.put(type, listProcessors);
     }
     listProcessors.addAll(resource.getResourceDefinition().getPostProcessors());

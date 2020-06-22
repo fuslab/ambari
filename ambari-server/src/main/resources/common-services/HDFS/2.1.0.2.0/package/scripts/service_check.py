@@ -17,12 +17,18 @@ limitations under the License.
 
 """
 
-from resource_management import *
+from resource_management.libraries.script.script import Script
 from resource_management.core.shell import as_user
 from ambari_commons.os_family_impl import OsFamilyImpl
 from ambari_commons import OSConst
 from resource_management.libraries.functions.curl_krb_request import curl_krb_request
+from resource_management.libraries import functions
+from resource_management.libraries.functions.format import format
+from resource_management.libraries.resources.execute_hadoop import ExecuteHadoop
 from resource_management.core.logger import Logger
+from resource_management.core.source import StaticFile
+from resource_management.core.resources.system import Execute, File
+
 
 class HdfsServiceCheck(Script):
   pass
@@ -37,10 +43,26 @@ class HdfsServiceCheckDefault(HdfsServiceCheck):
     dir = params.hdfs_tmp_dir
     tmp_file = format("{dir}/{unique}")
 
+    """
+    Ignore checking safemode, because this command is unable to get safemode state
+    when 1 namenode is down in an HA setup (see more in HDFS-8277). Directly
+    test HDFS availability by file system operations is consistent in both HA and
+    non-HA environment.
+    """
+    # safemode_command = format("dfsadmin -fs {namenode_address} -safemode get | grep OFF")
+
     if params.security_enabled:
       Execute(format("{kinit_path_local} -kt {hdfs_user_keytab} {hdfs_principal_name}"),
         user=params.hdfs_user
       )
+    #ExecuteHadoop(safemode_command,
+    #              user=params.hdfs_user,
+    #              logoutput=True,
+    #              conf_dir=params.hadoop_conf_dir,
+    #              try_sleep=3,
+    #              tries=20,
+    #              bin_dir=params.hadoop_bin_dir
+    #)
     params.HdfsResource(dir,
                         type="directory",
                         action="create_on_execute",

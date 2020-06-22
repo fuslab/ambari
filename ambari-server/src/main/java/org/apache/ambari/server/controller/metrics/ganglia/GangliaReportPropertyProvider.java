@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,15 @@
 
 package org.apache.ambari.server.controller.metrics.ganglia;
 
+import static org.apache.ambari.server.controller.metrics.MetricsServiceProvider.MetricsService.GANGLIA;
+
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.configuration.ComponentSSLConfiguration;
 import org.apache.ambari.server.controller.internal.PropertyInfo;
 import org.apache.ambari.server.controller.metrics.MetricHostProvider;
@@ -32,13 +41,6 @@ import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import static org.apache.ambari.server.controller.metrics.MetricsServiceProvider.MetricsService.GANGLIA;
 
 /**
  * Property provider implementation for a Ganglia source. This provider is specialized
@@ -47,7 +49,7 @@ import static org.apache.ambari.server.controller.metrics.MetricsServiceProvider
 public class GangliaReportPropertyProvider extends MetricsReportPropertyProvider {
   // ----- Constants --------------------------------------------------------
 
-  protected final static Logger LOG =
+  private static final Logger LOG =
       LoggerFactory.getLogger(GangliaReportPropertyProvider.class);
 
 
@@ -69,7 +71,7 @@ public class GangliaReportPropertyProvider extends MetricsReportPropertyProvider
   public Set<Resource> populateResources(Set<Resource> resources, Request request, Predicate predicate)
       throws SystemException {
 
-    Set<Resource> keepers = new HashSet<Resource>();
+    Set<Resource> keepers = new HashSet<>();
     for (Resource resource : resources) {
       if (populateResource(resource, request, predicate)) {
         keepers.add(resource);
@@ -150,7 +152,7 @@ public class GangliaReportPropertyProvider extends MetricsReportPropertyProvider
   }
 
   private Map<String, Map<String, String>> getPropertyIdMaps(Request request, Set<String> ids) {
-    Map<String, Map<String, String>> propertyMap = new HashMap<String, Map<String, String>>();
+    Map<String, Map<String, String>> propertyMap = new HashMap<>();
 
     for (String id : ids) {
       Map<String, PropertyInfo> propertyInfoMap = getPropertyInfoMap("*", id);
@@ -173,7 +175,7 @@ public class GangliaReportPropertyProvider extends MetricsReportPropertyProvider
           if (report !=  null) {
             Map<String, String> map = propertyMap.get(report);
             if (map == null) {
-              map = new HashMap<String, String>();
+              map = new HashMap<>();
               propertyMap.put(report, map);
             }
             map.put(propertyName, propertyId);

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,14 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
-
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Simple resource implementation.
@@ -116,7 +119,7 @@ public class ResourceImpl implements Resource {
     String categoryKey = getCategoryKey(id);
 
     if (!propertiesMap.containsKey(categoryKey)) {
-      propertiesMap.put(categoryKey, new HashMap<String, Object>());
+      propertiesMap.put(categoryKey, new HashMap<>());
     }
   }
 

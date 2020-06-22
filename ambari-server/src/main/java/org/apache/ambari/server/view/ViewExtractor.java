@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,13 +17,6 @@
  */
 package org.apache.ambari.server.view;
 
-import org.apache.ambari.server.orm.entities.ViewEntity;
-import org.apache.ambari.server.view.configuration.ViewConfig;
-import org.apache.commons.io.FileUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.inject.Inject;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -33,6 +26,14 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
+
+import javax.inject.Inject;
+
+import org.apache.ambari.server.orm.entities.ViewEntity;
+import org.apache.ambari.server.view.configuration.ViewConfig;
+import org.apache.commons.io.FileUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Extractor for view archives.
@@ -52,7 +53,7 @@ public class ViewExtractor {
   /**
    * The logger.
    */
-  protected final static Logger LOG = LoggerFactory.getLogger(ViewExtractor.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ViewExtractor.class);
 
 
   // ----- ViewExtractor -----------------------------------------------------
@@ -109,13 +110,13 @@ public class ViewExtractor {
               try {
                 String   entryPath = archivePath + File.separator + jarEntry.getName();
 
-                LOG.debug("Extracting " + entryPath);
+                LOG.debug("Extracting {}", entryPath);
 
                 File entryFile = archiveUtility.getFile(entryPath);
 
                 if (jarEntry.isDirectory()) {
 
-                  LOG.debug("Making directory " + entryPath);
+                  LOG.debug("Making directory {}", entryPath);
 
                   if (!entryFile.mkdir()) {
                     msg = "Could not create archive entry directory " + entryPath + ".";
@@ -128,14 +129,14 @@ public class ViewExtractor {
 
                   FileOutputStream fos = archiveUtility.getFileOutputStream(entryFile);
                   try {
-                    LOG.debug("Begin copying from " + jarEntry.getName() + " to "+ entryPath);
+                    LOG.debug("Begin copying from {} to {}", jarEntry.getName(), entryPath);
 
                     byte[] buffer = new byte[BUFFER_SIZE];
                     int n;
                     while((n = jarInputStream.read(buffer)) > -1) {
                       fos.write(buffer, 0, n);
                     }
-                    LOG.debug("Finish copying from " + jarEntry.getName() + " to "+ entryPath);
+                    LOG.debug("Finish copying from {} to {}", jarEntry.getName(), entryPath);
 
                   } finally {
                     fos.flush();
@@ -193,7 +194,7 @@ public class ViewExtractor {
       throws IOException {
 
     String    archivePath = archiveDir.getAbsolutePath();
-    List<URL> urlList     = new LinkedList<URL>();
+    List<URL> urlList     = new LinkedList<>();
 
     // include the classes directory
     String classesPath = archivePath + File.separator + ARCHIVE_CLASSES_DIR;

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,8 +23,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.StackAccessException;
@@ -40,6 +43,7 @@ import org.apache.ambari.server.orm.entities.HostGroupEntity;
 import org.apache.ambari.server.orm.entities.StackEntity;
 import org.apache.ambari.server.stack.NoSuchStackException;
 import org.apache.ambari.server.state.ConfigHelper;
+import org.apache.ambari.server.state.ServiceInfo;
 import org.apache.commons.lang.StringUtils;
 
 import com.google.gson.Gson;
@@ -50,12 +54,13 @@ import com.google.gson.Gson;
 public class BlueprintImpl implements Blueprint {
 
   private String name;
-  private Map<String, HostGroup> hostGroups = new HashMap<String, HostGroup>();
+  private Map<String, HostGroup> hostGroups = new HashMap<>();
   private Stack stack;
   private Configuration configuration;
   private BlueprintValidator validator;
   private SecurityConfiguration security;
   private Setting setting;
+  private List<RepositorySetting> repoSettings;
 
   public BlueprintImpl(BlueprintEntity entity) throws NoSuchStackException {
     this.name = entity.getBlueprintName();
@@ -72,6 +77,7 @@ public class BlueprintImpl implements Blueprint {
     configuration.setParentConfiguration(stack.getConfiguration(getServices()));
     validator = new BlueprintValidatorImpl(this);
     processSetting(entity.getSettings());
+    processRepoSettings();
   }
 
   public BlueprintImpl(String name, Collection<HostGroup> groups, Stack stack, Configuration configuration,
@@ -143,7 +149,7 @@ public class BlueprintImpl implements Blueprint {
    */
   @Override
   public Collection<String> getServices() {
-    Collection<String> services = new HashSet<String>();
+    Collection<String> services = new HashSet<>();
     for (HostGroup group : getHostGroups().values()) {
       services.addAll(group.getServices());
     }
@@ -151,8 +157,17 @@ public class BlueprintImpl implements Blueprint {
   }
 
   @Override
+  public Collection<ServiceInfo> getServiceInfos() {
+    return getServices().stream()
+      .map(stack::getServiceInfo)
+      .filter(Optional::isPresent)
+      .map(Optional::get)
+      .collect(Collectors.toList());
+  }
+
+  @Override
   public Collection<String> getComponents(String service) {
-    Collection<String> components = new HashSet<String>();
+    Collection<String> components = new HashSet<>();
     for (HostGroup group : getHostGroupsForService(service)) {
       components.addAll(group.getComponents(service));
     }
@@ -242,9 +257,7 @@ public class BlueprintImpl implements Blueprint {
     if (setting == null)
       return null;
 
-    /**
-     * Look up the service and return the credential_store_enabled value.
-     */
+    // Look up the service and return the credential_store_enabled value.
     Set<HashMap<String, String>> settingValue = setting.getSettingValue(Setting.SETTING_NAME_SERVICE_SETTINGS);
     for (Map<String, String> setting : settingValue) {
       String name = setting.get(Setting.SETTING_NAME_NAME);
@@ -287,7 +300,7 @@ public class BlueprintImpl implements Blueprint {
    */
   @Override
   public Collection<HostGroup> getHostGroupsForComponent(String component) {
-    Collection<HostGroup> resultGroups = new HashSet<HostGroup>();
+    Collection<HostGroup> resultGroups = new HashSet<>();
     for (HostGroup group : hostGroups.values() ) {
       if (group.getComponentNames().contains(component)) {
         resultGroups.add(group);
@@ -305,7 +318,7 @@ public class BlueprintImpl implements Blueprint {
    */
   @Override
   public Collection<HostGroup> getHostGroupsForService(String service) {
-    Collection<HostGroup> resultGroups = new HashSet<HostGroup>();
+    Collection<HostGroup> resultGroups = new HashSet<>();
     for (HostGroup group : hostGroups.values() ) {
       if (group.getServices().contains(service)) {
         resultGroups.add(group);
@@ -364,7 +377,7 @@ public class BlueprintImpl implements Blueprint {
     } catch (StackAccessException e) {
       throw new NoSuchStackException(stackEntity.getStackName(), stackEntity.getStackVersion());
     } catch (AmbariException e) {
-    //todo:
+      //todo:
       throw new RuntimeException("An error occurred parsing the stack information.", e);
     }
   }
@@ -406,7 +419,7 @@ public class BlueprintImpl implements Blueprint {
    */
   private Map<String, Map<String, String>> parseConfigurations(Collection<BlueprintConfigEntity> configs) {
 
-    Map<String, Map<String, String>> properties = new HashMap<String, Map<String, String>>();
+    Map<String, Map<String, String>> properties = new HashMap<>();
     Gson gson = new Gson();
     for (BlueprintConfiguration config : configs) {
       String type = config.getType();
@@ -424,7 +437,7 @@ public class BlueprintImpl implements Blueprint {
    */
   private Map<String, Set<HashMap<String, String>>> parseSetting(Collection<BlueprintSettingEntity> blueprintSetting) {
 
-    Map<String, Set<HashMap<String, String>>> properties = new HashMap<String, Set<HashMap<String, String>>>();
+    Map<String, Set<HashMap<String, String>>> properties = new HashMap<>();
     Gson gson = new Gson();
     for (BlueprintSettingEntity setting : blueprintSetting) {
       String settingName = setting.getSettingName();
@@ -443,7 +456,7 @@ public class BlueprintImpl implements Blueprint {
   //todo: do inline with config processing
   private Map<String, Map<String, Map<String, String>>> parseAttributes(Collection<BlueprintConfigEntity> configs) {
     Map<String, Map<String, Map<String, String>>> mapAttributes =
-        new HashMap<String, Map<String, Map<String, String>>>();
+      new HashMap<>();
 
     if (configs != null) {
       Gson gson = new Gson();
@@ -463,7 +476,7 @@ public class BlueprintImpl implements Blueprint {
    */
   @SuppressWarnings("unchecked")
   private void createHostGroupEntities(BlueprintEntity blueprintEntity) {
-    Collection<HostGroupEntity> entities = new ArrayList<HostGroupEntity>();
+    Collection<HostGroupEntity> entities = new ArrayList<>();
     for (HostGroup group : getHostGroups().values()) {
       HostGroupEntity hostGroupEntity = new HostGroupEntity();
       entities.add(hostGroupEntity);
@@ -485,7 +498,7 @@ public class BlueprintImpl implements Blueprint {
    */
   private void createHostGroupConfigEntities(HostGroupEntity hostGroup, Configuration groupConfiguration) {
     Gson jsonSerializer = new Gson();
-    Map<String, HostGroupConfigEntity> configEntityMap = new HashMap<String, HostGroupConfigEntity>();
+    Map<String, HostGroupConfigEntity> configEntityMap = new HashMap<>();
     for (Map.Entry<String, Map<String, String>> propEntry : groupConfiguration.getProperties().entrySet()) {
       String type = propEntry.getKey();
       Map<String, String> properties = propEntry.getValue();
@@ -522,7 +535,7 @@ public class BlueprintImpl implements Blueprint {
     */
   @SuppressWarnings("unchecked")
   private void createComponentEntities(HostGroupEntity group, Collection<Component> components) {
-    Collection<HostGroupComponentEntity> componentEntities = new HashSet<HostGroupComponentEntity>();
+    Collection<HostGroupComponentEntity> componentEntities = new HashSet<>();
     group.setComponents(componentEntities);
 
     for (Component component : components) {
@@ -550,7 +563,7 @@ public class BlueprintImpl implements Blueprint {
   private void createBlueprintConfigEntities(BlueprintEntity blueprintEntity) {
     Gson jsonSerializer = new Gson();
     Configuration config = getConfiguration();
-    Map<String, BlueprintConfigEntity> configEntityMap = new HashMap<String, BlueprintConfigEntity>();
+    Map<String, BlueprintConfigEntity> configEntityMap = new HashMap<>();
     for (Map.Entry<String, Map<String, String>> propEntry : config.getProperties().entrySet()) {
       String type = propEntry.getKey();
       Map<String, String> properties = propEntry.getValue();
@@ -610,10 +623,34 @@ public class BlueprintImpl implements Blueprint {
     if (ConfigHelper.CLUSTER_ENV.equals(configType) || "global".equals(configType)) {
       return true;
     }
-    String service = getStack().getServiceForConfigType(configType);
-    if (getServices().contains(service)) {
-        return true;
+    return getStack().getServicesForConfigType(configType).stream().anyMatch(getServices()::contains);
+  }
+
+  /**
+   * Parse stack repo info stored in the blueprint_settings table
+   * @return set of repositories
+   * */
+  private void processRepoSettings(){
+    repoSettings = new ArrayList<>();
+    if (setting != null){
+      Set<HashMap<String, String>> settingValue = setting.getSettingValue(Setting.SETTING_NAME_REPOSITORY_SETTINGS);
+      for (Map<String, String> setting : settingValue) {
+        RepositorySetting rs = parseRepositorySetting(setting);
+        repoSettings.add(rs);
+      }
     }
-    return false;
+  }
+
+  private RepositorySetting parseRepositorySetting(Map<String, String> setting){
+    RepositorySetting result = new RepositorySetting();
+    result.setOperatingSystem(setting.get(RepositorySetting.OPERATING_SYSTEM));
+    result.setOverrideStrategy(setting.get(RepositorySetting.OVERRIDE_STRATEGY));
+    result.setRepoId(setting.get(RepositorySetting.REPO_ID));
+    result.setBaseUrl(setting.get(RepositorySetting.BASE_URL));
+    return result;
+  }
+
+  public List<RepositorySetting> getRepositorySettings(){
+    return repoSettings;
   }
 }

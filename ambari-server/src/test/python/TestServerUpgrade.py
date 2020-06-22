@@ -86,7 +86,7 @@ class TestServerUpgrade(TestCase):
     get_validated_string_input_mock.return_value = 'dummy_string'
 
     p = get_ambari_properties_mock.return_value
-    p.get_property.side_effect = ["8080", "false"]
+    p.get_property.side_effect = ["8080", "false", "false"]
 
     get_ambari_server_api_base_mock.return_value = 'http://127.0.0.1:8080/api/v1/'
     get_verbose_mock.retun_value = False
@@ -140,7 +140,7 @@ class TestServerUpgrade(TestCase):
     get_validated_string_input_mock.return_value = 'dummy_string'
 
     p = get_ambari_properties_mock.return_value
-    p.get_property.side_effect = ["8080", "false"]
+    p.get_property.side_effect = ["8080", "false", "false"]
 
     get_ambari_server_api_base_mock.return_value = 'http://127.0.0.1:8080/api/v1/'
     get_verbose_mock.retun_value = False
@@ -153,6 +153,7 @@ class TestServerUpgrade(TestCase):
     self.assertEquals(request.data, '{"ClusterStackVersions": {"state": "CURRENT", "repository_version": "HDP-2.2.2.0-2561", "force": true}}')
     self.assertEquals(request.origin_req_host, '127.0.0.1')
     self.assertEquals(request.headers, {'X-requested-by': 'ambari', 'Authorization': 'Basic ZHVtbXlfc3RyaW5nOmR1bW15X3N0cmluZw=='})
+
 
   def testCurrentVersionOptions(self):
     # Negative test cases

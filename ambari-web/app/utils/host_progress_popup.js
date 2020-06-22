@@ -61,6 +61,7 @@ var dataUtils = require('utils/data_manipulation');
  * @property {string} displayName
  * @property {string} progress
  * @property {string} status
+ * @property {string} userName
  * @property {boolean} isRunning
  * @property {string} name
  * @property {boolean} isVisible
@@ -120,6 +121,14 @@ App.HostPopup = Em.Object.create({
    */
   popupHeaderName: '',
 
+  //This is what the breadcrumbs will be reset to every time the modal is opened.
+  rootBreadcrumb: null,
+
+  /**
+   * @type {object[]}
+   */
+  breadcrumbs: [],
+
   operationInfo: null,
 
   /**
@@ -156,11 +165,11 @@ App.HostPopup = Em.Object.create({
    * @type {object}
    */
   barColorMap: {
-    'FAILED': 'progress-danger',
-    'ABORTED': 'progress-warning',
-    'TIMEDOUT': 'progress-warning',
-    'IN_PROGRESS': 'progress-info',
-    'COMPLETED': 'progress-success'
+    'FAILED': 'progress-bar-danger',
+    'ABORTED': 'progress-bar-warning',
+    'TIMEDOUT': 'progress-bar-warning',
+    'IN_PROGRESS': 'progress-bar-info',
+    'COMPLETED': 'progress-bar-success'
   },
 
   /**
@@ -169,11 +178,11 @@ App.HostPopup = Em.Object.create({
    * @type {object}
    */
   statusesStyleMap: {
-    'FAILED': ['FAILED', 'icon-exclamation-sign', 'progress-danger', false],
-    'ABORTED': ['ABORTED', 'icon-minus', 'progress-warning', false],
-    'TIMEDOUT': ['TIMEDOUT', 'icon-time', 'progress-warning', false],
-    'IN_PROGRESS': ['IN_PROGRESS', 'icon-cogs', 'progress-info', true],
-    'COMPLETED': ['SUCCESS', 'icon-ok', 'progress-success', false]
+    'FAILED': ['FAILED', 'icon-exclamation-sign', 'progress-bar-danger', false],
+    'ABORTED': ['ABORTED', 'glyphicon glyphicon-minus', 'progress-bar-warning', false],
+    'TIMEDOUT': ['TIMEDOUT', 'glyphicon glyphicon-time', 'progress-bar-warning', false],
+    'IN_PROGRESS': ['IN_PROGRESS', 'icon-cogs', 'progress-bar-info', true],
+    'COMPLETED': ['SUCCESS', 'glyphicon glyphicon-ok', 'progress-bar-success', false]
   },
 
   /**
@@ -182,8 +191,9 @@ App.HostPopup = Em.Object.create({
    * @type {Em.View}
    */
   abortIcon: Em.View.extend({
-    tagName: 'i',
-    classNames: ['abort-icon', 'icon-remove-circle', 'pointer'],
+    tagName: 'a',
+    classNames: ['abort-icon'],
+    template: Em.Handlebars.compile('<span class="icon icon-remove-circle"></span>'),
     click: function () {
       this.get('controller').abortRequest(this.get('servicesInfo'));
       return false;
@@ -292,17 +302,21 @@ App.HostPopup = Em.Object.create({
    */
   initPopup: function (serviceName, controller, isBackgroundOperations, requestId) {
     if (App.get('isClusterUser')) return;
+
     if (!isBackgroundOperations) {
       this.clearHostPopup();
-      this.set("popupHeaderName", serviceName);
+      this.set("rootBreadcrumb", { label: serviceName });
+    } else {
+      this.set("rootBreadcrumb", { label: Em.I18n.t("common.backgroundOperations") });
     }
 
     this.setProperties({
+      breadcrumbs: [ this.get("rootBreadcrumb") ],
       currentServiceId: requestId,
       serviceName: serviceName,
       dataSourceController: controller,
       isBackgroundOperations: isBackgroundOperations,
-      inputData: this.get("dataSourceController.services")
+      inputData: controller.get("services")
     });
 
     if (isBackgroundOperations) {
@@ -310,6 +324,7 @@ App.HostPopup = Em.Object.create({
     } else {
       this.onHostUpdate();
     }
+
     return this.createPopup();
   },
 
@@ -351,22 +366,22 @@ App.HostPopup = Em.Object.create({
         isCompleted = false;
       }
       if (taskStatus === 'FAILED') {
-        return ['FAILED', 'icon-exclamation-sign', 'progress-danger', false];
+        return ['FAILED', 'icon-exclamation-sign', 'progress-bar-danger', false];
       }
       if (taskStatus === 'ABORTED') {
-        return ['ABORTED', 'icon-minus', 'progress-warning', false];
+        return ['ABORTED', 'glyphicon glyphicon-minus', 'progress-bar-warning', false];
       }
       if (taskStatus === 'TIMEDOUT') {
-        return ['TIMEDOUT', 'icon-time', 'progress-warning', false];
+        return ['TIMEDOUT', 'glyphicon glyphicon-time', 'progress-bar-warning', false];
       }
       if (taskStatus === 'IN_PROGRESS') {
-        return ['IN_PROGRESS', 'icon-cogs', 'progress-info', true]
+        return ['IN_PROGRESS', 'icon-cogs', 'progress-bar-info', true]
       }
     }
     if (isCompleted) {
-      return ['SUCCESS', 'icon-ok', 'progress-success', false];
+      return ['SUCCESS', 'glyphicon glyphicon-ok', 'progress-bar-success', false];
     }
-    return ['PENDING', 'icon-cog', 'progress-info', true];
+    return ['PENDING', 'glyphicon glyphicon-cog', 'progress-bar-info', true];
   },
 
   /**
@@ -424,7 +439,7 @@ App.HostPopup = Em.Object.create({
    */
   setBackgroundOperationHeader: function (isServiceListHidden) {
     if (this.get('isBackgroundOperations') && !isServiceListHidden) {
-      var numRunning = App.router.get('backgroundOperationsController.allOperationsCount');
+      var numRunning = App.router.get('backgroundOperationsController.runningOperationsCount');
       this.set("popupHeaderName", numRunning + Em.I18n.t('hostPopup.header.postFix').format(numRunning === 1 ? "" : "s"));
     }
   },
@@ -437,10 +452,12 @@ App.HostPopup = Em.Object.create({
    * @method onServiceUpdate
    */
   onServiceUpdate: function (isServiceListHidden) {
-    if (this.get('isBackgroundOperations') && this.get("inputData")) {
-      var servicesInfo = this.get("servicesInfo");
-      var currentServices = [];
-      this.get("inputData").forEach(function (service, index) {
+    var servicesInfo = this.get("servicesInfo");
+    var currentServices = [];
+
+    var inputData = this.get("inputData");
+    if (inputData) {
+      inputData.forEach(function (service, index) {
         var updatedService;
         var id = service.id;
         currentServices.push(id);
@@ -455,9 +472,10 @@ App.HostPopup = Em.Object.create({
         }
         updatedService.set('isAbortable', App.isAuthorized('SERVICE.START_STOP') && this.isAbortableByStatus(service.status));
       }, this);
-      this.removeOldServices(servicesInfo, currentServices);
-      this.setBackgroundOperationHeader(isServiceListHidden);
     }
+
+    this.removeOldServices(servicesInfo, currentServices);
+    this.setBackgroundOperationHeader(isServiceListHidden);
   },
 
   /**
@@ -469,13 +487,14 @@ App.HostPopup = Em.Object.create({
    */
   createService: function (service) {
     var statuses = this.get('statusesStyleMap');
-    var pendingStatus = ['PENDING', 'icon-cog', 'progress-info', true];
+    var pendingStatus = ['PENDING', 'glyphicon glyphicon-cog', 'progress-bar-info', true];
     var status = statuses[service.status] || pendingStatus;
     return Em.Object.create({
       id: service.id,
       displayName: service.displayName,
       progress: service.progress,
       status: App.format.taskStatus(status[0]),
+      userName: service.userName,
       isRunning: service.isRunning,
       name: service.name,
       isVisible: true,
@@ -500,11 +519,12 @@ App.HostPopup = Em.Object.create({
    */
   updateService: function (service, newData) {
     var statuses = this.get('statusesStyleMap');
-    var pendingStatus = ['PENDING', 'icon-cog', 'progress-info', true];
+    var pendingStatus = ['PENDING', 'glyphicon glyphicon-cog', 'progress-bar-info', true];
     var status = statuses[newData.status] || pendingStatus;
     return service.setProperties({
       progress: newData.progress,
       status: App.format.taskStatus(status[0]),
+      userName: newData.userName,
       isRunning: newData.isRunning,
       startTime: date.startTime(newData.startTime),
       duration: date.durationSummary(newData.startTime, newData.endTime),
@@ -512,8 +532,8 @@ App.HostPopup = Em.Object.create({
       barColor: status[2],
       isInProgress: status[3],
       barWidth: "width:" + newData.progress + "%;",
-      sourceRequestScheduleId: newData.get('sourceRequestScheduleId'),
-      contextCommand: newData.get('contextCommand')
+      sourceRequestScheduleId: newData.get && newData.get('sourceRequestScheduleId'),
+      contextCommand: newData.get && newData.get('contextCommand')
     });
   },
 
@@ -547,7 +567,7 @@ App.HostPopup = Em.Object.create({
       id: _task.Tasks.id,
       hostName: _task.Tasks.host_name,
       command: _task.Tasks.command.toLowerCase() === 'service_check' ? '' : _task.Tasks.command.toLowerCase(),
-      commandDetail: App.format.commandDetail(_task.Tasks.command_detail, _task.Tasks.request_inputs),
+      commandDetail: App.format.commandDetail(_task.Tasks.command_detail, _task.Tasks.request_inputs, _task.Tasks.ops_display_name),
       status: App.format.taskStatus(_task.Tasks.status),
       role: App.format.role(_task.Tasks.role, false),
       stderr: _task.Tasks.stderr,
@@ -558,15 +578,15 @@ App.HostPopup = Em.Object.create({
       duration: date.durationSummary(_task.Tasks.start_time, _task.Tasks.end_time),
       icon: function () {
         var statusIconMap = {
-          'pending': 'icon-cog',
-          'queued': 'icon-cog',
+          'pending': 'glyphicon glyphicon-cog',
+          'queued': 'glyphicon glyphicon-cog',
           'in_progress': 'icon-cogs',
-          'completed': 'icon-ok',
+          'completed': 'glyphicon glyphicon-ok',
           'failed': 'icon-exclamation-sign',
-          'aborted': 'icon-minus',
-          'timedout': 'icon-time'
+          'aborted': 'glyphicon glyphicon-minus',
+          'timedout': 'glyphicon glyphicon-time'
         };
-        return statusIconMap[this.get('status')] || 'icon-cog';
+        return statusIconMap[this.get('status')] || 'glyphicon glyphicon-cog';
       }.property('status')
     });
   },
@@ -585,8 +605,7 @@ App.HostPopup = Em.Object.create({
 
       if (existedHosts && existedHosts.length && this.get('currentServiceId') === this.get('previousServiceId')) {
         this._processingExistingHostsWithSameService(hostsMap);
-      }
-      else {
+      } else {
         var hostsArr = this._hostMapProcessing(hostsMap);
         hostsArr = hostsArr.sortProperty('name');
         hostsArr.setEach("serviceName", this.get("serviceName"));
@@ -594,7 +613,7 @@ App.HostPopup = Em.Object.create({
         self.set('previousServiceId', this.get('currentServiceId'));
       }
     }
-    var operation = this.get('servicesInfo').findProperty('name', this.get('serviceName'));
+    var operation = this.get('servicesInfo').findProperty('id', this.get('currentServiceId'));
     this.set('operationInfo', !operation || operation && operation.get('progress') === 100 ? null : operation);
   },
 
@@ -609,11 +628,11 @@ App.HostPopup = Em.Object.create({
     var hostsData;
     var hostsMap = {};
     var inputData = this.get('inputData');
+
     if (this.get('isBackgroundOperations') && this.get("currentServiceId")) {
       //hosts popup for Background Operations
       hostsData = inputData.findProperty("id", this.get("currentServiceId"));
-    }
-    else {
+    } else {
       if (this.get("serviceName")) {
         //hosts popup for Wizards
         hostsData = inputData.findProperty("name", this.get("serviceName"));
@@ -624,14 +643,14 @@ App.HostPopup = Em.Object.create({
       if (hostsData.hostsMap) {
         //hosts data come from Background Operations as object map
         hostsMap = hostsData.hostsMap;
-      }
-      else {
+      } else {
         if (hostsData.hosts) {
           //hosts data come from Wizard as array
           hostsMap = hostsData.hosts.toMapByProperty('name');
         }
       }
     }
+
     return hostsMap;
   },
 
@@ -659,8 +678,8 @@ App.HostPopup = Em.Object.create({
         status: App.format.taskStatus("PENDING"),
         serviceName: _host.serviceName,
         isVisible: true,
-        icon: "icon-cog",
-        barColor: "progress-info",
+        icon: "glyphicon glyphicon-cog",
+        barColor: "progress-bar-info",
         barWidth: "width:0%;"
       });
 
@@ -694,8 +713,10 @@ App.HostPopup = Em.Object.create({
     var existedHosts = self.get('hosts');
     var detailedProperties = this.get('detailedProperties');
     var detailedPropertiesKeys = Em.keys(detailedProperties);
+
     existedHosts.forEach(function (host) {
       var newHostInfo = hostsMap[host.get('name')];
+
       //update only hosts with changed tasks or currently opened tasks of host
       if (newHostInfo &&
           (!this.get('isBackgroundOperations') ||
@@ -703,6 +724,7 @@ App.HostPopup = Em.Object.create({
             this.get('currentHostName') === host.get('name'))) {
         var hostStatus = self.getStatus(newHostInfo.logTasks);
         var hostProgress = self.getProgress(newHostInfo.logTasks);
+
         host.setProperties({
           status: App.format.taskStatus(hostStatus[0]),
           icon: hostStatus[1],
@@ -712,27 +734,33 @@ App.HostPopup = Em.Object.create({
           barWidth: "width:" + hostProgress + "%;",
           logTasks: newHostInfo.logTasks
         });
+
         var existTasks = host.get('tasks');
+
         if (existTasks) {
           newHostInfo.logTasks.forEach(function (_task) {
             var existTask = existTasks.findProperty('id', _task.Tasks.id);
+
             if (existTask) {
               var status = _task.Tasks.status;
+
               detailedPropertiesKeys.forEach(function (key) {
                 var name = detailedProperties[key];
                 var value = _task.Tasks[name];
+
                 if (!Em.isNone(value)) {
                   existTask.set(key, value);
                 }
               }, this);
+
               existTask.setProperties({
                 status: App.format.taskStatus(status),
                 startTime: date.startTime(_task.Tasks.start_time),
                 duration: date.durationSummary(_task.Tasks.start_time, _task.Tasks.end_time)
               });
+
               existTask = self._handleRebalanceHDFS(_task, existTask);
-            }
-            else {
+            } else {
               existTasks.pushObject(this.createTask(_task));
             }
           }, this);
@@ -784,24 +812,61 @@ App.HostPopup = Em.Object.create({
     this.set('isPopup', App.ModalPopup.show({
 
       /**
+       * Controls visiblity of Task Details view.
        * @type {boolean}
        */
       isLogWrapHidden: true,
 
       /**
+       * Controls visiblity of Tasks view.
        * @type {boolean}
        */
       isTaskListHidden: true,
 
       /**
+       * Controls visiblity of Hosts view.
        * @type {boolean}
        */
       isHostListHidden: true,
 
       /**
+       * Controls visiblity of Background Operations view.
        * @type {boolean}
        */
       isServiceListHidden: false,
+
+      /**
+       * Single function to handle changing the currently displayed view in the modal.
+       * Use this rather than setting the booleans above directly.
+       */
+      switchView: function(to) {
+        switch (to) {
+          case "OPS_LIST":
+            this.set("isLogWrapHidden", true);
+            this.set("isTaskListHidden", true);
+            this.set("isHostListHidden", true);
+            this.set("isServiceListHidden", false);
+            break;
+          case "HOSTS_LIST":
+            this.set("isLogWrapHidden", true);
+            this.set("isTaskListHidden", true);
+            this.set("isHostListHidden", false);
+            this.set("isServiceListHidden", true);
+            break;
+          case "TASKS_LIST":
+            this.set("isLogWrapHidden", true);
+            this.set("isTaskListHidden", false);
+            this.set("isHostListHidden", true);
+            this.set("isServiceListHidden", true);
+            break;
+          case "TASK_DETAILS":
+            this.set("isLogWrapHidden", false);
+            this.set("isTaskListHidden", true);
+            this.set("isHostListHidden", true);
+            this.set("isServiceListHidden", true);
+            break;
+        }
+      },
 
       /**
        * @type {boolean}
@@ -837,7 +902,25 @@ App.HostPopup = Em.Object.create({
       /**
        * @type {Em.View}
        */
-      headerClass: Em.View.extend({
+      headerClass: App.BreadcrumbsView.extend({
+        controller: this,
+        items: function () {
+          let items = this.get('controller.breadcrumbs');
+          items = items.map(item => App.BreadcrumbItem.extend(item).create());
+          if (items.length) {
+            items.get('lastObject').setProperties({
+              disabled: true,
+              isLast: true
+            });
+          }
+          return items;
+        }.property('controller.breadcrumbs')
+      }),
+
+      /**
+       * @type {Em.View}
+       */
+      titleClass: Em.View.extend({
         controller: this,
         template: Em.Handlebars.compile('{{popupHeaderName}} ' +
           '{{#unless view.parentView.isHostListHidden}}{{#if controller.operationInfo.isAbortable}}' +
@@ -856,7 +939,8 @@ App.HostPopup = Em.Object.create({
       /**
        * @type {String[]}
        */
-      classNames: ['sixty-percent-width-modal', 'host-progress-popup', 'full-height-modal'],
+      classNames: ['common-modal-wrapper', 'host-progress-popup', 'full-height-modal'],
+      modalDialogClasses: ['modal-lg'],
 
       /**
        * Auto-display BG-popup
@@ -886,7 +970,7 @@ App.HostPopup = Em.Object.create({
         this.set('isOpen', false);
         if (isBackgroundOperations) {
           $(this.get('element')).detach();
-          App.router.get('backgroundOperationsController').set('levelInfo.name', 'REQUESTS_LIST');
+          App.router.get('backgroundOperationsController').set('levelInfo.name', 'OPS_LIST');
         } else {
           this.hide();
           self.set('isPopup', null);

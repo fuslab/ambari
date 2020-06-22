@@ -21,6 +21,8 @@ package org.apache.ambari.server.controller;
 import org.apache.ambari.server.state.RepositoryVersionState;
 import org.apache.ambari.server.state.StackId;
 
+import io.swagger.annotations.ApiModelProperty;
+
 public class ServiceResponse {
 
   private Long clusterId;
@@ -34,27 +36,38 @@ public class ServiceResponse {
   private String maintenanceState;
   private boolean credentialStoreSupported;
   private boolean credentialStoreEnabled;
+  private final boolean ssoIntegrationSupported;
+  private final boolean ssoIntegrationDesired;
+  private final boolean ssoIntegrationEnabled;
+  private final boolean ssoIntegrationRequiresKerberos;
+  private final boolean kerberosEnabled;
 
   public ServiceResponse(Long clusterId, String clusterName, String serviceName,
-      StackId desiredStackId, String desiredRepositoryVersion,
-      RepositoryVersionState repositoryVersionState, String desiredState,
-      boolean credentialStoreSupported, boolean credentialStoreEnabled) {
+                         StackId desiredStackId, String desiredRepositoryVersion,
+                         RepositoryVersionState repositoryVersionState, String desiredState,
+                         boolean credentialStoreSupported, boolean credentialStoreEnabled, boolean ssoIntegrationSupported,
+                         boolean ssoIntegrationDesired, boolean ssoIntegrationEnabled, boolean ssoIntegrationRequiresKerberos,
+                         boolean kerberosEnabled) {
     this.clusterId = clusterId;
     this.clusterName = clusterName;
     this.serviceName = serviceName;
     this.desiredStackId = desiredStackId;
     this.repositoryVersionState = repositoryVersionState;
+    this.ssoIntegrationSupported = ssoIntegrationSupported;
+    this.ssoIntegrationDesired = ssoIntegrationDesired;
+    this.ssoIntegrationEnabled = ssoIntegrationEnabled;
     setDesiredState(desiredState);
     this.desiredRepositoryVersion = desiredRepositoryVersion;
     this.credentialStoreSupported = credentialStoreSupported;
     this.credentialStoreEnabled = credentialStoreEnabled;
+    this.ssoIntegrationRequiresKerberos = ssoIntegrationRequiresKerberos;
+    this.kerberosEnabled = kerberosEnabled;
   }
-
-
 
   /**
    * @return the serviceName
    */
+  @ApiModelProperty(name = "service_name")
   public String getServiceName() {
     return serviceName;
   }
@@ -69,6 +82,7 @@ public class ServiceResponse {
   /**
    * @return the clusterId
    */
+  @ApiModelProperty(hidden = true)
   public Long getClusterId() {
     return clusterId;
   }
@@ -83,6 +97,7 @@ public class ServiceResponse {
   /**
    * @return the clusterName
    */
+  @ApiModelProperty(name = "cluster_name")
   public String getClusterName() {
     return clusterName;
   }
@@ -97,6 +112,7 @@ public class ServiceResponse {
   /**
    * @return the desiredState
    */
+  @ApiModelProperty(name = "state")
   public String getDesiredState() {
     return desiredState;
   }
@@ -111,6 +127,7 @@ public class ServiceResponse {
   /**
    * @return the desired stack ID.
    */
+  @ApiModelProperty(hidden = true)
   public String getDesiredStackId() {
     return desiredStackId.getStackId();
 
@@ -166,6 +183,7 @@ public class ServiceResponse {
     maintenanceState = state;
   }
 
+  @ApiModelProperty(name = "maintenance_state")
   public String getMaintenanceState() {
     return maintenanceState;
   }
@@ -176,6 +194,7 @@ public class ServiceResponse {
    *
    * @return true or false
    */
+  @ApiModelProperty(name = "credential_store_supported")
   public boolean isCredentialStoreSupported() {
     return credentialStoreSupported;
   }
@@ -196,6 +215,7 @@ public class ServiceResponse {
    *
    * @return true or false
    */
+  @ApiModelProperty(name = "credential_store_enabled")
   public boolean isCredentialStoreEnabled() {
     return credentialStoreEnabled;
   }
@@ -212,21 +232,69 @@ public class ServiceResponse {
 
   @Override
   public int hashCode() {
-    int result = clusterId != null? clusterId.intValue() : 0;
+    int result = clusterId != null ? clusterId.intValue() : 0;
     result = 71 * result + (clusterName != null ? clusterName.hashCode() : 0);
     result = 71 * result + (serviceName != null ? serviceName.hashCode() : 0);
     return result;
   }
 
   /**
-   * @param id
+   * Indicates if this service supports single sign-on integration.
+   */
+  @ApiModelProperty(name = "sso_integration_supported")
+  public boolean isSsoIntegrationSupported() {
+    return ssoIntegrationSupported;
+  }
+
+  /**
+   * Indicates whether the service is chosen for SSO integration or not
+   */
+  @ApiModelProperty(name = "sso_integration_desired")
+  public boolean isSsoIntegrationDesired() {
+    return ssoIntegrationDesired;
+  }
+
+  /**
+   * Indicates whether the service is configured for SSO integration or not
+   */
+  @ApiModelProperty(name = "sso_integration_enabled")
+  public boolean isSsoIntegrationEnabled() {
+    return ssoIntegrationEnabled;
+  }
+
+  /**
+   * Indicates if Kerberos is required for SSO integration
+   */
+  @ApiModelProperty(name = "sso_integration_requires_kerberos")
+  public boolean isSsoIntegrationRequiresKerberos() {
+    return ssoIntegrationRequiresKerberos;
+  }
+
+  /**
+   * Indicates whether the service is configured for Kerberos or not
+   */
+  @ApiModelProperty(name = "kerberos_enabled")
+  public boolean isKerberosEnabled() {
+    return kerberosEnabled;
+  }
+
+  /**
+   * Interface to help correct Swagger documentation generation
+   */
+  public interface ServiceResponseSwagger extends ApiModel {
+    @ApiModelProperty(name = "ServiceInfo")
+    ServiceResponse getServiceResponse();
+  }
+
+  /**
+   * @param id the desired repository id
    */
   public void setDesiredRepositoryVersionId(Long id) {
     desiredRepositoryVersionId = id;
   }
 
   /**
-   * @param id
+   * @return the desired repository id
    */
   public Long getDesiredRepositoryVersionId() {
     return desiredRepositoryVersionId;

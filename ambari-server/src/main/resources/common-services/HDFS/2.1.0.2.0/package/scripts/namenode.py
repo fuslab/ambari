@@ -31,6 +31,7 @@ from resource_management.libraries.script.script import Script
 from resource_management.core.resources.system import Execute, File
 from resource_management.core import shell
 from resource_management.libraries.functions import stack_select
+from resource_management.libraries.functions import upgrade_summary
 from resource_management.libraries.functions.constants import Direction
 from resource_management.libraries.functions.format import format
 from resource_management.libraries.functions.security_commons import build_expectations, \
@@ -47,10 +48,11 @@ from ambari_commons import OSConst
 
 
 import namenode_upgrade
-from hdfs_namenode import namenode, wait_for_safemode_off
-from hdfs import hdfs
+from hdfs_namenode import namenode, wait_for_safemode_off, refreshProxyUsers, format_namenode
+from hdfs import hdfs, reconfig
 import hdfs_rebalance
 from utils import initiate_safe_zkfc_failover, get_hdfs_binary, get_dfsadmin_base_command
+from resource_management.libraries.functions.namenode_ha_utils import get_hdfs_cluster_id_from_jmx
 
 # The hash algorithm to use to generate digests/hashes
 HASH_ALGORITHM = hashlib.sha224
@@ -76,6 +78,55 @@ class NameNode(Script):
     hdfs("namenode")
     hdfs_binary = self.get_hdfs_binary()
     namenode(action="configure", hdfs_binary=hdfs_binary, env=env)
+
+  def save_configs(self, env):
+    import params
+    env.set_params(params)
+    hdfs()
+
+  def reload_configs(self, env):
+    import params
+    env.set_params(params)
+    Logger.info("RELOAD CONFIGS")
+    reconfig("namenode", params.namenode_address)
+
+  def reloadproxyusers(self, env):
+    import params
+    env.set_params(params)
+    Logger.info("RELOAD HDFS PROXY USERS")
+    refreshProxyUsers()
+
+  def format(self, env):
+    import params
+    env.set_params(params)
+
+    if params.security_enabled:
+        Execute(params.nn_kinit_cmd,
+                user=params.hdfs_user
+        )
+
+    hdfs_cluster_id = get_hdfs_cluster_id_from_jmx(params.hdfs_site, params.security_enabled, params.hdfs_user)
+
+    # this is run on a new namenode, format needs to be forced
+    Execute(format("hdfs --config {hadoop_conf_dir} namenode -format -nonInteractive -clusterId {hdfs_cluster_id}"),
+            user = params.hdfs_user,
+            path = [params.hadoop_bin_dir],
+            logoutput=True
+    )
+
+  def bootstrap_standby(self, env):
+    import params
+    env.set_params(params)
+
+    if params.security_enabled:
+        Execute(params.nn_kinit_cmd,
+                user=params.hdfs_user
+        )
+
+    Execute("hdfs namenode -bootstrapStandby -nonInteractive",
+            user=params.hdfs_user,
+            logoutput=True
+    )
 
   def start(self, env, upgrade_type=None):
     import params
@@ -117,6 +168,8 @@ class NameNode(Script):
     env.set_params(params)
     hdfs_binary = self.get_hdfs_binary()
     namenode(action="decommission", hdfs_binary=hdfs_binary)
+    self.configure(env)
+
 
 @OsFamilyImpl(os_family=OsFamilyImpl.DEFAULT)
 class NameNodeDefault(NameNode):
@@ -164,15 +217,20 @@ class NameNodeDefault(NameNode):
       namenode_upgrade.prepare_upgrade_backup_namenode_dir()
     namenode_upgrade.prepare_upgrade_finalize_previous_upgrades(hdfs_binary)
 
-    # Call -rollingUpgrade prepare
-    namenode_upgrade.prepare_rolling_upgrade(hdfs_binary)
+    summary = upgrade_summary.get_upgrade_summary()
+
+    if summary is not None and summary.is_downgrade_allowed:
+      # Call -rollingUpgrade prepare
+      namenode_upgrade.prepare_rolling_upgrade(hdfs_binary)
+    else:
+      Logger.info("Downgrade will not be possible. Skipping '-rollingUpgrade prepare'")
 
   def prepare_rolling_upgrade(self, env):
     hfds_binary = self.get_hdfs_binary()
     namenode_upgrade.prepare_rolling_upgrade(hfds_binary)
 
   def wait_for_safemode_off(self, env):
-    wait_for_safemode_off(self.get_hdfs_binary(), 30, True)
+    wait_for_safemode_off(self.get_hdfs_binary(), afterwait_sleep=30, execute_kinit=True)
 
   def finalize_non_rolling_upgrade(self, env):
     hfds_binary = self.get_hdfs_binary()
@@ -289,6 +347,10 @@ class NameNodeDefault(NameNode):
   def get_user(self):
     import params
     return params.hdfs_user
+
+  def get_pid_files(self):
+    import status_params
+    return [status_params.namenode_pid_file]
 
 @OsFamilyImpl(os_family=OSConst.WINSRV_FAMILY)
 class NameNodeWindows(NameNode):

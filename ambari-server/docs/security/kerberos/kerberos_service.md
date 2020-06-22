@@ -37,7 +37,7 @@ Ambari Kerberos Automation
 
 ##### kdc_type
 
-The type of KDC being used.
+The type of KDC being used. 
 
 _Possible Values:_ 
 - `none`
@@ -133,6 +133,8 @@ The IP address or FQDN for the Kerberos administrative host. Optionally a port n
 _Example:_ `kadmin.example.com`
 
 _Example:_ `kadmin.example.com:88`
+
+If the `kdc_type` is `mit-kdc` or `ipa`, the value must be the FQDN of the Kerberos administrative host. 
 
 ##### master_kdc
 
@@ -251,31 +253,11 @@ _Example:_ `-requires_preauth max_renew_life=7d`
 
 This property is optional and only used if the `kdc_type` is `mit-kdc`
 
-##### group
+##### ipa_user_group
 
-The group in IPA user principals should be member of
+The group in IPA that user principals should be a member of.
 
-This property is mandatory and only used if the `kdc_type` is `ipa`
-
-##### set_password_expiry
-
-Indicates whether Ambari should set the password expiry for the principals it creates. By default
-IPA does not allow this. It requires write permission of the admin principal to the krbPasswordExpiry
-attribute. If set IPA principal password expiry is not true it is assumed that a suitable password
-policy is in place for the IPA Group principals are added to.
-
-_Possible values:_ `true`, `false`
-
-_Default value:_ `false`
-
-This property is mandatory and only used if the `kdc_type` is `ipa`
-
-##### password_chat_timeout
-
-Indicates the timeout in seconds that Ambari should wait for a response during a password chat. This is
-because it can take some time due to lookups before a response is there.
-
-This property is mandatory and only used if the `kdc_type` is `ipa`
+This property is optional and only used if the `kdc_type` is `ipa`
 
 <a name="krb5-conf"></a>
 #### krb5-conf

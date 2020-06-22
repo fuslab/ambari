@@ -21,6 +21,10 @@ package org.apache.ambari.server.controller;
 import java.util.Map;
 import java.util.Objects;
 
+import org.apache.ambari.server.controller.internal.RootServiceHostComponentResourceProvider;
+
+import io.swagger.annotations.ApiModelProperty;
+
 public class RootServiceHostComponentResponse {
 
   private final String serviceName;
@@ -41,26 +45,32 @@ public class RootServiceHostComponentResponse {
     this.properties = properties;
   }
 
+  @ApiModelProperty(name = RootServiceHostComponentResourceProvider.SERVICE_NAME)
   public String getServiceName() {
     return serviceName;
   }
 
+  @ApiModelProperty(name = RootServiceHostComponentResourceProvider.HOST_NAME)
   public String getHostName() {
     return hostName;
   }
 
+  @ApiModelProperty(name = RootServiceHostComponentResourceProvider.COMPONENT_NAME)
   public String getComponentName() {
     return componentName;
   }
 
+  @ApiModelProperty(name = RootServiceHostComponentResourceProvider.COMPONENT_STATE)
   public String getComponentState() {
     return componentState;
   }
 
+  @ApiModelProperty(name = RootServiceHostComponentResourceProvider.COMPONENT_VERSION)
   public String getComponentVersion() {
     return componentVersion;
   }
 
+  @ApiModelProperty(name = RootServiceHostComponentResourceProvider.PROPERTIES)
   public Map<String, String> getProperties() {
     return properties;
   }

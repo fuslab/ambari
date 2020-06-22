@@ -18,8 +18,10 @@ limitations under the License.
 
 """
 
-from resource_management import *
+from resource_management.core.resources.system import Directory, Execute, File
+from resource_management.core.resources.service import Service
 from resource_management.libraries.functions.show_logs import show_logs
+from resource_management.libraries.functions.format import format
 from ambari_commons import OSConst
 from ambari_commons.os_family_impl import OsFamilyFuncImpl, OsFamilyImpl
 from hbase_service import hbase_service
@@ -53,6 +55,10 @@ def ams_service(name, action):
         hbase_service('master', action=action)
         hbase_service('regionserver', action=action)
       cmd = format("{cmd} --distributed")
+    else:
+      # make sure no residual region server process is running in embedded mode
+      if action == 'stop':
+        hbase_service('regionserver', action=action)
 
     if action == 'start':
       Execute(format("{sudo} rm -rf {hbase_tmp_dir}/*.tmp")

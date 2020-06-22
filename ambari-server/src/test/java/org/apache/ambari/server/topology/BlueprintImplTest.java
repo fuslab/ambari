@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -61,12 +61,14 @@ public class BlueprintImplTest {
   Map<String, Map<String, String>> properties = new HashMap<>();
   Map<String, String> hdfsProps = new HashMap<>();
   Configuration configuration = new Configuration(properties, EMPTY_ATTRIBUTES, EMPTY_CONFIGURATION);
+  org.apache.ambari.server.configuration.Configuration serverConfig;
 
   @Before
-  public void setup() {
+  public void setup() throws NoSuchFieldException, IllegalAccessException {
     properties.put("hdfs-site", hdfsProps);
     hdfsProps.put("foo", "val");
     hdfsProps.put("bar", "val");
+    hdfsProps.put("dfs.nameservices", "val");
     Map<String, String> category1Props = new HashMap<>();
     properties.put("category1", category1Props);
     category1Props.put("prop1", "val");
@@ -99,15 +101,16 @@ public class BlueprintImplTest {
     requiredHDFSProperties.add(new Stack.ConfigProperty("hdfs-site", "some_password", null));
     requiredHDFSProperties.add(new Stack.ConfigProperty("category1", "prop1", null));
 
-    Collection<Stack.ConfigProperty> requiredService2Properties = new HashSet<Stack.ConfigProperty>();
+    Collection<Stack.ConfigProperty> requiredService2Properties = new HashSet<>();
     requiredService2Properties.add(new Stack.ConfigProperty("category2", "prop2", null));
     expect(stack.getRequiredConfigurationProperties("HDFS")).andReturn(requiredHDFSProperties).anyTimes();
     expect(stack.getRequiredConfigurationProperties("SERVICE2")).andReturn(requiredService2Properties).anyTimes();
+
+    serverConfig = setupConfigurationWithGPLLicense(true);
   }
 
   @Test
   public void testValidateConfigurations__basic_positive() throws Exception {
-    org.apache.ambari.server.configuration.Configuration serverConfig = setupConfigurationWithGPLLicense(true);
     expect(group1.getCardinality()).andReturn("1").atLeastOnce();
     expect(group1.getComponents()).andReturn(Arrays.asList(new Component("c1"), new Component("c2"))).atLeastOnce();
     expect(group2.getCardinality()).andReturn("1").atLeastOnce();
@@ -137,16 +140,66 @@ public class BlueprintImplTest {
     group2Props.put("category2", group2Category2Props);
     group2Category2Props.put("prop2", "val");
 
-    org.apache.ambari.server.configuration.Configuration serverConfig = setupConfigurationWithGPLLicense(true);
     // set config for group2 which contains a required property
     Configuration group2Configuration = new Configuration(group2Props, EMPTY_ATTRIBUTES, configuration);
     expect(group2.getConfiguration()).andReturn(group2Configuration).atLeastOnce();
 
     expect(group1.getCardinality()).andReturn("1").atLeastOnce();
-    expect(group1.getComponents()).andReturn(Arrays.asList(new Component("c1"), new Component("c2"))).atLeastOnce();
+    expect(group1.getComponents()).andReturn(Arrays.asList(new Component("NAMENODE"))).atLeastOnce();
     expect(group2.getCardinality()).andReturn("1").atLeastOnce();
-    expect(group2.getComponents()).andReturn(Arrays.asList(new Component("c1"), new Component("c3"))).atLeastOnce();
+    expect(group2.getComponents()).andReturn(Arrays.asList(new Component("NAMENODE"))).atLeastOnce();
+    Map<String, String> category2Props = new HashMap<>();
+    properties.put("category2", category2Props);
+    category2Props.put("prop2", "val");
+    group1Components.add("NAMENODE");
+    group2Components.add("NAMENODE");
+    Map<String, String> hdfsProps = new HashMap<>();
+    properties.put("hdfs-site", hdfsProps);
+    hdfsProps.put("foo", "val");
+    hdfsProps.put("bar", "val");
+    Map<String, String> hadoopProps = new HashMap<>();
+    properties.put("hadoop-env", hadoopProps);
+    hadoopProps.put("dfs_ha_initial_namenode_active", "%HOSTGROUP:group1%");
+    hadoopProps.put("dfs_ha_initial_namenode_standby", "%HOSTGROUP:group2%");
+    replay(stack, group1, group2, serverConfig);
+    Blueprint blueprint = new BlueprintImpl("test", hostGroups, stack, configuration, null);
+    blueprint.validateRequiredProperties();
+    BlueprintEntity entity = blueprint.toEntity();
+    verify(stack, group1, group2, serverConfig);
+    assertTrue(entity.getSecurityType() == SecurityType.NONE);
+    assertTrue(entity.getSecurityDescriptorReference() == null);
+  }
+  @Test
+  public void testValidateConfigurations__hostGroupConfigForNameNodeHAPositive() throws Exception {
+    Map<String, Map<String, String>> group2Props = new HashMap<>();
+    Map<String, String> group2Category2Props = new HashMap<>();
+    group2Props.put("category2", group2Category2Props);
+    group2Category2Props.put("prop2", "val");
+    // set config for group2 which contains a required property
+    Configuration group2Configuration = new Configuration(group2Props, EMPTY_ATTRIBUTES, configuration);
+    expect(group2.getConfiguration()).andReturn(group2Configuration).atLeastOnce();
 
+
+    expect(group1.getCardinality()).andReturn("1").atLeastOnce();
+    expect(group1.getComponents()).andReturn(Arrays.asList(new Component("NAMENODE"),new Component("ZKFC"))).atLeastOnce();
+    expect(group2.getCardinality()).andReturn("1").atLeastOnce();
+    expect(group2.getComponents()).andReturn(Arrays.asList(new Component("NAMENODE"),new Component("ZKFC"))).atLeastOnce();
+    Map<String, String> category2Props = new HashMap<>();
+    properties.put("category2", category2Props);
+    category2Props.put("prop2", "val");
+    group1Components.add("NAMENODE");
+    group1Components.add("ZKFC");
+    group2Components.add("NAMENODE");
+    group2Components.add("ZKFC");
+    Map<String, String> hdfsProps = new HashMap<>();
+    properties.put("hdfs-site", hdfsProps);
+    hdfsProps.put("foo", "val");
+    hdfsProps.put("bar", "val");
+    hdfsProps.put("dfs.nameservices", "val");
+    Map<String, String> hadoopProps = new HashMap<>();
+    properties.put("hadoop-env", hadoopProps);
+    hadoopProps.put("dfs_ha_initial_namenode_active", "%HOSTGROUP::group1%");
+    hadoopProps.put("dfs_ha_initial_namenode_standby", "%HOSTGROUP::group2%");
     replay(stack, group1, group2, serverConfig);
 
     Blueprint blueprint = new BlueprintImpl("test", hostGroups, stack, configuration, null);
@@ -158,13 +211,84 @@ public class BlueprintImplTest {
     assertTrue(entity.getSecurityDescriptorReference() == null);
   }
 
+  @Test(expected= IllegalArgumentException.class)
+  public void testValidateConfigurations__hostGroupConfigForNameNodeHAInCorrectHostGroups() throws Exception {
+    Map<String, Map<String, String>> group2Props = new HashMap<>();
+    Map<String, String> group2Category2Props = new HashMap<>();
+    group2Props.put("category2", group2Category2Props);
+    group2Category2Props.put("prop2", "val");
+    // set config for group2 which contains a required property
+    Configuration group2Configuration = new Configuration(group2Props, EMPTY_ATTRIBUTES, configuration);
+    expect(group2.getConfiguration()).andReturn(group2Configuration).atLeastOnce();
+    expect(group1.getCardinality()).andReturn("1").atLeastOnce();
+    expect(group1.getComponents()).andReturn(Arrays.asList(new Component("NAMENODE"),new Component("ZKFC"))).atLeastOnce();
+    expect(group2.getCardinality()).andReturn("1").atLeastOnce();
+    expect(group2.getComponents()).andReturn(Arrays.asList(new Component("NAMENODE"),new Component("ZKFC"))).atLeastOnce();
+    Map<String, String> category2Props = new HashMap<>();
+    properties.put("category2", category2Props);
+    category2Props.put("prop2", "val");
+    group1Components.add("NAMENODE");
+    group1Components.add("ZKFC");
+    group2Components.add("NAMENODE");
+    group2Components.add("ZKFC");
+    expect(stack.getServiceForComponent("NAMENODE")).andReturn("SERVICE2").atLeastOnce();
+    expect(stack.getServiceForComponent("ZKFC")).andReturn("SERVICE2").atLeastOnce();
+    Map<String, String> hdfsProps = new HashMap<>();
+    properties.put("hdfs-site", hdfsProps);
+    hdfsProps.put("foo", "val");
+    hdfsProps.put("bar", "val");
+    hdfsProps.put("dfs.nameservices", "val");
+    Map<String, String> hadoopProps = new HashMap<>();
+    properties.put("hadoop-env", hadoopProps);
+    hadoopProps.put("dfs_ha_initial_namenode_active", "%HOSTGROUP::group2%");
+    hadoopProps.put("dfs_ha_initial_namenode_standby", "%HOSTGROUP::group3%");
+    replay(stack, group1, group2, serverConfig);
+    Blueprint blueprint = new BlueprintImpl("test", hostGroups, stack, configuration, null);
+    blueprint.validateRequiredProperties();
+    verify(stack, group1, group2, serverConfig);
+  }
+  @Test(expected= IllegalArgumentException.class)
+  public void testValidateConfigurations__hostGroupConfigForNameNodeHAMappedSameHostGroup() throws Exception {
+    Map<String, Map<String, String>> group2Props = new HashMap<>();
+    Map<String, String> group2Category2Props = new HashMap<>();
+    group2Props.put("category2", group2Category2Props);
+    group2Category2Props.put("prop2", "val");
+    // set config for group2 which contains a required property
+    Configuration group2Configuration = new Configuration(group2Props, EMPTY_ATTRIBUTES, configuration);
+    expect(group2.getConfiguration()).andReturn(group2Configuration).atLeastOnce();
+    expect(group1.getCardinality()).andReturn("1").atLeastOnce();
+    expect(group1.getComponents()).andReturn(Arrays.asList(new Component("NAMENODE"),new Component("ZKFC"))).atLeastOnce();
+    expect(group2.getCardinality()).andReturn("1").atLeastOnce();
+    expect(group2.getComponents()).andReturn(Arrays.asList(new Component("NAMENODE"),new Component("ZKFC"))).atLeastOnce();
+    Map<String, String> category2Props = new HashMap<>();
+    properties.put("category2", category2Props);
+    category2Props.put("prop2", "val");
+    group1Components.add("NAMENODE");
+    group1Components.add("ZKFC");
+    group2Components.add("NAMENODE");
+    group2Components.add("ZKFC");
+    expect(stack.getServiceForComponent("NAMENODE")).andReturn("SERVICE2").atLeastOnce();
+    expect(stack.getServiceForComponent("ZKFC")).andReturn("SERVICE2").atLeastOnce();
+    Map<String, String> hdfsProps = new HashMap<>();
+    properties.put("hdfs-site", hdfsProps);
+    hdfsProps.put("foo", "val");
+    hdfsProps.put("bar", "val");
+    hdfsProps.put("dfs.nameservices", "val");
+    Map<String, String> hadoopProps = new HashMap<>();
+    properties.put("hadoop-env", hadoopProps);
+    hadoopProps.put("dfs_ha_initial_namenode_active", "%HOSTGROUP::group2%");
+    hadoopProps.put("dfs_ha_initial_namenode_standby", "%HOSTGROUP::group2%");
+    replay(stack, group1, group2, serverConfig);
+    Blueprint blueprint = new BlueprintImpl("test", hostGroups, stack, configuration, null);
+    blueprint.validateRequiredProperties();
+    verify(stack, group1, group2, serverConfig);
+  }
   @Test(expected = InvalidTopologyException.class)
   public void testValidateConfigurations__secretReference() throws InvalidTopologyException,
       GPLLicenseNotAcceptedException, NoSuchFieldException, IllegalAccessException {
     Map<String, Map<String, String>> group2Props = new HashMap<>();
     Map<String, String> group2Category2Props = new HashMap<>();
 
-    org.apache.ambari.server.configuration.Configuration serverConfig = setupConfigurationWithGPLLicense(true);
     group2Props.put("category2", group2Category2Props);
     group2Category2Props.put("prop2", "val");
     hdfsProps.put("secret", "SECRET:hdfs-site:1:test");
@@ -184,7 +308,7 @@ public class BlueprintImplTest {
     }});
     Configuration lzoUsageConfiguration = new Configuration(lzoProperties, EMPTY_ATTRIBUTES, EMPTY_CONFIGURATION);
 
-    org.apache.ambari.server.configuration.Configuration serverConfig = setupConfigurationWithGPLLicense(false);
+    serverConfig = setupConfigurationWithGPLLicense(false);
     replay(stack, group1, group2, serverConfig);
 
     Blueprint blueprint = new BlueprintImpl("test", hostGroups, stack, lzoUsageConfiguration, null);
@@ -201,7 +325,7 @@ public class BlueprintImplTest {
     }});
     Configuration lzoUsageConfiguration = new Configuration(lzoProperties, EMPTY_ATTRIBUTES, EMPTY_CONFIGURATION);
 
-    org.apache.ambari.server.configuration.Configuration serverConfig = setupConfigurationWithGPLLicense(false);
+    serverConfig = setupConfigurationWithGPLLicense(false);
     replay(stack, group1, group2, serverConfig);
 
     Blueprint blueprint = new BlueprintImpl("test", hostGroups, stack, lzoUsageConfiguration, null);
@@ -219,7 +343,6 @@ public class BlueprintImplTest {
     }});
     Configuration lzoUsageConfiguration = new Configuration(lzoProperties, EMPTY_ATTRIBUTES, EMPTY_CONFIGURATION);
 
-    org.apache.ambari.server.configuration.Configuration serverConfig = setupConfigurationWithGPLLicense(true);
     expect(group2.getConfiguration()).andReturn(EMPTY_CONFIGURATION).atLeastOnce();
     replay(stack, group1, group2, serverConfig);
 
@@ -345,10 +468,10 @@ public class BlueprintImplTest {
 //    iter.remove();
 //
 //    AmbariManagementController managementController = createMock(AmbariManagementController.class);
-//    Capture<Set<StackServiceRequest>> stackServiceRequestCapture = new Capture<Set<StackServiceRequest>>();
-//    Capture<Set<StackServiceComponentRequest>> serviceComponentRequestCapture = new Capture<Set<StackServiceComponentRequest>>();
-//    Capture<StackConfigurationRequest> stackConfigurationRequestCapture = new Capture<StackConfigurationRequest>();
-//    Capture<StackLevelConfigurationRequest> stackLevelConfigurationRequestCapture = new Capture<StackLevelConfigurationRequest>();
+//    Capture<Set<StackServiceRequest>> stackServiceRequestCapture = EasyMock.newCapture();
+//    Capture<Set<StackServiceComponentRequest>> serviceComponentRequestCapture = EasyMock.newCapture();
+//    Capture<StackConfigurationRequest> stackConfigurationRequestCapture = EasyMock.newCapture();
+//    Capture<StackLevelConfigurationRequest> stackLevelConfigurationRequestCapture = EasyMock.newCapture();
 //    Request request = createMock(Request.class);
 //    StackServiceResponse stackServiceResponse = createMock(StackServiceResponse.class);
 //    StackServiceComponentResponse stackServiceComponentResponse = createNiceMock(StackServiceComponentResponse.class);
@@ -370,7 +493,7 @@ public class BlueprintImplTest {
 //    serviceComponents.add(component1);
 //    serviceComponents.add(component2);
 //
-//    Capture<BlueprintEntity> entityCapture = new Capture<BlueprintEntity>();
+//    Capture<BlueprintEntity> entityCapture = EasyMock.newCapture();
 //
 //    // set expectations
 //    expect(blueprintFactory.createBlueprint(setProperties.iterator().next())).andReturn(blueprint).once();
@@ -453,10 +576,10 @@ public class BlueprintImplTest {
 //    setConfigurationProperties(setProperties);
 //
 //    AmbariManagementController managementController = createMock(AmbariManagementController.class);
-//    Capture<Set<StackServiceRequest>> stackServiceRequestCapture = new Capture<Set<StackServiceRequest>>();
-//    Capture<Set<StackServiceComponentRequest>> serviceComponentRequestCapture = new Capture<Set<StackServiceComponentRequest>>();
-//    Capture<StackConfigurationRequest> stackConfigurationRequestCapture = new Capture<StackConfigurationRequest>();
-//    Capture<StackLevelConfigurationRequest> stackLevelConfigurationRequestCapture = new Capture<StackLevelConfigurationRequest>();
+//    Capture<Set<StackServiceRequest>> stackServiceRequestCapture = EasyMock.newCapture();
+//    Capture<Set<StackServiceComponentRequest>> serviceComponentRequestCapture = EasyMock.newCapture();
+//    Capture<StackConfigurationRequest> stackConfigurationRequestCapture = EasyMock.newCapture();
+//    Capture<StackLevelConfigurationRequest> stackLevelConfigurationRequestCapture = EasyMock.newCapture();
 //    Request request = createMock(Request.class);
 //    StackServiceResponse stackServiceResponse = createMock(StackServiceResponse.class);
 //    StackServiceComponentResponse stackServiceComponentResponse = createNiceMock(StackServiceComponentResponse.class);
@@ -485,7 +608,7 @@ public class BlueprintImplTest {
 //    serviceComponents.add(component1);
 //    serviceComponents.add(component2);
 //
-//    Capture<BlueprintEntity> entityCapture = new Capture<BlueprintEntity>();
+//    Capture<BlueprintEntity> entityCapture = EasyMock.newCapture();
 //
 //    // set expectations
 //    expect(managementController.getStackServices(capture(stackServiceRequestCapture))).andReturn(
@@ -571,10 +694,10 @@ public class BlueprintImplTest {
 //    iter.remove();
 //
 //    AmbariManagementController managementController = createMock(AmbariManagementController.class);
-//    Capture<Set<StackServiceRequest>> stackServiceRequestCapture = new Capture<Set<StackServiceRequest>>();
-//    Capture<Set<StackServiceComponentRequest>> serviceComponentRequestCapture = new Capture<Set<StackServiceComponentRequest>>();
-//    Capture<StackConfigurationRequest> stackConfigurationRequestCapture = new Capture<StackConfigurationRequest>();
-//    Capture<StackLevelConfigurationRequest> stackLevelConfigurationRequestCapture = new Capture<StackLevelConfigurationRequest>();
+//    Capture<Set<StackServiceRequest>> stackServiceRequestCapture = EasyMock.newCapture();
+//    Capture<Set<StackServiceComponentRequest>> serviceComponentRequestCapture = EasyMock.newCapture();
+//    Capture<StackConfigurationRequest> stackConfigurationRequestCapture = EasyMock.newCapture();
+//    Capture<StackLevelConfigurationRequest> stackLevelConfigurationRequestCapture = EasyMock.newCapture();
 //    Request request = createMock(Request.class);
 //    StackServiceResponse stackServiceResponse = createMock(StackServiceResponse.class);
 //    StackServiceComponentResponse stackServiceComponentResponse = createNiceMock(StackServiceComponentResponse.class);
@@ -604,7 +727,7 @@ public class BlueprintImplTest {
 //    serviceComponents.add(component1);
 //    serviceComponents.add(component2);
 //
-//    Capture<BlueprintEntity> entityCapture = new Capture<BlueprintEntity>();
+//    Capture<BlueprintEntity> entityCapture = EasyMock.newCapture();
 //
 //    // set expectations
 //    expect(managementController.getStackServices(capture(stackServiceRequestCapture))).andReturn(
@@ -689,10 +812,10 @@ public class BlueprintImplTest {
 //    iter.remove();
 //
 //    AmbariManagementController managementController = createMock(AmbariManagementController.class);
-//    Capture<Set<StackServiceRequest>> stackServiceRequestCapture = new Capture<Set<StackServiceRequest>>();
-//    Capture<Set<StackServiceComponentRequest>> serviceComponentRequestCapture = new Capture<Set<StackServiceComponentRequest>>();
-//    Capture<StackConfigurationRequest> stackConfigurationRequestCapture = new Capture<StackConfigurationRequest>();
-//    Capture<StackLevelConfigurationRequest> stackLevelConfigurationRequestCapture = new Capture<StackLevelConfigurationRequest>();
+//    Capture<Set<StackServiceRequest>> stackServiceRequestCapture = EasyMock.newCapture();
+//    Capture<Set<StackServiceComponentRequest>> serviceComponentRequestCapture = EasyMock.newCapture();
+//    Capture<StackConfigurationRequest> stackConfigurationRequestCapture = EasyMock.newCapture();
+//    Capture<StackLevelConfigurationRequest> stackLevelConfigurationRequestCapture = EasyMock.newCapture();
 //    Request request = createMock(Request.class);
 //    StackServiceResponse stackServiceResponse = createMock(StackServiceResponse.class);
 //    StackServiceComponentResponse stackServiceComponentResponse = createNiceMock(StackServiceComponentResponse.class);
@@ -786,7 +909,7 @@ public class BlueprintImplTest {
 //  {
 //    Request request = createMock(Request.class);
 //    AmbariManagementController managementController = createMock(AmbariManagementController.class);
-//    Capture<Set<StackServiceRequest>> stackServiceRequestCapture = new Capture<Set<StackServiceRequest>>();
+//    Capture<Set<StackServiceRequest>> stackServiceRequestCapture = EasyMock.newCapture();
 //
 //    Map<String, ServiceInfo> services = new HashMap<String, ServiceInfo>();
 //    ServiceInfo service = new ServiceInfo();
@@ -807,7 +930,7 @@ public class BlueprintImplTest {
 //        BlueprintResourceProvider.HOST_GROUP_PROPERTY_ID)).iterator().next().get("components")).
 //        iterator().next().put("name", "AMBARI_SERVER");
 //
-//    Capture<BlueprintEntity> entityCapture = new Capture<BlueprintEntity>();
+//    Capture<BlueprintEntity> entityCapture = EasyMock.newCapture();
 //
 //    // set expectations
 //    expect(managementController.getStackServices(capture(stackServiceRequestCapture))).andReturn(

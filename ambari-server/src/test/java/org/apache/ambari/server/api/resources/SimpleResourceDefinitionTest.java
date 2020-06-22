@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,16 +17,16 @@
  */
 package org.apache.ambari.server.api.resources;
 
-import org.apache.ambari.server.controller.spi.Resource;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import org.apache.ambari.server.controller.spi.Resource;
+import org.junit.Test;
 
 /**
  * SimpleResourceDefinition tests.
@@ -56,12 +56,12 @@ public class SimpleResourceDefinitionTest {
     resourceDefinition = new SimpleResourceDefinition(Resource.Type.Stage, "stage", "stages",
         Resource.Type.Task);
 
-    validateDirectives(Collections.<String>emptySet(), resourceDefinition.getCreateDirectives());
-    validateDirectives(Collections.<String>emptySet(), resourceDefinition.getReadDirectives());
-    validateDirectives(Collections.<String>emptySet(), resourceDefinition.getUpdateDirectives());
-    validateDirectives(Collections.<String>emptySet(), resourceDefinition.getDeleteDirectives());
+    validateDirectives(Collections.emptySet(), resourceDefinition.getCreateDirectives());
+    validateDirectives(Collections.emptySet(), resourceDefinition.getReadDirectives());
+    validateDirectives(Collections.emptySet(), resourceDefinition.getUpdateDirectives());
+    validateDirectives(Collections.emptySet(), resourceDefinition.getDeleteDirectives());
 
-    HashMap<BaseResourceDefinition.DirectiveType, Collection<String>> directives = new HashMap<BaseResourceDefinition.DirectiveType, Collection<String>>();
+    HashMap<BaseResourceDefinition.DirectiveType, Collection<String>> directives = new HashMap<>();
     directives.put(BaseResourceDefinition.DirectiveType.CREATE, Arrays.asList("POST1", "POST2"));
     directives.put(BaseResourceDefinition.DirectiveType.READ, Arrays.asList("GET1", "GET2"));
     directives.put(BaseResourceDefinition.DirectiveType.UPDATE, Arrays.asList("PUT1", "PUT2"));

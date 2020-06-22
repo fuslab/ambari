@@ -18,8 +18,12 @@
 
 package org.apache.ambari.server.security.encryption;
 
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
+import java.io.File;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.security.SecurePasswordHelper;
@@ -27,11 +31,8 @@ import org.apache.ambari.server.security.credential.Credential;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
+import com.google.inject.Inject;
+import com.google.inject.Singleton;
 
 @Singleton
 public class CredentialStoreServiceImpl implements CredentialStoreService {
@@ -200,7 +201,7 @@ public class CredentialStoreServiceImpl implements CredentialStoreService {
         ? temporaryCredentialStore.listCredentials()
         : null;
 
-    Map<String, CredentialStoreType> map = new HashMap<String, CredentialStoreType>();
+    Map<String, CredentialStoreType> map = new HashMap<>();
 
     if (persistedAliases != null) {
       for (String alias : persistedAliases) {

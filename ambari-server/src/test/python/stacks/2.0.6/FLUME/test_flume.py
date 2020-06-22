@@ -259,7 +259,7 @@ class TestFlumeHandler(RMFTestCase):
 
     self.assertResourceCalled('File',
       '/etc/flume/conf/a1/log4j.properties',
-      content = Template('log4j.properties.j2', agent_name = 'a1'),
+      content = InlineTemplate(self.getConfig()['configurations']['flume-log4j']['content'],agent_name='a1'),
       owner='flume',
       mode = 0644)
 
@@ -313,7 +313,7 @@ class TestFlumeHandler(RMFTestCase):
     self.assertResourceCalled('File',
       '/etc/flume/conf/a1/log4j.properties',
       owner='flume',
-      content = Template('log4j.properties.j2', agent_name = 'a1'),
+      content = InlineTemplate(self.getConfig()['configurations']['flume-log4j']['content'],agent_name='a1'),
       mode = 0644)
     self.assertResourceCalled('File',
       '/etc/flume/conf/a1/ambari-meta.json',
@@ -337,7 +337,7 @@ class TestFlumeHandler(RMFTestCase):
     self.assertResourceCalled('File',
       '/etc/flume/conf/b1/log4j.properties',
       owner='flume',
-      content = Template('log4j.properties.j2', agent_name = 'b1'),
+      content = InlineTemplate(self.getConfig()['configurations']['flume-log4j']['content'],agent_name='b1'),
       mode = 0644)
     self.assertResourceCalled('File',
       '/etc/flume/conf/b1/ambari-meta.json',
@@ -484,7 +484,7 @@ class TestFlumeHandler(RMFTestCase):
     self.assertResourceCalled('File',
       '/etc/flume/conf/a1/log4j.properties',
       owner='flume',
-      content = Template('log4j.properties.j2', agent_name = 'a1'),
+      content = InlineTemplate(self.getConfig()['configurations']['flume-log4j']['content'],agent_name='a1'),
       mode = 0644)
 
     self.assertResourceCalled('File',
@@ -538,7 +538,7 @@ class TestFlumeHandler(RMFTestCase):
 
     self.assertResourceCalled('File',
       '/usr/hdp/current/flume-server/conf/a1/log4j.properties',
-      content = Template('log4j.properties.j2', agent_name = 'a1'),
+      content = InlineTemplate(self.getConfig()['configurations']['flume-log4j']['content'],agent_name='a1'),
       owner='flume',
       mode = 0644)
 

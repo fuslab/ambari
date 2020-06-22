@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
 
 package org.apache.ambari.server.controller.internal;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
@@ -33,23 +32,35 @@ import org.apache.ambari.server.controller.spi.NoSuchResourceException;
 import org.apache.ambari.server.controller.spi.Predicate;
 import org.apache.ambari.server.controller.spi.Request;
 import org.apache.ambari.server.controller.spi.Resource;
+import org.apache.ambari.server.controller.spi.Resource.Type;
 import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
-import org.apache.ambari.server.controller.spi.Resource.Type;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
+
 public class RootServiceResourceProvider extends ReadOnlyResourceProvider {
-  
-  public static final String SERVICE_NAME_PROPERTY_ID = PropertyHelper
-      .getPropertyId("RootService", "service_name");
 
-  private Set<String> pkPropertyIds = new HashSet<String>(
-      Arrays.asList(new String[] { SERVICE_NAME_PROPERTY_ID }));
+  public static final String RESPONSE_KEY = "RootService";
+  public static final String SERVICE_NAME = "service_name";
+  public static final String SERVICE_NAME_PROPERTY_ID = RESPONSE_KEY + PropertyHelper.EXTERNAL_PATH_SEP + SERVICE_NAME;
 
-  protected RootServiceResourceProvider(Set<String> propertyIds,
-      Map<Type, String> keyPropertyIds,
-      AmbariManagementController managementController) {
-    super(propertyIds, keyPropertyIds, managementController);
+  /**
+   * The key property ids for a RootService resource.
+   */
+  private static Map<Resource.Type, String> keyPropertyIds = ImmutableMap.<Resource.Type, String>builder()
+      .put(Type.RootService, SERVICE_NAME_PROPERTY_ID)
+      .build();
+
+  /**
+   * The property ids for a RootService resource.
+   */
+  private static Set<String> propertyIds = Sets.newHashSet(
+      SERVICE_NAME_PROPERTY_ID);
+
+  protected RootServiceResourceProvider(AmbariManagementController managementController) {
+    super(Type.RootService, propertyIds, keyPropertyIds, managementController);
   }
   
   @Override
@@ -57,10 +68,10 @@ public class RootServiceResourceProvider extends ReadOnlyResourceProvider {
       throws SystemException, UnsupportedPropertyException,
       NoSuchResourceException, NoSuchParentResourceException {
 
-    final Set<RootServiceRequest> requests = new HashSet<RootServiceRequest>();
+    final Set<RootServiceRequest> requests = new HashSet<>();
 
     if (predicate == null) {
-      requests.add(getRequest(Collections.<String, Object>emptyMap()));
+      requests.add(getRequest(Collections.emptyMap()));
     } else {
       for (Map<String, Object> propertyMap : getPropertyMaps(predicate)) {
         requests.add(getRequest(propertyMap));
@@ -76,14 +87,11 @@ public class RootServiceResourceProvider extends ReadOnlyResourceProvider {
       }
     });
 
-    Set<Resource> resources = new HashSet<Resource>();
+    Set<Resource> resources = new HashSet<>();
 
     for (RootServiceResponse response : responses) {
       Resource resource = new ResourceImpl(Resource.Type.RootService);
-
-      setResourceProperty(resource, SERVICE_NAME_PROPERTY_ID,
-          response.getServiceName(), requestedIds);
-
+      setResourceProperty(resource, SERVICE_NAME_PROPERTY_ID, response.getServiceName(), requestedIds);
       resources.add(resource);
     }
 
@@ -96,7 +104,7 @@ public class RootServiceResourceProvider extends ReadOnlyResourceProvider {
 
   @Override
   protected Set<String> getPKPropertyIds() {
-    return pkPropertyIds ;
+    return new HashSet<>(keyPropertyIds.values());
   }
 
 }

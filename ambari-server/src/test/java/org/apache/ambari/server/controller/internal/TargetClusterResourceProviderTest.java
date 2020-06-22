@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,19 @@
 package org.apache.ambari.server.controller.internal;
 
 
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.verify;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.ivory.Cluster;
 import org.apache.ambari.server.controller.ivory.IvoryService;
 import org.apache.ambari.server.controller.spi.Predicate;
@@ -29,19 +42,6 @@ import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import static org.easymock.EasyMock.createMock;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.verify;
-
 /**
  * Tests for TargetClusterResourceProvider.
  */
@@ -50,7 +50,7 @@ public class TargetClusterResourceProviderTest {
 
   private static Cluster.Interface interface1 = new Cluster.Interface("write", "hdfs://ec2.a.b.com:8020", "1.1.2.22");
 
-  private static Map<String, String> interfaces = new HashMap<String, String>();
+  private static Map<String, String> interfaces = new HashMap<>();
   static {
     interfaces.put("type", interface1.getType());
     interfaces.put("endpoint", interface1.getEndpoint());
@@ -59,7 +59,7 @@ public class TargetClusterResourceProviderTest {
 
   private static Cluster.Location location1 = new Cluster.Location("location1", "/mirrorthis");
 
-  private static Map<String, String> locations  = new HashMap<String, String>();
+  private static Map<String, String> locations  = new HashMap<>();
   static {
     locations.put("name", location1.getName());
     locations.put("path", location1.getPath());
@@ -69,9 +69,9 @@ public class TargetClusterResourceProviderTest {
   public void testCreateResources() throws Exception {
     IvoryService service = createMock(IvoryService.class);
 
-    Set<Map<String, Object>> propertySet = new HashSet<Map<String, Object>>();
+    Set<Map<String, Object>> propertySet = new HashSet<>();
 
-    Map<String, Object> properties = new HashMap<String, Object>();
+    Map<String, Object> properties = new HashMap<>();
 
     properties.put(TargetClusterResourceProvider.CLUSTER_NAME_PROPERTY_ID, "Cluster1");
     properties.put(TargetClusterResourceProvider.CLUSTER_COLO_PROPERTY_ID, "Colo");
@@ -87,11 +87,9 @@ public class TargetClusterResourceProviderTest {
 
     propertySet.add(properties);
 
-    Request request = PropertyHelper.getCreateRequest(propertySet, Collections.<String,String>emptyMap());
+    Request request = PropertyHelper.getCreateRequest(propertySet, Collections.emptyMap());
 
-    TargetClusterResourceProvider provider = new TargetClusterResourceProvider(service,
-        PropertyHelper.getPropertyIds(Resource.Type.DRTargetCluster),
-        PropertyHelper.getKeyPropertyIds(Resource.Type.DRTargetCluster));
+    TargetClusterResourceProvider provider = new TargetClusterResourceProvider(service);
 
     provider.createResources(request);
 
@@ -103,11 +101,11 @@ public class TargetClusterResourceProviderTest {
   public void testGetResources() throws Exception {
     IvoryService service = createMock(IvoryService.class);
 
-    Set<Map<String, Object>> propertySet = new HashSet<Map<String, Object>>();
+    Set<Map<String, Object>> propertySet = new HashSet<>();
 
-    Map<String, Object> properties = new HashMap<String, Object>();
+    Map<String, Object> properties = new HashMap<>();
 
-    List<String> targetClusterNames = new LinkedList<String>();
+    List<String> targetClusterNames = new LinkedList<>();
     targetClusterNames.add("Cluster1");
     targetClusterNames.add("Cluster2");
     targetClusterNames.add("Cluster3");
@@ -134,11 +132,9 @@ public class TargetClusterResourceProviderTest {
 
     propertySet.add(properties);
 
-    Request request = PropertyHelper.getCreateRequest(propertySet, Collections.<String,String>emptyMap());
+    Request request = PropertyHelper.getCreateRequest(propertySet, Collections.emptyMap());
 
-    TargetClusterResourceProvider provider = new TargetClusterResourceProvider(service,
-        PropertyHelper.getPropertyIds(Resource.Type.DRTargetCluster),
-        PropertyHelper.getKeyPropertyIds(Resource.Type.DRTargetCluster));
+    TargetClusterResourceProvider provider = new TargetClusterResourceProvider(service);
 
     Set<Resource> resources = provider.getResources(request, null);
 
@@ -152,9 +148,9 @@ public class TargetClusterResourceProviderTest {
   public void testUpdateResources() throws Exception {
     IvoryService service = createMock(IvoryService.class);
 
-    Set<Map<String, Object>> propertySet = new HashSet<Map<String, Object>>();
+    Set<Map<String, Object>> propertySet = new HashSet<>();
 
-    Map<String, Object> properties = new HashMap<String, Object>();
+    Map<String, Object> properties = new HashMap<>();
 
     properties.put(TargetClusterResourceProvider.CLUSTER_NAME_PROPERTY_ID, "Cluster1");
     properties.put(TargetClusterResourceProvider.CLUSTER_COLO_PROPERTY_ID, "Colo");
@@ -162,7 +158,7 @@ public class TargetClusterResourceProviderTest {
     properties.put(TargetClusterResourceProvider.CLUSTER_LOCATIONS_PROPERTY_ID, Collections.singleton(locations));
     properties.put(TargetClusterResourceProvider.CLUSTER_PROPERTIES_PROPERTY_ID + "/P1", "V1");
 
-    List<String> targetClusterNames = new LinkedList<String>();
+    List<String> targetClusterNames = new LinkedList<>();
     targetClusterNames.add("Cluster1");
 
     Set<Cluster.Interface> interfaceSet = Collections.singleton(interface1);
@@ -183,11 +179,9 @@ public class TargetClusterResourceProviderTest {
 
     propertySet.add(properties);
 
-    Request request = PropertyHelper.getCreateRequest(propertySet, Collections.<String,String>emptyMap());
+    Request request = PropertyHelper.getCreateRequest(propertySet, Collections.emptyMap());
 
-    TargetClusterResourceProvider provider = new TargetClusterResourceProvider(service,
-        PropertyHelper.getPropertyIds(Resource.Type.DRTargetCluster),
-        PropertyHelper.getKeyPropertyIds(Resource.Type.DRTargetCluster));
+    TargetClusterResourceProvider provider = new TargetClusterResourceProvider(service);
 
     provider.updateResources(request, null);
 
@@ -199,7 +193,7 @@ public class TargetClusterResourceProviderTest {
   public void testDeleteResources() throws Exception {
     IvoryService service = createMock(IvoryService.class);
 
-    List<String> targetClusterNames = new LinkedList<String>();
+    List<String> targetClusterNames = new LinkedList<>();
     targetClusterNames.add("Cluster1");
 
     Cluster.Interface interface1 = new Cluster.Interface("type", "endpoint", "version");
@@ -219,9 +213,7 @@ public class TargetClusterResourceProviderTest {
     replay(service);
 
 
-    TargetClusterResourceProvider provider = new TargetClusterResourceProvider(service,
-        PropertyHelper.getPropertyIds(Resource.Type.DRTargetCluster),
-        PropertyHelper.getKeyPropertyIds(Resource.Type.DRTargetCluster));
+    TargetClusterResourceProvider provider = new TargetClusterResourceProvider(service);
 
     Predicate predicate = new PredicateBuilder().property(TargetClusterResourceProvider.CLUSTER_NAME_PROPERTY_ID).equals("Cluster1").toPredicate();
 
@@ -231,16 +223,4 @@ public class TargetClusterResourceProviderTest {
     verify(service);
   }
 
-  @Test
-  public void testGetKeyPropertyIds() throws Exception {
-    IvoryService service = createMock(IvoryService.class);
-
-    Map<Resource.Type, String> keyPropertyIds = PropertyHelper.getKeyPropertyIds(Resource.Type.DRTargetCluster);
-
-    TargetClusterResourceProvider provider = new TargetClusterResourceProvider(service,
-        PropertyHelper.getPropertyIds(Resource.Type.DRTargetCluster),
-        keyPropertyIds);
-
-    Assert.assertEquals(keyPropertyIds, provider.getKeyPropertyIds());
-  }
 }

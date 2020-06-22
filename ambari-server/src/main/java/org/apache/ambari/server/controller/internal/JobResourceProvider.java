@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,7 +22,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -42,15 +41,18 @@ import org.apache.ambari.server.controller.spi.ResourceAlreadyExistsException;
 import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 
 /**
  * Resource provider for job resources.
  */
 public class JobResourceProvider extends
     AbstractJDBCResourceProvider<JobResourceProvider.JobFields> {
-  private static Log LOG = LogFactory.getLog(JobResourceProvider.class);
+  private static final Logger LOG = LoggerFactory.getLogger(JobResourceProvider.class);
 
   protected static final String JOB_CLUSTER_NAME_PROPERTY_ID = PropertyHelper
       .getPropertyId("Job", "cluster_name");
@@ -81,22 +83,40 @@ public class JobResourceProvider extends
   protected static final String JOB_WORKFLOW_ENTITY_NAME_PROPERTY_ID = PropertyHelper
       .getPropertyId("Job", "workflow_entity_name");
 
-  private static final Set<String> pkPropertyIds = new HashSet<String>(
-      Arrays.asList(new String[] {JOB_CLUSTER_NAME_PROPERTY_ID,
-          JOB_WORKFLOW_ID_PROPERTY_ID, JOB_ID_PROPERTY_ID}));
-
   protected JobFetcher jobFetcher;
 
   /**
-   * Create a new job resource provider.
-   * 
-   * @param propertyIds
-   *          the property ids
-   * @param keyPropertyIds
-   *          the key property ids
+   * The key property ids for a Job resource.
    */
-  protected JobResourceProvider(Set<String> propertyIds,
-      Map<Type,String> keyPropertyIds) {
+  protected static Map<Resource.Type, String> keyPropertyIds = ImmutableMap.<Resource.Type, String>builder()
+      .put(Type.Cluster, JOB_CLUSTER_NAME_PROPERTY_ID)
+      .put(Type.Workflow, JOB_WORKFLOW_ID_PROPERTY_ID)
+      .put(Type.Job, JOB_ID_PROPERTY_ID)
+      .build();
+
+  /**
+   * The property ids for a Job resource.
+   */
+  protected static Set<String> propertyIds = Sets.newHashSet(
+      JOB_CLUSTER_NAME_PROPERTY_ID,
+      JOB_WORKFLOW_ID_PROPERTY_ID,
+      JOB_ID_PROPERTY_ID,
+      JOB_NAME_PROPERTY_ID,
+      JOB_STATUS_PROPERTY_ID,
+      JOB_USER_NAME_PROPERTY_ID,
+      JOB_SUBMIT_TIME_PROPERTY_ID,
+      JOB_ELAPSED_TIME_PROPERTY_ID,
+      JOB_MAPS_PROPERTY_ID,
+      JOB_REDUCES_PROPERTY_ID,
+      JOB_INPUT_BYTES_PROPERTY_ID,
+      JOB_OUTPUT_BYTES_PROPERTY_ID,
+      JOB_CONF_PATH_PROPERTY_ID,
+      JOB_WORKFLOW_ENTITY_NAME_PROPERTY_ID);
+
+  /**
+   * Create a new job resource provider.
+   */
+  protected JobResourceProvider() {
     super(propertyIds, keyPropertyIds);
     jobFetcher = new PostgresJobFetcher(
         new JobHistoryPostgresConnectionFactory());
@@ -105,15 +125,10 @@ public class JobResourceProvider extends
   /**
    * Create a new job resource provider.
    * 
-   * @param propertyIds
-   *          the property ids
-   * @param keyPropertyIds
-   *          the key property ids
    * @param jobFetcher
    *          job fetcher
    */
-  protected JobResourceProvider(Set<String> propertyIds,
-      Map<Type,String> keyPropertyIds, JobFetcher jobFetcher) {
+  protected JobResourceProvider(JobFetcher jobFetcher) {
     super(propertyIds, keyPropertyIds);
     this.jobFetcher = jobFetcher;
   }
@@ -130,7 +145,7 @@ public class JobResourceProvider extends
       throws SystemException, UnsupportedPropertyException,
       NoSuchResourceException, NoSuchParentResourceException {
 
-    Set<Resource> resourceSet = new HashSet<Resource>();
+    Set<Resource> resourceSet = new HashSet<>();
     Set<String> requestedIds = getRequestPropertyIds(request, predicate);
 
     Set<Map<String,Object>> predicatePropertieSet = getPropertyMaps(predicate);
@@ -162,22 +177,18 @@ public class JobResourceProvider extends
 
   @Override
   protected Set<String> getPKPropertyIds() {
-    return pkPropertyIds;
+    return new HashSet<>(keyPropertyIds.values());
   }
 
   @Override
   public Map<Type,String> getKeyPropertyIds() {
-    Map<Type,String> keyPropertyIds = new HashMap<Type,String>();
-    keyPropertyIds.put(Type.Cluster, JOB_CLUSTER_NAME_PROPERTY_ID);
-    keyPropertyIds.put(Type.Workflow, JOB_WORKFLOW_ID_PROPERTY_ID);
-    keyPropertyIds.put(Type.Job, JOB_ID_PROPERTY_ID);
     return keyPropertyIds;
   }
 
   /**
    * Simple interface for fetching jobs from db.
    */
-  public static interface JobFetcher {
+  public interface JobFetcher {
     /**
      * Fetch job resources.
      * 
@@ -191,8 +202,8 @@ public class JobResourceProvider extends
      *          the job id
      * @return a set of job resources
      */
-    public Set<Resource> fetchJobDetails(Set<String> requestedIds,
-        String clusterName, String workflowId, String jobId);
+    Set<Resource> fetchJobDetails(Set<String> requestedIds,
+                                  String clusterName, String workflowId, String jobId);
   }
 
   /**
@@ -224,14 +235,14 @@ public class JobResourceProvider extends
       String fields = getDBFieldString(requestedIds);
       if (requestedIds.contains(JOB_ELAPSED_TIME_PROPERTY_ID)
           && !requestedIds.contains(JOB_SUBMIT_TIME_PROPERTY_ID))
-        fields += "," + getDBField(JOB_SUBMIT_TIME_PROPERTY_ID).toString();
+        fields += "," + getDBField(JOB_SUBMIT_TIME_PROPERTY_ID);
       if (jobId == null) {
         ps = db.prepareStatement("SELECT " + fields + " FROM " + JOB_TABLE_NAME
-            + " WHERE " + JobFields.WORKFLOWID.toString() + " = ?");
+            + " WHERE " + JobFields.WORKFLOWID + " = ?");
         ps.setString(1, workflowId);
       } else {
         ps = db.prepareStatement("SELECT " + fields + " FROM " + JOB_TABLE_NAME
-            + " WHERE " + JobFields.JOBID.toString() + " = ?");
+            + " WHERE " + JobFields.JOBID + " = ?");
         ps.setString(1, jobId);
       }
       return ps.executeQuery();
@@ -256,7 +267,7 @@ public class JobResourceProvider extends
     @Override
     public Set<Resource> fetchJobDetails(Set<String> requestedIds,
         String clusterName, String workflowId, String jobId) {
-      Set<Resource> jobs = new HashSet<Resource>();
+      Set<Resource> jobs = new HashSet<>();
       ResultSet rs = null;
       try {
         rs = getResultSet(requestedIds, workflowId, jobId);
@@ -315,7 +326,7 @@ public class JobResourceProvider extends
   /**
    * Enumeration of db fields for the job table.
    */
-  static enum JobFields {
+  enum JobFields {
     JOBID,
     JOBNAME,
     STATUS,
@@ -333,7 +344,7 @@ public class JobResourceProvider extends
 
   @Override
   protected Map<String,JobFields> getDBFieldMap() {
-    Map<String,JobFields> dbFields = new HashMap<String,JobFields>();
+    Map<String,JobFields> dbFields = new HashMap<>();
     dbFields.put(JOB_WORKFLOW_ID_PROPERTY_ID, JobFields.WORKFLOWID);
     dbFields.put(JOB_ID_PROPERTY_ID, JobFields.JOBID);
     dbFields.put(JOB_NAME_PROPERTY_ID, JobFields.JOBNAME);

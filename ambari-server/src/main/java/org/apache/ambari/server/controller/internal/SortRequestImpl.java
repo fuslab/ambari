@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,10 +17,11 @@
  */
 package org.apache.ambari.server.controller.internal;
 
-import org.apache.ambari.server.controller.spi.SortRequest;
-import org.apache.ambari.server.controller.spi.SortRequestProperty;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.apache.ambari.server.controller.spi.SortRequest;
+import org.apache.ambari.server.controller.spi.SortRequestProperty;
 
 public class SortRequestImpl implements SortRequest {
   List<SortRequestProperty> properties;
@@ -36,7 +37,7 @@ public class SortRequestImpl implements SortRequest {
 
   @Override
   public List<String> getPropertyIds() {
-    List<String> propertyIds = new ArrayList<String>();
+    List<String> propertyIds = new ArrayList<>();
     for (SortRequestProperty property : properties) {
       propertyIds.add(property.getPropertyId());
     }

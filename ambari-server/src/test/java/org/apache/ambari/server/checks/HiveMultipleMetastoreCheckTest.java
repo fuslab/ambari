@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,6 +23,7 @@ import java.util.Map;
 
 import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.controller.PrereqCheckRequest;
+import org.apache.ambari.server.orm.dao.RepositoryVersionDAO;
 import org.apache.ambari.server.orm.entities.RepositoryVersionEntity;
 import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.Clusters;
@@ -52,6 +53,8 @@ import com.google.inject.Provider;
 public class HiveMultipleMetastoreCheckTest {
   private final Clusters m_clusters = Mockito.mock(Clusters.class);
   private final HiveMultipleMetastoreCheck m_check = new HiveMultipleMetastoreCheck();
+  private final RepositoryVersionDAO repositoryVersionDAO = Mockito.mock(
+      RepositoryVersionDAO.class);
 
   @Mock
   private ClusterVersionSummary m_clusterVersionSummary;
@@ -113,6 +116,16 @@ public class HiveMultipleMetastoreCheckTest {
 
     // install HIVE
     m_services.put("HIVE", Mockito.mock(Service.class));
+
+    m_check.repositoryVersionDaoProvider = new Provider<RepositoryVersionDAO>() {
+      @Override
+      public RepositoryVersionDAO get() {
+        return repositoryVersionDAO;
+      }
+    };
+
+    Mockito.when(repositoryVersionDAO.findByStackNameAndVersion(Mockito.anyString(),
+        Mockito.anyString())).thenReturn(m_repositoryVersion);
 
     // HIVE installed
     Assert.assertTrue(m_check.isApplicable(request));

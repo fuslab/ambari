@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,7 @@
 
 package org.apache.ambari.server.security.authorization;
 
-import com.google.inject.Inject;
-import org.apache.ambari.server.scheduler.ExecutionScheduleManager;
-import org.apache.ambari.server.security.authorization.internal.InternalTokenClientFilter;
-import org.apache.ambari.server.security.authorization.internal.InternalTokenStorage;
-import org.apache.commons.lang.math.NumberUtils;
-import org.springframework.security.core.context.SecurityContextHolder;
+import java.io.IOException;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -33,8 +28,18 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.util.Collection;
+
+import org.apache.ambari.server.orm.entities.UserEntity;
+import org.apache.ambari.server.scheduler.ExecutionScheduleManager;
+import org.apache.ambari.server.security.authentication.AmbariUserAuthentication;
+import org.apache.ambari.server.security.authentication.AmbariUserDetails;
+import org.apache.ambari.server.security.authentication.AmbariUserDetailsImpl;
+import org.apache.ambari.server.security.authorization.internal.InternalTokenClientFilter;
+import org.apache.ambari.server.security.authorization.internal.InternalTokenStorage;
+import org.apache.commons.lang.math.NumberUtils;
+import org.springframework.security.core.context.SecurityContextHolder;
+
+import com.google.inject.Inject;
 
 public class AmbariUserAuthorizationFilter implements Filter {
 
@@ -68,20 +73,19 @@ public class AmbariUserAuthorizationFilter implements Filter {
             return;
           }
           Integer userId = Integer.parseInt(userToken);
-          User user = users.getUser(userId);
-          if (user == null) {
+          UserEntity userEntity = users.getUserEntity(userId);
+          if (userEntity == null) {
             httpResponse.sendError(HttpServletResponse.SC_FORBIDDEN, "Authentication required");
             httpResponse.flushBuffer();
             return;
-          } if (!user.isActive()) {
+          }
+          if (!userEntity.getActive()) {
             httpResponse.sendError(HttpServletResponse.SC_FORBIDDEN, "User is not active");
             httpResponse.flushBuffer();
             return;
           } else {
-            Collection<AmbariGrantedAuthority> userAuthorities =
-              users.getUserAuthorities(user.getUserName(), user.getUserType());
-            AmbariUserAuthentication authentication = new AmbariUserAuthentication(token, user, userAuthorities);
-            authentication.setAuthenticated(true);
+            AmbariUserDetails userDetails = new AmbariUserDetailsImpl(users.getUser(userEntity), null, users.getUserAuthorities(userEntity));
+            AmbariUserAuthentication authentication = new AmbariUserAuthentication(token, userDetails, true);
             SecurityContextHolder.getContext().setAuthentication(authentication);
             httpResponse.setHeader("User", AuthorizationHelper.getAuthenticatedName());
           }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,5 +29,5 @@ public interface Predicate {
    * @param resource the resource to evaluate the predicate against
    * @return the result of applying the predicate to the given resource
    */
-  public boolean evaluate(Resource resource);
+  boolean evaluate(Resource resource);
 }

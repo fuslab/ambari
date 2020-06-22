@@ -46,7 +46,7 @@ from ambari_server.serverConfiguration import encrypt_password, store_password_f
     PERSISTENCE_TYPE_PROPERTY, JDBC_CONNECTION_POOL_TYPE, JDBC_CONNECTION_POOL_ACQUISITION_SIZE, \
     JDBC_CONNECTION_POOL_IDLE_TEST_INTERVAL, JDBC_CONNECTION_POOL_MAX_AGE, JDBC_CONNECTION_POOL_MAX_IDLE_TIME, \
     JDBC_CONNECTION_POOL_MAX_IDLE_TIME_EXCESS, JDBC_SQLA_SERVER_NAME, LOCAL_DATABASE_ADMIN_PROPERTY
-
+from ambari_commons.inet_utils import wait_for_port_opened
 from ambari_commons.constants import AMBARI_SUDO_BINARY
 
 from ambari_server.userInput import get_YN_input, get_validated_string_input, read_password
@@ -58,6 +58,10 @@ ORACLE_DB_ID_TYPES = ["Service Name", "SID"]
 ORACLE_SNAME_PATTERN = "jdbc:oracle:thin:@.+:.+:.+"
 
 JDBC_PROPERTIES_PREFIX = "server.jdbc.properties."
+
+PG_PORT_CHECK_TRIES_COUNT = 30
+PG_PORT_CHECK_INTERVAL = 1
+PG_PORT = 5432
 
 class LinuxDBMSConfig(DBMSConfig):
   def __init__(self, options, properties, storage_type):
@@ -164,16 +168,19 @@ class LinuxDBMSConfig(DBMSConfig):
       if not retcode == 0:
         err = 'Error while configuring connection properties. Exiting'
         raise FatalException(retcode, err)
+    else:
+      err = 'Error while configuring connection properties. Exiting'
+      raise FatalException(-1, err)
 
   def _reset_remote_database(self):
     client_usage_cmd_drop = self._get_remote_script_line(self.drop_tables_script_file)
     client_usage_cmd_init = self._get_remote_script_line(self.init_script_file)
 
     print_warning_msg('To reset Ambari Server schema ' +
-                      'you must run the following DDL against the database to '
+                      'you must run the following DDL directly from the database shell to '
                       + 'drop the schema:' + os.linesep + client_usage_cmd_drop
                       + os.linesep + 'Then you must run the following DDL ' +
-                      'against the database to create the schema: ' + os.linesep +
+                      'directly from the database shell to create the schema: ' + os.linesep +
                       client_usage_cmd_init + os.linesep)
 
   def _get_default_driver_path(self, properties):
@@ -265,7 +272,7 @@ class LinuxDBMSConfig(DBMSConfig):
   # Let the console user initialize the remote database schema
   def _setup_remote_db(self):
     setup_msg = "Before starting Ambari Server, you must run the following DDL " \
-                "against the database to create the schema: {0}".format(self.init_script_file)
+                "directly from the database shell to create the schema: {0}".format(self.init_script_file)
 
     print_warning_msg(setup_msg)
 
@@ -661,19 +668,14 @@ class PGConfig(LinuxDBMSConfig):
                                    stdin=subprocess32.PIPE,
                                    stderr=subprocess32.PIPE
         )
-        if OSCheck.is_suse_family():
-          time.sleep(20)
-          result = process.poll()
-          print_info_msg("Result of postgres start cmd: " + str(result))
-          if result is None:
-            process.kill()
-            pg_status, retcode, out, err = PGConfig._get_postgre_status()
-          else:
-            retcode = result
-        else:
-          out, err = process.communicate()
-          retcode = process.returncode
-          pg_status, retcode, out, err = PGConfig._get_postgre_status()
+        out, err = process.communicate()
+        retcode = process.returncode
+
+        print_info_msg("Waiting for postgres to start at port {0}...".format(PG_PORT))
+        wait_for_port_opened('127.0.0.1', PG_PORT, PG_PORT_CHECK_TRIES_COUNT, PG_PORT_CHECK_INTERVAL)
+
+        pg_status, retcode, out, err = PGConfig._get_postgre_status()
+
         if pg_status == PGConfig.PG_STATUS_RUNNING:
           print_info_msg("Postgres process is running. Returning...")
           return pg_status, 0, out, err

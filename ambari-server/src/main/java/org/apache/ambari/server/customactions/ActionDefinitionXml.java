@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,7 +30,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 public class ActionDefinitionXml {
   
   @XmlElement(name="actionDefinition")
-  private List<ActionDefinitionSpec> actionDefinitions = new ArrayList<ActionDefinitionSpec>();
+  private List<ActionDefinitionSpec> actionDefinitions = new ArrayList<>();
   
   /**
    * @return the list of properties contained in a configuration file

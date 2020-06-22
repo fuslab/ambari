@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,15 @@
 package org.apache.ambari.server.api.resources;
 
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.api.query.render.DefaultRenderer;
 import org.apache.ambari.server.api.query.render.MetricsPaddingRenderer;
 import org.apache.ambari.server.api.query.render.MinimalRenderer;
@@ -31,15 +40,6 @@ import org.apache.ambari.server.controller.spi.Schema;
 import org.apache.ambari.server.controller.utilities.ClusterControllerHelper;
 import org.apache.commons.codec.EncoderException;
 import org.apache.commons.codec.net.URLCodec;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * Base resource definition.  Contains behavior common to all resource types.
@@ -54,12 +54,12 @@ public abstract class BaseResourceDefinition implements ResourceDefinition {
   /**
    * The sub-resource type definitions.
    */
-  private final Set<SubResourceDefinition> subResourceDefinitions = new HashSet<SubResourceDefinition>();
+  private final Set<SubResourceDefinition> subResourceDefinitions = new HashSet<>();
 
   /**
    * A map of directives for the different request types, each entry is expected to be modifiable by sub resources.
    */
-  private final Map<DirectiveType, Collection<String>> directives = new HashMap<DirectiveType, Collection<String>>();
+  private final Map<DirectiveType, Collection<String>> directives = new HashMap<>();
 
   /**
    * Constructor.
@@ -116,7 +116,7 @@ public abstract class BaseResourceDefinition implements ResourceDefinition {
 
   @Override
   public List<PostProcessor> getPostProcessors() {
-    List<PostProcessor> listProcessors = new ArrayList<PostProcessor>();
+    List<PostProcessor> listProcessors = new ArrayList<>();
     listProcessors.add(new BaseHrefPostProcessor());
     return listProcessors;
   }
@@ -241,7 +241,7 @@ public abstract class BaseResourceDefinition implements ResourceDefinition {
    * @param directives the map of directives from which to copy
    */
   private void initializeDirectives(DirectiveType type, Map<DirectiveType, ? extends Collection<String>> directives) {
-    HashSet<String> requestDirectives = new HashSet<String>();
+    HashSet<String> requestDirectives = new HashSet<>();
 
     if ((directives != null) && directives.get(type) != null) {
       requestDirectives.addAll(directives.get(type));

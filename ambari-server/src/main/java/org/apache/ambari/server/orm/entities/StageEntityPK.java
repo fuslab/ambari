@@ -65,4 +65,16 @@ public class StageEntityPK implements Serializable {
   public int hashCode() {
     return Objects.hash(requestId, stageId);
   }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public String toString() {
+    StringBuilder buffer = new StringBuilder("StageEntityPK{");
+    buffer.append("stageId=").append(getStageId());
+    buffer.append("requestId=").append(getRequestId());
+    buffer.append("}");
+    return buffer.toString();
+  }
 }

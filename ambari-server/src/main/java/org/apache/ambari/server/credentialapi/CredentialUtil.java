@@ -24,16 +24,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.lang.StringUtils;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
-import org.apache.hadoop.util.Tool;
-import org.apache.hadoop.util.ToolRunner;
-
-import org.apache.hadoop.security.alias.CredentialShell;
 import org.apache.hadoop.security.alias.CredentialProvider;
 import org.apache.hadoop.security.alias.CredentialProviderFactory;
+import org.apache.hadoop.security.alias.CredentialShell;
 import org.apache.hadoop.security.alias.JavaKeyStoreProvider;
+import org.apache.hadoop.util.Tool;
+import org.apache.hadoop.util.ToolRunner;
 
 /**
  * Command line utility that wraps over CredentialShell. Extends the
@@ -426,7 +424,7 @@ public class CredentialUtil extends Configured implements Tool {
           // prompt the user to confirm or reject the overwrite
           overwrite = ToolRunner
                   .confirmPrompt("You are about to OVERWRITE the credential " +
-                          alias + " from CredentialProvider " + provider.toString() +
+                          alias + " from CredentialProvider " + provider +
                           ". Continue? ");
         }
 

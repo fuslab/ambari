@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -85,7 +85,7 @@ public class StageResourceProviderTest {
     hrcDao = createStrictMock(HostRoleCommandDAO.class);
     topologyManager = EasyMock.createNiceMock(TopologyManager.class);
 
-    expect(topologyManager.getStages()).andReturn(new ArrayList<StageEntity>()).atLeastOnce();
+    expect(topologyManager.getStages()).andReturn(new ArrayList<>()).atLeastOnce();
 
     expect(hrcDao.findAggregateCounts(EasyMock.anyObject(Long.class))).andReturn(
         new HashMap<Long, HostRoleCommandStatusSummaryDTO>() {
@@ -128,7 +128,7 @@ public class StageResourceProviderTest {
     Predicate predicate = createNiceMock(Predicate.class);
 
     expect(clusters.getClusterById(anyLong())).andReturn(cluster).anyTimes();
-    expect(request.getProperties()).andReturn(Collections.<Map<String,Object>>emptySet());
+    expect(request.getProperties()).andReturn(Collections.emptySet());
 
     replay(clusters, cluster, request, predicate);
 
@@ -298,7 +298,7 @@ public class StageResourceProviderTest {
     Predicate predicate = new PredicateBuilder().property(StageResourceProvider.STAGE_STAGE_ID).equals(2L).and().
         property(StageResourceProvider.STAGE_REQUEST_ID).equals(1L).toPredicate();
 
-    Map<String, Object> requestProps = new HashMap<String, Object>();
+    Map<String, Object> requestProps = new HashMap<>();
     requestProps.put(StageResourceProvider.STAGE_STATUS, HostRoleStatus.ABORTED.name());
     Request request = PropertyHelper.getUpdateRequest(requestProps, null);
 
@@ -331,14 +331,14 @@ public class StageResourceProviderTest {
     task2.setEndTime(2500L);
 
 
-    Collection<HostRoleCommandEntity> tasks = new HashSet<HostRoleCommandEntity>();
+    Collection<HostRoleCommandEntity> tasks = new HashSet<>();
     tasks.add(task1);
     tasks.add(task2);
 
     stage.setHostRoleCommands(tasks);
     stage.setRequestId(1L);
 
-    List<StageEntity> entities = new LinkedList<StageEntity>();
+    List<StageEntity> entities = new LinkedList<>();
     entities.add(stage);
     return entities;
   }

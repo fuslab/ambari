@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,15 +17,13 @@
  */
 package org.apache.ambari.server.state;
 
-import com.google.common.collect.Sets;
-import org.junit.Test;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.Unmarshaller;
-import javax.xml.transform.stream.StreamSource;
 import java.io.ByteArrayInputStream;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -33,12 +31,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static org.easymock.EasyMock.createNiceMock;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.replay;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBException;
+import javax.xml.bind.Unmarshaller;
+import javax.xml.transform.stream.StreamSource;
+
+import org.junit.Test;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+
+import com.google.common.collect.Sets;
 
 public class PropertyInfoTest {
 
@@ -65,7 +67,7 @@ public class PropertyInfoTest {
   public void testAttributes() throws Exception {
     PropertyInfo property = new PropertyInfo();
 
-    List<Element> elements = new ArrayList<Element>();
+    List<Element> elements = new ArrayList<>();
     Element e1 = createNiceMock(Element.class);
     Element e2 = createNiceMock(Element.class);
     Node n1 = createNiceMock(Node.class);
@@ -132,6 +134,26 @@ public class PropertyInfoTest {
     assertTrue(propertyInfo.getPropertyAmbariUpgradeBehavior().isAdd());
     assertFalse(propertyInfo.getPropertyAmbariUpgradeBehavior().isUpdate());
     assertFalse(propertyInfo.getPropertyAmbariUpgradeBehavior().isDelete());
+  }
+
+  @Test
+  public void testBehaviorWithSupportedRefreshCommandsTags() throws JAXBException {
+    // given
+    String xml =
+    "<property>\n" +
+    " <name>prop_name</name>\n" +
+    " <value>prop_val</value>\n" +
+    " <supported-refresh-commands>\n" +
+    "   <refresh-command componentName=\"NAMENODE\" command=\"reload_configs\" />\n" +
+    " </supported-refresh-commands>\n" +
+    "</property>";
+
+    // when
+    PropertyInfo propertyInfo = propertyInfoFrom(xml);
+
+    // then
+    assertEquals(propertyInfo.getSupportedRefreshCommands().iterator().next().getCommand(), "reload_configs");
+    assertEquals(propertyInfo.getSupportedRefreshCommands().iterator().next().getComponentName(), "NAMENODE");
   }
 
   @Test

@@ -17,8 +17,9 @@
  */
 package org.apache.ambari.server.security.authentication;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -27,9 +28,10 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
-import java.io.IOException;
-import java.util.Collection;
-import java.util.Collections;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
 
 /**
  * The AmbariDelegatingAuthenticationFilter is an authentication filter that holds zero or more
@@ -42,6 +44,7 @@ import java.util.Collections;
  * claims it is to be used for the operation, interation stops ensuring at most only one of the contained
  * filters is invoked.
  */
+@Component
 public class AmbariDelegatingAuthenticationFilter implements Filter {
   private static final Logger LOG = LoggerFactory.getLogger(AmbariDelegatingAuthenticationFilter.class);
 
@@ -57,7 +60,7 @@ public class AmbariDelegatingAuthenticationFilter implements Filter {
    */
   public AmbariDelegatingAuthenticationFilter(Collection<AmbariAuthenticationFilter> filters) {
 
-    this.filters = (filters == null) ? Collections.<AmbariAuthenticationFilter>emptyList() : filters;
+    this.filters = (filters == null) ? Collections.emptyList() : filters;
 
     if (this.filters.isEmpty()) {
       LOG.warn("The delegated filters list is empty. No authentication tests will be performed by this " +

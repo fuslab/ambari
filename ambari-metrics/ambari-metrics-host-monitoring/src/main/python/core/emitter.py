@@ -24,6 +24,7 @@ import threading
 from security import CachedHTTPSConnection, CachedHTTPConnection
 from blacklisted_set import BlacklistedSet
 from config_reader import ROUND_ROBIN_FAILOVER_STRATEGY
+from spnego_kerberos_auth import SPNEGOKerberosAuth
 
 logger = logging.getLogger()
 
@@ -31,6 +32,10 @@ class Emitter(threading.Thread):
   AMS_METRICS_POST_URL = "/ws/v1/timeline/metrics/"
   RETRY_SLEEP_INTERVAL = 5
   MAX_RETRY_COUNT = 3
+  cookie_cached = {}
+  kinit_cmd = None
+  klist_cmd = None
+  spnego_krb_auth = None
   """
   Wake up every send interval seconds and empty the application metric map.
   """
@@ -39,17 +44,29 @@ class Emitter(threading.Thread):
     logger.debug('Initializing Emitter thread.')
     self.lock = threading.Lock()
     self.send_interval = config.get_send_interval()
+    self.kinit_cmd = config.get_kinit_cmd()
+    if self.kinit_cmd:
+      logger.debug(self.kinit_cmd)
+    self.klist_cmd = config.get_klist_cmd()
     self.hostname = config.get_hostname_config()
     self.hostname_hash = self.compute_hash(self.hostname)
     self._stop_handler = stop_handler
     self.application_metric_map = application_metric_map
     self.collector_port = config.get_server_port()
-    self.all_metrics_collector_hosts = config.get_metrics_collector_hosts()
-    self.is_server_https_enabled = config.is_server_https_enabled()
+    self.all_metrics_collector_hosts = config.get_metrics_collector_hosts_as_list()
+    self.is_collector_https_enabled = config.is_collector_https_enabled()
+    self.collector_protocol = "https" if self.is_collector_https_enabled else "http"
     self.set_instanceid = config.is_set_instanceid()
     self.instanceid = config.get_instanceid()
+    self.is_inmemory_aggregation_enabled = config.is_inmemory_aggregation_enabled()
 
-    if self.is_server_https_enabled:
+    if self.is_inmemory_aggregation_enabled:
+      self.inmemory_aggregation_port = config.get_inmemory_aggregation_port()
+      self.inmemory_aggregation_protocol = config.get_inmemory_aggregation_protocol()
+      if self.inmemory_aggregation_protocol == "https":
+        self.ca_certs = config.get_ca_certs()
+
+    if self.is_collector_https_enabled:
       self.ca_certs = config.get_ca_certs()
 
     # TimedRoundRobinSet
@@ -65,6 +82,7 @@ class Emitter(threading.Thread):
         self.submit_metrics()
       except Exception, e:
         logger.warn('Unable to emit events. %s' % str(e))
+        self.cookie_cached = {}
       pass
       #Wait for the service stop event instead of sleeping blindly
       if 0 == self._stop_handler.wait(self.send_interval):
@@ -85,34 +103,71 @@ class Emitter(threading.Thread):
 
   def push_metrics(self, data):
     success = False
-    while self.active_collector_hosts.get_actual_size() > 0:
+    if self.is_inmemory_aggregation_enabled:
+      success = self.try_with_collector(self.inmemory_aggregation_protocol, "localhost", self.inmemory_aggregation_port, data)
+      if not success:
+        logger.warning("Failed to submit metrics to local aggregator. Trying to post them to collector...")
+    while not success and self.active_collector_hosts.get_actual_size() > 0:
       collector_host = self.get_collector_host_shard()
-      success = self.try_with_collector_host(collector_host, data)
-      if success:
-        break
+      success = self.try_with_collector(self.collector_protocol, collector_host, self.collector_port, data)
     pass
 
     if not success:
       logger.info('No valid collectors found...')
       for collector_host in self.active_collector_hosts:
-        success = self.try_with_collector_host(collector_host, data)
+        success = self.try_with_collector(self.collector_protocol, collector_host, self.ollector_port, data)
+        if success:
+          break
       pass
 
-  def try_with_collector_host(self, collector_host, data):
+  def try_with_collector(self, collector_protocol, collector_host, collector_port, data):
     headers = {"Content-Type" : "application/json", "Accept" : "*/*"}
-    connection = self.get_connection(collector_host)
+    connection = self.get_connection(collector_protocol, collector_host, collector_port)
     logger.debug("message to send: %s" % data)
+
+    try:
+      if self.cookie_cached[connection.host]:
+        headers["Cookie"] = self.cookie_cached[connection.host]
+        logger.debug("Cookie: %s" % self.cookie_cached[connection.host])
+    except Exception, e:
+      self.cookie_cached = {}
+    pass
+
     retry_count = 0
     while retry_count < self.MAX_RETRY_COUNT:
       response = self.get_response_from_submission(connection, data, headers)
-      if response and response.status == 200:
-        return True
-      else:
-        logger.warn("Retrying after {0} ...".format(self.RETRY_SLEEP_INTERVAL))
-        retry_count += 1
-        #Wait for the service stop event instead of sleeping blindly
-        if 0 == self._stop_handler.wait(self.RETRY_SLEEP_INTERVAL):
+      if response:
+        if response.status == 200:
           return True
+        if response.status == 401:
+          self.cookie_cached = {}
+          auth_header = response.getheader('www-authenticate', None)
+          if auth_header == None:
+              logger.warn('www-authenticate header not found')
+          else:
+            self.spnego_krb_auth = SPNEGOKerberosAuth()
+            if self.spnego_krb_auth.get_negotiate_value(auth_header) == '':
+              response = self.spnego_krb_auth.authenticate_handshake(connection, "POST", self.AMS_METRICS_POST_URL, data, headers, self.kinit_cmd, self.klist_cmd)
+              if response:
+                logger.debug("response from authenticate_client: retcode = {0}, reason = {1}"
+                              .format(response.status, response.reason))
+                logger.debug(str(response.read()))
+                if response.status == 200:
+                  logger.debug("response headers: {0}".format(response.getheaders()))
+                  logger.debug("cookie_cached: %s" % self.cookie_cached)
+                  set_cookie_header = response.getheader('set-cookie', None)
+                  if set_cookie_header and self.spnego_krb_auth:
+                    set_cookie_val = self.spnego_krb_auth.get_hadoop_auth_cookie(set_cookie_header)
+                    logger.debug("set_cookie: %s" % set_cookie_val)
+                    if set_cookie_val:
+                      self.cookie_cached[connection.host] = set_cookie_val
+                  return True
+      #No response or failed
+      logger.warn("Retrying after {0} ...".format(self.RETRY_SLEEP_INTERVAL))
+      retry_count += 1
+      #Wait for the service stop event instead of sleeping blindly
+      if 0 == self._stop_handler.wait(self.RETRY_SLEEP_INTERVAL):
+        return True
     pass
 
     if retry_count >= self.MAX_RETRY_COUNT:
@@ -120,16 +175,16 @@ class Emitter(threading.Thread):
       logger.warn("Metric collector host {0} was blacklisted.".format(collector_host))
       return False
 
-  def get_connection(self, collector_host):
+  def get_connection(self, protocol, host, port):
     timeout = int(self.send_interval - 10)
-    if self.is_server_https_enabled:
-      connection = CachedHTTPSConnection(collector_host,
-                                         self.collector_port,
+    if protocol == "https":
+      connection = CachedHTTPSConnection(host,
+                                         port,
                                          timeout=timeout,
                                          ca_certs=self.ca_certs)
     else:
-      connection = CachedHTTPConnection(collector_host,
-                                        self.collector_port,
+      connection = CachedHTTPConnection(host,
+                                        port,
                                         timeout=timeout)
     return connection
 
@@ -144,6 +199,7 @@ class Emitter(threading.Thread):
       return response
     except Exception, e:
       logger.warn('Error sending metrics to server. %s' % str(e))
+      self.cookie_cached = {}
       return None
 
   def get_collector_host_shard(self):
@@ -160,6 +216,7 @@ class Emitter(threading.Thread):
     for i in xrange(0, length - 1):
       hash = 31*hash + ord(hostname[i])
     return hash
+
 
 
 

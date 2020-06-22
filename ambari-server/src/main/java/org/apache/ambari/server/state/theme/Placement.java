@@ -19,14 +19,14 @@
 package org.apache.ambari.server.state.theme;
 
 
-import org.codehaus.jackson.annotate.JsonIgnoreProperties;
-import org.codehaus.jackson.annotate.JsonProperty;
-import org.codehaus.jackson.map.annotate.JsonSerialize;
-
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.codehaus.jackson.annotate.JsonIgnoreProperties;
+import org.codehaus.jackson.annotate.JsonProperty;
+import org.codehaus.jackson.map.annotate.JsonSerialize;
 
 
 @JsonSerialize(include= JsonSerialize.Inclusion.NON_NULL)
@@ -67,7 +67,7 @@ public class Placement{
   }
 
   private List<ConfigPlacement> mergeConfigs(List<ConfigPlacement> parentConfigs, List<ConfigPlacement> childConfigs) {
-    Map<String, ConfigPlacement> mergedConfigPlacements = new LinkedHashMap<String, ConfigPlacement>();
+    Map<String, ConfigPlacement> mergedConfigPlacements = new LinkedHashMap<>();
     for (ConfigPlacement parentConfigPlacement : parentConfigs) {
       mergedConfigPlacements.put(parentConfigPlacement.getConfig(), parentConfigPlacement);
     }
@@ -83,6 +83,6 @@ public class Placement{
         }
       }
     }
-    return new ArrayList<ConfigPlacement>(mergedConfigPlacements.values());
+    return new ArrayList<>(mergedConfigPlacements.values());
   }
 }

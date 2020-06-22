@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,14 +19,14 @@
 package org.apache.ambari.server.api.query.render;
 
 
+import java.util.Set;
+
 import org.apache.ambari.server.api.query.QueryInfo;
 import org.apache.ambari.server.api.services.Request;
 import org.apache.ambari.server.api.services.Result;
 import org.apache.ambari.server.api.services.ResultPostProcessor;
 import org.apache.ambari.server.api.util.TreeNode;
 import org.apache.ambari.server.controller.spi.SchemaFactory;
-
-import java.util.Set;
 
 /**
  * Responsible for the rendering of a result.
@@ -43,7 +43,7 @@ public interface Renderer {
    *
    * @param schemaFactory  factory of schema instances
    */
-  public void init(SchemaFactory schemaFactory);
+  void init(SchemaFactory schemaFactory);
 
   /**
    * Finalize which properties are requested by the query.
@@ -57,8 +57,8 @@ public interface Renderer {
    *
    * @return tree of sets of string properties for each query including any sub-queries
    */
-  public TreeNode<Set<String>> finalizeProperties(
-      TreeNode<QueryInfo> queryProperties, boolean isCollection);
+  TreeNode<Set<String>> finalizeProperties(
+    TreeNode<QueryInfo> queryProperties, boolean isCollection);
 
   /**
    * Finalize the query results.
@@ -67,7 +67,7 @@ public interface Renderer {
    *
    * @return result in the format dictated by the renderer
    */
-  public Result finalizeResult(Result queryResult);
+  Result finalizeResult(Result queryResult);
 
   /**
    * Obtain the associated post processor.
@@ -79,7 +79,7 @@ public interface Renderer {
    *
    * @return associated post processor
    */
-  public ResultPostProcessor getResultPostProcessor(Request request);
+  ResultPostProcessor getResultPostProcessor(Request request);
 
 
   /**
@@ -89,5 +89,5 @@ public interface Renderer {
    * @return true if property provider support is required
    *         false if property provider support is not required
    */
-  public boolean requiresPropertyProviderInput();
+  boolean requiresPropertyProviderInput();
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -132,7 +132,7 @@ public class ExtensionDirectory extends StackDefinitionDirectory {
     //todo: is it ok for this file not to exist?
     if (extensionMetaInfoFile.exists()) {
       if (LOG.isDebugEnabled()) {
-        LOG.debug("Reading extension version metainfo from file " + extensionMetaInfoFile.getAbsolutePath());
+        LOG.debug("Reading extension version metainfo from file {}", extensionMetaInfoFile.getAbsolutePath());
       }
 
       try {
@@ -152,7 +152,7 @@ public class ExtensionDirectory extends StackDefinitionDirectory {
    * @throws AmbariException  if unable to parse the service directories
    */
   private void parseServiceDirectories(Collection<String> subDirs) throws AmbariException {
-    Collection<ServiceDirectory> dirs = new HashSet<ServiceDirectory>();
+    Collection<ServiceDirectory> dirs = new HashSet<>();
 
     if (subDirs.contains(ServiceDirectory.SERVICES_FOLDER_NAME)) {
       String servicesDir = getAbsolutePath() + File.separator + ServiceDirectory.SERVICES_FOLDER_NAME;

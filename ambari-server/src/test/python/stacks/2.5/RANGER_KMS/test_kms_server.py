@@ -114,7 +114,7 @@ class TestRangerKMS(RMFTestCase):
       group = 'kms',
       conf_dir = '/usr/hdp/current/ranger-kms/conf',
       configurations = plugin_audit_properties_copy,
-      configuration_attributes = self.getConfig()['configuration_attributes']['ranger-kms-audit']
+      configuration_attributes = self.getConfig()['configurationAttributes']['ranger-kms-audit']
     )
 
     self.assertResourceCalled('XmlConfig', 'ranger-kms-security.xml',
@@ -123,7 +123,7 @@ class TestRangerKMS(RMFTestCase):
       group = 'kms',
       conf_dir = '/usr/hdp/current/ranger-kms/conf',
       configurations = self.getConfig()['configurations']['ranger-kms-security'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['ranger-kms-security']
+      configuration_attributes = self.getConfig()['configurationAttributes']['ranger-kms-security']
     )
 
     ranger_kms_policymgr_ssl_copy = {}
@@ -139,7 +139,7 @@ class TestRangerKMS(RMFTestCase):
       group = 'kms',
       conf_dir = '/usr/hdp/current/ranger-kms/conf',
       configurations = ranger_kms_policymgr_ssl_copy,
-      configuration_attributes = self.getConfig()['configuration_attributes']['ranger-kms-policymgr-ssl']
+      configuration_attributes = self.getConfig()['configurationAttributes']['ranger-kms-policymgr-ssl']
     )
 
     self.assertResourceCalled('Execute', ('/usr/hdp/current/ranger-kms/ranger_credential_helper.py', '-l', '/usr/hdp/current/ranger-kms/cred/lib/*', '-f', '/etc/ranger/c1_kms/cred.jceks', '-k', 'sslKeyStore', '-v', 'myKeyFilePassword', '-c', '1'),
@@ -157,9 +157,17 @@ class TestRangerKMS(RMFTestCase):
     self.assertResourceCalled('File', '/etc/ranger/c1_kms/cred.jceks',
       owner = 'kms',
       group = 'kms',
+      only_if = "test -e /etc/ranger/c1_kms/cred.jceks",
       mode = 0640
     )
 
+    self.assertResourceCalled('File', '/etc/ranger/c1_kms/.cred.jceks.crc',
+      owner = 'kms',
+      group = 'kms',
+      only_if = "test -e /etc/ranger/c1_kms/.cred.jceks.crc",
+      mode = 0640
+    )
+    
     self.assertResourceCalled('HdfsResource', '/ranger/audit',
                         type = 'directory',
                         action = ['create_on_execute'],
@@ -175,7 +183,8 @@ class TestRangerKMS(RMFTestCase):
                         hadoop_conf_dir = '/usr/hdp/2.5.0.0-777/hadoop/conf',
                         principal_name = None,
                         hdfs_site = self.getConfig()['configurations']['hdfs-site'],
-                        default_fs = 'hdfs://c6401.ambari.apache.org:8020'
+                        default_fs = 'hdfs://c6401.ambari.apache.org:8020',
+                        dfs_type = '',
     )
 
     self.assertResourceCalled('HdfsResource', '/ranger/audit/kms',
@@ -193,7 +202,8 @@ class TestRangerKMS(RMFTestCase):
                         hadoop_conf_dir = '/usr/hdp/2.5.0.0-777/hadoop/conf',
                         principal_name = None,
                         hdfs_site = self.getConfig()['configurations']['hdfs-site'],
-                        default_fs = 'hdfs://c6401.ambari.apache.org:8020'
+                        default_fs = 'hdfs://c6401.ambari.apache.org:8020',
+                        dfs_type = '',
     )
 
     self.assertResourceCalled('HdfsResource', None,
@@ -206,7 +216,8 @@ class TestRangerKMS(RMFTestCase):
                         hadoop_conf_dir = '/usr/hdp/2.5.0.0-777/hadoop/conf',
                         principal_name = None,
                         hdfs_site = self.getConfig()['configurations']['hdfs-site'],
-                        default_fs = 'hdfs://c6401.ambari.apache.org:8020'
+                        default_fs = 'hdfs://c6401.ambari.apache.org:8020',
+                        dfs_type = '',
     )
 
     self.assertResourceCalled('File', '/usr/hdp/current/ranger-kms/conf/hdfs-site.xml',
@@ -431,6 +442,14 @@ class TestRangerKMS(RMFTestCase):
     self.assertResourceCalled('File', '/etc/ranger/kms/rangerkms.jceks',
       owner = 'kms',
       group = 'kms',
+      only_if = 'test -e /etc/ranger/kms/rangerkms.jceks',
+      mode = 0640
+    )
+
+    self.assertResourceCalled('File', '/etc/ranger/kms/.rangerkms.jceks.crc',
+      owner = 'kms',
+      group = 'kms',
+      only_if = 'test -e /etc/ranger/kms/.rangerkms.jceks.crc',
       mode = 0640
     )
 
@@ -443,6 +462,14 @@ class TestRangerKMS(RMFTestCase):
     self.assertResourceCalled('File', '/etc/ranger/kms/rangerkms.jceks',
       owner = 'kms',
       group = 'kms',
+      only_if = 'test -e /etc/ranger/kms/rangerkms.jceks',
+      mode = 0640
+    )
+
+    self.assertResourceCalled('File', '/etc/ranger/kms/.rangerkms.jceks.crc',
+      owner = 'kms',
+      group = 'kms',
+      only_if = 'test -e /etc/ranger/kms/.rangerkms.jceks.crc',
       mode = 0640
     )
 
@@ -458,7 +485,7 @@ class TestRangerKMS(RMFTestCase):
       group = 'kms',
       conf_dir = '/usr/hdp/current/ranger-kms/conf',
       configurations = dbks_site_copy,
-      configuration_attributes = self.getConfig()['configuration_attributes']['dbks-site']
+      configuration_attributes = self.getConfig()['configurationAttributes']['dbks-site']
     )
 
     self.assertResourceCalled('XmlConfig', 'ranger-kms-site.xml',
@@ -467,7 +494,7 @@ class TestRangerKMS(RMFTestCase):
       group = 'kms',
       conf_dir = '/usr/hdp/current/ranger-kms/conf',
       configurations = self.getConfig()['configurations']['ranger-kms-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['ranger-kms-site']
+      configuration_attributes = self.getConfig()['configurationAttributes']['ranger-kms-site']
     )
 
     self.assertResourceCalled('XmlConfig', 'kms-site.xml',
@@ -476,7 +503,7 @@ class TestRangerKMS(RMFTestCase):
       group = 'kms',
       conf_dir = '/usr/hdp/current/ranger-kms/conf',
       configurations = self.getConfig()['configurations']['kms-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['kms-site']
+      configuration_attributes = self.getConfig()['configurationAttributes']['kms-site']
     )
 
     self.assertResourceCalled('File', '/usr/hdp/current/ranger-kms/conf/kms-log4j.properties',
@@ -507,6 +534,7 @@ class TestRangerKMS(RMFTestCase):
   @patch("resource_management.libraries.functions.ranger_functions_v2.RangeradminV2.get_repository_by_name_curl", new=MagicMock(return_value=({'name': 'c1_kms'})))
   @patch("resource_management.libraries.functions.ranger_functions_v2.RangeradminV2.create_repository_curl", new=MagicMock(return_value=({'name': 'c1_kms'})))
   @patch("os.path.isfile")
+  @patch("kms.datetime", new=DTMOCK())
   def test_start_secured(self, isfile_mock):
 
     self.executeScript(self.COMMON_SERVICES_PACKAGE_DIR + "/scripts/kms_server.py",
@@ -520,7 +548,7 @@ class TestRangerKMS(RMFTestCase):
 
     # TODO repo call in secure
 
-    current_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    current_datetime = self.current_date.strftime("%Y-%m-%d %H:%M:%S")
 
     self.assertResourceCalled('File', '/usr/hdp/current/ranger-kms/conf/ranger-security.xml',
       owner = 'kms',
@@ -561,7 +589,7 @@ class TestRangerKMS(RMFTestCase):
       group = 'kms',
       conf_dir = '/usr/hdp/current/ranger-kms/conf',
       configurations = plugin_audit_properties_copy,
-      configuration_attributes = self.getConfig()['configuration_attributes']['ranger-kms-audit']
+      configuration_attributes = self.getConfig()['configurationAttributes']['ranger-kms-audit']
     )
 
     self.assertResourceCalled('XmlConfig', 'ranger-kms-security.xml',
@@ -570,7 +598,7 @@ class TestRangerKMS(RMFTestCase):
       group = 'kms',
       conf_dir = '/usr/hdp/current/ranger-kms/conf',
       configurations = self.getConfig()['configurations']['ranger-kms-security'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['ranger-kms-security']
+      configuration_attributes = self.getConfig()['configurationAttributes']['ranger-kms-security']
     )
 
     ranger_kms_policymgr_ssl_copy = {}
@@ -586,7 +614,7 @@ class TestRangerKMS(RMFTestCase):
       group = 'kms',
       conf_dir = '/usr/hdp/current/ranger-kms/conf',
       configurations = ranger_kms_policymgr_ssl_copy,
-      configuration_attributes = self.getConfig()['configuration_attributes']['ranger-kms-policymgr-ssl']
+      configuration_attributes = self.getConfig()['configurationAttributes']['ranger-kms-policymgr-ssl']
     )
 
     self.assertResourceCalled('Execute', ('/usr/hdp/current/ranger-kms/ranger_credential_helper.py', '-l', '/usr/hdp/current/ranger-kms/cred/lib/*', '-f', '/etc/ranger/c1_kms/cred.jceks', '-k', 'sslKeyStore', '-v', 'myKeyFilePassword', '-c', '1'),
@@ -604,6 +632,14 @@ class TestRangerKMS(RMFTestCase):
     self.assertResourceCalled('File', '/etc/ranger/c1_kms/cred.jceks',
       owner = 'kms',
       group = 'kms',
+      only_if = 'test -e /etc/ranger/c1_kms/cred.jceks',
+      mode = 0640
+    )
+
+    self.assertResourceCalled('File', '/etc/ranger/c1_kms/.cred.jceks.crc',
+      owner = 'kms',
+      group = 'kms',
+      only_if = 'test -e /etc/ranger/c1_kms/.cred.jceks.crc',
       mode = 0640
     )
 
@@ -622,7 +658,8 @@ class TestRangerKMS(RMFTestCase):
                         hadoop_conf_dir = '/usr/hdp/2.5.0.0-777/hadoop/conf',
                         principal_name = 'hdfs-cl1@EXAMPLE.COM',
                         hdfs_site = self.getConfig()['configurations']['hdfs-site'],
-                        default_fs = 'hdfs://c6401.ambari.apache.org:8020'
+                        default_fs = 'hdfs://c6401.ambari.apache.org:8020',
+                        dfs_type = '',
     )
 
     self.assertResourceCalled('HdfsResource', '/ranger/audit/kms',
@@ -640,7 +677,8 @@ class TestRangerKMS(RMFTestCase):
                         hadoop_conf_dir = '/usr/hdp/2.5.0.0-777/hadoop/conf',
                         principal_name = 'hdfs-cl1@EXAMPLE.COM',
                         hdfs_site = self.getConfig()['configurations']['hdfs-site'],
-                        default_fs = 'hdfs://c6401.ambari.apache.org:8020'
+                        default_fs = 'hdfs://c6401.ambari.apache.org:8020',
+                        dfs_type = '',
     )
 
     self.assertResourceCalled('HdfsResource', None,
@@ -653,7 +691,8 @@ class TestRangerKMS(RMFTestCase):
                         hadoop_conf_dir = '/usr/hdp/2.5.0.0-777/hadoop/conf',
                         principal_name = 'hdfs-cl1@EXAMPLE.COM',
                         hdfs_site = self.getConfig()['configurations']['hdfs-site'],
-                        default_fs = 'hdfs://c6401.ambari.apache.org:8020'
+                        default_fs = 'hdfs://c6401.ambari.apache.org:8020',
+                        dfs_type = '',
     )
 
     self.assertResourceCalled('File', '/usr/hdp/current/ranger-kms/conf/hdfs-site.xml',
@@ -861,6 +900,14 @@ class TestRangerKMS(RMFTestCase):
     self.assertResourceCalled('File', '/etc/ranger/kms/rangerkms.jceks',
       owner = 'kms',
       group = 'kms',
+      only_if = 'test -e /etc/ranger/kms/rangerkms.jceks',
+      mode = 0640
+    )
+
+    self.assertResourceCalled('File', '/etc/ranger/kms/.rangerkms.jceks.crc',
+      owner = 'kms',
+      group = 'kms',
+      only_if = 'test -e /etc/ranger/kms/.rangerkms.jceks.crc',
       mode = 0640
     )
 
@@ -873,6 +920,14 @@ class TestRangerKMS(RMFTestCase):
     self.assertResourceCalled('File', '/etc/ranger/kms/rangerkms.jceks',
       owner = 'kms',
       group = 'kms',
+      only_if = 'test -e /etc/ranger/kms/rangerkms.jceks',
+      mode = 0640
+    )
+
+    self.assertResourceCalled('File', '/etc/ranger/kms/.rangerkms.jceks.crc',
+      owner = 'kms',
+      group = 'kms',
+      only_if = 'test -e /etc/ranger/kms/.rangerkms.jceks.crc',
       mode = 0640
     )
 
@@ -888,7 +943,7 @@ class TestRangerKMS(RMFTestCase):
       group = 'kms',
       conf_dir = '/usr/hdp/current/ranger-kms/conf',
       configurations = dbks_site_copy,
-      configuration_attributes = self.getConfig()['configuration_attributes']['dbks-site']
+      configuration_attributes = self.getConfig()['configurationAttributes']['dbks-site']
     )
 
     self.assertResourceCalled('XmlConfig', 'ranger-kms-site.xml',
@@ -897,7 +952,7 @@ class TestRangerKMS(RMFTestCase):
       group = 'kms',
       conf_dir = '/usr/hdp/current/ranger-kms/conf',
       configurations = self.getConfig()['configurations']['ranger-kms-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['ranger-kms-site']
+      configuration_attributes = self.getConfig()['configurationAttributes']['ranger-kms-site']
     )
 
     self.assertResourceCalled('XmlConfig', 'kms-site.xml',
@@ -906,7 +961,7 @@ class TestRangerKMS(RMFTestCase):
       group = 'kms',
       conf_dir = '/usr/hdp/current/ranger-kms/conf',
       configurations = self.getConfig()['configurations']['kms-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['kms-site']
+      configuration_attributes = self.getConfig()['configurationAttributes']['kms-site']
     )
 
     self.assertResourceCalled('File', '/usr/hdp/current/ranger-kms/conf/kms-log4j.properties',
@@ -921,7 +976,7 @@ class TestRangerKMS(RMFTestCase):
       group = 'kms',
       conf_dir = '/usr/hdp/current/ranger-kms/conf',
       configurations = self.getConfig()['configurations']['core-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['core-site'],
+      configuration_attributes = self.getConfig()['configurationAttributes']['core-site'],
       mode = 0644
     )
 

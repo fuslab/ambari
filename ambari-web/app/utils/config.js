@@ -142,7 +142,7 @@ App.config = Em.Object.create({
     this.set('preDefinedServiceConfigs', allTabs);
   },
 
-  secureConfigs: require('data/HDP2/secure_mapping'),
+  secureConfigs: require('data/configs/wizards/secure_mapping'),
 
   secureConfigsMap: function () {
     var ret = {};
@@ -152,7 +152,7 @@ App.config = Em.Object.create({
     return ret;
   }.property('secureConfigs.[]'),
 
-  kerberosIdentities: require('data/HDP2/kerberos_identities').configProperties,
+  kerberosIdentities: require('data/configs/wizards/kerberos_identities').configProperties,
 
   kerberosIdentitiesMap: function() {
     var map = {};
@@ -188,23 +188,14 @@ App.config = Em.Object.create({
     return baseStackFolder;
   },
 
-  allPreDefinedSiteProperties: function() {
-    var sitePropertiesForCurrentStack = this.preDefinedConfigFile(this.mapCustomStack(), 'site_properties');
-    if (sitePropertiesForCurrentStack) {
-      return sitePropertiesForCurrentStack.configProperties;
-    } else if (App.get('isHadoop23Stack')) {
-      return require('data/HDP2.3/site_properties').configProperties;
-    } else {
-      return require('data/HDP2.2/site_properties').configProperties;
-    }
-  }.property('App.isHadoop23Stack'),
+  allPreDefinedSiteProperties: require('data/configs/site_properties').configProperties,
 
   preDefinedSiteProperties: function () {
     var serviceNames = App.StackService.find().mapProperty('serviceName').concat('MISC');
     return this.get('allPreDefinedSiteProperties').filter(function(p) {
       return serviceNames.contains(p.serviceName);
     });
-  }.property('allPreDefinedSiteProperties'),
+  }.property().volatile(),
 
   /**
    * map of <code>preDefinedSiteProperties</code> provide search by index
@@ -218,14 +209,6 @@ App.config = Em.Object.create({
     }, this);
     return map;
   }.property('preDefinedSiteProperties'),
-
-  preDefinedConfigFile: function(folder, file) {
-    try {
-      return require('data/{0}/{1}'.format(folder, file));
-    } catch (err) {
-      // the file doesn't exist, which might be expected.
-    }
-  },
 
   serviceByConfigTypeMap: function () {
     var ret = {};
@@ -300,6 +283,7 @@ App.config = Em.Object.create({
    * @returns {*|Object}
    */
   getDefaultConfig: function(name, fileName, coreObject) {
+    name = JSON.parse('"' + name + '"');
     var cfg = App.configsCollection.getConfigByName(name, fileName) ||
       App.config.createDefaultConfig(name, fileName, false);
     if (Em.typeOf(coreObject) === 'object') {
@@ -491,7 +475,7 @@ App.config = Em.Object.create({
     var additionalDescription = Em.I18n.t('services.service.config.password.additionalDescription');
     if ('password' === displayType) {
       if (description && !description.contains(additionalDescription)) {
-        return description + '<br />' + additionalDescription;
+        return description + '\n' + additionalDescription;
       } else {
         return additionalDescription;
       }
@@ -568,6 +552,8 @@ App.config = Em.Object.create({
       case 'checkbox':
       case 'boolean':
         return dependentConfigPattern ? App.ServiceConfigCheckboxWithDependencies : App.ServiceConfigCheckbox;
+      case 'boolean-inverted':
+        return App.ServiceConfigCheckbox;
       case 'password':
         return App.ServiceConfigPasswordField;
       case 'combobox':
@@ -931,7 +917,7 @@ App.config = Em.Object.create({
    */
   getPropertiesFromTheme: function (serviceName) {
     var properties = [];
-    App.Tab.find().forEach(function (t) {
+    App.Tab.find().rejectProperty('isCategorized').forEach(function (t) {
       if (!t.get('isAdvanced') && t.get('serviceName') === serviceName) {
         t.get('sections').forEach(function (s) {
           s.get('subSections').forEach(function (ss) {
@@ -952,15 +938,18 @@ App.config = Em.Object.create({
    */
   textareaIntoFileConfigs: function (configs, filename) {
     var configsTextarea = configs.findProperty('name', 'capacity-scheduler');
+    var stackConfigs = App.configsCollection.getAll();
     if (configsTextarea && !App.get('testMode')) {
       var properties = configsTextarea.get('value').split('\n');
 
       properties.forEach(function (_property) {
-        var name, value;
+        var name, value, isUserProperty;
         if (_property) {
-          _property = _property.split('=');
+          _property = _property.split(/=(.+)/);
           name = _property[0];
           value = (_property[1]) ? _property[1] : "";
+          isUserProperty = !stackConfigs.filterProperty('filename', 'capacity-scheduler.xml').findProperty('name', name);
+
           configs.push(Em.Object.create({
             name: name,
             value: value,
@@ -970,6 +959,7 @@ App.config = Em.Object.create({
             isFinal: configsTextarea.get('isFinal'),
             isNotDefaultValue: configsTextarea.get('isNotDefaultValue'),
             isRequiredByAgent: configsTextarea.get('isRequiredByAgent'),
+            isUserProperty: isUserProperty,
             group: null
           }));
         }
@@ -1255,7 +1245,7 @@ App.config = Em.Object.create({
    * @return {App.ServiceConfigProperty|Boolean} - App.ServiceConfigProperty instance or <code>false</code> when property not found
    */
   findConfigProperty: function(stepConfigs, name, fileName) {
-    if (!name && !fileName) return false;
+    if (!name || !fileName) return false;
     if (stepConfigs && stepConfigs.length) {
       return stepConfigs.mapProperty('configs').filter(function(item) {
         return item.length;
@@ -1333,30 +1323,39 @@ App.config = Em.Object.create({
    * Load cluster-env configs mapped to array
    * @return {*|{then}}
    */
-  getClusterEnvConfigs: function () {
-    var dfd = $.Deferred();
-    App.ajax.send({
-      name: 'config.cluster_env_site',
-      sender: this
-    }).done(function (data) {
-      App.router.get('configurationController').getConfigsByTags([{
-        siteName: data.items[data.items.length - 1].type,
-        tagName: data.items[data.items.length - 1].tag
-      }]).done(function (clusterEnvConfigs) {
-        var configsObject = clusterEnvConfigs[0].properties;
-        var configsArray = [];
-        for (var property in configsObject) {
-          if (configsObject.hasOwnProperty(property)) {
-            configsArray.push(Em.Object.create({
-              name: property,
-              value: configsObject[property],
-              filename: 'cluster-env.xml'
-            }));
-          }
-        }
-        dfd.resolve(configsArray);
-      });
+  getConfigsByTypes: function (sites) {
+    const dfd = $.Deferred();
+    App.router.get('configurationController').getCurrentConfigsBySites(sites.mapProperty('site')).done((configs) => {
+      dfd.resolve(this.getMappedConfigs(configs, sites));
     });
     return dfd.promise();
+  },
+
+  /**
+   *
+   * @param configs
+   * @param sites
+   */
+  getMappedConfigs: function (configs, sites) {
+    const result = [];
+    configs.forEach(function (config) {
+      var configsArray = [];
+      var configsObject = config.properties;
+      for (var property in configsObject) {
+        if (configsObject.hasOwnProperty(property)) {
+          configsArray.push(Em.Object.create({
+            name: property,
+            value: configsObject[property],
+            filename: App.config.getOriginalFileName(config.type)
+          }));
+        }
+      }
+      result.push(Em.Object.create({
+        serviceName: sites.findProperty('site', config.type).serviceName,
+        configs: configsArray
+      }));
+    });
+
+    return result;
   }
 });

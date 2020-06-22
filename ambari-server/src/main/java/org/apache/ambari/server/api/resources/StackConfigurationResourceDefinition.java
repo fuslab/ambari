@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,11 +19,11 @@
 
 package org.apache.ambari.server.api.resources;
 
-import org.apache.ambari.server.controller.spi.Resource;
-import org.apache.ambari.server.controller.spi.Resource.Type;
-
 import java.util.HashSet;
 import java.util.Set;
+
+import org.apache.ambari.server.controller.spi.Resource;
+import org.apache.ambari.server.controller.spi.Resource.Type;
 
 public class StackConfigurationResourceDefinition extends BaseResourceDefinition {
 
@@ -47,7 +47,7 @@ public class StackConfigurationResourceDefinition extends BaseResourceDefinition
 
   @Override
   public Set<SubResourceDefinition> getSubResourceDefinitions() {
-    Set<SubResourceDefinition> subs = new HashSet<SubResourceDefinition>();
+    Set<SubResourceDefinition> subs = new HashSet<>();
     subs.add(new SubResourceDefinition(Resource.Type.StackConfigurationDependency));
 
     return subs;

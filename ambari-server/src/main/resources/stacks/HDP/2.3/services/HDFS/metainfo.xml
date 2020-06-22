@@ -57,7 +57,7 @@
           </packages>
         </osSpecific>
         <osSpecific>
-          <osFamily>redhat7,amazon2015,redhat6,suse11</osFamily>
+          <osFamily>redhat7,amazonlinux2,redhat6,suse11</osFamily>
           <packages>
             <package>
               <name>hadoop_${stack_version}</name>
@@ -73,6 +73,9 @@
             </package>
             <package>
               <name>hadoop_${stack_version}-libhdfs</name>
+            </package>
+            <package>
+              <name>libtirpc-devel</name>
             </package>
           </packages>
         </osSpecific>

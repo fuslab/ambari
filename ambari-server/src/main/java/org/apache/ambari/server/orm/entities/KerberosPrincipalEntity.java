@@ -18,7 +18,8 @@
 
 package org.apache.ambari.server.orm.entities;
 
-import org.apache.ambari.server.orm.dao.KerberosPrincipalHostDAO;
+import java.util.ArrayList;
+import java.util.Collection;
 
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
@@ -29,7 +30,6 @@ import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
-import java.util.Collection;
 
 /**
  * Entity representing a KerberosPrincipal.
@@ -55,8 +55,8 @@ public class KerberosPrincipalEntity {
   @Column(name = "cached_keytab_path", insertable = true, updatable = true, nullable = true)
   private String cachedKeytabPath = null;
 
-  @OneToMany(mappedBy = "principalEntity", cascade = CascadeType.REMOVE, fetch = FetchType.LAZY)
-  private Collection<KerberosPrincipalHostEntity> kerberosPrincipalHostEntities;
+  @OneToMany(mappedBy = "kerberosPrincipalEntity", cascade = CascadeType.REMOVE, fetch = FetchType.EAGER)
+  private Collection<KerberosKeytabPrincipalEntity> kerberosKeytabPrincipalEntities = new ArrayList<>();
 
   /**
    * Constructs an empty KerberosPrincipalEntity
@@ -131,21 +131,17 @@ public class KerberosPrincipalEntity {
     this.cachedKeytabPath = cachedKeytabPath;
   }
 
-  /**
-   * Gets the list of related KerberosPrincipalHostEntities
-   *
-   * @return a List of related KerberosPrincipalHostEntities or null if none exist
-   */
-  public Collection<KerberosPrincipalHostEntity> getKerberosPrincipalHostEntities() {
-    return kerberosPrincipalHostEntities;
+  public Collection<KerberosKeytabPrincipalEntity> getKerberosKeytabPrincipalEntities() {
+    return kerberosKeytabPrincipalEntities;
   }
 
-  /**
-   * Sets the list of related KerberosPrincipalHostEntities
-   *
-   * @param kerberosPrincipalHostEntities a List of related KerberosPrincipalHostEntities or null if none exist
-   */
-  public void setKerberosPrincipalHostEntities(Collection<KerberosPrincipalHostEntity> kerberosPrincipalHostEntities) {
-    this.kerberosPrincipalHostEntities = kerberosPrincipalHostEntities;
+  public void setKerberosKeytabPrincipalEntities(Collection<KerberosKeytabPrincipalEntity> kerberosKeytabPrincipalEntities) {
+    this.kerberosKeytabPrincipalEntities = kerberosKeytabPrincipalEntities;
+  }
+
+  public void addKerberosKeytabPrincipal(KerberosKeytabPrincipalEntity kerberosKeytabPrincipalEntity) {
+    if (!kerberosKeytabPrincipalEntities.contains(kerberosKeytabPrincipalEntity)) {
+      kerberosKeytabPrincipalEntities.add(kerberosKeytabPrincipalEntity);
+    }
   }
 }

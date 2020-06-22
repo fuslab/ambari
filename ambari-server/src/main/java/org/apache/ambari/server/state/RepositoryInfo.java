@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -42,13 +42,13 @@ public class RepositoryInfo {
   private String components;
   private String mirrorsList;
   private String defaultBaseUrl;
-  private String latestBaseUrl;
-  private boolean baseSaved = false;
+  private boolean repoSaved = false;
   private boolean unique = false;
   private boolean ambariManagedRepositories = true;
   @Experimental(feature = ExperimentalFeature.CUSTOM_SERVICE_REPOS,
     comment = "Remove logic for handling custom service repos after enabling multi-mpack cluster deployment")
   private List<String> applicableServices = new LinkedList<>();
+
   private Set<RepoTag> tags = new HashSet<>();
 
   /**
@@ -152,31 +152,31 @@ public class RepositoryInfo {
   }
 
   /**
-   * @return the latest determined base url
+   * @return if the base url or mirrors list was from a saved value
    */
-  public String getLatestBaseUrl() {
-    return latestBaseUrl;
+  public boolean isRepoSaved() {
+    return repoSaved;
   }
 
   /**
-   * @param url the latest determined base url
+   * Sets if the base url or mirrors list was from a saved value
    */
-  public void setLatestBaseUrl(String url) {
-    latestBaseUrl = url;
+  public void setRepoSaved(boolean saved) {
+    repoSaved = saved;
   }
 
   /**
-   * @return if the base url was from a saved value
+   * @return true if version of HDP that change with each release
    */
-  public boolean isBaseUrlFromSaved() {
-    return baseSaved;
+  public boolean isUnique() {
+    return unique;
   }
 
   /**
-   * Sets if the base url was from a saved value
+   * @param unique set is version of HDP that change with each release
    */
-  public void setBaseUrlFromSaved(boolean saved) {
-    baseSaved = saved;
+  public void setUnique(boolean unique) {
+    this.unique = unique;
   }
 
   @Experimental(feature = ExperimentalFeature.CUSTOM_SERVICE_REPOS,
@@ -212,7 +212,9 @@ public class RepositoryInfo {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     RepositoryInfo that = (RepositoryInfo) o;
-    return Objects.equal(baseUrl, that.baseUrl) &&
+    return repoSaved == that.repoSaved &&
+        unique == that.unique &&
+        Objects.equal(baseUrl, that.baseUrl) &&
         Objects.equal(osType, that.osType) &&
         Objects.equal(repoId, that.repoId) &&
         Objects.equal(repoName, that.repoName) &&
@@ -220,21 +222,20 @@ public class RepositoryInfo {
         Objects.equal(components, that.components) &&
         Objects.equal(mirrorsList, that.mirrorsList) &&
         Objects.equal(defaultBaseUrl, that.defaultBaseUrl) &&
-        Objects.equal(latestBaseUrl, that.latestBaseUrl) &&
         Objects.equal(ambariManagedRepositories, that.ambariManagedRepositories);
   }
 
   @Override
   public int hashCode() {
     return Objects.hashCode(baseUrl, osType, repoId, repoName, distribution, components, mirrorsList, defaultBaseUrl,
-            latestBaseUrl, ambariManagedRepositories);
+           ambariManagedRepositories);
   }
 
   public RepositoryResponse convertToResponse()
   {
-    return new RepositoryResponse(getBaseUrl(), getOsType(), getRepoId(), getRepoName(), getDistribution(),
-      getComponents(), getMirrorsList(), getDefaultBaseUrl(), getLatestBaseUrl(), getApplicableServices(),
-      getTags());
+    return new RepositoryResponse(getBaseUrl(), getOsType(), getRepoId(),
+            getRepoName(), getDistribution(), getComponents(), getMirrorsList(), getDefaultBaseUrl(),
+            getTags(), getApplicableServices());
   }
 
   /**
@@ -272,22 +273,6 @@ public class RepositoryInfo {
       return input.osType;
     }
   };
-
-
-
-  /**
-   * @return true if version of HDP that change with each release
-   */
-  public boolean isUnique() {
-    return unique;
-  }
-
-  /**
-   * @param unique set is version of HDP that change with each release
-   */
-  public void setUnique(boolean unique) {
-    this.unique = unique;
-  }
 
   /**
    * @return true if repositories managed by ambari

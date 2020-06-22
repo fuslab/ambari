@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,20 +18,20 @@
 
 package org.apache.ambari.server.orm.dao;
 
+import java.util.List;
+
+import javax.persistence.EntityManager;
+import javax.persistence.NoResultException;
+import javax.persistence.TypedQuery;
+
+import org.apache.ambari.server.orm.RequiresSession;
+import org.apache.ambari.server.orm.entities.ViewURLEntity;
+
 import com.google.common.base.Optional;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.google.inject.Singleton;
 import com.google.inject.persist.Transactional;
-import org.apache.ambari.server.orm.RequiresSession;
-import org.apache.ambari.server.orm.entities.ViewInstanceDataEntity;
-import org.apache.ambari.server.orm.entities.ViewInstanceEntity;
-import org.apache.ambari.server.orm.entities.ViewURLEntity;
-
-import javax.persistence.EntityManager;
-import javax.persistence.NoResultException;
-import javax.persistence.TypedQuery;
-import java.util.List;
 
 /**
  * View Instance Data Access Object.
@@ -43,9 +43,6 @@ public class ViewURLDAO {
    */
   @Inject
   private Provider<EntityManager> entityManagerProvider;
-  @Inject
-  private DaoUtils daoUtils;
-
 
   /**
    * Find all view instances.
@@ -73,6 +70,26 @@ public class ViewURLDAO {
     try {
       return Optional.of(query.getSingleResult());
     } catch (Exception e){
+      return Optional.absent();
+    }
+  }
+
+  /**
+   * Find URL by suffix
+   *
+   * @param urlSuffix
+   *          the suffix to get the URL by
+   * @return <code>Optional.absent()</code> if no view URL with the given suffix;
+   *         otherwise an appropriate <code>Optional</code> instance holding the
+   *         fetched view URL
+   */
+  @RequiresSession
+  public Optional<ViewURLEntity> findBySuffix(String urlSuffix) {
+    TypedQuery<ViewURLEntity> query = entityManagerProvider.get().createNamedQuery("viewUrlBySuffix", ViewURLEntity.class);
+    query.setParameter("urlSuffix", urlSuffix);
+    try {
+      return Optional.of(query.getSingleResult());
+    } catch (NoResultException e) {
       return Optional.absent();
     }
   }

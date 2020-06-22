@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,9 @@
 
 package org.apache.ambari.server.api.services.parsers;
 
-import org.apache.ambari.server.api.services.RequestBody;
-
 import java.util.Set;
+
+import org.apache.ambari.server.api.services.RequestBody;
 
 /**
  * Parse the provided String into a map of properties and associated values.
@@ -30,27 +30,27 @@ public interface RequestBodyParser {
   /**
    * RequestInfo category path.
    */
-  public static final String REQUEST_INFO_PATH = "RequestInfo";
+  String REQUEST_INFO_PATH = "RequestInfo";
 
   /**
    * Slash symbol
    */
-  public static final String SLASH = "/";
+  String SLASH = "/";
 
   /**
    * Category path to ignore parsing of the child node
    */
-  public static final String REQUEST_BLOB_TITLE = "RequestBodyInfo";
+  String REQUEST_BLOB_TITLE = "RequestBodyInfo";
 
   /**
    * Name of the query property which may exist under REQUEST_INFO_PATH.
    */
-  public static final String QUERY_FIELD_NAME = "query";
+  String QUERY_FIELD_NAME = "query";
 
   /**
    * Path to the body object.
    */
-  public static final String BODY_TITLE = "Body";
+  String BODY_TITLE = "Body";
 
   /**
    * Parse the provided string into request bodies based on the
@@ -60,5 +60,5 @@ public interface RequestBodyParser {
    *
    * @return a set of {@link RequestBody} instances
    */
-  public Set<RequestBody> parse(String body) throws BodyParseException;
+  Set<RequestBody> parse(String body) throws BodyParseException;
 }

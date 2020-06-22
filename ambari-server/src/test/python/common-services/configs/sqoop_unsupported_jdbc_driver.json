@@ -618,10 +618,6 @@
       "sqoop_user": "sqoop",
       "jdbc_drivers" : "com.microsoft.sqlserver.jdbc.SQLServerDriver,Unsupported"
     },
-    "sqoop-site": {
-      "atlas.cluster.name": "c1",
-      "sqoop.job.data.publish.class": "org.apache.atlas.sqoop.hook.SqoopHook"
-    },
     "hdfs-log4j": {
       "content": "log4jproperties\nline2"
     },
@@ -659,7 +655,7 @@
       "content": "log4jproperties\nline2"
     }
   },
-  "configuration_attributes": {
+  "configurationAttributes": {
     "yarn-site": {
       "final": {
         "yarn.nodemanager.disk-health-checker.min-healthy-disks": "true",
@@ -817,7 +813,7 @@
     "ganglia_server_host": [
       "c6401.ambari.apache.org"
     ],
-    "hive_server_host": [
+    "hive_server_hosts": [
       "c6402.ambari.apache.org"
     ],
     "logviewer_server_hosts": [
@@ -829,10 +825,10 @@
     "hbase_rs_hosts": [
       "c6402.ambari.apache.org"
     ],
-    "webhcat_server_host": [
+    "webhcat_server_hosts": [
       "c6402.ambari.apache.org"
     ],
-    "zookeeper_hosts": [
+    "zookeeper_server_hosts": [
       "c6401.ambari.apache.org",
       "c6402.ambari.apache.org"
     ],
@@ -848,7 +844,7 @@
       "8670",
       "8670"
     ],
-    "rm_host": [
+    "resourcemanager_hosts": [
       "c6402.ambari.apache.org"
     ],
     "all_hosts": [

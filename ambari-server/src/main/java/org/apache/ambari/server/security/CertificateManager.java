@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,6 +22,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
 import java.text.MessageFormat;
 import java.util.Map;
 
@@ -90,9 +91,9 @@ public class CertificateManager {
     String srvrKstrDir = configsMap.get(Configuration.SRVR_KSTR_DIR.getKey());
     String srvrCrtName = configsMap.get(Configuration.SRVR_CRT_NAME.getKey());
     File certFile = new File(srvrKstrDir + File.separator + srvrCrtName);
-    LOG.debug("srvrKstrDir = " + srvrKstrDir);
-    LOG.debug("srvrCrtName = " + srvrCrtName);
-    LOG.debug("certFile = " + certFile.getAbsolutePath());
+    LOG.debug("srvrKstrDir = {}", srvrKstrDir);
+    LOG.debug("srvrCrtName = {}", srvrCrtName);
+    LOG.debug("certFile = {}", certFile.getAbsolutePath());
 
     return certFile.exists();
   }
@@ -145,7 +146,7 @@ public class CertificateManager {
     Map<String, String> configsMap = configs.getConfigsMap();
     String srvrKstrDir = configsMap.get(Configuration.SRVR_KSTR_DIR.getKey());
     String srvrCrtName = configsMap.get(Configuration.SRVR_CRT_NAME.getKey());
-    String srvrCsrName = configsMap.get(Configuration.SRVR_CSR_NAME.getKey());;
+    String srvrCsrName = configsMap.get(Configuration.SRVR_CSR_NAME.getKey());
     String srvrKeyName = configsMap.get(Configuration.SRVR_KEY_NAME.getKey());
     String kstrName = configsMap.get(Configuration.KSTR_NAME.getKey());
     String srvrCrtPass = configsMap.get(Configuration.SRVR_CRT_PASS.getKey());
@@ -174,20 +175,37 @@ public class CertificateManager {
   }
 
   /**
-   * Returns server certificate content
-   * @return string with server certificate content
+   * Returns server's PEM-encoded CA chain file content
+   * @return string server's PEM-encoded CA chain file content
    */
-  public String getServerCert() {
-    Map<String, String> configsMap = configs.getConfigsMap();
-    File certFile = new File(configsMap.get(Configuration.SRVR_KSTR_DIR.getKey()) +
-        File.separator + configsMap.get(Configuration.SRVR_CRT_NAME.getKey()));
-    String srvrCrtContent = null;
-    try {
-      srvrCrtContent = FileUtils.readFileToString(certFile);
-    } catch (IOException e) {
-      LOG.error(e.getMessage());
+  public String getCACertificateChainContent() {
+    String serverCertDir = configs.getProperty(Configuration.SRVR_KSTR_DIR);
+
+    // Attempt to send the explicit CA certificate chain file.
+    String serverCertChainName = configs.getProperty(Configuration.SRVR_CRT_CHAIN_NAME);
+    File certChainFile = new File(serverCertDir, serverCertChainName);
+    if(certChainFile.exists()) {
+      try {
+        return new String(Files.readAllBytes(certChainFile.toPath()));
+      } catch (IOException e) {
+        LOG.error(e.getMessage());
+      }
     }
-    return srvrCrtContent;
+
+    // Fall back to the original way things were done and send the server's SSL certificate as the
+    // Certificate chain file.
+    String serverCertName = configs.getProperty(Configuration.SRVR_CRT_NAME);
+    File certFile = new File(serverCertDir, serverCertName);
+    if(certFile.canRead()) {
+      try {
+        return new String(Files.readAllBytes(certFile.toPath()));
+      } catch (IOException e) {
+        LOG.error(e.getMessage());
+      }
+    }
+
+    // If all else fails, send nothing...
+    return null;
   }
 
   /**
@@ -269,7 +287,7 @@ public class CertificateManager {
     File agentCrtReqFile = new File(srvrKstrDir + File.separator +
         agentCrtReqName);
     try {
-      FileUtils.writeStringToFile(agentCrtReqFile, agentCrtReqContent);
+      FileUtils.writeStringToFile(agentCrtReqFile, agentCrtReqContent, Charset.defaultCharset());
     } catch (IOException e1) {
       // TODO Auto-generated catch block
       e1.printStackTrace();
@@ -289,7 +307,7 @@ public class CertificateManager {
 
     String agentCrtContent = "";
     try {
-      agentCrtContent = FileUtils.readFileToString(agentCrtFile);
+      agentCrtContent = FileUtils.readFileToString(agentCrtFile, Charset.defaultCharset());
     } catch (IOException e) {
       e.printStackTrace();
       LOG.error("Error reading signed agent certificate");

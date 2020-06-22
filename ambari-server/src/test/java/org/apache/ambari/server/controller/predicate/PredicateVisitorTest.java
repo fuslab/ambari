@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,9 +17,10 @@
  */
 package org.apache.ambari.server.controller.predicate;
 
-import junit.framework.Assert;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.junit.Test;
+
+import junit.framework.Assert;
 
 /**
  *  Tests for predicate visitors.
@@ -30,7 +31,7 @@ public class PredicateVisitorTest {
   public void testVisitor() {
 
     String propertyId = PropertyHelper.getPropertyId("category1", "foo");
-    EqualsPredicate equalsPredicate = new EqualsPredicate<String>(propertyId, "bar");
+    EqualsPredicate equalsPredicate = new EqualsPredicate<>(propertyId, "bar");
 
     TestPredicateVisitor visitor = new TestPredicateVisitor();
     equalsPredicate.accept(visitor);

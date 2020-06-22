@@ -20,13 +20,16 @@ package org.apache.ambari.logfeeder.input;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-import org.apache.ambari.logfeeder.filter.Filter;
-import org.apache.ambari.logfeeder.input.InputMarker;
+import org.apache.ambari.logfeeder.conf.LogEntryCacheConfig;
+import org.apache.ambari.logfeeder.conf.LogFeederProps;
+import org.apache.ambari.logfeeder.plugin.filter.Filter;
+import org.apache.ambari.logfeeder.plugin.input.InputMarker;
+import org.apache.ambari.logfeeder.plugin.manager.InputManager;
+import org.apache.ambari.logsearch.config.json.model.inputconfig.impl.InputFileDescriptorImpl;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 import org.easymock.EasyMock;
@@ -59,7 +62,9 @@ public class InputFileTest {
   private InputFile inputFile;
   private List<String> rows = new ArrayList<>();
 
-  private InputMarker testInputMarker;
+  private InputFileMarker testInputMarker;
+
+  private LogFeederProps logFeederProps;
 
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
@@ -74,22 +79,32 @@ public class InputFileTest {
 
   @Before
   public void setUp() throws Exception {
+    logFeederProps = new LogFeederProps();
+    LogEntryCacheConfig logEntryCacheConfig = new LogEntryCacheConfig();
+    logEntryCacheConfig.setCacheEnabled(false);
+    logEntryCacheConfig.setCacheLastDedupEnabled(false);
+    logEntryCacheConfig.setCacheSize(10);
+    logFeederProps.setLogEntryCacheConfig(logEntryCacheConfig);
+    testInputMarker = new InputFileMarker(inputFile, "", 0);
   }
 
   public void init(String path) throws Exception {
-    Map<String, Object> config = new HashMap<String, Object>();
-    config.put("source", "file");
-    config.put("tail", "true");
-    config.put("gen_event_md5", "true");
-    config.put("start_position", "beginning");
+    InputFileDescriptorImpl inputFileDescriptor = new InputFileDescriptorImpl();
+    inputFileDescriptor.setSource("file");
+    inputFileDescriptor.setTail(true);
+    inputFileDescriptor.setGenEventMd5(true);
+    inputFileDescriptor.setType("hdfs_datanode");
+    inputFileDescriptor.setRowtype("service");
+    inputFileDescriptor.setPath(path);
 
-    config.put("type", "hdfs_datanode");
-    config.put("rowtype", "service");
-    config.put("path", path);
-
-    Filter capture = new Filter() {
+    Filter capture = new Filter<LogFeederProps>() {
       @Override
-      public void init() {
+      public void init(LogFeederProps logFeederProps) {
+      }
+
+      @Override
+      public String getShortDescription() {
+        return null;
       }
 
       @Override
@@ -97,15 +112,13 @@ public class InputFileTest {
         rows.add(inputStr);
         if (rows.size() % 3 == 0)
           inputFile.setDrain(true);
-
-        testInputMarker = inputMarker;
       }
     };
 
     inputFile = new InputFile();
-    inputFile.loadConfig(config);
+    inputFile.loadConfig(inputFileDescriptor);
     inputFile.addFilter(capture);
-    inputFile.init();
+    inputFile.init(logFeederProps);
   }
 
   @Test
@@ -133,32 +146,6 @@ public class InputFileTest {
   }
 
   @Test
-  public void testInputFile_process6RowsInterrupted() throws Exception {
-    LOG.info("testInputFile_process6RowsInterrupted()");
-
-    File checkPointDir = createCheckpointDir("process6_checkpoint");
-    File testFile = createFile("process6.log");
-    init(testFile.getAbsolutePath());
-
-    InputManager inputMabager = EasyMock.createStrictMock(InputManager.class);
-    EasyMock.expect(inputMabager.getCheckPointFolderFile()).andReturn(checkPointDir).times(2);
-    EasyMock.replay(inputMabager);
-    inputFile.setInputManager(inputMabager);
-
-    inputFile.isReady();
-    inputFile.start();
-    inputFile.checkIn(testInputMarker);
-    inputFile.setDrain(false);
-    inputFile.start();
-
-    assertEquals("Amount of the rows is incorrect", rows.size(), 6);
-    for (int row = 0; row < 6; row++)
-      assertEquals("Row #" + (row + 1) + " not correct", TEST_LOG_FILE_ROWS[row], rows.get(row));
-
-    EasyMock.verify(inputMabager);
-  }
-
-  @Test
   public void testInputFile_noLogPath() throws Exception {
     LOG.info("testInputFile_noLogPath()");
 
@@ -180,7 +167,7 @@ public class InputFileTest {
 
   private File createFile(String filename) throws IOException {
     File newFile = new File(FileUtils.getTempDirectoryPath() + TEST_DIR_NAME + filename);
-    FileUtils.writeStringToFile(newFile, TEST_LOG_FILE_CONTENT);
+    FileUtils.writeStringToFile(newFile, TEST_LOG_FILE_CONTENT, Charset.defaultCharset());
     return newFile;
   }
 

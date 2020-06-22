@@ -18,18 +18,25 @@ limitations under the License.
 
 """
 
+import ConfigParser
+import os
+import re
+
+from ambari_commons import OSCheck
+from ambari_commons.ambari_metrics_helper import select_metric_collector_hosts_from_hostnames
+from resource_management.core.logger import Logger
+from resource_management.libraries import functions
+from resource_management.libraries.functions.default import default
+from resource_management.libraries.functions.expect import expect
+from resource_management.libraries.functions.format import format
+from resource_management.libraries.functions.get_not_managed_resources import get_not_managed_resources
+from resource_management.libraries.functions.substitute_vars import substitute_vars
+from resource_management.libraries.resources.hdfs_resource import HdfsResource
+
+import status_params
 from functions import calc_xmn_from_xms
 from functions import check_append_heap_property
 from functions import trim_heap_property
-from resource_management.core.logger import Logger
-from resource_management import *
-from resource_management.libraries.functions.get_not_managed_resources import get_not_managed_resources
-from resource_management.libraries.functions.expect import expect
-from ambari_commons.ambari_metrics_helper import select_metric_collector_hosts_from_hostnames
-import status_params
-from ambari_commons import OSCheck
-import ConfigParser
-import os
 
 if OSCheck.is_windows_family():
   from params_windows import *
@@ -71,8 +78,6 @@ else:
 
 metric_collector_host = select_metric_collector_hosts_from_hostnames(ams_collector_hosts)
 
-random_metric_collector_host = select_metric_collector_hosts_from_hostnames(ams_collector_hosts)
-
 if 'cluster-env' in config['configurations'] and \
     'metrics_collector_external_port' in config['configurations']['cluster-env']:
   metric_collector_port = config['configurations']['cluster-env']['metrics_collector_external_port']
@@ -103,9 +108,9 @@ for host in ams_collector_hosts.split(","):
     metric_truststore_alias = host
   metric_truststore_alias_list.append(metric_truststore_alias)
 
-agent_cache_dir = config['hostLevelParams']['agentCacheDir']
-service_package_folder = config['commandParams']['service_package_folder']
-stack_name = default("/hostLevelParams/stack_name", None)
+agent_cache_dir = config['agentLevelParams']['agentCacheDir']
+service_package_folder = config['serviceLevelParams']['service_package_folder']
+stack_name = default("/clusterLevelParams/stack_name", None)
 dashboards_dirs = []
 # Stack specific
 dashboards_dirs.append(os.path.join(agent_cache_dir, service_package_folder,
@@ -148,6 +153,7 @@ def get_ambari_version():
     pass
   return ambari_version
 
+hostname = config['agentLevelParams']['hostname']
 
 ams_collector_log_dir = config['configurations']['ams-env']['metrics_collector_log_dir']
 ams_collector_conf_dir = "/etc/ambari-metrics-collector/conf"
@@ -204,14 +210,22 @@ security_enabled = False if not is_hbase_distributed else config['configurations
 # this is "hadoop-metrics.properties" for 1.x stacks
 metric_prop_file_name = "hadoop-metrics2-hbase.properties"
 
+java_home = config['ambariLevelParams']['java_home']
+ambari_java_home = default("/ambariLevelParams/ambari_java_home", None)
 # not supporting 32 bit jdk.
-java64_home = config['hostLevelParams']['java_home']
-java_version = expect("/hostLevelParams/java_version", int)
+java64_home = ambari_java_home if ambari_java_home is not None else java_home
+ambari_java_version = default("/ambariLevelParams/ambari_java_version", None)
+if ambari_java_version:
+  java_version = expect("/ambariLevelParams/ambari_java_version", int)
+else :
+  java_version = expect("/ambariLevelParams/java_version", int)
 
 metrics_collector_heapsize = default('/configurations/ams-env/metrics_collector_heapsize', "512")
 metrics_report_interval = default("/configurations/ams-site/timeline.metrics.sink.report.interval", 60)
 metrics_collection_period = default("/configurations/ams-site/timeline.metrics.sink.collection.period", 10)
 skip_disk_metrics_patterns = default("/configurations/ams-env/timeline.metrics.skip.disk.metrics.patterns", None)
+skip_network_interfaces_patterns = default("/configurations/ams-env/timeline.metrics.skip.network.interfaces.patterns", None)
+skip_virtual_interfaces = default("/configurations/ams-env/timeline.metrics.skip.virtual.interfaces", False)
 
 hbase_log_dir = config['configurations']['ams-hbase-env']['hbase_log_dir']
 hbase_classpath_additional = default("/configurations/ams-hbase-env/hbase_classpath_additional", None)
@@ -222,6 +236,17 @@ regionserver_heapsize = config['configurations']['ams-hbase-env']['hbase_regions
 metrics_collector_heapsize = check_append_heap_property(str(metrics_collector_heapsize), "m")
 master_heapsize = check_append_heap_property(str(master_heapsize), "m")
 regionserver_heapsize = check_append_heap_property(str(regionserver_heapsize), "m")
+
+host_in_memory_aggregation = default("/configurations/ams-site/timeline.metrics.host.inmemory.aggregation", False)
+host_in_memory_aggregation_port = default("/configurations/ams-site/timeline.metrics.host.inmemory.aggregation.port", 61888)
+is_aggregation_https_enabled = False
+if default("/configurations/ams-site/timeline.metrics.host.inmemory.aggregation.http.policy", "HTTP_ONLY") == "HTTPS_ONLY":
+  host_in_memory_aggregation_protocol = 'https'
+  is_aggregation_https_enabled = True
+else:
+  host_in_memory_aggregation_protocol = 'http'
+host_in_memory_aggregation_jvm_arguments = default("/configurations/ams-env/timeline.metrics.host.inmemory.aggregation.jvm.arguments",
+                                                   "-Xmx256m -Xms128m -XX:PermSize=68m")
 
 regionserver_xmn_max = default('/configurations/ams-hbase-env/hbase_regionserver_xmn_max', None)
 if regionserver_xmn_max:
@@ -249,9 +274,8 @@ else:
   hbase_heapsize = master_heapsize
 
 max_open_files_limit = default("/configurations/ams-hbase-env/max_open_files_limit", "32768")
-hostname = config["hostname"]
 
-cluster_zookeeper_quorum_hosts = ",".join(config['clusterHostInfo']['zookeeper_hosts'])
+cluster_zookeeper_quorum_hosts = ",".join(config['clusterHostInfo']['zookeeper_server_hosts'])
 if 'zoo.cfg' in config['configurations'] and 'clientPort' in config['configurations']['zoo.cfg']:
   cluster_zookeeper_clientPort = config['configurations']['zoo.cfg']['clientPort']
 else:
@@ -292,12 +316,17 @@ service_check_data = functions.get_unique_id_and_date()
 user_group = config['configurations']['cluster-env']["user_group"]
 hadoop_user = "hadoop"
 
-kinit_cmd = ""
+kinit_path_local = functions.get_kinit_path(default('/configurations/kerberos-env/executable_search_paths', None))
+monitor_kinit_cmd = ""
+klist_path_local = functions.get_klist_path(default('/configurations/kerberos-env/executable_search_paths', None))
+klist_cmd = ""
 
 if security_enabled:
-  _hostname_lowercase = config['hostname'].lower()
+  _hostname_lowercase = config['agentLevelParams']['hostname'].lower()
   client_jaas_config_file = format("{hbase_conf_dir}/hbase_client_jaas.conf")
   smoke_user_keytab = config['configurations']['cluster-env']['smokeuser_keytab']
+  smoke_user_princ = config['configurations']['cluster-env']['smokeuser_principal_name']
+  smoke_user = config['configurations']['cluster-env']['smokeuser']
   hbase_user_keytab = config['configurations']['ams-hbase-env']['hbase_user_keytab']
 
   ams_collector_jaas_config_file = format("{hbase_conf_dir}/ams_collector_jaas.conf")
@@ -315,6 +344,19 @@ if security_enabled:
   regionserver_jaas_config_file = format("{hbase_conf_dir}/hbase_regionserver_jaas.conf")
   regionserver_keytab_path = config['configurations']['ams-hbase-security-site']['hbase.regionserver.keytab.file']
   regionserver_jaas_princ = config['configurations']['ams-hbase-security-site']['hbase.regionserver.kerberos.principal'].replace('_HOST',_hostname_lowercase)
+
+  # Monitor SPNEGO configs
+  ams_monitor_keytab = None
+  if (('ams-hbase-security-site' in config['configurations']) and ('ams.monitor.keytab' in config['configurations']['ams-hbase-security-site'])):
+    ams_monitor_keytab = config['configurations']['ams-hbase-security-site']['ams.monitor.keytab']
+
+  ams_monitor_principal = None
+  if (('ams-hbase-security-site' in config['configurations']) and ('ams.monitor.principal' in config['configurations']['ams-hbase-security-site'])):
+    ams_monitor_principal = config['configurations']['ams-hbase-security-site']['ams.monitor.principal']
+
+  if ams_monitor_keytab and ams_monitor_principal:
+    monitor_kinit_cmd = '%s -kt %s %s' % (kinit_path_local, ams_monitor_keytab, ams_monitor_principal.replace('_HOST',_hostname_lowercase))
+    klist_cmd = '%s' % klist_path_local
 
 #Ambari metrics log4j settings
 ams_hbase_log_maxfilesize = default('configurations/ams-hbase-log4j/ams_hbase_log_maxfilesize',256)
@@ -350,12 +392,14 @@ if hbase_wal_dir and re.search("^file://|/", hbase_wal_dir): #If wal dir is on l
 hdfs_user_keytab = config['configurations']['hadoop-env']['hdfs_user_keytab']
 hdfs_user = config['configurations']['hadoop-env']['hdfs_user']
 hdfs_principal_name = config['configurations']['hadoop-env']['hdfs_principal_name']
-kinit_path_local = functions.get_kinit_path(default('/configurations/kerberos-env/executable_search_paths', None))
 
 
+clusterHostInfoDict = config["clusterHostInfo"]
+min_hadoop_sink_version = default("/configurations/ams-env/min_ambari_metrics_hadoop_sink_version", "2.7.0.0")
 
 hdfs_site = config['configurations']['hdfs-site']
 default_fs = config['configurations']['core-site']['fs.defaultFS']
+dfs_type = default("/clusterLevelParams/dfs_type", "")
 
 import functools
 #create partial functions with common arguments for every HdfsResource call
@@ -372,7 +416,9 @@ HdfsResource = functools.partial(
   principal_name = hdfs_principal_name,
   hdfs_site = hdfs_site,
   default_fs = default_fs,
-  immutable_paths = get_not_managed_resources()
+  immutable_paths = get_not_managed_resources(),
+  dfs_type = dfs_type
  )
+
 
 

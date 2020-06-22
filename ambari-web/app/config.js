@@ -29,11 +29,10 @@ App.testNameNodeHA = true;
 App.appURLRoot = '{proxy_root}/'.replace(/\{.+\}/g, ''); // determines application root path name, not related to hash route
 App.apiPrefix = '/api/v1';
 App.defaultStackVersion = 'HDP-2.3';
-App.defaultFullVersion = '2.3.0.0';
 App.defaultWindowsStackVersion = 'HDPWIN-2.1';
 
 App.defaultJavaHome = '/usr/jdk/jdk1.6.0_31';
-App.timeout = 180000; // default AJAX timeout
+App.timeout = 300000; // default AJAX timeout
 App.maxRetries = 3; // max number of retries for certain AJAX calls
 App.sessionKeepAliveInterval  = 60000;
 App.bgOperationsUpdateInterval = 6000;
@@ -46,19 +45,18 @@ App.alertGroupsUpdateInterval = 10000;
 App.clusterEnvUpdateInterval = 10000;
 App.pageReloadTime = 3600000;
 App.nnCheckpointAgeAlertThreshold = 12; // in hours
-App.singleNodeInstall = false;
-App.singleNodeAlias = document.location.hostname;
 App.minDiskSpace = 2.0; // minimum disk space required for '/' for each host before install, unit GB
 App.minDiskSpaceUsrLib = 1.0; // minimum disk space for '/usr/lib' for each host before install, unit GB
-App.healthIconClassGreen = 'icon-ok-sign'; // bootstrap icon class for healthy/started service/host/host-component
-App.healthIconClassRed = 'icon-warning-sign'; // bootstrap icon class for master down/stopped service/host/host-component
-App.healthIconClassOrange = 'icon-minus-sign'; // bootstrap icon class for slave down/decommissioned host/host-component
-App.healthIconClassYellow = 'icon-question-sign'; // bootstrap icon class for heartbeat lost service/host/host-component
+App.healthIconClassGreen = 'glyphicon glyphicon-ok-sign'; // bootstrap icon class for healthy/started service/host/host-component
+App.healthIconClassRed = 'glyphicon glyphicon-warning-sign'; // bootstrap icon class for master down/stopped service/host/host-component
+App.healthIconClassOrange = 'glyphicon glyphicon-minus-sign'; // bootstrap icon class for slave down/decommissioned host/host-component
+App.healthIconClassYellow = 'glyphicon glyphicon-question-sign'; // bootstrap icon class for heartbeat lost service/host/host-component
 App.isManagedMySQLForHiveEnabled = false;
 App.isStormMetricsSupported = true;
-App.healthStatusRed = '#ff0000';
-App.healthStatusGreen = '#5AB400';
-App.healthStatusOrange = '#FF8E00';
+App.healthStatusRed = '#EF6162';
+App.healthStatusGreen = '#1EB475';
+App.healthStatusOrange = '#E98A40';
+App.widgetContentColor = '#666666';
 App.inactivityRemainTime = 60; // in seconds
 App.enableLogger = true;
 App.stackVersionsAvailable = true;
@@ -69,7 +67,6 @@ App.enableDigitalClock = false;
 App.enableExperimental = false;
 
 App.supports = {
-  disableHostCheckOnAddHostWizard: false,
   preUpgradeCheck: true,
   displayOlderVersions: false,
   autoRollbackHA: false,
@@ -85,15 +82,15 @@ App.supports = {
   serviceAutoStart: true,
   logSearch: true,
   redhatSatellite: false,
-  enableIpa: false,
   addingNewRepository: false,
   kerberosStackAdvisor: true,
   logCountVizualization: false,
+  createAlerts: false,
   enabledWizardForHostOrderedUpgrade: true,
   manageJournalNode: true,
   enableToggleKerberos: true,
   enableAddDeleteServices: true,
-  enableBulkDeleteHosts: false
+  regenerateKeytabsOnSingleHost: false
 };
 
 if (App.enableExperimental) {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,12 +28,12 @@ public interface ObservableResourceProvider {
    *
    * @param event  the event
    */
-  public void updateObservers(ResourceProviderEvent event);
+  void updateObservers(ResourceProviderEvent event);
 
   /**
    * Add an observer.
    *
    * @param observer  the observer
    */
-  public void addObserver(ResourceProviderObserver observer);
+  void addObserver(ResourceProviderObserver observer);
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,29 @@
 
 package org.apache.ambari.server.api.handlers;
 
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.createStrictMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.verify;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.fail;
+
+import java.util.HashSet;
+import java.util.Set;
+
 import org.apache.ambari.server.api.query.Query;
 import org.apache.ambari.server.api.query.render.DefaultRenderer;
 import org.apache.ambari.server.api.query.render.Renderer;
 import org.apache.ambari.server.api.resources.ResourceDefinition;
 import org.apache.ambari.server.api.resources.ResourceInstance;
-import org.apache.ambari.server.api.services.*;
+import org.apache.ambari.server.api.services.Request;
+import org.apache.ambari.server.api.services.RequestBody;
+import org.apache.ambari.server.api.services.Result;
+import org.apache.ambari.server.api.services.ResultStatus;
 import org.apache.ambari.server.api.services.persistence.PersistenceManager;
 import org.apache.ambari.server.api.util.TreeNode;
 import org.apache.ambari.server.controller.spi.RequestStatus;
@@ -33,11 +50,6 @@ import org.apache.ambari.server.security.authorization.AuthorizationException;
 import org.apache.ambari.server.view.ViewRegistry;
 import org.junit.Before;
 import org.junit.Test;
-
-import java.util.*;
-
-import static org.easymock.EasyMock.*;
-import static org.junit.Assert.*;
 
 /**
  * Unit tests for CreateHandler.
@@ -64,7 +76,7 @@ public class CreateHandlerTest {
     Resource resource2 = createNiceMock(Resource.class);
     Renderer renderer = new DefaultRenderer();
 
-    Set<Resource> setResources = new HashSet<Resource>();
+    Set<Resource> setResources = new HashSet<>();
     setResources.add(resource1);
     setResources.add(resource2);
 
@@ -124,7 +136,7 @@ public class CreateHandlerTest {
     Resource resource2 = createNiceMock(Resource.class);
     Renderer renderer = new DefaultRenderer();
 
-    Set<Resource> setResources = new HashSet<Resource>();
+    Set<Resource> setResources = new HashSet<>();
     setResources.add(resource1);
     setResources.add(resource2);
 
@@ -184,7 +196,7 @@ public class CreateHandlerTest {
     Resource requestResource = createNiceMock(Resource.class);
     Renderer renderer = new DefaultRenderer();
 
-    Set<Resource> setResources = new HashSet<Resource>();
+    Set<Resource> setResources = new HashSet<>();
     setResources.add(resource1);
     setResources.add(resource2);
 

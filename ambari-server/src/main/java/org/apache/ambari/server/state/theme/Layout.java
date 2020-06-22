@@ -19,25 +19,28 @@
 package org.apache.ambari.server.state.theme;
 
 
-
-import org.codehaus.jackson.annotate.JsonIgnoreProperties;
-import org.codehaus.jackson.annotate.JsonProperty;
-import org.codehaus.jackson.map.annotate.JsonSerialize;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.codehaus.jackson.annotate.JsonIgnoreProperties;
+import org.codehaus.jackson.annotate.JsonProperty;
+import org.codehaus.jackson.map.annotate.JsonSerialize;
+
+import io.swagger.annotations.ApiModelProperty;
 
 @JsonSerialize(include= JsonSerialize.Inclusion.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Layout{
+
 	@JsonProperty("name")
 	private String name;
+
 	@JsonProperty("tabs")
 	private List<Tab> tabs;
 
+  @ApiModelProperty(name = "name")
   public String getName() {
     return name;
   }
@@ -46,6 +49,7 @@ public class Layout{
     this.name = name;
   }
 
+  @ApiModelProperty(name = "tabs")
   public List<Tab> getTabs() {
     return tabs;
   }
@@ -61,7 +65,7 @@ public class Layout{
   }
 
   private List<Tab> mergeTabs(List<Tab> parentTabs, List<Tab> childTabs) {
-    Map<String, Tab> mergedTabs = new HashMap<String, Tab>();
+    Map<String, Tab> mergedTabs = new HashMap<>();
     for (Tab parentTab : parentTabs) {
       mergedTabs.put(parentTab.getName(), parentTab);
     }
@@ -77,7 +81,7 @@ public class Layout{
         }
       }
     }
-    return new ArrayList<Tab>(mergedTabs.values());
+    return new ArrayList<>(mergedTabs.values());
   }
 
 }

@@ -32,6 +32,51 @@ describe('App.WidgetMixin', function () {
     mixinObject.destroy();
   });
 
+
+  describe('#VALUE_NAME_REGEX', function() {
+    var testCases = [
+      {
+        data: 'a-a - b',
+        expected: ['a-a', 'b']
+      },
+      {
+        data: 'a.a / b',
+        expected: ['a.a', 'b']
+      },
+      {
+        data: 'a=a * b',
+        expected: ['a=a', 'b']
+      },
+      {
+        data: 'a,a + b',
+        expected: ['a,a', 'b']
+      },
+      {
+        data: 'a:a + b',
+        expected: ['a:a', 'b']
+      },
+      {
+        data: 'a[a] + b',
+        expected: ['a[a]', 'b']
+      },
+      {
+        data: 'Total tasks - Free tasks',
+        expected: ['Total tasks', 'Free tasks']
+      },
+      {
+        data: 'Hadoop:service=azure-file-system,name=AzureFileSystemMetrics4 - 1',
+        expected: ['Hadoop:service=azure-file-system,name=AzureFileSystemMetrics4', '1']
+      }
+    ];
+    var regex = mixinClass.create().get('VALUE_NAME_REGEX');
+
+    testCases.forEach(function(test) {
+      it(test.data + ' should match ' + test.expected, function() {
+        expect(test.data.match(regex)).to.be.eql(test.expected);
+      });
+    });
+  });
+
   describe('#loadMetrics()', function () {
     beforeEach(function () {
       this.mock = sinon.stub(mixinObject, 'getRequestData');
@@ -281,6 +326,7 @@ describe('App.WidgetMixin', function () {
     cases.forEach(function (item) {
       describe(item.title, function () {
         beforeEach(function() {
+          sinon.stub(mixinObject, 'loadMetrics');
           mixinObject.setProperties({
             isExportButtonHidden: false,
             childViews: item.childViews,
@@ -306,6 +352,7 @@ describe('App.WidgetMixin', function () {
         });
 
         afterEach(function() {
+          mixinObject.loadMetrics.restore();
           graph._showMessage.restore();
         });
 

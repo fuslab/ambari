@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,7 +22,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -42,15 +41,18 @@ import org.apache.ambari.server.controller.spi.ResourceAlreadyExistsException;
 import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 
 /**
  * Resource provider for workflow resources.
  */
 public class WorkflowResourceProvider extends
     AbstractJDBCResourceProvider<WorkflowResourceProvider.WorkflowFields> {
-  private static Log LOG = LogFactory.getLog(WorkflowResourceProvider.class);
+  private static final Logger LOG = LoggerFactory.getLogger(WorkflowResourceProvider.class);
 
   protected static final String WORKFLOW_CLUSTER_NAME_PROPERTY_ID = PropertyHelper
       .getPropertyId("Workflow", "cluster_name");
@@ -79,22 +81,38 @@ public class WorkflowResourceProvider extends
   protected static final String WORKFLOW_CONTEXT_PROPERTY_ID = PropertyHelper
       .getPropertyId("Workflow", "context");
 
-  private static final Set<String> pkPropertyIds = new HashSet<String>(
-      Arrays.asList(new String[] {WORKFLOW_CLUSTER_NAME_PROPERTY_ID,
-          WORKFLOW_ID_PROPERTY_ID}));
-
   protected WorkflowFetcher workflowFetcher;
 
   /**
-   * Create a new workflow resource provider.
-   * 
-   * @param propertyIds
-   *          the property ids
-   * @param keyPropertyIds
-   *          the key property ids
+   * The key property ids for a Workflow resource.
    */
-  protected WorkflowResourceProvider(Set<String> propertyIds,
-      Map<Type,String> keyPropertyIds) {
+  private static Map<Resource.Type, String> keyPropertyIds = ImmutableMap.<Resource.Type, String>builder()
+      .put(Type.Cluster, WORKFLOW_CLUSTER_NAME_PROPERTY_ID)
+      .put(Type.Workflow, WORKFLOW_ID_PROPERTY_ID)
+      .build();
+
+  /**
+   * The property ids for a Workflow resource.
+   */
+  private static Set<String> propertyIds = Sets.newHashSet(
+      WORKFLOW_CLUSTER_NAME_PROPERTY_ID,
+      WORKFLOW_ID_PROPERTY_ID,
+      WORKFLOW_NAME_PROPERTY_ID,
+      WORKFLOW_USER_NAME_PROPERTY_ID,
+      WORKFLOW_START_TIME_PROPERTY_ID,
+      WORKFLOW_LAST_UPDATE_TIME_PROPERTY_ID,
+      WORKFLOW_ELAPSED_TIME_PROPERTY_ID,
+      WORKFLOW_INPUT_BYTES_PROPERTY_ID,
+      WORKFLOW_OUTPUT_BYTES_PROPERTY_ID,
+      WORKFLOW_NUM_JOBS_TOTAL_PROPERTY_ID,
+      WORKFLOW_NUM_JOBS_COMPLETED_PROPERTY_ID,
+      WORKFLOW_PARENT_ID_PROPERTY_ID,
+      WORKFLOW_CONTEXT_PROPERTY_ID);
+
+  /**
+   * Create a new workflow resource provider.
+   */
+  protected WorkflowResourceProvider() {
     super(propertyIds, keyPropertyIds);
     this.workflowFetcher = new PostgresWorkflowFetcher(
         new JobHistoryPostgresConnectionFactory());
@@ -103,15 +121,10 @@ public class WorkflowResourceProvider extends
   /**
    * Create a new workflow resource provider.
    * 
-   * @param propertyIds
-   *          the property ids
-   * @param keyPropertyIds
-   *          the key property ids
    * @param workflowFetcher
    *          workflow fetcher
    */
-  protected WorkflowResourceProvider(Set<String> propertyIds,
-      Map<Type,String> keyPropertyIds, WorkflowFetcher workflowFetcher) {
+  protected WorkflowResourceProvider(WorkflowFetcher workflowFetcher) {
     super(propertyIds, keyPropertyIds);
     this.workflowFetcher = workflowFetcher;
   }
@@ -128,7 +141,7 @@ public class WorkflowResourceProvider extends
       throws SystemException, UnsupportedPropertyException,
       NoSuchResourceException, NoSuchParentResourceException {
 
-    Set<Resource> resourceSet = new HashSet<Resource>();
+    Set<Resource> resourceSet = new HashSet<>();
     Set<String> requestedIds = getRequestPropertyIds(request, predicate);
 
     Set<Map<String,Object>> predicatePropertieSet = getPropertyMaps(predicate);
@@ -159,21 +172,18 @@ public class WorkflowResourceProvider extends
 
   @Override
   protected Set<String> getPKPropertyIds() {
-    return pkPropertyIds;
+    return new HashSet<>(keyPropertyIds.values());
   }
 
   @Override
   public Map<Type,String> getKeyPropertyIds() {
-    Map<Type,String> keyPropertyIds = new HashMap<Type,String>();
-    keyPropertyIds.put(Type.Cluster, WORKFLOW_CLUSTER_NAME_PROPERTY_ID);
-    keyPropertyIds.put(Type.Workflow, WORKFLOW_ID_PROPERTY_ID);
     return keyPropertyIds;
   }
 
   /**
    * Simple interface for fetching workflows from db.
    */
-  public static interface WorkflowFetcher {
+  public interface WorkflowFetcher {
     /**
      * Fetch workflow resources.
      * 
@@ -185,8 +195,8 @@ public class WorkflowResourceProvider extends
      *          the workflow id
      * @return a set of workflow resources
      */
-    public Set<Resource> fetchWorkflows(Set<String> requestedIds,
-        String clusterName, String workflowId);
+    Set<Resource> fetchWorkflows(Set<String> requestedIds,
+                                 String clusterName, String workflowId);
   }
 
   /**
@@ -246,7 +256,7 @@ public class WorkflowResourceProvider extends
     @Override
     public Set<Resource> fetchWorkflows(Set<String> requestedIds,
         String clusterName, String workflowId) {
-      Set<Resource> workflows = new HashSet<Resource>();
+      Set<Resource> workflows = new HashSet<>();
       ResultSet rs = null;
       try {
         rs = getResultSet(requestedIds, workflowId);
@@ -292,7 +302,7 @@ public class WorkflowResourceProvider extends
   /**
    * Enumeration of db fields for the workflow table.
    */
-  static enum WorkflowFields {
+  enum WorkflowFields {
     WORKFLOWID,
     WORKFLOWNAME,
     USERNAME,
@@ -309,7 +319,7 @@ public class WorkflowResourceProvider extends
 
   @Override
   protected Map<String,WorkflowFields> getDBFieldMap() {
-    Map<String,WorkflowFields> dbFields = new HashMap<String,WorkflowFields>();
+    Map<String,WorkflowFields> dbFields = new HashMap<>();
     dbFields.put(WORKFLOW_ID_PROPERTY_ID, WorkflowFields.WORKFLOWID);
     dbFields.put(WORKFLOW_NAME_PROPERTY_ID, WorkflowFields.WORKFLOWNAME);
     dbFields.put(WORKFLOW_USER_NAME_PROPERTY_ID, WorkflowFields.USERNAME);

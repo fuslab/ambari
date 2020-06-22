@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,12 +17,14 @@
  */
 package org.apache.ambari.server.orm.entities;
 
-import org.junit.Test;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.Collection;
 import java.util.HashSet;
 
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 /**
  * HostEntity tests.
@@ -34,7 +36,7 @@ public class HostEntityTest {
     HostEntity hostEntity = new HostEntity();
     HostComponentDesiredStateEntity stateEntity = new HostComponentDesiredStateEntity();
 
-    hostEntity.setHostComponentDesiredStateEntities(new HashSet<HostComponentDesiredStateEntity>());
+    hostEntity.setHostComponentDesiredStateEntities(new HashSet<>());
 
     Collection<HostComponentDesiredStateEntity> stateEntities = hostEntity.getHostComponentDesiredStateEntities();
     assertTrue(stateEntities.isEmpty());
@@ -51,7 +53,7 @@ public class HostEntityTest {
     HostEntity hostEntity = new HostEntity();
     HostComponentDesiredStateEntity stateEntity = new HostComponentDesiredStateEntity();
 
-    hostEntity.setHostComponentDesiredStateEntities(new HashSet<HostComponentDesiredStateEntity>());
+    hostEntity.setHostComponentDesiredStateEntities(new HashSet<>());
 
     Collection<HostComponentDesiredStateEntity> stateEntities = hostEntity.getHostComponentDesiredStateEntities();
     assertTrue(stateEntities.isEmpty());
@@ -67,7 +69,7 @@ public class HostEntityTest {
     HostEntity hostEntity = new HostEntity();
     HostComponentDesiredStateEntity stateEntity = new HostComponentDesiredStateEntity();
 
-    hostEntity.setHostComponentDesiredStateEntities(new HashSet<HostComponentDesiredStateEntity>());
+    hostEntity.setHostComponentDesiredStateEntities(new HashSet<>());
 
     Collection<HostComponentDesiredStateEntity> stateEntities = hostEntity.getHostComponentDesiredStateEntities();
     assertTrue(stateEntities.isEmpty());
@@ -88,7 +90,7 @@ public class HostEntityTest {
     HostEntity hostEntity = new HostEntity();
     HostComponentStateEntity stateEntity = new HostComponentStateEntity();
 
-    hostEntity.setHostComponentStateEntities(new HashSet<HostComponentStateEntity>());
+    hostEntity.setHostComponentStateEntities(new HashSet<>());
 
     Collection<HostComponentStateEntity> stateEntities = hostEntity.getHostComponentStateEntities();
     assertTrue(stateEntities.isEmpty());
@@ -106,7 +108,7 @@ public class HostEntityTest {
     HostEntity hostEntity = new HostEntity();
     HostComponentStateEntity stateEntity = new HostComponentStateEntity();
 
-    hostEntity.setHostComponentStateEntities(new HashSet<HostComponentStateEntity>());
+    hostEntity.setHostComponentStateEntities(new HashSet<>());
 
     Collection<HostComponentStateEntity> stateEntities = hostEntity.getHostComponentStateEntities();
     assertTrue(stateEntities.isEmpty());
@@ -123,7 +125,7 @@ public class HostEntityTest {
     HostEntity hostEntity = new HostEntity();
     HostComponentStateEntity stateEntity = new HostComponentStateEntity();
 
-    hostEntity.setHostComponentStateEntities(new HashSet<HostComponentStateEntity>());
+    hostEntity.setHostComponentStateEntities(new HashSet<>());
 
     Collection<HostComponentStateEntity> stateEntities = hostEntity.getHostComponentStateEntities();
     assertTrue(stateEntities.isEmpty());

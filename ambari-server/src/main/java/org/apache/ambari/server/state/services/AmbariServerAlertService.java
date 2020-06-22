@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,8 +29,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.ambari.server.AmbariService;
 import org.apache.ambari.server.alerts.AlertRunnable;
-import org.apache.ambari.server.controller.RootServiceResponseFactory.Components;
-import org.apache.ambari.server.controller.RootServiceResponseFactory.Services;
+import org.apache.ambari.server.controller.RootComponent;
 import org.apache.ambari.server.orm.dao.AlertDefinitionDAO;
 import org.apache.ambari.server.orm.entities.AlertDefinitionEntity;
 import org.apache.ambari.server.state.Cluster;
@@ -46,6 +45,7 @@ import com.google.common.util.concurrent.AbstractScheduledService;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Provider;
+import com.google.inject.name.Named;
 
 /**
  * The {@link AmbariServerAlertService} is used to manage the dynamically loaded
@@ -88,12 +88,12 @@ public class AmbariServerAlertService extends AbstractScheduledService {
   /**
    * The executor to use to run all {@link Runnable} alert classes.
    */
-  private final ScheduledExecutorService m_scheduledExecutorService = Executors.newScheduledThreadPool(3);
+  private ScheduledExecutorService m_scheduledExecutorService;
 
   /**
    * A map of all of the definition names to {@link ScheduledFuture}s.
    */
-  private final Map<String, ScheduledAlert> m_futureMap = new ConcurrentHashMap<String, ScheduledAlert>();
+  private final Map<String, ScheduledAlert> m_futureMap = new ConcurrentHashMap<>();
 
   /**
    * Constructor.
@@ -102,6 +102,10 @@ public class AmbariServerAlertService extends AbstractScheduledService {
   public AmbariServerAlertService() {
   }
 
+  @Inject
+  public void initExecutor(@Named("alertServiceCorePoolSize") int alertServiceCorePoolSize) {
+    this.m_scheduledExecutorService = Executors.newScheduledThreadPool(alertServiceCorePoolSize);
+  }
   /**
    * {@inheritDoc}
    */
@@ -134,7 +138,7 @@ public class AmbariServerAlertService extends AbstractScheduledService {
   /**
    * {@inheritDoc}
    * <p/>
-   * Compares all known {@link Components#AMBARI_SERVER} alerts with those that
+   * Compares all known {@link RootComponent#AMBARI_SERVER} alerts with those that
    * are scheduled. If any are not scheduled or have their intervals changed,
    * then reschedule those.
    */

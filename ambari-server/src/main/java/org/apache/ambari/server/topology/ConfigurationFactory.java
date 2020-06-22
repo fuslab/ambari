@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,8 +34,8 @@ public class ConfigurationFactory {
       "Provided configuration format is not supported";
 
   public Configuration getConfiguration(Collection<Map<String, String>> configProperties) {
-    Map<String, Map<String, String>> properties = new HashMap<String, Map<String, String>>();
-    Map<String, Map<String, Map<String, String>>> attributes = new HashMap<String, Map<String, Map<String, String>>>();
+    Map<String, Map<String, String>> properties = new HashMap<>();
+    Map<String, Map<String, Map<String, String>>> attributes = new HashMap<>();
     Configuration configuration = new Configuration(properties, attributes);
 
     if (configProperties != null) {
@@ -114,7 +114,7 @@ public class ConfigurationFactory {
       if (BlueprintFactory.PROPERTIES_PROPERTY_ID.equals(propertyNameTokens[1])) {
         configuration.setProperty(type, propertyNameTokens[2], propertyValue);
       } else if (BlueprintFactory.PROPERTIES_ATTRIBUTES_PROPERTY_ID.equals(propertyNameTokens[1])) {
-        configuration.setAttribute(type, propertyNameTokens[2], propertyNameTokens[3], propertyValue);
+        configuration.setAttribute(type, propertyNameTokens[3], propertyNameTokens[2], propertyValue);
       }
     }
   }

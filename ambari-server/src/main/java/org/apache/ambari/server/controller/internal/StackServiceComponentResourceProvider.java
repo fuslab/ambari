@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,20 +18,32 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.controller.AmbariManagementController;
 import org.apache.ambari.server.controller.StackServiceComponentRequest;
 import org.apache.ambari.server.controller.StackServiceComponentResponse;
-import org.apache.ambari.server.controller.spi.*;
+import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
+import org.apache.ambari.server.controller.spi.NoSuchResourceException;
+import org.apache.ambari.server.controller.spi.Predicate;
+import org.apache.ambari.server.controller.spi.Request;
+import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.spi.Resource.Type;
+import org.apache.ambari.server.controller.spi.SystemException;
+import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.apache.ambari.server.state.AutoDeployInfo;
 
-import java.util.*;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 
 public class StackServiceComponentResourceProvider extends
     ReadOnlyResourceProvider {
-
+  
   private static final String STACK_NAME_PROPERTY_ID = PropertyHelper.getPropertyId(
       "StackServiceComponents", "stack_name");
 
@@ -92,15 +104,48 @@ public class StackServiceComponentResourceProvider extends
   private static final String AUTO_DEPLOY_LOCATION_ID = PropertyHelper.getPropertyId(
       "auto_deploy", "location");
 
-  private static Set<String> pkPropertyIds = new HashSet<String>(
-      Arrays.asList(new String[] { STACK_NAME_PROPERTY_ID,
-          STACK_VERSION_PROPERTY_ID, SERVICE_NAME_PROPERTY_ID,
-          COMPONENT_NAME_PROPERTY_ID }));
+  private static final String COMPONENT_TYPE = PropertyHelper.getPropertyId(
+    "StackServiceComponents", "component_type");
 
-  protected StackServiceComponentResourceProvider(Set<String> propertyIds,
-      Map<Type, String> keyPropertyIds,
-      AmbariManagementController managementController) {
-    super(propertyIds, keyPropertyIds, managementController);
+
+  /**
+   * The key property ids for a StackServiceComponent resource.
+   */
+  private static Map<Resource.Type, String> keyPropertyIds = ImmutableMap.<Resource.Type, String>builder()
+      .put(Type.Stack, STACK_NAME_PROPERTY_ID)
+      .put(Type.StackVersion, STACK_VERSION_PROPERTY_ID)
+      .put(Type.StackService, SERVICE_NAME_PROPERTY_ID)
+      .put(Type.StackServiceComponent, COMPONENT_NAME_PROPERTY_ID)
+      .build();
+
+  /**
+   * The property ids for a StackServiceComponent resource.
+   */
+  private static Set<String> propertyIds = Sets.newHashSet(
+      STACK_NAME_PROPERTY_ID,
+      STACK_VERSION_PROPERTY_ID,
+      SERVICE_NAME_PROPERTY_ID,
+      COMPONENT_NAME_PROPERTY_ID,
+      COMPONENT_DISPLAY_NAME_PROPERTY_ID,
+      COMPONENT_CATEGORY_PROPERTY_ID,
+      IS_CLIENT_PROPERTY_ID,
+      IS_MASTER_PROPERTY_ID,
+      CARDINALITY_ID,
+      ADVERTISE_VERSION_ID,
+      DECOMISSION_ALLOWED_ID,
+      REASSIGN_ALLOWED_ID,
+      CUSTOM_COMMANDS_PROPERTY_ID,
+      HAS_BULK_COMMANDS_PROPERTY_ID,
+      BULK_COMMANDS_DISPLAY_NAME_PROPERTY_ID,
+      BULK_COMMANDS_MASTER_COMPONENT_NAME_PROPERTY_ID,
+      RECOVERY_ENABLED,
+      ROLLING_RESTART_SUPPORTED,
+      AUTO_DEPLOY_ENABLED_ID,
+      AUTO_DEPLOY_LOCATION_ID,
+      COMPONENT_TYPE);
+
+  protected StackServiceComponentResourceProvider(AmbariManagementController managementController) {
+    super(Type.StackServiceComponent, propertyIds, keyPropertyIds, managementController);
   }
 
 
@@ -108,10 +153,10 @@ public class StackServiceComponentResourceProvider extends
   public Set<Resource> getResources(Request request, Predicate predicate)
       throws SystemException, UnsupportedPropertyException,
       NoSuchResourceException, NoSuchParentResourceException {
-    final Set<StackServiceComponentRequest> requests = new HashSet<StackServiceComponentRequest>();
+    final Set<StackServiceComponentRequest> requests = new HashSet<>();
 
     if (predicate == null) {
-      requests.add(getRequest(Collections.<String, Object>emptyMap()));
+      requests.add(getRequest(Collections.emptyMap()));
     } else {
       for (Map<String, Object> propertyMap : getPropertyMaps(predicate)) {
         requests.add(getRequest(propertyMap));
@@ -127,7 +172,7 @@ public class StackServiceComponentResourceProvider extends
       }
     });
 
-    Set<Resource> resources = new HashSet<Resource>();
+    Set<Resource> resources = new HashSet<>();
 
     for (StackServiceComponentResponse response : responses) {
       Resource resource = new ResourceImpl(Resource.Type.StackServiceComponent);
@@ -172,7 +217,7 @@ public class StackServiceComponentResourceProvider extends
           response.isReassignAlllowed(), requestedIds);
 
       setResourceProperty(resource, CUSTOM_COMMANDS_PROPERTY_ID,
-          response.getCustomCommands(), requestedIds);
+          response.getVisibleCustomCommands(), requestedIds);
 
       setResourceProperty(resource, BULK_COMMANDS_DISPLAY_NAME_PROPERTY_ID,
           response.getBulkCommandsDisplayName(), requestedIds);
@@ -184,6 +229,8 @@ public class StackServiceComponentResourceProvider extends
           response.hasBulkCommands(), requestedIds);
 
       setResourceProperty(resource, ROLLING_RESTART_SUPPORTED, response.isRollingRestartSupported(),  requestedIds);
+
+      setResourceProperty(resource, COMPONENT_TYPE, response.getComponentType(),  requestedIds);
 
       AutoDeployInfo autoDeployInfo = response.getAutoDeploy();
       if (autoDeployInfo != null) {
@@ -212,7 +259,7 @@ public class StackServiceComponentResourceProvider extends
 
   @Override
   protected Set<String> getPKPropertyIds() {
-    return pkPropertyIds;
+    return new HashSet<>(keyPropertyIds.values());
   }
 
 }

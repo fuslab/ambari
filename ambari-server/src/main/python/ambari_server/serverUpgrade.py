@@ -40,17 +40,17 @@ from ambari_server.serverConfiguration import configDefaults, get_resources_loca
   check_database_name_property, get_ambari_properties, get_ambari_version, \
   get_java_exe_path, get_stack_location, parse_properties_file, read_ambari_user, update_ambari_properties, \
   update_database_name_property, get_admin_views_dir, get_views_dir, get_views_jars, \
-  AMBARI_PROPERTIES_FILE, IS_LDAP_CONFIGURED, LDAP_PRIMARY_URL_PROPERTY, RESOURCES_DIR_PROPERTY, \
-  SETUP_OR_UPGRADE_MSG, update_krb_jaas_login_properties, AMBARI_KRB_JAAS_LOGIN_FILE, GPL_LICENSE_ACCEPTED_PROPERTY, get_db_type, update_ambari_env, \
+  AMBARI_PROPERTIES_FILE, CLIENT_SECURITY, RESOURCES_DIR_PROPERTY, GPL_LICENSE_ACCEPTED_PROPERTY, \
+  SETUP_OR_UPGRADE_MSG, update_krb_jaas_login_properties, AMBARI_KRB_JAAS_LOGIN_FILE, get_db_type, update_ambari_env, \
   AMBARI_ENV_FILE, JDBC_DATABASE_PROPERTY, get_default_views_dir, write_gpl_license_accepted, set_property
 from ambari_server.setupSecurity import adjust_directory_permissions, \
   generate_env, ensure_can_start_under_current_user
-from ambari_server.utils import compare_versions
-from ambari_server.serverUtils import is_server_runing, get_ambari_server_api_base
+from ambari_server.utils import compare_versions, get_json_url_from_repo_file, update_latest_in_repoinfos_for_stacks
+from ambari_server.serverUtils import is_server_runing, get_ambari_server_api_base, get_ssl_context
 from ambari_server.userInput import get_validated_string_input, get_prompt_default, read_password, get_YN_input
 from ambari_server.serverClassPath import ServerClassPath
 from ambari_server.setupMpacks import replay_mpack_logs
-from ambari_commons.logging_utils import get_debug_mode,   set_debug_mode_from_options
+from ambari_commons.logging_utils import get_debug_mode, set_debug_mode_from_options, get_silent
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +103,6 @@ def load_stack_values(version, filename):
 
   return values
 
-
 #
 # Repo upgrade
 #
@@ -118,13 +117,17 @@ def change_objects_owner(args):
 
   dbms.change_db_files_owner()
 
+#
 # Schema upgrade
 #
 
 def run_schema_upgrade(args):
   db_title = get_db_type(get_ambari_properties()).title
+  silent = get_silent()
+  default_answer = 'y' if silent else 'n'
+  default_value = silent
   confirm = get_YN_input("Ambari Server configured for %s. Confirm "
-                        "you have made a backup of the Ambari Server database [y/n] (y)? " % db_title, True)
+                         "you have made a backup of the Ambari Server database [y/n] (%s)? " % (db_title, default_answer), default_value)
 
   if not confirm:
     print_error_msg("Database backup is not confirmed")
@@ -305,13 +308,22 @@ def upgrade(args):
   for views_jar in views_jars:
     os.utime(views_jar, None)
 
-  # check if ambari has obsolete LDAP configuration
-  if properties.get_property(LDAP_PRIMARY_URL_PROPERTY) and not properties.get_property(IS_LDAP_CONFIGURED):
-    args.warnings.append("Existing LDAP configuration is detected. You must run the \"ambari-server setup-ldap\" command to adjust existing LDAP configuration.")
+  # check if ambari is configured to use LDAP authentication
+  if properties.get_property(CLIENT_SECURITY) == "ldap":
+    args.warnings.append("LDAP authentication is detected. You must run the \"ambari-server setup-ldap\" command to adjust existing LDAP configuration.")
 
   # adding custom jdbc name and previous custom jdbc properties
   # we need that to support new dynamic jdbc names for upgraded ambari
   add_jdbc_properties(properties)
+
+  json_url = get_json_url_from_repo_file()
+  if json_url:
+    print "Ambari repo file contains latest json url {0}, updating stacks repoinfos with it...".format(json_url)
+    properties = get_ambari_properties()
+    stack_root = get_stack_location(properties)
+    update_latest_in_repoinfos_for_stacks(stack_root, json_url)
+  else:
+    print "Ambari repo file doesn't contain latest json url, skipping repoinfos modification"
 
 
 def add_jdbc_properties(properties):
@@ -379,7 +391,7 @@ def set_current(options):
   request.get_method = lambda: 'PUT'
 
   try:
-    response = urllib2.urlopen(request)
+    response = urllib2.urlopen(request, context=get_ssl_context(properties))
   except urllib2.HTTPError, e:
     code = e.getcode()
     content = e.read()
@@ -441,7 +453,7 @@ def find_and_copy_custom_services(resources_dir, services_search_path, old_dir_n
     if os.path.isdir(service) and not os.path.basename(service) in managed_services:
       managed_services.append(os.path.basename(service))
   # add deprecated managed services
-  managed_services.extend(["NAGIOS","GANGLIA","MAPREDUCE","WEBHCAT"])
+  managed_services.extend(["NAGIOS","GANGLIA","MAPREDUCE","WEBHCAT","AMBARI_INFRA"])
 
   stack_backup_dirs = glob.glob(os.path.join(resources_dir, old_dir_name))
   if stack_backup_dirs:

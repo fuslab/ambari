@@ -24,7 +24,9 @@ import static org.junit.Assert.*;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.ambari.logfeeder.metrics.MetricData;
+import org.apache.ambari.logfeeder.conf.LogFeederProps;
+import org.apache.ambari.logfeeder.plugin.common.MetricData;
+import org.apache.ambari.logfeeder.plugin.input.Input;
 import org.junit.Test;
 
 public class InputManagerTest {
@@ -41,46 +43,20 @@ public class InputManagerTest {
     
     replay(input1, input2, input3, input4);
     
-    InputManager manager = new InputManager();
-    manager.add(input1);
-    manager.add(input2);
-    manager.add(input3);
+    InputManagerImpl manager = new InputManagerImpl();
+    manager.add("serviceName", input1);
+    manager.add("serviceName", input2);
+    manager.add("serviceName", input3);
     
     manager.removeInput(input3);
     manager.removeInput(input4);
     
     verify(input1, input2, input3, input4);
     
-    List<Input> inputList = manager.getInputList();
+    List<Input> inputList = manager.getInputList("serviceName");
     assertEquals(inputList.size(), 2);
     assertEquals(inputList.get(0), input1);
     assertEquals(inputList.get(1), input2);
-  }
-
-  @Test
-  public void testInputManager_init() throws Exception {
-    Input input1 = strictMock(Input.class);
-    Input input2 = strictMock(Input.class);
-    Input input3 = strictMock(Input.class);
-    
-    input1.init(); expectLastCall();
-    input2.init(); expectLastCall();
-    input3.init(); expectLastCall();
-    
-    expect(input1.isTail()).andReturn(false);
-    expect(input2.isTail()).andReturn(false);
-    expect(input3.isTail()).andReturn(false);
-    
-    replay(input1, input2, input3);
-    
-    InputManager manager = new InputManager();
-    manager.add(input1);
-    manager.add(input2);
-    manager.add(input3);
-    
-    manager.init();
-    
-    verify(input1, input2, input3);
   }
 
   @Test
@@ -88,6 +64,12 @@ public class InputManagerTest {
     Input input1 = strictMock(Input.class);
     Input input2 = strictMock(Input.class);
     Input input3 = strictMock(Input.class);
+
+    LogFeederProps logFeederProps = new LogFeederProps();
+
+    input1.init(logFeederProps); expectLastCall();
+    input2.init(logFeederProps); expectLastCall();
+    input3.init(logFeederProps); expectLastCall();
     
     expect(input1.isReady()).andReturn(true);
     expect(input2.isReady()).andReturn(true);
@@ -95,17 +77,17 @@ public class InputManagerTest {
     
     expect(input1.monitor()).andReturn(false);
     expect(input2.monitor()).andReturn(false);
-    expect(input3.isTail()).andReturn(false);
     expect(input3.getShortDescription()).andReturn("").once();
     
     replay(input1, input2, input3);
+
+    InputManagerImpl manager = new InputManagerImpl();
+    manager.setLogFeederProps(logFeederProps);
+    manager.add("serviceName", input1);
+    manager.add("serviceName", input2);
+    manager.add("serviceName", input3);
     
-    InputManager manager = new InputManager();
-    manager.add(input1);
-    manager.add(input2);
-    manager.add(input3);
-    
-    manager.monitor();
+    manager.startInputs("serviceName");
     
     verify(input1, input2, input3);
   }
@@ -128,11 +110,11 @@ public class InputManagerTest {
     expect(input3.isReady()).andReturn(false);
     
     replay(input1, input2, input3);
-    
-    InputManager manager = new InputManager();
-    manager.add(input1);
-    manager.add(input2);
-    manager.add(input3);
+
+    InputManagerImpl manager = new InputManagerImpl();
+    manager.add("serviceName", input1);
+    manager.add("serviceName", input2);
+    manager.add("serviceName", input3);
     
     manager.addMetricsContainers(metrics);
     
@@ -154,39 +136,13 @@ public class InputManagerTest {
     expect(input3.isReady()).andReturn(false);
     
     replay(input1, input2, input3);
-    
-    InputManager manager = new InputManager();
-    manager.add(input1);
-    manager.add(input2);
-    manager.add(input3);
+
+    InputManagerImpl manager = new InputManagerImpl();
+    manager.add("serviceName", input1);
+    manager.add("serviceName", input2);
+    manager.add("serviceName", input3);
     
     manager.logStats();
-    
-    verify(input1, input2, input3);
-  }
-
-  @Test
-  public void testInputManagr_waitOnAllInputs() throws Exception {
-    Input input1 = strictMock(Input.class);
-    Input input2 = strictMock(Input.class);
-    Input input3 = strictMock(Input.class);
-    
-    Thread mockThread = strictMock(Thread.class);
-    
-    expect(input1.getThread()).andReturn(null);
-    expect(input2.getThread()).andReturn(null);
-    expect(input3.getThread()).andReturn(mockThread);
-    
-    mockThread.join(); expectLastCall();
-    
-    replay(input1, input2, input3);
-    
-    InputManager manager = new InputManager();
-    manager.add(input1);
-    manager.add(input2);
-    manager.add(input3);
-    
-    manager.waitOnAllInputs();
     
     verify(input1, input2, input3);
   }
@@ -202,11 +158,11 @@ public class InputManagerTest {
     input3.lastCheckIn(); expectLastCall();
     
     replay(input1, input2, input3);
-    
-    InputManager manager = new InputManager();
-    manager.add(input1);
-    manager.add(input2);
-    manager.add(input3);
+
+    InputManagerImpl manager = new InputManagerImpl();
+    manager.add("serviceName", input1);
+    manager.add("serviceName", input2);
+    manager.add("serviceName", input3);
     
     manager.checkInAll();
     
@@ -228,11 +184,11 @@ public class InputManagerTest {
     expect(input3.isClosed()).andReturn(true);
     
     replay(input1, input2, input3);
-    
-    InputManager manager = new InputManager();
-    manager.add(input1);
-    manager.add(input2);
-    manager.add(input3);
+
+    InputManagerImpl manager = new InputManagerImpl();
+    manager.add("serviceName", input1);
+    manager.add("serviceName", input2);
+    manager.add("serviceName", input3);
     
     manager.close();
     

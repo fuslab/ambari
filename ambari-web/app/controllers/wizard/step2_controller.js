@@ -213,7 +213,7 @@ App.WizardStep2Controller = Em.Controller.extend({
     this.get('invalidHostNames').clear();
     this.get('hostNameArr').forEach(function (hostName) {
       if (!validator.isHostname(hostName)) {
-        this.get('invalidHostNames').push(hostName);
+        this.get('invalidHostNames').push(encodeURIComponent(hostName));
         result = false;
       }
     }, this);
@@ -410,6 +410,8 @@ App.WizardStep2Controller = Em.Controller.extend({
     var self = this;
     return App.ModalPopup.show({
       header: Em.I18n.t('common.warning'),
+      primary: Em.I18n.t('common.continue'),
+      primaryClass: 'btn-warning',
       onPrimary: function () {
         this.hide();
         self.proceedNext(true);
@@ -557,6 +559,8 @@ App.WizardStep2Controller = Em.Controller.extend({
 
     this.set('content.hosts', $.extend(hosts, this.getHostInfo()));
     this.setAmbariJavaHome();
-  }
+  },
+
+  isAddHostWizard: Em.computed.equal('content.controllerName', 'addHostController')
 
 });

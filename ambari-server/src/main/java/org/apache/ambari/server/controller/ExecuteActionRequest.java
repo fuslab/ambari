@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,13 +17,13 @@
  */
 package org.apache.ambari.server.controller;
 
-import org.apache.ambari.server.controller.internal.RequestOperationLevel;
-import org.apache.ambari.server.controller.internal.RequestResourceFilter;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.apache.ambari.server.controller.internal.RequestOperationLevel;
+import org.apache.ambari.server.controller.internal.RequestResourceFilter;
 
 /**
  * Helper class to capture details used to create action or custom commands
@@ -61,11 +61,11 @@ public class ExecuteActionRequest {
     this.clusterName = clusterName;
     this.commandName = commandName;
     this.actionName = null;
-    this.parameters = new HashMap<String, String>();
+    this.parameters = new HashMap<>();
     if (parameters != null) {
       this.parameters.putAll(parameters);
     }
-    this.resourceFilters = new ArrayList<RequestResourceFilter>();
+    this.resourceFilters = new ArrayList<>();
     this.exclusive = exclusive;
   }
 
@@ -107,13 +107,13 @@ public class ExecuteActionRequest {
 
   @Override
   public synchronized String toString() {
-    return (new StringBuilder()).
-        append("isCommand :" + isCommand().toString()).
-        append(", action :" + actionName).
-        append(", command :" + commandName).
-        append(", inputs :" + parameters.toString()).
-        append(", resourceFilters: " + resourceFilters).
-        append(", exclusive: " + exclusive).
-        append(", clusterName :" + clusterName).toString();
+    return new StringBuilder()
+      .append("isCommand :").append(isCommand())
+      .append(", action :").append(actionName)
+      .append(", command :").append(commandName)
+      .append(", inputs :").append(parameters)
+      .append(", resourceFilters: ").append(resourceFilters)
+      .append(", exclusive: ").append(exclusive)
+      .append(", clusterName :").append(clusterName).toString();
   }
 }

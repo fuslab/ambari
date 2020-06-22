@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,7 @@ package org.apache.ambari.server.view;
 
 import org.apache.ambari.server.orm.entities.ViewInstanceEntity;
 import org.apache.ambari.view.SystemException;
+import org.eclipse.jetty.server.session.SessionCache;
 
 /**
  * List of handlers for deployed view instances.
@@ -32,12 +33,18 @@ public interface ViewInstanceHandlerList {
    *
    * @throws SystemException if a handler the view instance can not be added
    */
-  public void addViewInstance(ViewInstanceEntity viewInstanceDefinition) throws SystemException;
+  void addViewInstance(ViewInstanceEntity viewInstanceDefinition) throws SystemException;
+
+  /**
+   * Shares specified sessionCache between all views' handlers
+   * @param serverSessionCache the sessionCache instance
+   */
+  void shareSessionCacheToViews(SessionCache serverSessionCache);
 
   /**
    * Remove the handler for the given view instance.
    *
    * @param viewInstanceDefinition  the view instance
    */
-  public void removeViewInstance(ViewInstanceEntity viewInstanceDefinition);
+  void removeViewInstance(ViewInstanceEntity viewInstanceDefinition);
 }

@@ -42,6 +42,8 @@ import javax.persistence.UniqueConstraint;
 
 import org.apache.commons.lang.builder.EqualsBuilder;
 
+import com.google.common.base.MoreObjects;
+
 @Entity
 @Table(name = "clusterconfig",
   uniqueConstraints = {@UniqueConstraint(name = "UQ_config_type_tag", columnNames = {"cluster_id", "type_name", "version_tag"}),
@@ -62,6 +64,9 @@ import org.apache.commons.lang.builder.EqualsBuilder;
         name = "ClusterConfigEntity.findLatestConfigsByStack",
         query = "SELECT clusterConfig FROM ClusterConfigEntity clusterConfig WHERE clusterConfig.clusterId = :clusterId AND clusterConfig.stack = :stack AND clusterConfig.selectedTimestamp = (SELECT MAX(clusterConfig2.selectedTimestamp) FROM ClusterConfigEntity clusterConfig2 WHERE clusterConfig2.clusterId=:clusterId AND clusterConfig2.stack=:stack AND clusterConfig2.type = clusterConfig.type)"),
     @NamedQuery(
+        name = "ClusterConfigEntity.findLatestConfigsByStackWithTypes",
+        query = "SELECT clusterConfig FROM ClusterConfigEntity clusterConfig WHERE clusterConfig.type IN :types AND clusterConfig.clusterId = :clusterId AND clusterConfig.stack = :stack AND clusterConfig.selectedTimestamp = (SELECT MAX(clusterConfig2.selectedTimestamp) FROM ClusterConfigEntity clusterConfig2 WHERE clusterConfig2.clusterId=:clusterId AND clusterConfig2.stack=:stack AND clusterConfig2.type = clusterConfig.type)"),
+    @NamedQuery(
         name = "ClusterConfigEntity.findNotMappedClusterConfigsToService",
         query = "SELECT clusterConfig FROM ClusterConfigEntity clusterConfig WHERE clusterConfig.serviceConfigEntities IS EMPTY AND clusterConfig.type != 'cluster-env'"),
     @NamedQuery(
@@ -71,11 +76,11 @@ import org.apache.commons.lang.builder.EqualsBuilder;
         name = "ClusterConfigEntity.findEnabledConfigByType",
         query = "SELECT config FROM ClusterConfigEntity config WHERE config.clusterId = :clusterId AND config.selected = 1 and config.type = :type"),
     @NamedQuery(
-        name = "ClusterConfigEntity.findEnabledConfigs",
-        query = "SELECT config FROM ClusterConfigEntity config WHERE config.clusterId = :clusterId AND config.selected = 1"),
-    @NamedQuery(
         name = "ClusterConfigEntity.findEnabledConfigsByTypes",
-        query = "SELECT config FROM ClusterConfigEntity config WHERE config.clusterId = :clusterId AND config.selected = 1 and config.type in :types") })
+        query = "SELECT config FROM ClusterConfigEntity config WHERE config.clusterId = :clusterId AND config.selected = 1 and config.type in :types"),
+    @NamedQuery(
+        name = "ClusterConfigEntity.findEnabledConfigs",
+        query = "SELECT config FROM ClusterConfigEntity config WHERE config.clusterId = :clusterId AND config.selected = 1") })
 
 public class ClusterConfigEntity {
 
@@ -300,7 +305,7 @@ public class ClusterConfigEntity {
    */
   @Override
   public String toString() {
-    return com.google.common.base.Objects.toStringHelper(this)
+    return MoreObjects.toStringHelper(this)
       .add("clusterId", clusterId)
       .add("type", type)
       .add("version", version)

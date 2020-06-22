@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,13 @@
 
 package org.apache.ambari.server.controller.internal;
 
-import junit.framework.Assert;
+import java.util.HashSet;
+
 import org.apache.ambari.server.controller.spi.PageResponse;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.junit.Test;
 
-import java.util.HashSet;
+import junit.framework.Assert;
 
 /**
  * PageResponseImpl tests.
@@ -32,7 +33,7 @@ public class PageResponseImplTest {
 
   @Test
   public void testGetIterable() throws Exception {
-    Iterable<Resource> iterable = new HashSet<Resource>();
+    Iterable<Resource> iterable = new HashSet<>();
     Resource prev = new ResourceImpl(Resource.Type.Cluster);
     Resource next = new ResourceImpl(Resource.Type.Cluster);
 
@@ -43,7 +44,7 @@ public class PageResponseImplTest {
 
   @Test
   public void testGetOffset() throws Exception {
-    Iterable<Resource> iterable = new HashSet<Resource>();
+    Iterable<Resource> iterable = new HashSet<>();
     Resource prev = new ResourceImpl(Resource.Type.Cluster);
     Resource next = new ResourceImpl(Resource.Type.Cluster);
 
@@ -54,7 +55,7 @@ public class PageResponseImplTest {
 
   @Test
   public void testGetPreviousResource() throws Exception {
-    Iterable<Resource> iterable = new HashSet<Resource>();
+    Iterable<Resource> iterable = new HashSet<>();
     Resource prev = new ResourceImpl(Resource.Type.Cluster);
     Resource next = new ResourceImpl(Resource.Type.Cluster);
 
@@ -65,7 +66,7 @@ public class PageResponseImplTest {
 
   @Test
   public void testGetNextResource() throws Exception {
-    Iterable<Resource> iterable = new HashSet<Resource>();
+    Iterable<Resource> iterable = new HashSet<>();
     Resource prev = new ResourceImpl(Resource.Type.Cluster);
     Resource next = new ResourceImpl(Resource.Type.Cluster);
 

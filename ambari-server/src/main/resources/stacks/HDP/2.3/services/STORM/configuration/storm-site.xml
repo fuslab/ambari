@@ -67,11 +67,12 @@
         <type>application-properties</type>
         <name>atlas.authentication.method</name>
       </property>
-      <property>
+       <property>
         <type>storm-env</type>
         <name>storm.atlas.hook</name>
       </property>
     </depends-on>
     <on-ambari-upgrade add="false"/>
+    <on-stack-upgrade merge="false"/>
   </property>
 </configuration>

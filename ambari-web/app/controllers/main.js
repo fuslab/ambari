@@ -51,6 +51,10 @@ App.MainController = Em.Controller.extend({
     App.store.defaultTransaction.reopen({
       removeCleanRecords: Em.K
     });
+    const startSubscription = App.router.get('updateController').startSubscriptions.bind(App.router.get('updateController'));
+    App.StompClient.connect()
+      .done(startSubscription)
+      .fail((dfd) => {dfd.always(startSubscription)});
     App.router.get('clusterController').loadClusterData();
   },
 
@@ -100,12 +104,11 @@ App.MainController = Em.Controller.extend({
   startPolling: function () {
     if (App.router.get('applicationController.isExistingClusterDataLoaded')) {
       App.router.get('updateController').set('isWorking', true);
-      App.router.get('backgroundOperationsController').set('isWorking', true);
     }
   }.observes('App.router.applicationController.isExistingClusterDataLoaded'),
+
   stopPolling: function(){
     App.router.get('updateController').set('isWorking', false);
-    App.router.get('backgroundOperationsController').set('isWorking', false);
   },
 
   reloadTimeOut: null,
@@ -123,41 +126,17 @@ App.MainController = Em.Controller.extend({
     );
   }.observes("App.router.location.lastSetURL", "App.clusterStatus.isInstalled"),
 
-  /**
-   * check server version and web client version
-   */
-  checkServerClientVersion: function () {
-    var dfd = $.Deferred();
-    var self = this;
-    self.getServerVersion().done(function () {
-      dfd.resolve();
-    });
-    return dfd.promise();
-  },
-  getServerVersion: function(){
-    return App.ajax.send({
-      name: 'ambari.service',
-      sender: this,
-      data: {
-        fields: '?fields=RootServiceComponents/component_version,RootServiceComponents/properties/server.os_family&minimal_response=true'
-      },
-      success: 'getServerVersionSuccessCallback',
-      error: 'getServerVersionErrorCallback'
-    });
-  },
-  getServerVersionSuccessCallback: function (data) {
+  setAmbariServerVersion: function (data) {
     var clientVersion = App.get('version');
     var serverVersion = (data.RootServiceComponents.component_version).toString();
     this.set('ambariServerVersion', serverVersion);
     if (clientVersion) {
       this.set('versionConflictAlertBody', Em.I18n.t('app.versionMismatchAlert.body').format(serverVersion, clientVersion));
-      this.set('isServerClientVersionMismatch', clientVersion != serverVersion);
+      this.set('isServerClientVersionMismatch', clientVersion !== serverVersion);
     } else {
       this.set('isServerClientVersionMismatch', false);
     }
     App.set('isManagedMySQLForHiveEnabled', App.config.isManagedMySQLForHiveAllowed(data.RootServiceComponents.properties['server.os_family']));
-  },
-  getServerVersionErrorCallback: function () {
   },
 
   monitorInactivity: function() {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,11 +17,11 @@
  */
 package org.apache.ambari.server.state.stack;
 
-import com.google.gson.annotations.SerializedName;
+import java.util.List;
+
 import org.codehaus.jackson.annotate.JsonProperty;
 
-import java.util.List;
-import java.util.Map;
+import com.google.gson.annotations.SerializedName;
 
 public class WidgetLayout {
   @SerializedName("layout_name")

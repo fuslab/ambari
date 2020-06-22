@@ -32,10 +32,11 @@ describe('App.NameNodeRpcView', function() {
   var tests = [
     {
       model: {
-        nameNodeRpc: 1
+        nameNodeRpcValues: {
+          c: 1
+        }
       },
       e: {
-        isOrange: true,
         isNA: false,
         content: '1.00 ms',
         data: '1.00'
@@ -43,10 +44,11 @@ describe('App.NameNodeRpcView', function() {
     },
     {
       model: {
-        nameNodeRpc: 10
+        nameNodeRpcValues: {
+          c: 10
+        }
       },
       e: {
-        isOrange: false,
         isNA: false,
         content: '10.00 ms',
         data: '10.00'
@@ -54,10 +56,11 @@ describe('App.NameNodeRpcView', function() {
     },
     {
       model: {
-        nameNodeRpc: 0
+        nameNodeRpcValues: {
+          c: 0
+        }
       },
       e: {
-        isOrange: false,
         isNA: false,
         content: '0 ms',
         data: 0
@@ -65,10 +68,11 @@ describe('App.NameNodeRpcView', function() {
     },
     {
       model: {
-        nameNodeRpc: null
+        nameNodeRpcValues: {
+          c: null
+        }
       },
       e: {
-        isOrange: false,
         isNA: true,
         content: Em.I18n.t('services.service.summary.notAvailable'),
         data: null
@@ -77,25 +81,26 @@ describe('App.NameNodeRpcView', function() {
   ];
 
   tests.forEach(function(test) {
-    describe('nameNodeRpc - ' + test.model.nameNodeRpc, function() {
-      var jobTrackerRpcView = App.NameNodeRpcView.create({model_type:null, model: test.model});
+    var hostName = 'c';
+    describe('nameNodeRpc - ' + test.model.nameNodeRpcValues[hostName], function() {
+      var nameNodeRpcView = App.NameNodeRpcView.create({
+        hostName: hostName,
+        model: test.model
+      });
       it('content', function() {
-        expect(jobTrackerRpcView.get('content')).to.equal(test.e.content);
+        expect(nameNodeRpcView.get('content')).to.equal(test.e.content);
       });
       it('data', function() {
-        expect(jobTrackerRpcView.get('data')).to.equal(test.e.data);
-      });
-      it('isOrange', function() {
-        expect(jobTrackerRpcView.get('isOrange')).to.equal(test.e.isOrange);
+        expect(nameNodeRpcView.get('data')).to.equal(test.e.data);
       });
       it('isNA', function() {
-        expect(jobTrackerRpcView.get('isNA')).to.equal(test.e.isNA);
+        expect(nameNodeRpcView.get('isNA')).to.equal(test.e.isNA);
       });
     });
   });
 
-  App.TestAliases.testAsComputedGtProperties(getView(), 'isRed', 'data', 'thresh2');
+  App.TestAliases.testAsComputedGtProperties(getView(), 'isRed', 'data', 'thresholdMax');
 
-  App.TestAliases.testAsComputedLteProperties(getView(), 'isGreen', 'data', 'thresh1');
+  App.TestAliases.testAsComputedLteProperties(getView(), 'isGreen', 'data', 'thresholdMin');
 
 });

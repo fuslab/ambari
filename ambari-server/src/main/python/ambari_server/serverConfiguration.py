@@ -88,6 +88,12 @@ JCE_NAME_PROPERTY = "jce.name"
 JDK_DOWNLOAD_SUPPORTED_PROPERTY = "jdk.download.supported"
 JCE_DOWNLOAD_SUPPORTED_PROPERTY = "jce.download.supported"
 
+# Stack JDK
+STACK_JAVA_HOME_PROPERTY = "stack.java.home"
+STACK_JDK_NAME_PROPERTY = "stack.jdk.name"
+STACK_JCE_NAME_PROPERTY = "stack.jce.name"
+STACK_JAVA_VERSION = "stack.java.version"
+
 
 #TODO property used incorrectly in local case, it was meant to be dbms name, not postgres database name,
 # has workaround for now, as we don't need dbms name if persistence_type=local
@@ -105,6 +111,7 @@ JDBC_RCA_PASSWORD_FILENAME = "rca_password.dat"
 
 CLIENT_API_PORT_PROPERTY = "client.api.port"
 CLIENT_API_PORT = "8080"
+CLIENT_SECURITY = "client.security"
 
 SERVER_VERSION_FILE_PATH = "server.version.file"
 
@@ -151,12 +158,8 @@ RESOURCES_DIR_PROPERTY = "resources.dir"
 STACK_LOCATION_KEY = 'metadata.path'
 
 # LDAP security
-IS_LDAP_CONFIGURED = "ambari.ldap.isConfigured"
 LDAP_MGR_PASSWORD_ALIAS = "ambari.ldap.manager.password"
-LDAP_MGR_PASSWORD_PROPERTY = "authentication.ldap.managerPassword"
-LDAP_MGR_PASSWORD_FILENAME = "ldap-password.dat"
-LDAP_MGR_USERNAME_PROPERTY = "authentication.ldap.managerDn"
-LDAP_PRIMARY_URL_PROPERTY = "authentication.ldap.primaryUrl"
+LDAP_MGR_PASSWORD_PROPERTY = "ambari.ldap.connectivity.bind_password"
 
 # SSL truststore
 SSL_TRUSTSTORE_PASSWORD_ALIAS = "ambari.ssl.trustStore.password"
@@ -207,7 +210,6 @@ BOOTSTRAP_SETUP_AGENT_SCRIPT = 'bootstrap.setup_agent.script'
 STACKADVISOR_SCRIPT = 'stackadvisor.script'
 PID_DIR_PROPERTY = 'pid.dir'
 SERVER_TMP_DIR_PROPERTY = "server.tmp.dir"
-
 GPL_LICENSE_ACCEPTED_PROPERTY = 'gpl.license.accepted'
 
 REQUIRED_PROPERTIES = [OS_FAMILY_PROPERTY, OS_TYPE_PROPERTY, COMMON_SERVICES_PATH_PROPERTY, SERVER_VERSION_FILE_PATH,
@@ -231,7 +233,7 @@ def get_conf_dir():
     return conf_dir
   except KeyError:
     default_conf_dir = AmbariPath.get("/etc/ambari-server/conf")
-    print_info_msg(AMBARI_CONF_VAR + " is not set, using default " + default_conf_dir)
+    print_info_msg("{0} is not set, using default {1}".format(AMBARI_CONF_VAR, default_conf_dir))
     return default_conf_dir
 
 def find_properties_file():
@@ -239,10 +241,10 @@ def find_properties_file():
   if conf_file is None:
     err = 'File %s not found in search path $%s: %s' % (AMBARI_PROPERTIES_FILE,
           AMBARI_CONF_VAR, get_conf_dir())
-    print err
+    print_error_msg (err)
     raise FatalException(1, err)
   else:
-    print_info_msg('Loading properties from ' + conf_file)
+    print_info_msg('Loading properties from {0}'.format(conf_file))
   return conf_file
 
 # Load ambari properties and return dict with values
@@ -257,7 +259,7 @@ def get_ambari_properties():
     with open(conf_file) as hfR:
       properties.load(hfR)
   except (Exception), e:
-    print 'Could not read "%s": %s' % (conf_file, str(e))
+    print_error_msg ('Could not read "%s": %s' % (conf_file, str(e)))
     return -1
 
   # Try to replace $ROOT with the value from the OS environment.
@@ -274,7 +276,7 @@ def get_ambari_properties():
       properties.__dict__[k] = v.replace("$ROOT", root)
       properties._props[k] = v.replace("$ROOT", root)
   except (Exception), e:
-    print 'Could not replace %s in "%s": %s' %(conf_file, root_env, str(e))
+    print_error_msg ('Could not replace %s in "%s": %s' %(conf_file, root_env, str(e)))
   return properties
 
 class ServerDatabaseType(object):
@@ -364,7 +366,7 @@ class ServerConfigDefaults(object):
     properties = get_ambari_properties()
     if properties == -1:
       print_error_msg("Error getting ambari properties")
-
+  
     self.JAVA_SHARE_PATH = "/usr/share/java"
     self.SHARE_PATH = "/usr/share"
     self.OUT_DIR = parse_log4j_file(get_conf_dir() + "/log4j.properties")['ambari.log.dir'].replace("//", "/")
@@ -389,10 +391,10 @@ class ServerConfigDefaults(object):
       self.PID_DIR = properties.get_property(PID_DIR_PROPERTY)
       self.BOOTSTRAP_DIR = properties.get_property(BOOTSTRAP_DIR_PROPERTY)
       self.RECOMMENDATIONS_DIR = properties.get_property(RECOMMENDATIONS_DIR_PROPERTY)
-
+    
     # this directories should be pre-created by user and be writable.
     self.check_if_directories_writable([self.OUT_DIR, self.PID_DIR])
-
+    
     self.DEFAULT_LIBS_DIR = ""
     self.DEFAULT_VLIBS_DIR = ""
 
@@ -432,7 +434,7 @@ class ServerConfigDefaults(object):
     self.MESSAGE_ERROR_RESET_NOT_ROOT = ""
     self.MESSAGE_ERROR_UPGRADE_NOT_ROOT = ""
     self.MESSAGE_CHECK_FIREWALL = ""
-
+    
   def check_if_directories_writable(self, directories):
     for directory in directories:
       if not os.path.isdir(directory):
@@ -440,8 +442,8 @@ class ServerConfigDefaults(object):
           os.makedirs(directory, 0755)
         except Exception as ex:
           # permission denied here is expected when ambari runs as non-root
-          print_info_msg("Could not create {0}. Reason: {1}".format(directory, ex))
-
+          print_error_msg("Could not create {0}. Reason: {1}".format(directory, str(ex)))
+      
       if not os.path.isdir(directory) or not os.access(directory, os.W_OK):
         raise FatalException(-1, "Unable to access {0} directory. Confirm the directory is created and is writable by Ambari Server user account '{1}'".format(directory, getpass.getuser()))
 
@@ -563,8 +565,9 @@ class ServerConfigDefaultsLinux(ServerConfigDefaults):
       (AmbariPath.get("/var/lib/ambari-server/data/cache/"), "700", "{0}", False),
       (AmbariPath.get("/var/lib/ambari-server/resources/common-services/STORM/0.9.1/package/files/wordCount.jar"), "644", "{0}", False),
       (AmbariPath.get("/var/lib/ambari-server/resources/stacks/HDP/2.1.GlusterFS/services/STORM/package/files/wordCount.jar"), "644", "{0}", False),
-      (AmbariPath.get("/var/lib/ambari-server/resources/stacks/HDP/2.0.6/hooks/before-START/files/fast-hdfs-resource.jar"), "644", "{0}", False),
+      (AmbariPath.get("/var/lib/ambari-server/resources/stack-hooks/before-START/files/fast-hdfs-resource.jar"), "644", "{0}", False),
       (AmbariPath.get("/var/lib/ambari-server/resources/stacks/HDP/2.1/services/SMARTSENSE/package/files/view/smartsense-ambari-view-1.4.0.0.60.jar"), "644", "{0}", False),
+      (AmbariPath.get("/var/lib/ambari-server/resources/stacks/HDP/3.0/hooks/before-START/files/fast-hdfs-resource.jar"), "644", "{0}", False),
       # Also, /etc/ambari-server/conf/password.dat
       # is generated later at store_password_file
     ]
@@ -837,8 +840,7 @@ def update_database_name_property(upgrade=False):
     if properties == -1:
       err = "Error getting ambari properties"
       raise FatalException(-1, err)
-    print_warning_msg(JDBC_DATABASE_NAME_PROPERTY + " property isn't set in " +
-                      AMBARI_PROPERTIES_FILE + ". Setting it to default value - " + configDefaults.DEFAULT_DB_NAME)
+    print_warning_msg("{0} property isn't set in {1} . Setting it to default value - {2}".format(JDBC_DATABASE_NAME_PROPERTY, AMBARI_PROPERTIES_FILE, configDefaults.DEFAULT_DB_NAME))
     properties.process_pair(JDBC_DATABASE_NAME_PROPERTY, configDefaults.DEFAULT_DB_NAME)
     conf_file = find_properties_file()
     try:
@@ -866,7 +868,7 @@ def get_encrypted_password(alias, password, properties, options):
 
     retCode = save_passwd_for_alias(alias, password, masterKey)
     if retCode != 0:
-      print 'Failed to save secure password!'
+      print_error_msg ('Failed to save secure password!')
       return password
     else:
       return get_alias_string(alias)
@@ -895,7 +897,7 @@ def read_passwd_for_alias(alias, masterKey="", options=None):
     if jdk_path is None:
       print_error_msg("No JDK found, please run the \"setup\" "
                       "command to install a JDK automatically or install any "
-                      "JDK manually to " + configDefaults.JDK_INSTALL_DIR)
+                      "JDK manually to {0}".format(configDefaults.JDK_INSTALL_DIR))
       return 1
 
     tempFileName = "ambari.passwd"
@@ -906,7 +908,7 @@ def read_passwd_for_alias(alias, masterKey="", options=None):
     with open(tempFilePath, 'w+'):
       os.chmod(tempFilePath, stat.S_IREAD | stat.S_IWRITE)
 
-    if options is not None and options.master_key is not None and options.master_key:
+    if options is not None and hasattr(options, 'master_key') and options.master_key is not None and options.master_key:
       masterKey = options.master_key
     if masterKey is None or masterKey == "":
       masterKey = "None"
@@ -915,10 +917,9 @@ def read_passwd_for_alias(alias, masterKey="", options=None):
     command = SECURITY_PROVIDER_GET_CMD.format(get_java_exe_path(),
                                                serverClassPath.get_full_ambari_classpath_escaped_for_shell(), alias, tempFilePath, masterKey)
     (retcode, stdout, stderr) = run_os_command(command)
-    print_info_msg("Return code from credential provider get passwd: " +
-                   str(retcode))
+    print_info_msg("Return code from credential provider get passwd: {0}".format(str(retcode)))
     if retcode != 0:
-      print 'ERROR: Unable to read password from store. alias = ' + alias
+      print_error_msg ('ERROR: Unable to read password from store. alias = {0}'.format(alias))
     else:
       with open(tempFilePath, 'r') as hfRTemp:
         passwd = hfRTemp.read()
@@ -946,7 +947,7 @@ def save_passwd_for_alias(alias, passwd, masterKey=""):
     if jdk_path is None:
       print_error_msg("No JDK found, please run the \"setup\" "
                       "command to install a JDK automatically or install any "
-                      "JDK manually to " + configDefaults.JDK_INSTALL_DIR)
+                      "JDK manually to {0}".format(configDefaults.JDK_INSTALL_DIR))
       return 1
 
     if masterKey is None or masterKey == "":
@@ -956,8 +957,7 @@ def save_passwd_for_alias(alias, passwd, masterKey=""):
     command = SECURITY_PROVIDER_PUT_CMD.format(get_java_exe_path(),
                                                serverClassPath.get_full_ambari_classpath_escaped_for_shell(), alias, passwd, masterKey)
     (retcode, stdout, stderr) = run_os_command(command)
-    print_info_msg("Return code from credential provider save passwd: " +
-                   str(retcode))
+    print_info_msg("Return code from credential provider save passwd: {0}".format(str(retcode)))
     return retcode
   else:
     print_error_msg("Alias or password is unreadable.")
@@ -989,7 +989,7 @@ def remove_password_file(filename):
     try:
       os.remove(passFilePath)
     except Exception, e:
-      print_warning_msg('Unable to remove password file: ' + str(e))
+      print_warning_msg('Unable to remove password file: {0}'.format(str(e)))
       return 1
   pass
   return 0
@@ -1001,14 +1001,14 @@ def get_web_server_startup_timeout(properties):
   the configured port. If this value is too low, then the startup script will return an
   error code even though Ambari is actually starting up.
   :param properties:
-  :return: The timeout value, in seconds. The default is 50.
+  :return: The timeout value, in seconds. The default is 90.
   """
   # get the timeout property and strip it if it exists
   timeout = properties[WEB_SERVER_STARTUP_TIMEOUT]
   timeout = None if timeout is None else timeout.strip()
 
   if timeout is None or timeout == "":
-    timeout = 50
+    timeout = 90
   else:
     timeout = int(timeout)
   return timeout
@@ -1017,17 +1017,8 @@ def get_web_server_startup_timeout(properties):
 def get_original_master_key(properties, options = None):
   input = True
   masterKey = None
+  env_master_key = os.environ.get(SECURITY_KEY_ENV_VAR_NAME)
   while(input):
-    try:
-      if options is not None and options.master_key is not None and options.master_key:
-        masterKey = options.master_key
-      if masterKey is None:
-        masterKey = get_validated_string_input('Enter current Master Key: ',
-                                               "", ".*", "", True, False)
-    except KeyboardInterrupt:
-      print 'Exiting...'
-      sys.exit(1)
-
     # Find an alias that exists
     alias = None
     property = properties.get_property(JDBC_PASSWORD_PROPERTY)
@@ -1045,11 +1036,30 @@ def get_original_master_key(properties, options = None):
         alias = SSL_TRUSTSTORE_PASSWORD_ALIAS
 
     # Decrypt alias with master to validate it, if no master return
-    if alias and masterKey:
-      password = read_passwd_for_alias(alias, masterKey, options)
-      if not password:
-        print "ERROR: Master key does not match."
-        continue
+    password = None
+    if alias and env_master_key and env_master_key is not "" and env_master_key != "None":
+      password = read_passwd_for_alias(alias, env_master_key, options)
+    if not password:
+      try:
+        if options is not None and hasattr(options, 'master_key') and options.master_key is not None and options.master_key:
+          masterKey = options.master_key
+        if masterKey is None or masterKey == "":
+          masterKey = get_validated_string_input('Enter current Master Key: ',
+                                                 "", ".*", "", True, False)
+          if options is not None:
+            options.master_key = masterKey
+      except KeyboardInterrupt:
+        print_warning_msg('Exiting...')
+        sys.exit(1)
+      if alias and masterKey:
+        password = read_passwd_for_alias(alias, masterKey, options)
+        if not password:
+          masterKey = None
+          if options is not None:
+            options.master_key = None
+          print_error_msg ("ERROR: Master key does not match")
+
+          continue
 
     input = False
 
@@ -1117,7 +1127,7 @@ def update_krb_jaas_login_properties():
     os.rename(prev_conf_file, conf_file)
     print_warning_msg("Original file %s kept" % AMBARI_KRB_JAAS_LOGIN_FILE)
   except OSError as e:
-    print "Couldn't move %s file: %s" % (prev_conf_file, e)
+    print_error_msg ("Couldn't move %s file: %s" % (prev_conf_file, str(e)))
     return -1
 
   return 0
@@ -1136,9 +1146,9 @@ def update_ambari_env():
     if env_file is not None:
       os.remove(env_file)
       os.rename(prev_env_file, env_file)
-      print_warning_msg("Original file %s kept" % AMBARI_ENV_FILE)
+      print ("INFO: Original file %s kept") % (AMBARI_ENV_FILE)
   except OSError as e:
-    print "Couldn't move %s file: %s" % (prev_env_file, e)
+    print_error_msg ( "Couldn't move %s file: %s" % (prev_env_file, str(e)))
     return -1
 
   return 0
@@ -1155,8 +1165,8 @@ def set_property(key, value, rewrite=True):
   properties.process_pair(key, value)
   update_properties(properties)
 
-
-# default should be false / not accepted
+ 
+# default should be false / not accepted 
 def write_gpl_license_accepted(default_prompt_value = False, text = GPL_LICENSE_PROMPT_TEXT):
   properties = get_ambari_properties()
   if properties == -1:
@@ -1191,7 +1201,7 @@ def update_ambari_properties():
       old_properties = Properties()
       old_properties.load(hfOld)
     except Exception, e:
-      print 'Could not read "%s": %s' % (prev_conf_file, e)
+      print_error_msg ('Could not read "%s": %s' % (prev_conf_file, str(e)))
       return -1
 
   try:
@@ -1218,14 +1228,14 @@ def update_ambari_properties():
     if NR_USER_PROPERTY not in new_properties.keys():
       new_properties.process_pair(NR_USER_PROPERTY, "root")
 
-    if OS_FAMILY_PROPERTY not in new_properties.keys():
-      new_properties.process_pair(OS_FAMILY_PROPERTY, OS_FAMILY + OS_VERSION)
+    # update the os. In case os detection routine changed
+    new_properties.process_pair(OS_FAMILY_PROPERTY, OS_FAMILY + OS_VERSION)
 
     with open(conf_file, 'w') as hfW:
       new_properties.store(hfW)
 
   except Exception, e:
-    print 'Could not write "%s": %s' % (conf_file, e)
+    print_error_msg ('Could not write "%s": %s' % (conf_file, str(e)))
     return -1
 
   timestamp = datetime.datetime.now()
@@ -1234,7 +1244,7 @@ def update_ambari_properties():
   try:
     os.rename(prev_conf_file, new_conf_file)
   except Exception, e:
-    print 'Could not rename "%s" to "%s": %s' % (prev_conf_file, new_conf_file, e)
+    print_error_msg ('Could not rename "%s" to "%s": %s' % (prev_conf_file, new_conf_file, str(e)))
     #Not critical, move on
 
   return 0
@@ -1441,20 +1451,20 @@ def find_jdk():
   if jdkPath:
     if validate_jdk(jdkPath):
       return jdkPath
-  print "Looking for available JDKs at " + configDefaults.JDK_INSTALL_DIR
+  print("INFO: Looking for available JDKs at {0}".format(configDefaults.JDK_INSTALL_DIR))
   jdks = glob.glob(os.path.join(configDefaults.JDK_INSTALL_DIR, configDefaults.JDK_SEARCH_PATTERN))
   #[fbarca] Use the newest JDK
   jdks.sort(None, None, True)
-  print "Found: " + str(jdks)
+  print_info_msg("Found: {0}".format(str(jdks)))
   if len(jdks) == 0:
     return
   for jdkPath in jdks:
-    print "Trying to use JDK {0}".format(jdkPath)
+    print "INFO: Trying to use JDK {0}".format(jdkPath)
     if validate_jdk(jdkPath):
-      print "Selected JDK {0}".format(jdkPath)
+      print "INFO: Selected JDK {0}".format(jdkPath)
       return jdkPath
     else:
-      print "JDK {0} is invalid".format(jdkPath)
+      print_error_msg ("JDK {0} is invalid".format(jdkPath))
   return
 
 def get_java_exe_path():

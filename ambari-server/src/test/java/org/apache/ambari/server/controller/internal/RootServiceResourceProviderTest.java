@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,7 +27,6 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.ambari.server.controller.AmbariManagementController;
-import org.apache.ambari.server.controller.RootServiceRequest;
 import org.apache.ambari.server.controller.RootServiceResponse;
 import org.apache.ambari.server.controller.spi.Predicate;
 import org.apache.ambari.server.controller.spi.Request;
@@ -47,28 +46,26 @@ public class RootServiceResourceProviderTest {
 
     AmbariManagementController managementController = createMock(AmbariManagementController.class);
 
-    Set<RootServiceResponse> allResponse = new HashSet<RootServiceResponse>();
+    Set<RootServiceResponse> allResponse = new HashSet<>();
     allResponse.add(new RootServiceResponse("service1"));
     allResponse.add(new RootServiceResponse("service2"));
     allResponse.add(new RootServiceResponse("service3"));
 
-    Set<RootServiceResponse> nameResponse = new HashSet<RootServiceResponse>();
+    Set<RootServiceResponse> nameResponse = new HashSet<>();
     nameResponse.add(new RootServiceResponse("service4"));
 
 
     // set expectations
-    expect(managementController.getRootServices(EasyMock.<Set<RootServiceRequest>>anyObject())).andReturn(allResponse).once();
-    expect(managementController.getRootServices(EasyMock.<Set<RootServiceRequest>>anyObject())).andReturn(nameResponse).once();
+    expect(managementController.getRootServices(EasyMock.anyObject())).andReturn(allResponse).once();
+    expect(managementController.getRootServices(EasyMock.anyObject())).andReturn(nameResponse).once();
     // replay
     replay(managementController);
 
     ResourceProvider provider = AbstractControllerResourceProvider.getResourceProvider(
         type,
-        PropertyHelper.getPropertyIds(type),
-        PropertyHelper.getKeyPropertyIds(type),
         managementController);
 
-    Set<String> propertyIds = new HashSet<String>();
+    Set<String> propertyIds = new HashSet<>();
 
     propertyIds.add(RootServiceResourceProvider.SERVICE_NAME_PROPERTY_ID);
 

@@ -22,14 +22,18 @@
 
 package org.apache.ambari.server.orm.helpers;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.io.LineNumberReader;
 import java.io.PrintWriter;
 import java.io.Reader;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.sql.Statement;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Tool to run database scripts
@@ -103,9 +107,7 @@ public class ScriptRunner {
       } finally {
         connection.setAutoCommit(originalAutoCommit);
       }
-    } catch (IOException e) {
-      throw e;
-    } catch (SQLException e) {
+    } catch (IOException | SQLException e) {
       throw e;
     } catch (Exception e) {
       throw new RuntimeException("Error running script.  Cause: " + e, e);
@@ -200,11 +202,7 @@ public class ScriptRunner {
       if (!autoCommit) {
         conn.commit();
       }
-    } catch (SQLException e) {
-      printlnError("Error executing: " + command);
-      printlnError(e);
-      throw e;
-    } catch (IOException e) {
+    } catch (SQLException | IOException e) {
       printlnError("Error executing: " + command);
       printlnError(e);
       throw e;

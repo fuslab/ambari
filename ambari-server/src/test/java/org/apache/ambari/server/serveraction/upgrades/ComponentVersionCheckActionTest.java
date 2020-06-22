@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +47,8 @@ import org.apache.ambari.server.orm.dao.RequestDAO;
 import org.apache.ambari.server.orm.dao.StackDAO;
 import org.apache.ambari.server.orm.dao.UpgradeDAO;
 import org.apache.ambari.server.orm.entities.HostVersionEntity;
+import org.apache.ambari.server.orm.entities.RepoDefinitionEntity;
+import org.apache.ambari.server.orm.entities.RepoOsEntity;
 import org.apache.ambari.server.orm.entities.RepositoryVersionEntity;
 import org.apache.ambari.server.orm.entities.RequestEntity;
 import org.apache.ambari.server.orm.entities.StackEntity;
@@ -89,7 +92,7 @@ public class ComponentVersionCheckActionTest {
   private static final StackId HDP_21_STACK = new StackId("HDP-2.1.1");
   private static final StackId HDP_22_STACK = new StackId("HDP-2.2.0");
 
-  private static final String HDP_211_CENTOS6_REPO_URL = "http://s3.amazonaws.com/dev.hortonworks.com/HDP/centos6/2.x/BUILDS/2.1.1.0-118";
+  private static final String HDP_211_CENTOS6_REPO_URL = "http://public-repo-1.hortonworks.com/HDP/centos6/2.x/updates/2.0.6.0";
 
   private Injector m_injector;
 
@@ -167,9 +170,18 @@ public class ComponentVersionCheckActionTest {
     m_helper.getOrCreateRepositoryVersion(sourceStack, sourceRepo);
 
     // Create the new repo version
-    String urlInfo = "[{'repositories':["
-        + "{'Repositories/base_url':'http://foo1','Repositories/repo_name':'HDP','Repositories/repo_id':'" + targetStack.getStackId() + "'}"
-        + "], 'OperatingSystems/os_type':'redhat6'}]";
+
+    List<RepoOsEntity> urlInfo = new ArrayList<>();
+    RepoDefinitionEntity repoDefinitionEntity1 = new RepoDefinitionEntity();
+    repoDefinitionEntity1.setRepoID(targetStack.getStackId());
+    repoDefinitionEntity1.setBaseUrl("http://foo1");
+    repoDefinitionEntity1.setRepoName("HDP");
+    RepoOsEntity repoOsEntity = new RepoOsEntity();
+    repoOsEntity.setFamily("redhat6");
+    repoOsEntity.setAmbariManaged(true);
+    repoOsEntity.addRepoDefinition(repoDefinitionEntity1);
+    urlInfo.add(repoOsEntity);
+
 
     RepositoryVersionEntity toRepositoryVersion = repoVersionDAO.create(stackEntityTarget,
         targetRepo, String.valueOf(System.currentTimeMillis()), urlInfo);

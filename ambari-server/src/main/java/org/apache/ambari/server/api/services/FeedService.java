@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,7 @@
 
 package org.apache.ambari.server.api.services;
 
-import org.apache.ambari.server.api.resources.ResourceInstance;
-import org.apache.ambari.server.controller.spi.Resource;
+import java.util.Collections;
 
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
@@ -32,7 +31,10 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
-import java.util.Collections;
+
+import org.apache.ambari.annotations.ApiIgnore;
+import org.apache.ambari.server.api.resources.ResourceInstance;
+import org.apache.ambari.server.controller.spi.Resource;
 
 /**
  * DR feed service.
@@ -49,7 +51,7 @@ public class FeedService extends BaseService {
    * @param feedName    feed id
    * @return feed instance representation
    */
-  @GET
+  @GET @ApiIgnore // until documented
   @Path("{feedName}")
   @Produces("text/plain")
   public Response getFeed(String body, @Context HttpHeaders headers, @Context UriInfo ui,
@@ -66,7 +68,7 @@ public class FeedService extends BaseService {
    * @param ui      uri info
    * @return feed collection resource representation
    */
-  @GET
+  @GET @ApiIgnore // until documented
   @Produces("text/plain")
   public Response getFeeds(String body, @Context HttpHeaders headers, @Context UriInfo ui) {
     return handleRequest(headers, body, ui, Request.Type.GET, createFeedResource(null));
@@ -81,7 +83,7 @@ public class FeedService extends BaseService {
    * @param feedName feed id
    * @return information regarding the created feed
    */
-  @POST
+  @POST @ApiIgnore // until documented
   @Path("{feedName}")
   @Produces("text/plain")
   public Response createFeed(String body, @Context HttpHeaders headers, @Context UriInfo ui,
@@ -99,7 +101,7 @@ public class FeedService extends BaseService {
    * @param feedName feed id
    * @return information regarding the updated feed
    */
-  @PUT
+  @PUT @ApiIgnore // until documented
   @Path("{feedName}")
   @Produces("text/plain")
   public Response updateFeed(String body, @Context HttpHeaders headers, @Context UriInfo ui,
@@ -117,7 +119,7 @@ public class FeedService extends BaseService {
    * @param feedName feed id
    * @return information regarding the deleted feed
    */
-  @DELETE
+  @DELETE @ApiIgnore // until documented
   @Path("{feedName}")
   @Produces("text/plain")
   public Response deleteFeed(@Context HttpHeaders headers, @Context UriInfo ui,

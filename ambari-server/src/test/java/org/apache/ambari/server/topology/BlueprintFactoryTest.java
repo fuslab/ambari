@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,24 @@
 
 package org.apache.ambari.server.topology;
 
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.expect;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+import static org.powermock.api.easymock.PowerMock.createStrictMock;
+import static org.powermock.api.easymock.PowerMock.replay;
+import static org.powermock.api.easymock.PowerMock.reset;
+import static org.powermock.api.easymock.PowerMock.verify;
+
+import java.lang.reflect.Field;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.ObjectNotFoundException;
 import org.apache.ambari.server.controller.internal.BlueprintResourceProvider;
 import org.apache.ambari.server.controller.internal.BlueprintResourceProviderTest;
@@ -30,24 +48,6 @@ import org.easymock.EasyMockSupport;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-
-import java.lang.reflect.Field;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-
-import static org.easymock.EasyMock.createNiceMock;
-import static org.easymock.EasyMock.expect;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.powermock.api.easymock.PowerMock.createStrictMock;
-import static org.powermock.api.easymock.PowerMock.replay;
-import static org.powermock.api.easymock.PowerMock.reset;
-import static org.powermock.api.easymock.PowerMock.verify;
 
 /**
  * BlueprintFactory unit tests.
@@ -69,11 +69,11 @@ public class BlueprintFactoryTest {
   public void init() throws Exception {
     setPrivateField(factory, "blueprintDAO", dao);
 
-    Map<String, Collection<String>> componentMap = new HashMap<String, Collection<String>>();
-    Collection<String> components1 = new HashSet<String>();
+    Map<String, Collection<String>> componentMap = new HashMap<>();
+    Collection<String> components1 = new HashSet<>();
     componentMap.put("test-service1", components1);
     components1.add("component1");
-    Collection<String> components2 = new HashSet<String>();
+    Collection<String> components2 = new HashSet<>();
     componentMap.put("test-service2", components2);
     components2.add("component2");
 
@@ -176,7 +176,7 @@ public class BlueprintFactoryTest {
 
     BlueprintFactory factoryUnderTest =
       new BlueprintFactory(mockStackFactory);
-    factoryUnderTest.createStack(new HashMap<String, Object>());
+    factoryUnderTest.createStack(new HashMap<>());
 
     mockSupport.verifyAll();
   }

@@ -51,8 +51,8 @@ import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.apache.ambari.server.orm.dao.RepositoryVersionDAO;
 import org.apache.ambari.server.orm.dao.StackDAO;
-import org.apache.ambari.server.orm.entities.OperatingSystemEntity;
-import org.apache.ambari.server.orm.entities.RepositoryEntity;
+import org.apache.ambari.server.orm.entities.RepoDefinitionEntity;
+import org.apache.ambari.server.orm.entities.RepoOsEntity;
 import org.apache.ambari.server.orm.entities.RepositoryVersionEntity;
 import org.apache.ambari.server.orm.entities.StackEntity;
 import org.apache.ambari.server.security.authorization.ResourceType;
@@ -74,6 +74,8 @@ import org.apache.commons.lang.math.NumberUtils;
 import org.codehaus.jackson.node.ArrayNode;
 import org.codehaus.jackson.node.JsonNodeFactory;
 import org.codehaus.jackson.node.ObjectNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Collections2;
@@ -88,6 +90,8 @@ import com.google.inject.Provider;
  */
 @StaticallyInject
 public class VersionDefinitionResourceProvider extends AbstractAuthorizedResourceProvider {
+
+  private static final Logger LOG = LoggerFactory.getLogger(VersionDefinitionResourceProvider.class);
 
   public static final String VERSION_DEF                             = "VersionDefinition";
   public static final String VERSION_DEF_BASE64_PROPERTY             = "version_base64";
@@ -108,6 +112,7 @@ public class VersionDefinitionResourceProvider extends AbstractAuthorizedResourc
   protected static final String VERSION_DEF_AVAILABLE_SERVICES       = "VersionDefinition/services";
   protected static final String VERSION_DEF_STACK_SERVICES           = "VersionDefinition/stack_services";
   protected static final String VERSION_DEF_STACK_DEFAULT            = "VersionDefinition/stack_default";
+  protected static final String VERSION_DEF_STACK_REPO_UPDATE_LINK_EXISTS = "VersionDefinition/stack_repo_update_link_exists";
   protected static final String VERSION_DEF_DISPLAY_NAME             = "VersionDefinition/display_name";
   protected static final String VERSION_DEF_VALIDATION               = "VersionDefinition/validation";
   protected static final String SHOW_AVAILABLE                       = "VersionDefinition/show_available";
@@ -163,6 +168,7 @@ public class VersionDefinitionResourceProvider extends AbstractAuthorizedResourc
       VERSION_DEF_AVAILABLE_SERVICES,
       VERSION_DEF_STACK_SERVICES,
       VERSION_DEF_STACK_DEFAULT,
+      VERSION_DEF_STACK_REPO_UPDATE_LINK_EXISTS,
       VERSION_DEF_DISPLAY_NAME,
       VERSION_DEF_VALIDATION,
       VERSION_DEF_MIN_JDK,
@@ -180,7 +186,7 @@ public class VersionDefinitionResourceProvider extends AbstractAuthorizedResourc
    * Constructor.
    */
   VersionDefinitionResourceProvider() {
-    super(PROPERTY_IDS, KEY_PROPERTY_IDS);
+    super(Resource.Type.VersionDefinition, PROPERTY_IDS, KEY_PROPERTY_IDS);
 
     setRequiredCreateAuthorizations(EnumSet.of(RoleAuthorization.AMBARI_MANAGE_STACK_VERSIONS));
     setRequiredGetAuthorizations(EnumSet.of(RoleAuthorization.AMBARI_MANAGE_STACK_VERSIONS));
@@ -339,7 +345,7 @@ public class VersionDefinitionResourceProvider extends AbstractAuthorizedResourc
 
       s_repoVersionDAO.create(xmlHolder.entity);
 
-      res = toResource(xmlHolder.entity, Collections.<String>emptySet());
+      res = toResource(xmlHolder.entity, Collections.emptySet());
       notifyCreate(Resource.Type.VersionDefinition, request);
     }
 
@@ -359,7 +365,7 @@ public class VersionDefinitionResourceProvider extends AbstractAuthorizedResourc
     Set<Map<String, Object>> propertyMaps = getPropertyMaps(predicate);
 
     if (propertyMaps.isEmpty()) {
-      List<RepositoryVersionEntity> versions = s_repoVersionDAO.findAllDefinitions();
+      List<RepositoryVersionEntity> versions = s_repoVersionDAO.findRepositoriesWithVersionDefinitions();
 
       for (RepositoryVersionEntity entity : versions) {
         results.add(toResource(entity, requestPropertyIds));
@@ -399,7 +405,7 @@ public class VersionDefinitionResourceProvider extends AbstractAuthorizedResourc
               results.add(res);
             }
           } else {
-            List<RepositoryVersionEntity> versions = s_repoVersionDAO.findAllDefinitions();
+            List<RepositoryVersionEntity> versions = s_repoVersionDAO.findRepositoriesWithVersionDefinitions();
 
             for (RepositoryVersionEntity entity : versions) {
               results.add(toResource(entity, requestPropertyIds));
@@ -612,7 +618,7 @@ public class VersionDefinitionResourceProvider extends AbstractAuthorizedResourc
         s_metaInfo.get().getStack(stackId.getStackName(), stackId.getStackVersion()).getRepositoriesByOs();
     repos.addAll(RepoUtil.getServiceRepos(repos, stackReposByOs));
 
-    entity.setOperatingSystems(s_repoVersionHelper.get().serializeOperatingSystems(repos));
+    entity.addRepoOsEntities(s_repoVersionHelper.get().createRepoOsEntities(repos));
 
     entity.setVersion(holder.xml.release.getFullVersion());
     entity.setDisplayName(stackId, holder.xml.release);
@@ -629,7 +635,6 @@ public class VersionDefinitionResourceProvider extends AbstractAuthorizedResourc
    * @param id            the definition id
    * @param xml           the version definition xml
    * @param requestedIds  the requested ids
-   * @param fromAvailable if the resource should include the {@link #SHOW_AVAILABLE} property
    * @return the resource
    * @throws SystemException
    */
@@ -659,6 +664,7 @@ public class VersionDefinitionResourceProvider extends AbstractAuthorizedResourc
     setResourceProperty(resource, VERSION_DEF_RELEASE_NOTES, xml.release.releaseNotes, requestedIds);
     setResourceProperty(resource, VERSION_DEF_RELEASE_VERSION, xml.release.version, requestedIds);
     setResourceProperty(resource, VERSION_DEF_STACK_DEFAULT, xml.isStackDefault(), requestedIds);
+    setResourceProperty(resource, VERSION_DEF_STACK_REPO_UPDATE_LINK_EXISTS, (stack.getRepositoryXml().getLatestURI() != null), requestedIds);
     setResourceProperty(resource, VERSION_DEF_DISPLAY_NAME, xml.release.display, requestedIds);
 
     if (null != validations) {
@@ -728,6 +734,7 @@ public class VersionDefinitionResourceProvider extends AbstractAuthorizedResourc
       setResourceProperty(resource, VERSION_DEF_STACK_SERVICES, xml.getStackServices(stack), requestedIds);
       setResourceProperty(resource, VERSION_DEF_MIN_JDK, stack.getMinJdk(), requestedIds);
       setResourceProperty(resource, VERSION_DEF_MAX_JDK, stack.getMaxJdk(), requestedIds);
+      setResourceProperty(resource, VERSION_DEF_STACK_REPO_UPDATE_LINK_EXISTS, (stack.getRepositoryXml().getLatestURI() != null), requestedIds);
     }
 
     return resource;
@@ -741,14 +748,14 @@ public class VersionDefinitionResourceProvider extends AbstractAuthorizedResourc
 
     ArrayNode subs = factory.arrayNode();
 
-    for (OperatingSystemEntity os : entity.getOperatingSystems()) {
+    for (RepoOsEntity os : entity.getRepoOsEntities()) {
       ObjectNode osBase = factory.objectNode();
 
       ObjectNode osElement = factory.objectNode();
       osElement.put(PropertyHelper.getPropertyName(OperatingSystemResourceProvider.OPERATING_SYSTEM_AMBARI_MANAGED_REPOS),
-          os.isAmbariManagedRepos());
+          os.isAmbariManaged());
       osElement.put(PropertyHelper.getPropertyName(OperatingSystemResourceProvider.OPERATING_SYSTEM_OS_TYPE_PROPERTY_ID),
-          os.getOsType());
+          os.getFamily());
 
       osElement.put(PropertyHelper.getPropertyName(OperatingSystemResourceProvider.OPERATING_SYSTEM_STACK_NAME_PROPERTY_ID),
           entity.getStackName());
@@ -759,7 +766,7 @@ public class VersionDefinitionResourceProvider extends AbstractAuthorizedResourc
           osElement);
 
       ArrayNode reposArray = factory.arrayNode();
-      for (RepositoryEntity repo : os.getRepositories()) {
+      for (RepoDefinitionEntity repo : os.getRepoDefinitionEntities()) {
         ObjectNode repoBase = factory.objectNode();
 
         ObjectNode repoElement = factory.objectNode();
@@ -767,11 +774,11 @@ public class VersionDefinitionResourceProvider extends AbstractAuthorizedResourc
         repoElement.put(PropertyHelper.getPropertyName(RepositoryResourceProvider.REPOSITORY_BASE_URL_PROPERTY_ID),
             repo.getBaseUrl());
         repoElement.put(PropertyHelper.getPropertyName(RepositoryResourceProvider.REPOSITORY_OS_TYPE_PROPERTY_ID),
-            os.getOsType());
+            os.getFamily());
         repoElement.put(PropertyHelper.getPropertyName(RepositoryResourceProvider.REPOSITORY_REPO_ID_PROPERTY_ID),
-            repo.getRepositoryId());
+            repo.getRepoID());
         repoElement.put(PropertyHelper.getPropertyName(RepositoryResourceProvider.REPOSITORY_REPO_NAME_PROPERTY_ID),
-            repo.getName());
+            repo.getRepoName());
         repoElement.put(PropertyHelper.getPropertyName(RepositoryResourceProvider.REPOSITORY_DISTRIBUTION_PROPERTY_ID),
             repo.getDistribution());
         repoElement.put(PropertyHelper.getPropertyName(RepositoryResourceProvider.REPOSITORY_COMPONENTS_PROPERTY_ID),
@@ -781,16 +788,9 @@ public class VersionDefinitionResourceProvider extends AbstractAuthorizedResourc
         repoElement.put(PropertyHelper.getPropertyName(RepositoryResourceProvider.REPOSITORY_STACK_VERSION_PROPERTY_ID),
             entity.getStackVersion());
 
-        ArrayNode tagsNode = factory.arrayNode();
-        for (RepoTag repoTag : repo.getTags()) {
-          tagsNode.add(repoTag.toString());
-        }
-        repoElement.put(PropertyHelper.getPropertyName(
-            RepositoryResourceProvider.REPOSITORY_TAGS_PROPERTY_ID), tagsNode);
-
         @Experimental(feature = ExperimentalFeature.CUSTOM_SERVICE_REPOS,
           comment = "Remove logic for handling custom service repos after enabling multi-mpack cluster deployment")
-        ArrayNode applicableServicesNode = factory.arrayNode();
+               ArrayNode applicableServicesNode = factory.arrayNode();
         if(repo.getApplicableServices() != null) {
           for (String applicableService : repo.getApplicableServices()) {
             applicableServicesNode.add(applicableService);
@@ -798,6 +798,13 @@ public class VersionDefinitionResourceProvider extends AbstractAuthorizedResourc
         }
         repoElement.put(PropertyHelper.getPropertyName(
           RepositoryResourceProvider.REPOSITORY_APPLICABLE_SERVICES_PROPERTY_ID), applicableServicesNode);
+
+        ArrayNode tagsNode = factory.arrayNode();
+        for (RepoTag repoTag : repo.getTags()) {
+          tagsNode.add(repoTag.toString());
+        }
+        repoElement.put(PropertyHelper.getPropertyName(
+            RepositoryResourceProvider.REPOSITORY_TAGS_PROPERTY_ID), tagsNode);
 
         repoBase.put(PropertyHelper.getPropertyCategory(RepositoryResourceProvider.REPOSITORY_BASE_URL_PROPERTY_ID),
             repoElement);

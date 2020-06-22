@@ -23,7 +23,7 @@
       <displayName>Log Search</displayName>
       <comment>Log aggregation, analysis, and visualization for Ambari managed services. This service is &lt;b&gt;Technical Preview&lt;/b&gt;.</comment>
       <version>0.5.0</version>
-
+      <selection>TECH_PREVIEW</selection>
 
       <credential-store>
         <supported>true</supported>
@@ -54,9 +54,20 @@
               <logId>logsearch_perf</logId>
             </log>
           </logs>
+          <customCommands>
+            <customCommand>
+              <name>UPGRADE_LOGSEARCH_PORTAL</name>
+              <hidden>true</hidden>
+              <commandScript>
+                <script>scripts/logsearch.py</script>
+                <scriptType>PYTHON</scriptType>
+                <timeout>1200</timeout>
+              </commandScript>
+            </customCommand>
+          </customCommands>
           <dependencies>
             <dependency>
-              <name>AMBARI_INFRA/INFRA_SOLR_CLIENT</name>
+              <name>AMBARI_INFRA_SOLR/INFRA_SOLR_CLIENT</name>
               <scope>host</scope>
               <auto-deploy>
                 <enabled>true</enabled>
@@ -93,6 +104,18 @@
             </log>
           </logs>
 
+          <customCommands>
+            <customCommand>
+              <name>UPGRADE_LOGFEEDER</name>
+              <hidden>true</hidden>
+              <commandScript>
+                <script>scripts/logfeeder.py</script>
+                <scriptType>PYTHON</scriptType>
+                <timeout>1200</timeout>
+              </commandScript>
+            </customCommand>
+          </customCommands>
+
           <configuration-dependencies>
             <config-type>infra-solr-env</config-type>
             <config-type>logsearch-common-env</config-type>
@@ -109,7 +132,7 @@
 
       <osSpecifics>
         <osSpecific>
-          <osFamily>redhat7,amazon2015,redhat6,suse11,suse12</osFamily>
+          <osFamily>redhat7,amazonlinux2,redhat6,suse11,suse12</osFamily>
           <packages>
             <package>
               <name>ambari-logsearch-logfeeder</name>
@@ -127,7 +150,7 @@
           </packages>
         </osSpecific>
         <osSpecific>
-          <osFamily>debian7,ubuntu12,ubuntu14,ubuntu16</osFamily>
+          <osFamily>debian7,debian9,ubuntu12,ubuntu14,ubuntu16,ubuntu18</osFamily>
           <packages>
             <package>
               <name>ambari-logsearch-logfeeder</name>
@@ -153,30 +176,6 @@
       </commandScript>
 
       <configuration-dependencies>
-        <config-type>logfeeder-ambari-config</config-type>
-        <config-type>logfeeder-custom-logsearch-config</config-type>
-        <config-type>accumulo-logsearch-conf</config-type>
-        <config-type>ams-logsearch-conf</config-type>
-        <config-type>atlas-logsearch-conf</config-type>
-        <config-type>falcon-logsearch-conf</config-type>
-        <config-type>flume-logsearch-conf</config-type>
-        <config-type>hbase-logsearch-conf</config-type>
-        <config-type>hdfs-logsearch-conf</config-type>
-        <config-type>hive-logsearch-conf</config-type>
-        <config-type>infra-logsearch-conf</config-type>
-        <config-type>kafka-logsearch-conf</config-type>
-        <config-type>knox-logsearch-conf</config-type>
-        <config-type>mapred-logsearch-conf</config-type>
-        <config-type>nifi-logsearch-conf</config-type>
-        <config-type>oozie-logsearch-conf</config-type>
-        <config-type>ranger-kms-logsearch-conf</config-type>
-        <config-type>ranger-logsearch-conf</config-type>
-        <config-type>spark-logsearch-conf</config-type>
-        <config-type>spark2-logsearch-conf</config-type>
-        <config-type>storm-logsearch-conf</config-type>
-        <config-type>yarn-logsearch-conf</config-type>
-        <config-type>zeppelin-logsearch-conf</config-type>
-        <config-type>zookeeper-logsearch-conf</config-type>
       </configuration-dependencies>
 
       <quickLinksConfigurations>
@@ -189,6 +188,14 @@
       <themes>
         <theme>
           <fileName>theme.json</fileName>
+          <default>true</default>
+        </theme>
+        <theme>
+          <fileName>credentials.json</fileName>
+          <default>true</default>
+        </theme>
+        <theme>
+          <fileName>directories.json</fileName>
           <default>true</default>
         </theme>
       </themes>

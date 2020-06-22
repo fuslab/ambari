@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,18 @@
 
 package org.apache.ambari.server.stack;
 
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.state.ComponentInfo;
 import org.apache.ambari.server.state.CustomCommandDefinition;
 import org.apache.ambari.server.state.DependencyInfo;
 import org.apache.ambari.server.state.LogDefinition;
 import org.apache.commons.lang.builder.ToStringBuilder;
 import org.apache.commons.lang.builder.ToStringStyle;
-
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * Component module which provides all functionality related to parsing and fully
@@ -46,7 +46,7 @@ public class ComponentModule extends BaseModule<ComponentModule, ComponentInfo> 
    */
   protected boolean valid = true;
 
-  private Set<String> errorSet = new HashSet<String>();
+  private Set<String> errorSet = new HashSet<>();
 
   /**
    * Constructor.
@@ -162,7 +162,7 @@ public class ComponentModule extends BaseModule<ComponentModule, ComponentInfo> 
   private void mergeComponentDependencies(List<DependencyInfo> parentDependencies,
                                           List<DependencyInfo> childDependencies) {
 
-    Collection<String> existingNames = new HashSet<String>();
+    Collection<String> existingNames = new HashSet<>();
 
     for (DependencyInfo childDependency : childDependencies) {
       existingNames.add(childDependency.getName());
@@ -188,7 +188,7 @@ public class ComponentModule extends BaseModule<ComponentModule, ComponentInfo> 
   private void mergeCustomCommands(List<CustomCommandDefinition> parentCommands,
                                    List<CustomCommandDefinition> childCommands) {
 
-    Collection<String> existingNames = new HashSet<String>();
+    Collection<String> existingNames = new HashSet<>();
 
     for (CustomCommandDefinition childCmd : childCommands) {
       existingNames.add(childCmd.getName());
@@ -211,7 +211,7 @@ public class ComponentModule extends BaseModule<ComponentModule, ComponentInfo> 
    */
   //todo: currently there is no way to remove an inherited log
   private void mergeLogs(List<LogDefinition> parentLogs, List<LogDefinition> childLogs) {
-    Collection<String> existingLogIds = new HashSet<String>();
+    Collection<String> existingLogIds = new HashSet<>();
 
     for (LogDefinition childLog : childLogs) {
       existingLogIds.add(childLog.getLogId());

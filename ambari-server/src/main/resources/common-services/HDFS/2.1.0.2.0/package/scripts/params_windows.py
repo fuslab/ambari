@@ -20,6 +20,9 @@ limitations under the License.
 import os
 
 #Used in subsequent imports from params
+from resource_management.libraries.script.script import Script
+from resource_management.libraries.functions.default import default
+from resource_management.libraries.functions.format import format
 from install_params import exclude_packages
 from status_params import *
 
@@ -54,7 +57,7 @@ dfs_ha_namenode_ids = default(format("/configurations/hdfs-site/dfs.ha.namenodes
 
 namenode_id = None
 namenode_rpc = None
-hostname = config["hostname"]
+hostname = config['agentLevelParams']['hostname']
 if dfs_ha_namenode_ids:
   dfs_ha_namemodes_ids_list = dfs_ha_namenode_ids.split(",")
   dfs_ha_namenode_ids_array_len = len(dfs_ha_namemodes_ids_list)

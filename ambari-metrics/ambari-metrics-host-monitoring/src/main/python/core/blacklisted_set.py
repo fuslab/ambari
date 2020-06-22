@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-#!/usr/bin/env python
 
 '''
 Licensed to the Apache Software Foundation (ASF) under one
@@ -22,7 +21,7 @@ limitations under the License.
 import time
 
 class BlacklistedSet(set):
-  BLACKLIST_TIMEOUT = 5
+  BLACKLIST_TIMEOUT = 60
 
   def __init__(self, items=[], blacklist_timeout=BLACKLIST_TIMEOUT):
     self.__dict = {}

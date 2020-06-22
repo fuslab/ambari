@@ -91,6 +91,26 @@
     </description>
     <value-attributes>
       <overridable>false</overridable>
+      <type>value-list</type>
+      <entries_editable>false</entries_editable>
+      <entries>
+        <entry>
+          <value>New MySQL Database</value>
+          <label>New MySQL</label>
+        </entry>
+        <entry>
+          <value>Existing MySQL / MariaDB Database</value>
+          <label>Existing MySQL / MariaDB</label>
+        </entry>
+        <entry>
+          <value>Existing PostgreSQL Database</value>
+          <label>Existing PostgreSQL</label>
+        </entry>
+        <entry>
+          <value>Existing Oracle Database</value>
+          <label>Existing Oracle</label>
+        </entry>
+      </entries>
     </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
@@ -98,7 +118,8 @@
     <name>hive_ambari_database</name>
     <value>MySQL</value>
     <description>Database type.</description>
-    <on-ambari-upgrade add="true"/>
+    <deleted>true</deleted>
+    <on-ambari-upgrade add="false"/>
   </property>
   <property>
     <name>hive_database_name</name>
@@ -144,6 +165,12 @@
     <value-attributes>
       <type>user</type>
       <overridable>false</overridable>
+      <user-groups>
+        <property>
+          <type>cluster-env</type>
+          <name>user_group</name>
+        </property>
+      </user-groups>
     </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
@@ -172,18 +199,6 @@
     <on-ambari-upgrade add="true"/>
   </property>
   <property>
-    <name>hcat_user</name>
-    <display-name>HCat User</display-name>
-    <value>hcat</value>
-    <property-type>USER</property-type>
-    <description>HCat User.</description>
-    <value-attributes>
-      <type>user</type>
-      <overridable>false</overridable>
-    </value-attributes>
-    <on-ambari-upgrade add="true"/>
-  </property>
-  <property>
     <name>webhcat_user</name>
     <display-name>WebHCat User</display-name>
     <value>hcat</value>
@@ -192,6 +207,12 @@
     <value-attributes>
       <type>user</type>
       <overridable>false</overridable>
+      <user-groups>
+        <property>
+          <type>cluster-env</type>
+          <name>user_group</name>
+        </property>
+      </user-groups>
     </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>

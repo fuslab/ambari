@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,10 +18,10 @@
 
 package org.apache.ambari.server.controller;
 
-import org.apache.ambari.server.orm.entities.LdapSyncSpecEntity;
-
 import java.util.HashSet;
 import java.util.Set;
+
+import org.apache.ambari.server.orm.entities.LdapSyncSpecEntity;
 
 /**
  * Request for LDAP synchronization.
@@ -49,7 +49,7 @@ public class LdapSyncRequest {
    */
   public LdapSyncRequest(LdapSyncSpecEntity.SyncType type, Set<String> principalNames) {
     this.type  = type;
-    this.principalNames = principalNames == null ? new HashSet<String>() : principalNames;
+    this.principalNames = principalNames == null ? new HashSet<>() : principalNames;
   }
 
   /**
@@ -58,7 +58,7 @@ public class LdapSyncRequest {
    * @param type  the request type
    */
   public LdapSyncRequest(LdapSyncSpecEntity.SyncType type) {
-    this.principalNames = new HashSet<String>();
+    this.principalNames = new HashSet<>();
     this.type  = type;
   }
 

@@ -22,10 +22,8 @@ App.MainConfigHistoryController = Em.ArrayController.extend(App.TableServerMixin
   name: 'mainConfigHistoryController',
 
   content: App.ServiceConfigVersion.find(),
-  isPolling: false,
   totalCount: 0,
   filteredCount: 0,
-  timeoutRef: null,
   resetStartIndex: true,
   mockUrl: '/data/configurations/service_versions.json',
   realUrl: function () {
@@ -103,90 +101,20 @@ App.MainConfigHistoryController = Em.ArrayController.extend(App.TableServerMixin
     }
   ],
 
-  modifiedFilter: Em.Object.create({
-    content: [
-      {
-        value: 'Any',
-        label: Em.I18n.t('any')
-      },
-      {
-        value: 'Past 1 hour',
-        label: 'Past 1 hour'
-      },
-      {
-        value: 'Past 1 Day',
-        label: 'Past 1 Day'
-      },
-      {
-        value: 'Past 2 Days',
-        label: 'Past 2 Days'
-      },
-      {
-        value: 'Past 7 Days',
-        label: 'Past 7 Days'
-      },
-      {
-        value: 'Past 14 Days',
-        label: 'Past 14 Days'
-      },
-      {
-        value: 'Past 30 Days',
-        label: 'Past 30 Days'
-      }
-    ],
-    optionValue: 'Any',
-    filterModified: function () {
-      var time = "";
-      var curTime = new Date().getTime();
-
-      switch (this.get('optionValue.value')) {
-        case 'Past 1 hour':
-          time = curTime - 3600000;
-          break;
-        case 'Past 1 Day':
-          time = curTime - 86400000;
-          break;
-        case 'Past 2 Days':
-          time = curTime - 172800000;
-          break;
-        case 'Past 7 Days':
-          time = curTime - 604800000;
-          break;
-        case 'Past 14 Days':
-          time = curTime - 1209600000;
-          break;
-        case 'Past 30 Days':
-          time = curTime - 2592000000;
-          break;
-        case 'Any':
-          time = "";
-          break;
-      }
-      this.set("actualValues", {
-        endTime: '',
-        startTime: time
-      });
-    }.observes('optionValue'),
-    cancel: function () {
-      this.set('optionValue', this.get('content').findProperty('value', 'Any'));
-    },
-    actualValues: Em.Object.create({
-      startTime: "",
-      endTime: ""
-    })
-  }),
-
   /**
    * load all data components required by config history table
    *  - total counter of service config versions(called in parallel)
    *  - current versions
    *  - filtered versions
+   * @param {boolean} shouldUpdateCounter
    * @return {*}
    */
-  load: function () {
-    var dfd = $.Deferred();
-    this.updateTotalCounter();
-    this.loadConfigVersionsToModel().done(function () {
+  load: function (shouldUpdateCounter = false) {
+    const dfd = $.Deferred();
+    this.loadConfigVersionsToModel().done(() => {
+      if (shouldUpdateCounter) {
+        this.updateTotalCounter();
+      }
       dfd.resolve();
     });
     return dfd.promise();
@@ -218,7 +146,7 @@ App.MainConfigHistoryController = Em.ArrayController.extend(App.TableServerMixin
   },
 
   updateTotalCounterSuccess: function (data, opt, params) {
-    this.set('totalCount', data.itemTotal);
+    this.set('totalCount', Number(data.itemTotal));
   },
 
   getUrl: function (queryParams) {
@@ -234,19 +162,12 @@ App.MainConfigHistoryController = Em.ArrayController.extend(App.TableServerMixin
     }
   },
 
-  /**
-   * request latest data from server and update content
-   */
-  doPolling: function () {
-    var self = this;
+  subscribeToUpdates: function() {
+    App.StompClient.addHandler('/events/configs', 'history', this.load.bind(this, true));
+  },
 
-    this.set('timeoutRef', setTimeout(function () {
-      if (self.get('isPolling')) {
-        self.load().done(function () {
-          self.doPolling();
-        })
-      }
-    }, App.componentsUpdateInterval));
+  unsubscribeOfUpdates: function() {
+    App.StompClient.removeHandler('/events/configs', 'history');
   },
 
   /**
@@ -276,5 +197,24 @@ App.MainConfigHistoryController = Em.ArrayController.extend(App.TableServerMixin
       }
     });
     return sortParams;
+  },
+
+  /**
+   *
+   * @param {string} name
+   */
+  getSearchBoxSuggestions: function(name) {
+    const dfd = $.Deferred();
+    const key = this.get('filterProps').findProperty('name', name).key;
+    App.ajax.send({
+      name: 'service.serviceConfigVersions.get.suggestions',
+      sender: this,
+      data: {
+        key
+      }
+    })
+    .done((data) => {dfd.resolve(data.items.mapProperty(key).uniq());})
+    .fail(() => {dfd.resolve([]);});
+    return dfd.promise();
   }
 });

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,6 +25,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.nio.charset.Charset;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
@@ -35,14 +36,14 @@ import org.apache.ambari.server.utils.ShellCommandUtil;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.RandomStringUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
@@ -56,7 +57,7 @@ public class CertGenerationTest {
   private static final int PASS_FILE_NAME_LEN = 20;
   private static final float MAX_PASS_LEN = 100;
 
-  private static Log LOG = LogFactory.getLog(CertGenerationTest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(CertGenerationTest.class);
   public static TemporaryFolder temp = new TemporaryFolder();
 
   private static Injector injector;
@@ -201,7 +202,7 @@ public class CertGenerationTest {
 
     Assert.assertTrue(passFile.exists());
 
-    String pass = FileUtils.readFileToString(passFile);
+    String pass = FileUtils.readFileToString(passFile, Charset.defaultCharset());
 
     Assert.assertEquals(pass.length(), passLen);
 

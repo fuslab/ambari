@@ -28,17 +28,14 @@ import java.util.Map;
 
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.H2DatabaseCleaner;
-import org.apache.ambari.server.ServiceNotFoundException;
 import org.apache.ambari.server.controller.ServiceResponse;
+import org.apache.ambari.server.controller.internal.DeleteHostComponentStatusMetaData;
 import org.apache.ambari.server.orm.GuiceJpaInitializer;
 import org.apache.ambari.server.orm.InMemoryDefaultTestModule;
 import org.apache.ambari.server.orm.OrmTestHelper;
 import org.apache.ambari.server.orm.dao.ClusterServiceDAO;
 import org.apache.ambari.server.orm.entities.ClusterServiceEntity;
 import org.apache.ambari.server.orm.entities.RepositoryVersionEntity;
-import org.apache.ambari.server.state.configgroup.ConfigGroup;
-import org.apache.ambari.server.state.configgroup.ConfigGroupFactory;
-import org.apache.commons.collections.MapUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -58,8 +55,6 @@ public class ServiceTest {
   private ServiceComponentFactory serviceComponentFactory;
   private ServiceComponentHostFactory serviceComponentHostFactory;
   private OrmTestHelper ormTestHelper;
-  private ConfigGroupFactory configGroupFactory;
-  private ConfigFactory configFactory;
 
   private final String STACK_VERSION = "0.1";
   private final String REPO_VERSION = "0.1-1234";
@@ -81,8 +76,6 @@ public class ServiceTest {
     clusterName = "foo";
     clusters.addCluster(clusterName, STACK_ID);
     cluster = clusters.getCluster(clusterName);
-    configGroupFactory = injector.getInstance(ConfigGroupFactory.class);
-    configFactory = injector.getInstance(ConfigFactory.class);
     Assert.assertNotNull(cluster);
   }
 
@@ -173,7 +166,6 @@ public class ServiceTest {
     Assert.assertEquals(cluster.getClusterName(),
             service.getCluster().getClusterName());
     Assert.assertEquals(State.INIT, service.getDesiredState());
-    Assert.assertEquals(SecurityState.UNSECURED, service.getSecurityState());
     Assert.assertFalse(
             service.getDesiredStackId().getStackId().isEmpty());
 
@@ -226,7 +218,7 @@ public class ServiceTest {
         s.getServiceComponent("HDFS_CLIENT").getDesiredState());
 
     // delete service component
-    s.deleteServiceComponent("NAMENODE");
+    s.deleteServiceComponent("NAMENODE", new DeleteHostComponentStatusMetaData());
 
     assertEquals(3, s.getServiceComponents().size());
   }
@@ -300,8 +292,29 @@ public class ServiceTest {
     Assert.assertEquals(MaintenanceState.ON, entity.getServiceDesiredStateEntity().getMaintenanceState());
   }
 
+  /**
+   * Tests the kerberosEnabledTest value set in the HDFS metainfo file (stacks/HDP/0.1/services/HDFS/metainfo.xml):
+   * <pre>
+   * {
+   *   "or": [
+   *     {
+   *       "equals": [
+   *         "core-site/hadoop.security.authentication",
+   *         "kerberos"
+   *       ]
+   *     },
+   *     {
+   *       "equals": [
+   *         "hdfs-site/hadoop.security.authentication",
+   *         "kerberos"
+   *       ]
+   *     }
+   *   ]
+   * }
+   * </pre>
+   */
   @Test
-  public void testSecurityState() throws Exception {
+  public void testServiceKerberosEnabledTest() throws Exception {
     String serviceName = "HDFS";
     Service s = serviceFactory.createNew(cluster, serviceName, repositoryVersion);
     cluster.addService(s);
@@ -309,70 +322,32 @@ public class ServiceTest {
     Service service = cluster.getService(serviceName);
     Assert.assertNotNull(service);
 
-    ClusterServiceDAO dao = injector.getInstance(ClusterServiceDAO.class);
-    ClusterServiceEntity entity = dao.findByClusterAndServiceNames(clusterName, serviceName);
-    Assert.assertNotNull(entity);
-    Assert.assertEquals(SecurityState.UNSECURED, entity.getServiceDesiredStateEntity().getSecurityState());
-    Assert.assertEquals(SecurityState.UNSECURED, service.getSecurityState());
 
-    service.setSecurityState(SecurityState.SECURED_KERBEROS);
-    Assert.assertEquals(SecurityState.SECURED_KERBEROS, service.getSecurityState());
+    Map<String, Map<String, String>> map = new HashMap<>();
 
-    entity = dao.findByClusterAndServiceNames(clusterName, serviceName);
-    Assert.assertNotNull(entity);
-    Assert.assertEquals(SecurityState.SECURED_KERBEROS, entity.getServiceDesiredStateEntity().getSecurityState());
+    Assert.assertFalse(service.isKerberosEnabled(null));
 
-    // Make sure there are no issues setting all endpoint values...
-    for(SecurityState state: SecurityState.ENDPOINT_STATES) {
-      service.setSecurityState(state);
-      Assert.assertEquals(state, service.getSecurityState());
-    }
+    Assert.assertFalse(service.isKerberosEnabled(map));
 
-    // Make sure there transitional states are not allowed
-    for(SecurityState state: SecurityState.TRANSITIONAL_STATES) {
-      try {
-        service.setSecurityState(state);
-        Assert.fail(String.format("SecurityState %s is not a valid desired service state", state.toString()));
-      }
-      catch (AmbariException e) {
-        // this is acceptable
-      }
-    }
+    map.put("core-site", Collections.singletonMap("hadoop.security.authentication", "none"));
+    map.put("hdfs-site", Collections.singletonMap("hadoop.security.authentication", "none"));
+    Assert.assertFalse(service.isKerberosEnabled(map));
+
+    map.put("core-site", Collections.singletonMap("hadoop.security.authentication", "kerberos"));
+    map.put("hdfs-site", Collections.singletonMap("hadoop.security.authentication", "none"));
+    Assert.assertTrue(service.isKerberosEnabled(map));
+
+    map.put("core-site", Collections.singletonMap("hadoop.security.authentication", "none"));
+    map.put("hdfs-site", Collections.singletonMap("hadoop.security.authentication", "kerberos"));
+    Assert.assertTrue(service.isKerberosEnabled(map));
+
+    map.put("core-site", Collections.singletonMap("hadoop.security.authentication", "kerberos"));
+    map.put("hdfs-site", Collections.singletonMap("hadoop.security.authentication", "kerberos"));
+    Assert.assertTrue(service.isKerberosEnabled(map));
+
   }
 
-  @Test
-  public void testConfigGroupDeleteWithServiceDelete() throws Exception {
-    String serviceName = "HDFS";
-    Service s = serviceFactory.createNew(cluster, serviceName, repositoryVersion);
-    cluster.addService(s);
-
-    Host h = addHostToCluster("h1", clusterName);
-
-    ConfigGroup cg = configGroupFactory.createNew(cluster, "test1", "HDFS", "HDFS",
-      "Test", Collections.singletonMap("aKey", configFactory.createNew(cluster,
-        "hdfs-site", "versionX", Collections.singletonMap("a", "b"),
-        Collections.<String, Map<String,String>>emptyMap())), Collections.singletonMap(1L, h));
-
-    cluster.addConfigGroup(cg);
-
-    Assert.assertNotNull(cluster.getConfigGroups());
-    Assert.assertEquals(1, cluster.getConfigGroups().size());
-    Assert.assertEquals("test1", cluster.getConfigGroups().values().iterator().next().getName());
-
-    Assert.assertTrue(s.canBeRemoved());
-
-    cluster.deleteService(serviceName);
-
-    Assert.assertTrue(MapUtils.isEmpty(cluster.getConfigGroups()));
-    try {
-      cluster.getService(serviceName);
-      Assert.fail("Service should have been deleted.");
-    } catch (ServiceNotFoundException se) {
-      // expected
-    }
-  }
-
-  private Host addHostToCluster(String hostname,
+  private void addHostToCluster(String hostname,
                                 String clusterName) throws AmbariException {
     clusters.addHost(hostname);
     Host h = clusters.getHost(hostname);
@@ -385,6 +360,5 @@ public class ServiceTest {
     h.setHostAttributes(hostAttributes);
 
     clusters.mapHostToCluster(hostname, clusterName);
-    return h;
   }
 }

@@ -24,6 +24,7 @@ import tempfile
 import time
 from stacks.utils.RMFTestCase import *
 from mock.mock import MagicMock, patch, call
+from resource_management.libraries.functions import namenode_ha_utils
 from resource_management.libraries.script.script import Script
 from resource_management.core import shell
 from resource_management.core.exceptions import Fail
@@ -118,6 +119,7 @@ class TestNamenode(RMFTestCase):
         type = 'directory',
         action = ['create_on_execute'], hdfs_resource_ignore_file='/var/lib/ambari-agent/data/.hdfs_resource_ignore',
         mode = 0777,
+        nameservices = None,
     )
     self.assertResourceCalled('HdfsResource', '/user/ambari-qa',
         immutable_paths = self.DEFAULT_IMMUTABLE_PATHS,
@@ -135,6 +137,7 @@ class TestNamenode(RMFTestCase):
         type = 'directory',
         action = ['create_on_execute'], hdfs_resource_ignore_file='/var/lib/ambari-agent/data/.hdfs_resource_ignore',
         mode = 0770,
+        nameservices = None,
     )
     self.assertResourceCalled('HdfsResource', None,
         immutable_paths = self.DEFAULT_IMMUTABLE_PATHS,
@@ -235,6 +238,7 @@ class TestNamenode(RMFTestCase):
         type = 'directory',
         action = ['create_on_execute'], hdfs_resource_ignore_file='/var/lib/ambari-agent/data/.hdfs_resource_ignore',
         mode = 0777,
+        nameservices = None,
     )
     self.assertResourceCalled('HdfsResource', '/user/ambari-qa',
         immutable_paths = self.DEFAULT_IMMUTABLE_PATHS,
@@ -252,6 +256,7 @@ class TestNamenode(RMFTestCase):
         type = 'directory',
         action = ['create_on_execute'], hdfs_resource_ignore_file='/var/lib/ambari-agent/data/.hdfs_resource_ignore',
         mode = 0770,
+        nameservices = None,
     )
     self.assertResourceCalled('HdfsResource', None,
         immutable_paths = self.DEFAULT_IMMUTABLE_PATHS,
@@ -364,7 +369,8 @@ class TestNamenode(RMFTestCase):
         hadoop_conf_dir = '/etc/hadoop/conf',
         type = 'directory',
         action = ['create_on_execute'], hdfs_resource_ignore_file='/var/lib/ambari-agent/data/.hdfs_resource_ignore', hdfs_site=self.getConfig()['configurations']['hdfs-site'], principal_name='hdfs', default_fs='hdfs://c6401.ambari.apache.org:8020',
-        mode = 0777
+        mode = 0777,
+        nameservices = None
     )
     self.assertResourceCalled('HdfsResource', '/user/ambari-qa',
         immutable_paths = self.DEFAULT_IMMUTABLE_PATHS,
@@ -378,7 +384,8 @@ class TestNamenode(RMFTestCase):
         hadoop_conf_dir = '/etc/hadoop/conf',
         type = 'directory',
         action = ['create_on_execute'], hdfs_resource_ignore_file='/var/lib/ambari-agent/data/.hdfs_resource_ignore', hdfs_site=self.getConfig()['configurations']['hdfs-site'], principal_name='hdfs', default_fs='hdfs://c6401.ambari.apache.org:8020',
-        mode = 0770
+        mode = 0770,
+        nameservices = None,
     )
     self.assertResourceCalled('HdfsResource', None,
         immutable_paths = self.DEFAULT_IMMUTABLE_PATHS,
@@ -473,6 +480,7 @@ class TestNamenode(RMFTestCase):
         type = 'directory',
         action = ['create_on_execute'], hdfs_resource_ignore_file='/var/lib/ambari-agent/data/.hdfs_resource_ignore',
         mode = 0777,
+        nameservices = ['ns1'],
     )
     self.assertResourceCalled('HdfsResource', '/user/ambari-qa',
         immutable_paths = self.DEFAULT_IMMUTABLE_PATHS,
@@ -490,6 +498,7 @@ class TestNamenode(RMFTestCase):
         type = 'directory',
         action = ['create_on_execute'], hdfs_resource_ignore_file='/var/lib/ambari-agent/data/.hdfs_resource_ignore',
         mode = 0770,
+        nameservices = ['ns1'],
     )
     self.assertResourceCalled('HdfsResource', None,
         immutable_paths = self.DEFAULT_IMMUTABLE_PATHS,
@@ -573,6 +582,7 @@ class TestNamenode(RMFTestCase):
         type = 'directory',
         action = ['create_on_execute'], hdfs_resource_ignore_file='/var/lib/ambari-agent/data/.hdfs_resource_ignore',
         mode = 0777,
+        nameservices = ['ns1'],
     )
     self.assertResourceCalled('HdfsResource', '/user/ambari-qa',
         immutable_paths = self.DEFAULT_IMMUTABLE_PATHS,
@@ -590,6 +600,7 @@ class TestNamenode(RMFTestCase):
         type = 'directory',
         action = ['create_on_execute'], hdfs_resource_ignore_file='/var/lib/ambari-agent/data/.hdfs_resource_ignore',
         mode = 0770,
+        nameservices = ['ns1'],
     )
     self.assertResourceCalled('HdfsResource', None,
         immutable_paths = self.DEFAULT_IMMUTABLE_PATHS,
@@ -678,6 +689,7 @@ class TestNamenode(RMFTestCase):
         type = 'directory',
         action = ['create_on_execute'], hdfs_resource_ignore_file='/var/lib/ambari-agent/data/.hdfs_resource_ignore',
         mode = 0777,
+        nameservices = None,
     )
     self.assertResourceCalled('HdfsResource', '/user/ambari-qa',
         immutable_paths = self.DEFAULT_IMMUTABLE_PATHS,
@@ -695,6 +707,7 @@ class TestNamenode(RMFTestCase):
         type = 'directory',
         action = ['create_on_execute'], hdfs_resource_ignore_file='/var/lib/ambari-agent/data/.hdfs_resource_ignore',
         mode = 0770,
+        nameservices = None,
     )
     self.assertResourceCalled('HdfsResource', None,
         immutable_paths = self.DEFAULT_IMMUTABLE_PATHS,
@@ -792,6 +805,7 @@ class TestNamenode(RMFTestCase):
         type = 'directory',
         action = ['create_on_execute'], hdfs_resource_ignore_file='/var/lib/ambari-agent/data/.hdfs_resource_ignore',
         mode = 0777,
+        nameservices = None,
     )
     self.assertResourceCalled('HdfsResource', '/user/ambari-qa',
         immutable_paths = self.DEFAULT_IMMUTABLE_PATHS,
@@ -809,6 +823,7 @@ class TestNamenode(RMFTestCase):
         type = 'directory',
         action = ['create_on_execute'], hdfs_resource_ignore_file='/var/lib/ambari-agent/data/.hdfs_resource_ignore',
         mode = 0770,
+        nameservices = None,
     )
     self.assertResourceCalled('HdfsResource', None,
         immutable_paths = self.DEFAULT_IMMUTABLE_PATHS,
@@ -1037,10 +1052,11 @@ class TestNamenode(RMFTestCase):
                               group = 'hadoop',
                               )
     self.assertResourceCalled('Execute', '', user = 'hdfs')
-    self.assertResourceCalled('ExecuteHadoop', 'dfsadmin -fs hdfs://c6401.ambari.apache.org:8020 -refreshNodes',
-                              user = 'hdfs',
-                              conf_dir = '/etc/hadoop/conf',
-                              bin_dir = '/usr/bin')
+    self.assertResourceCalled('ExecuteHDFS', 'dfsadmin -fs hdfs://c6401.ambari.apache.org:8020 -refreshNodes',
+                              user='hdfs',
+                              conf_dir='/etc/hadoop/conf',
+                              bin_dir='/usr/bin')
+    self.assert_configure_default()
     self.assertNoMoreResources()
 
   def test_decommission_update_files_only(self):
@@ -1056,6 +1072,7 @@ class TestNamenode(RMFTestCase):
                               content = Template('exclude_hosts_list.j2'),
                               group = 'hadoop',
                               )
+    self.assert_configure_default()
     self.assertNoMoreResources()
 
 
@@ -1073,10 +1090,11 @@ class TestNamenode(RMFTestCase):
                               group = 'hadoop',
                               )
     self.assertResourceCalled('Execute', '', user = 'hdfs')
-    self.assertResourceCalled('ExecuteHadoop', 'dfsadmin -fs hdfs://c6401.ambari.apache.org:8020 -refreshNodes',
-                              user = 'hdfs',
-                              conf_dir = '/etc/hadoop/conf',
-                              bin_dir = '/usr/bin')
+    self.assertResourceCalled('ExecuteHDFS', 'dfsadmin -fs hdfs://c6401.ambari.apache.org:8020 -refreshNodes',
+                              user='hdfs',
+                              conf_dir='/etc/hadoop/conf',
+                              bin_dir='/usr/bin')
+    self.assert_configure_default()
     self.assertNoMoreResources()
 
 
@@ -1096,11 +1114,12 @@ class TestNamenode(RMFTestCase):
     self.assertResourceCalled('Execute', '/usr/bin/kinit -kt /etc/security/keytabs/nn.service.keytab nn/c6401.ambari.apache.org@EXAMPLE.COM;',
         user = 'hdfs',
     )
-    self.assertResourceCalled('ExecuteHadoop', 'dfsadmin -fs hdfs://c6401.ambari.apache.org:8020 -refreshNodes',
-        bin_dir = '/usr/bin',
-        conf_dir = '/etc/hadoop/conf',
-        user = 'hdfs',
-    )
+    self.assertResourceCalled('ExecuteHDFS', 'dfsadmin -fs hdfs://c6401.ambari.apache.org:8020 -refreshNodes',
+                              bin_dir='/usr/bin',
+                              conf_dir='/etc/hadoop/conf',
+                              user='hdfs',
+                              )
+    self.assert_configure_secured(False)
     self.assertNoMoreResources()
 
   def assert_configure_default(self):
@@ -1132,14 +1151,14 @@ class TestNamenode(RMFTestCase):
                               group = 'hadoop',
                               conf_dir = '/etc/hadoop/conf',
                               configurations = self.getConfig()['configurations']['hdfs-site'],
-                              configuration_attributes = self.getConfig()['configuration_attributes']['hdfs-site']
+                              configuration_attributes = self.getConfig()['configurationAttributes']['hdfs-site']
                               )
     self.assertResourceCalled('XmlConfig', 'core-site.xml',
                               owner = 'hdfs',
                               group = 'hadoop',
                               conf_dir = '/etc/hadoop/conf',
                               configurations = self.getConfig()['configurations']['core-site'],
-                              configuration_attributes = self.getConfig()['configuration_attributes']['core-site'],
+                              configuration_attributes = self.getConfig()['configurationAttributes']['core-site'],
                               mode = 0644
                               )
     self.assertResourceCalled('File', '/etc/hadoop/conf/slaves',
@@ -1200,14 +1219,14 @@ class TestNamenode(RMFTestCase):
                               group = 'hadoop',
                               conf_dir = '/etc/hadoop/conf',
                               configurations = self.getConfig()['configurations']['hdfs-site'],
-                              configuration_attributes = self.getConfig()['configuration_attributes']['hdfs-site']
+                              configuration_attributes = self.getConfig()['configurationAttributes']['hdfs-site']
                               )
     self.assertResourceCalled('XmlConfig', 'core-site.xml',
                               owner = 'hdfs',
                               group = 'hadoop',
                               conf_dir = '/etc/hadoop/conf',
                               configurations = self.getConfig()['configurations']['core-site'],
-                              configuration_attributes = self.getConfig()['configuration_attributes']['core-site'],
+                              configuration_attributes = self.getConfig()['configurationAttributes']['core-site'],
                               mode = 0644
                               )
     self.assertResourceCalled('File', '/etc/hadoop/conf/slaves',
@@ -1332,8 +1351,9 @@ class TestNamenode(RMFTestCase):
     self.assertEquals("rolling_upgrade", Script.structuredOut["upgrade_type"])
     self.assertEquals("UPGRADE", Script.structuredOut["direction"])
 
+  @patch("resource_management.libraries.script.Script.post_start")
   @patch("resource_management.libraries.functions.namenode_ha_utils.get_namenode_states")
-  def test_upgrade_restart_eu(self, get_namenode_states_mock):
+  def test_upgrade_restart_eu(self, get_namenode_states_mock, post_start_mock):
     active_namenodes = [('nn1', 'c6401.ambari.apache.org:50070')]
     standby_namenodes = [('nn2', 'c6402.ambari.apache.org:50070')]
     unknown_namenodes = []
@@ -1376,11 +1396,10 @@ class TestNamenode(RMFTestCase):
                        config_dict = json_content,
                        stack_version = self.STACK_VERSION,
                        target = RMFTestCase.TARGET_COMMON_SERVICES,
-                       call_mocks = [(0, None, ''), (0, None)],
+                       call_mocks = [(0, None),(0, None, ''), (0, None)],
                        mocks_dict=mocks_dict)
 
     self.assertTrue(setup_ranger_plugin_mock.called)
-
     self.assertResourceCalledByIndex(7, 'Execute',
       ('mv', '/usr/hdp/2.3.4.0-1111/hadoop/conf/set-hdfs-plugin-env.sh', '/usr/hdp/2.3.4.0-1111/hadoop/conf/set-hdfs-plugin-env.sh.bak'),
       only_if='test -f /usr/hdp/2.3.4.0-1111/hadoop/conf/set-hdfs-plugin-env.sh',
@@ -1592,7 +1611,7 @@ class TestNamenode(RMFTestCase):
     with open(config_file, "r") as f:
       json_content = json.load(f)
     json_content['hostLevelParams']['stack_name'] = 'HDP'
-    json_content['hostLevelParams']['stack_version'] = '2.0'
+    json_content['clusterLevelParams']['stack_version'] = '2.0'
 
     mocks_dict = {}
     self.executeScript(self.COMMON_SERVICES_PACKAGE_DIR + "/scripts/namenode.py",
@@ -1618,7 +1637,7 @@ class TestNamenode(RMFTestCase):
     version = '2.2.0.0-1234'
     del json_content['commandParams']['version']
     json_content['hostLevelParams']['stack_name'] = 'HDP'
-    json_content['hostLevelParams']['stack_version'] = '2.2'
+    json_content['clusterLevelParams']['stack_version'] = '2.2'
     json_content['commandParams']['version'] = version
 
     mocks_dict = {}
@@ -1647,7 +1666,7 @@ class TestNamenode(RMFTestCase):
     json_content['commandParams']['version'] = version
     json_content['commandParams']['upgrade_direction'] = 'upgrade'
     json_content['hostLevelParams']['stack_name'] = 'HDP'
-    json_content['hostLevelParams']['stack_version'] = '2.3'
+    json_content['clusterLevelParams']['stack_version'] = '2.3'
 
     mocks_dict = {}
     self.executeScript(self.COMMON_SERVICES_PACKAGE_DIR + "/scripts/namenode.py",
@@ -1722,7 +1741,7 @@ class TestNamenode(RMFTestCase):
     unknown_namenodes = []
 
     get_namenode_states_mock.return_value = active_namenodes, standby_namenodes, unknown_namenodes
-    self.assertTrue(is_this_namenode_active())
+    self.assertTrue(is_this_namenode_active(None))
 
     # now test the harder tuple
     active_namenodes = [('nn1', 'c6401.ambari.apache.org:50070'), ('nn2', 'c6402.ambari.apache.org:50070')]
@@ -1730,7 +1749,7 @@ class TestNamenode(RMFTestCase):
     unknown_namenodes = []
 
     get_namenode_states_mock.return_value = active_namenodes, standby_namenodes, unknown_namenodes
-    self.assertTrue(is_this_namenode_active())
+    self.assertTrue(is_this_namenode_active(None))
 
     # and the negative for good measure
     active_namenodes = []
@@ -1738,7 +1757,58 @@ class TestNamenode(RMFTestCase):
     unknown_namenodes = []
 
     get_namenode_states_mock.return_value = active_namenodes, standby_namenodes, unknown_namenodes
-    self.assertFalse(is_this_namenode_active())
+    self.assertFalse(is_this_namenode_active(None))
+
+  def test_reloadproxyusers(self):
+      self.executeScript(self.COMMON_SERVICES_PACKAGE_DIR + "/scripts/namenode.py",
+                         classname = "NameNode",
+                         command = "reloadproxyusers",
+                         config_file = "default.json",
+                         stack_version = self.STACK_VERSION,
+                         target = RMFTestCase.TARGET_COMMON_SERVICES
+                         )
+      self.assertResourceCalled('ExecuteHDFS',
+                                'dfsadmin -fs hdfs://c6401.ambari.apache.org:8020 -refreshSuperUserGroupsConfiguration',
+                                user='hdfs',
+                                conf_dir='/etc/hadoop/conf',
+                                bin_dir='/usr/bin')
+      self.assertNoMoreResources()
+
+  def test_reload_configs(self):
+      with self.assertRaises(Fail):
+          self.executeScript(self.COMMON_SERVICES_PACKAGE_DIR + "/scripts/namenode.py",
+                             classname = "NameNode",
+                             command = "reload_configs",
+                             config_file = "default.json",
+                             stack_version = self.STACK_VERSION,
+                             target = RMFTestCase.TARGET_COMMON_SERVICES
+                             )
+
+      # self.assertResourceCalled('Execute', "hdfs dfsadmin -fs hdfs://c6401.ambari.apache.org:8020 -reconfig namenode c6401.ambari.apache.org:8020 start",
+      #                       tries=115,
+      #                       try_sleep=10,
+      #                       user="hdfs",
+      #                       logoutput=True
+      #                       )
+
+  def test_initial_active_namenode_unspecified(self):
+    self.assertEqual(namenode_ha_utils.get_initial_active_namenodes({}), frozenset())
+    self.assertEqual(namenode_ha_utils.get_initial_active_namenodes({ 'dfs_ha_initial_namenode_active': '' }), frozenset())
+    self.assertEqual(namenode_ha_utils.get_initial_active_namenodes({ 'dfs_ha_initial_namenode_active_set': '' }), frozenset())
+    self.assertEqual(namenode_ha_utils.get_initial_active_namenodes({ 'dfs_ha_initial_namenode_active': '', 'dfs_ha_initial_namenode_active_set': '' }), frozenset())
+
+  def test_initial_active_namenode_single(self):
+    self.assertEqual(namenode_ha_utils.get_initial_active_namenodes({ 'dfs_ha_initial_namenode_active': 'c6401.ambari.apache.org' }), frozenset(['c6401.ambari.apache.org']))
+    self.assertEqual(namenode_ha_utils.get_initial_active_namenodes({ 'dfs_ha_initial_namenode_active': 'c6401,c7401' }), frozenset(['c6401', 'c7401']))
+
+  def test_initial_active_namenode_set(self):
+    self.assertEqual(namenode_ha_utils.get_initial_active_namenodes({ 'dfs_ha_initial_namenode_active_set': 'c6401.ambari.apache.org' }), frozenset(['c6401.ambari.apache.org']))
+    self.assertEqual(namenode_ha_utils.get_initial_active_namenodes({ 'dfs_ha_initial_namenode_active_set': 'c6401,c7401' }), frozenset(['c6401', 'c7401']))
+
+  def test_initial_active_namenode_both(self):
+    self.assertEqual(namenode_ha_utils.get_initial_active_namenodes({ 'dfs_ha_initial_namenode_active': '', 'dfs_ha_initial_namenode_active_set': 'mult1,mult2' }), frozenset(['mult1', 'mult2']))
+    self.assertEqual(namenode_ha_utils.get_initial_active_namenodes({ 'dfs_ha_initial_namenode_active': 'single', 'dfs_ha_initial_namenode_active_set': 'mult1,mult2' }), frozenset(['mult1', 'mult2']))
+    self.assertEqual(namenode_ha_utils.get_initial_active_namenodes({ 'dfs_ha_initial_namenode_active': 'single', 'dfs_ha_initial_namenode_active_set': '' }), frozenset(['single']))
 
 
 class Popen_Mock:

@@ -18,7 +18,6 @@
 
 package org.apache.ambari.server.actionmanager;
 
-
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -43,6 +42,7 @@ import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.Clusters;
 import org.apache.ambari.server.state.ConfigFactory;
 import org.apache.ambari.server.state.ConfigHelper;
+import org.apache.ambari.server.state.Host;
 import org.apache.ambari.server.state.Service;
 import org.apache.ambari.server.state.StackId;
 import org.apache.ambari.server.state.svccomphost.ServiceComponentHostStartEvent;
@@ -110,8 +110,14 @@ public class ExecutionCommandWrapperTest {
 
     clusters = injector.getInstance(Clusters.class);
     clusters.addHost(HOST1);
-    StackId stackId = new StackId("HDP-0.1");
-    clusters.addCluster(CLUSTER1, stackId);
+    clusters.addCluster(CLUSTER1, new StackId("HDP-0.1"));
+    clusters.mapHostToCluster(HOST1, CLUSTER1);
+
+    Map<String, String> hostAttributes = new HashMap<>();
+    hostAttributes.put("os_family", "redhat");
+    hostAttributes.put("os_release_version", "6.4");
+    Host host = clusters.getHost(HOST1);
+    host.setHostAttributes(hostAttributes);
 
     Cluster cluster1 = clusters.getCluster(CLUSTER1);
 
@@ -140,20 +146,16 @@ public class ExecutionCommandWrapperTest {
     CONFIG_ATTRIBUTES = new HashMap<>();
 
     //Cluster level global config
-    configFactory.createNew(stackId, cluster1, GLOBAL_CONFIG, CLUSTER_VERSION_TAG, GLOBAL_CLUSTER,
-        CONFIG_ATTRIBUTES);
+    configFactory.createNew(cluster1, GLOBAL_CONFIG, CLUSTER_VERSION_TAG, GLOBAL_CLUSTER, CONFIG_ATTRIBUTES);
 
     //Cluster level service config
-    configFactory.createNew(stackId, cluster1, SERVICE_SITE_CONFIG, CLUSTER_VERSION_TAG,
-        SERVICE_SITE_CLUSTER, CONFIG_ATTRIBUTES);
+    configFactory.createNew(cluster1, SERVICE_SITE_CONFIG, CLUSTER_VERSION_TAG, SERVICE_SITE_CLUSTER, CONFIG_ATTRIBUTES);
 
     //Service level service config
-    configFactory.createNew(stackId, cluster1, SERVICE_SITE_CONFIG, SERVICE_VERSION_TAG,
-        SERVICE_SITE_SERVICE, CONFIG_ATTRIBUTES);
+    configFactory.createNew(cluster1, SERVICE_SITE_CONFIG, SERVICE_VERSION_TAG, SERVICE_SITE_SERVICE, CONFIG_ATTRIBUTES);
 
     //Host level service config
-    configFactory.createNew(stackId, cluster1, SERVICE_SITE_CONFIG, HOST_VERSION_TAG, SERVICE_SITE_HOST,
-        CONFIG_ATTRIBUTES);
+    configFactory.createNew(cluster1, SERVICE_SITE_CONFIG, HOST_VERSION_TAG, SERVICE_SITE_HOST, CONFIG_ATTRIBUTES);
 
     ActionDBAccessor db = injector.getInstance(ActionDBAccessorImpl.class);
 
@@ -204,13 +206,13 @@ public class ExecutionCommandWrapperTest {
     executionCommand.setRequestAndStage(1, 1);
     executionCommand.setHostname(HOST1);
     executionCommand.setRole("NAMENODE");
-    executionCommand.setRoleParams(Collections.<String, String>emptyMap());
+    executionCommand.setRoleParams(Collections.emptyMap());
     executionCommand.setRoleCommand(RoleCommand.START);
     executionCommand.setConfigurations(confs);
     executionCommand.setConfigurationTags(confTags);
     executionCommand.setServiceName("HDFS");
     executionCommand.setCommandType(AgentCommandType.EXECUTION_COMMAND);
-    executionCommand.setCommandParams(Collections.<String, String>emptyMap());
+    executionCommand.setCommandParams(Collections.emptyMap());
 
     String json = StageUtils.getGson().toJson(executionCommand, ExecutionCommand.class);
 
@@ -242,6 +244,7 @@ public class ExecutionCommandWrapperTest {
 
     Assert.assertEquals(serviceSiteKeys.size(), serviceSiteConfig.size());
 
+    Assert.assertNotNull(processedExecutionCommand.getRepositoryFile());
   }
 
   @Test
@@ -291,7 +294,7 @@ public class ExecutionCommandWrapperTest {
     Cluster cluster = clusters.getCluster(CLUSTER1);
 
     StackId stackId = cluster.getDesiredStackVersion();
-    
+
     // set the repo version resolved state to verify that the version is not sent
     RepositoryVersionEntity repositoryVersion = ormTestHelper.getOrCreateRepositoryVersion(stackId, "0.1-0000");
     repositoryVersion.setResolved(false);
@@ -356,7 +359,7 @@ public class ExecutionCommandWrapperTest {
     processedExecutionCommand = execCommWrap.getExecutionCommand();
     commandParams = processedExecutionCommand.getCommandParams();
     Assert.assertEquals("0.1-0000", commandParams.get(KeyNames.VERSION));
-  }
+    }
 
   /**
    * Test that the execution command wrapper ignores repository file when there are none to use.
@@ -371,7 +374,7 @@ public class ExecutionCommandWrapperTest {
     Service service = cluster.getService("HDFS");
     service.setDesiredRepositoryVersion(repositoryVersion);
 
-    repositoryVersion.setOperatingSystems("[]");
+    repositoryVersion.addRepoOsEntities(new ArrayList<>());
 
     ormTestHelper.repositoryVersionDAO.merge(repositoryVersion);
 

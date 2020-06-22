@@ -20,6 +20,10 @@ package org.apache.ambari.server.controller;
 import java.util.Map;
 import java.util.Objects;
 
+import org.apache.ambari.server.controller.internal.RootServiceComponentResourceProvider;
+
+import io.swagger.annotations.ApiModelProperty;
+
 public class RootServiceComponentResponse {
 
   private final String serviceName;
@@ -35,26 +39,29 @@ public class RootServiceComponentResponse {
     this.properties = properties;
   }
 
+  @ApiModelProperty(name = RootServiceComponentResourceProvider.SERVICE_NAME)
   public String getServiceName() {
     return serviceName;
   }
 
+  @ApiModelProperty(name = RootServiceComponentResourceProvider.COMPONENT_NAME)
   public String getComponentName() {
     return componentName;
   }
 
+  @ApiModelProperty(name = RootServiceComponentResourceProvider.PROPERTIES)
   public Map<String, String> getProperties() {
     return properties;
   }
 
+  @ApiModelProperty(name = RootServiceComponentResourceProvider.COMPONENT_VERSION)
   public String getComponentVersion() {
     return componentVersion;
   }
 
-  public long getServerClock() {
-    return serverClock;
-  }
-
+  @ApiModelProperty(name = RootServiceComponentResourceProvider.SERVER_CLOCK)
+  public long getServerClock() { return serverClock; }
+  
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;

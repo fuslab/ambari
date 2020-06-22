@@ -17,8 +17,20 @@
  */
 package org.apache.ambari.server.controller.internal;
 
+import static org.apache.ambari.server.controller.internal.ClusterPrivilegeResourceProvider.CLUSTER_NAME;
+import static org.apache.ambari.server.controller.internal.ViewPrivilegeResourceProvider.INSTANCE_NAME;
+import static org.apache.ambari.server.controller.internal.ViewPrivilegeResourceProvider.VERSION;
+import static org.apache.ambari.server.controller.internal.ViewPrivilegeResourceProvider.VIEW_NAME;
+
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.spi.Predicate;
 import org.apache.ambari.server.controller.spi.Resource;
+import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.apache.ambari.server.orm.dao.ClusterDAO;
 import org.apache.ambari.server.orm.entities.ClusterEntity;
 import org.apache.ambari.server.orm.entities.GroupEntity;
@@ -33,24 +45,15 @@ import org.apache.ambari.server.security.authorization.ResourceType;
 import org.apache.ambari.server.security.authorization.RoleAuthorization;
 import org.apache.ambari.server.view.ViewRegistry;
 
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import static org.apache.ambari.server.controller.internal.ClusterPrivilegeResourceProvider.PRIVILEGE_CLUSTER_NAME_PROPERTY_ID;
-import static org.apache.ambari.server.controller.internal.ViewPrivilegeResourceProvider.PRIVILEGE_INSTANCE_NAME_PROPERTY_ID;
-import static org.apache.ambari.server.controller.internal.ViewPrivilegeResourceProvider.PRIVILEGE_VIEW_NAME_PROPERTY_ID;
-import static org.apache.ambari.server.controller.internal.ViewPrivilegeResourceProvider.PRIVILEGE_VIEW_VERSION_PROPERTY_ID;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 
 /**
  * Resource provider for Ambari privileges.
  */
 public class AmbariPrivilegeResourceProvider extends PrivilegeResourceProvider<Object> {
 
-  public static final String PRIVILEGE_TYPE_PROPERTY_ID  = "PrivilegeInfo/type";
+  public static final String TYPE = PrivilegeResourceProvider.PRIVILEGE_INFO + PropertyHelper.EXTERNAL_PATH_SEP + PrivilegeResourceProvider.TYPE_PROPERTY_ID;
 
   /**
    * Data access object used to obtain privilege entities.
@@ -60,28 +63,24 @@ public class AmbariPrivilegeResourceProvider extends PrivilegeResourceProvider<O
   /**
    * The property ids for an Ambari privilege resource.
    */
-  private static Set<String> propertyIds = new HashSet<String>();
-  static {
-    propertyIds.add(PRIVILEGE_ID_PROPERTY_ID);
-    propertyIds.add(PERMISSION_NAME_PROPERTY_ID);
-    propertyIds.add(PERMISSION_LABEL_PROPERTY_ID);
-    propertyIds.add(PRINCIPAL_NAME_PROPERTY_ID);
-    propertyIds.add(PRINCIPAL_TYPE_PROPERTY_ID);
-    propertyIds.add(PRIVILEGE_VIEW_NAME_PROPERTY_ID);
-    propertyIds.add(PRIVILEGE_VIEW_VERSION_PROPERTY_ID);
-    propertyIds.add(PRIVILEGE_INSTANCE_NAME_PROPERTY_ID);
-    propertyIds.add(PRIVILEGE_CLUSTER_NAME_PROPERTY_ID);
-    propertyIds.add(PRIVILEGE_TYPE_PROPERTY_ID);
-
-  }
+  private static Set<String> propertyIds = Sets.newHashSet(
+      PRIVILEGE_ID,
+      PERMISSION_NAME,
+      PERMISSION_LABEL,
+      PRINCIPAL_NAME,
+      PRINCIPAL_TYPE,
+      VIEW_NAME,
+      VERSION,
+      INSTANCE_NAME,
+      CLUSTER_NAME,
+      TYPE);
 
   /**
    * The key property ids for a privilege resource.
    */
-  private static Map<Resource.Type, String> keyPropertyIds = new HashMap<Resource.Type, String>();
-  static {
-    keyPropertyIds.put(Resource.Type.AmbariPrivilege, PRIVILEGE_ID_PROPERTY_ID);
-  }
+  private static Map<Resource.Type, String> keyPropertyIds = ImmutableMap.<Resource.Type, String>builder()
+      .put(Resource.Type.AmbariPrivilege, PRIVILEGE_ID)
+      .build();
 
 
   // ----- Constructors ------------------------------------------------------
@@ -122,7 +121,7 @@ public class AmbariPrivilegeResourceProvider extends PrivilegeResourceProvider<O
 
   @Override
   public Map<Long, Object> getResourceEntities(Map<String, Object> properties) {
-    Map<Long, Object> resourceEntities = new HashMap<Long, Object>();
+    Map<Long, Object> resourceEntities = new HashMap<>();
 
     resourceEntities.put(ResourceEntity.AMBARI_RESOURCE_ID, null);
     // add cluster entities
@@ -166,19 +165,19 @@ public class AmbariPrivilegeResourceProvider extends PrivilegeResourceProvider<O
             break;
           case CLUSTER:
             ClusterEntity clusterEntity = (ClusterEntity) resourceEntities.get(resourceEntity.getId());
-            setResourceProperty(resource, PRIVILEGE_CLUSTER_NAME_PROPERTY_ID, clusterEntity.getClusterName(), requestedIds);
+            setResourceProperty(resource, CLUSTER_NAME, clusterEntity.getClusterName(), requestedIds);
             break;
           case VIEW:
             ViewInstanceEntity viewInstanceEntity = (ViewInstanceEntity) resourceEntities.get(resourceEntity.getId());
             ViewEntity viewEntity = viewInstanceEntity.getViewEntity();
 
-            setResourceProperty(resource, PRIVILEGE_VIEW_NAME_PROPERTY_ID, viewEntity.getCommonName(), requestedIds);
-            setResourceProperty(resource, PRIVILEGE_VIEW_VERSION_PROPERTY_ID, viewEntity.getVersion(), requestedIds);
-            setResourceProperty(resource, PRIVILEGE_INSTANCE_NAME_PROPERTY_ID, viewInstanceEntity.getName(), requestedIds);
+            setResourceProperty(resource, VIEW_NAME, viewEntity.getCommonName(), requestedIds);
+            setResourceProperty(resource, VERSION, viewEntity.getVersion(), requestedIds);
+            setResourceProperty(resource, INSTANCE_NAME, viewInstanceEntity.getName(), requestedIds);
             break;
         }
 
-        setResourceProperty(resource, PRIVILEGE_TYPE_PROPERTY_ID, resourceType.name(), requestedIds);
+        setResourceProperty(resource, TYPE, resourceType.name(), requestedIds);
       }
     }
 

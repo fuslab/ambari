@@ -24,34 +24,15 @@ App.TextDashboardWidgetView = App.DashboardWidgetView.extend({
 
   classNameBindings: ['isRed', 'isOrange', 'isGreen', 'isNA'],
 
-  isRed: Em.computed.lteProperties('data', 'thresh1'),
+  isEditable: true,
+
+  isRed: Em.computed.lteProperties('data', 'thresholdMin'),
   isOrange: Em.computed.and('!isGreen', '!isRed'),
-  isGreen: Em.computed.gtProperties('data', 'thresh2'),
+  isGreen: Em.computed.gtProperties('data', 'thresholdMax'),
 
   isNA: function () {
     return this.get('data') === null;
   }.property('data'),
 
-  hiddenInfo: [],
-
-  maxValue: null,
-
-  updateColors: function (handlers, colors) {
-    var colorstops = colors[0] + ", "; // start with the first color
-    for (var i = 0; i < handlers.length; i++) {
-      colorstops += colors[i] + " " + handlers[i] + "%,";
-      colorstops += colors[i + 1] + " " + handlers[i] + "%,";
-    }
-    colorstops += colors[colors.length - 1];
-    var cssForChromeAndSafari = '-webkit-linear-gradient(left,' + colorstops + ')'; // chrome & safari
-    var slider = $('#slider-range');
-    slider.css('background-image', cssForChromeAndSafari);
-    var cssForIE = '-ms-linear-gradient(left,' + colorstops + ')'; // IE 10+
-    slider.css('background-image', cssForIE);
-    //$('#slider-range').css('filter', 'progid:DXImageTransform.Microsoft.gradient( startColorStr= ' + colors[0] + ', endColorStr= ' + colors[2] +',  GradientType=1 )' ); // IE 10-
-    var cssForFireFox = '-moz-linear-gradient(left,' + colorstops + ')'; // Firefox
-    slider.css('background-image', cssForFireFox);
-
-    slider.find('.ui-widget-header').css({'background-color': '#FF8E00', 'background-image': 'none'}); // change the  original ranger color
-  }
+  hiddenInfo: []
 });

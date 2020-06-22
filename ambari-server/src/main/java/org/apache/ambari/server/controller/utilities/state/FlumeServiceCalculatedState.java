@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,15 +18,17 @@
 
 package org.apache.ambari.server.controller.utilities.state;
 
+import java.util.Collections;
+import java.util.Set;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.StaticallyInject;
 import org.apache.ambari.server.controller.ServiceComponentHostRequest;
 import org.apache.ambari.server.controller.ServiceComponentHostResponse;
 import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.State;
-
-import java.util.Collections;
-import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Determines the service status for Flume.  Generically, this means that
@@ -40,6 +42,8 @@ import java.util.Set;
 public final class FlumeServiceCalculatedState extends DefaultServiceCalculatedState
   implements ServiceCalculatedState {
 
+  private static final Logger LOG = LoggerFactory.getLogger(FlumeServiceCalculatedState.class);
+
   @Override
   public State getState(String clusterName, String serviceName) {
     try {
@@ -50,7 +54,7 @@ public final class FlumeServiceCalculatedState extends DefaultServiceCalculatedS
           serviceName, null, null, null);
 
         Set<ServiceComponentHostResponse> hostComponentResponses =
-          managementControllerProvider.get().getHostComponents(Collections.singleton(request));
+          managementControllerProvider.get().getHostComponents(Collections.singleton(request), true);
 
         State state = State.UNKNOWN;
         for (ServiceComponentHostResponse schr : hostComponentResponses) {

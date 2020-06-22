@@ -34,6 +34,7 @@ from resource_management.libraries.functions.hive_check import check_thrift_port
 from resource_management.core.resources.system import Execute
 from resource_management.core.exceptions import Fail
 
+
 class HiveServiceCheck(Script):
   pass
 

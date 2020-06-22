@@ -17,9 +17,14 @@
  */
 package org.apache.ambari.server.controller.internal;
 
-import com.google.inject.Inject;
-import com.google.inject.assistedinject.Assisted;
-import com.google.inject.assistedinject.AssistedInject;
+import java.text.DecimalFormat;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.controller.AmbariManagementController;
 import org.apache.ambari.server.controller.KerberosHelper;
@@ -31,21 +36,18 @@ import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.orm.dao.HostDAO;
+import org.apache.ambari.server.orm.dao.KerberosKeytabPrincipalDAO;
 import org.apache.ambari.server.orm.dao.KerberosPrincipalDAO;
-import org.apache.ambari.server.orm.dao.KerberosPrincipalHostDAO;
 import org.apache.ambari.server.orm.entities.HostEntity;
+import org.apache.ambari.server.orm.entities.KerberosKeytabPrincipalEntity;
 import org.apache.ambari.server.state.kerberos.KerberosIdentityDescriptor;
 import org.apache.ambari.server.state.kerberos.KerberosKeytabDescriptor;
 import org.apache.ambari.server.state.kerberos.KerberosPrincipalDescriptor;
 import org.apache.ambari.server.state.kerberos.KerberosPrincipalType;
 
-import java.text.DecimalFormat;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import com.google.inject.Inject;
+import com.google.inject.assistedinject.Assisted;
+import com.google.inject.assistedinject.AssistedInject;
 
 /**
  * Read-only resource provider for Kerberos identity resources.
@@ -75,7 +77,7 @@ public class HostKerberosIdentityResourceProvider extends ReadOnlyResourceProvid
   );
 
   protected static final Set<String> PK_PROPERTY_IDS = Collections.unmodifiableSet(
-      new HashSet<String>(PK_PROPERTY_MAP.values())
+      new HashSet<>(PK_PROPERTY_MAP.values())
   );
 
   protected static final Set<String> PROPERTY_IDS = Collections.unmodifiableSet(
@@ -100,12 +102,6 @@ public class HostKerberosIdentityResourceProvider extends ReadOnlyResourceProvid
   private KerberosHelper kerberosHelper;
 
   /**
-   * KerberosPrincipalHostDAO used to get Kerberos principal details
-   */
-  @Inject
-  private KerberosPrincipalHostDAO kerberosPrincipalHostDAO;
-
-  /**
    * KerberosPrincipalDAO used to get Kerberos principal details
    */
   @Inject
@@ -117,6 +113,9 @@ public class HostKerberosIdentityResourceProvider extends ReadOnlyResourceProvid
   @Inject
   private HostDAO hostDAO;
 
+  @Inject
+  private KerberosKeytabPrincipalDAO kerberosKeytabPrincipalDAO;
+
   /**
    * Create a  new resource provider for the given management controller.
    *
@@ -124,7 +123,7 @@ public class HostKerberosIdentityResourceProvider extends ReadOnlyResourceProvid
    */
   @AssistedInject
   HostKerberosIdentityResourceProvider(@Assisted AmbariManagementController managementController) {
-    super(PROPERTY_IDS, PK_PROPERTY_MAP, managementController);
+    super(Resource.Type.HostKerberosIdentity, PROPERTY_IDS, PK_PROPERTY_MAP, managementController);
   }
 
 
@@ -153,7 +152,7 @@ public class HostKerberosIdentityResourceProvider extends ReadOnlyResourceProvid
 
     @Override
     public Set<Resource> invoke() throws AmbariException {
-      Set<Resource> resources = new HashSet<Resource>();
+      Set<Resource> resources = new HashSet<>();
 
       for (Map<String, Object> propertyMap : propertyMaps) {
         String clusterName = (String) propertyMap.get(KERBEROS_IDENTITY_CLUSTER_NAME_PROPERTY_ID);
@@ -182,7 +181,7 @@ public class HostKerberosIdentityResourceProvider extends ReadOnlyResourceProvid
                     KerberosPrincipalType principalType = principalDescriptor.getType();
 
                     // Assume the principal is a service principal if not specified
-                    if(principalType == null) {
+                    if (principalType == null) {
                       principalType = KerberosPrincipalType.SERVICE;
                     }
 
@@ -193,10 +192,18 @@ public class HostKerberosIdentityResourceProvider extends ReadOnlyResourceProvid
                     setResourceProperty(resource, KERBEROS_IDENTITY_PRINCIPAL_TYPE_PROPERTY_ID, principalType, requestPropertyIds);
                     setResourceProperty(resource, KERBEROS_IDENTITY_PRINCIPAL_LOCAL_USERNAME_PROPERTY_ID, principalDescriptor.getLocalUsername(), requestPropertyIds);
 
+                    KerberosKeytabDescriptor keytabDescriptor = descriptor.getKeytabDescriptor();
+
                     String installedStatus;
+
                     if ((hostId != null) && kerberosPrincipalDAO.exists(principal)) {
-                      if (kerberosPrincipalHostDAO.exists(principal, hostId)) {
-                        installedStatus = "true";
+                      if (keytabDescriptor != null) {
+                        KerberosKeytabPrincipalEntity entity = kerberosKeytabPrincipalDAO.findByNaturalKey(hostId, keytabDescriptor.getFile(), principal);
+                        if (entity != null && entity.isDistributed()) {
+                          installedStatus = "true";
+                        } else {
+                          installedStatus = "false";
+                        }
                       } else {
                         installedStatus = "false";
                       }
@@ -206,7 +213,6 @@ public class HostKerberosIdentityResourceProvider extends ReadOnlyResourceProvid
 
                     setResourceProperty(resource, KERBEROS_IDENTITY_KEYTAB_FILE_INSTALLED_PROPERTY_ID, installedStatus, requestPropertyIds);
 
-                    KerberosKeytabDescriptor keytabDescriptor = descriptor.getKeytabDescriptor();
                     if (keytabDescriptor != null) {
                       String ownerAccess = keytabDescriptor.getOwnerAccess();
                       String groupAccess = keytabDescriptor.getGroupAccess();

@@ -16,31 +16,21 @@
 * limitations under the License.
 }}
 
-<ul class="dropdown-menu" >
   {{#if view.hiddenWidgets.length}}
     <li class="add-widgets-dropdown-list">
       <ul>
         {{#each widget in view.hiddenWidgets}}
           <li>
-            <label class="checkbox">
-              {{view view.widgetCheckbox checkedBinding="widget.checked"}} {{unbound widget.displayName}}
-            </label>
+            {{view view.widgetCheckbox class="checkbox" checkedBinding="widget.checked" labelBinding="widget.title"}}
           </li>
         {{/each}}
       </ul>
     </li>
-    <li>
-      <button class="btn" {{action "closeFilter" target="view"}}>{{t common.cancel}}</button>
-      <button class="btn btn-primary" {{action "applyFilter" target="view"}}>{{t common.apply}}</button>
+    <li class="add-widgets-apply-button">
+      <button class="btn btn-primary pull-right" {{action "applyFilter" target="view"}}>{{t common.add}}</button>
     </li>
   {{else}}
-    <li>
-      <ul>
-      <li>{{t dashboard.widgets.nothing}}</li>
-      </ul>
-    </li>
-    <li>
-      <button class="btn" {{action "closeFilter" target="view"}}>{{t common.cancel}}</button>
+    <li class="nothing-to-add">
+      <span>{{t dashboard.widgets.nothing}}</span>
     </li>
   {{/if}}
-</ul>

@@ -35,7 +35,7 @@ this file, see http://wiki.apache.org/solr/SolrConfigXml.
   that you fully re-index after changing this setting as it can
   affect both how text is indexed and queried.
   -->
-  <luceneMatchVersion>5.0.0</luceneMatchVersion>
+  <luceneMatchVersion>7.7.0</luceneMatchVersion>
 
   <!-- <lib/> directives can be used to instruct Solr to load any Jars
   identified and use them to resolve any "plugins" specified in
@@ -237,7 +237,10 @@ this file, see http://wiki.apache.org/solr/SolrConfigXml.
     <mergeFactor>10</mergeFactor>
     -->
     <!-- LogSearch customization. Set to 5 to trigger purging of deleted documents more often -->
-    <mergeFactor>{{logsearch_service_logs_merge_factor}}</mergeFactor>
+    <mergePolicyFactory class="org.apache.solr.index.TieredMergePolicyFactory">
+      <int name="maxMergeAtOnce">{{logsearch_service_logs_merge_factor}}</int>
+      <int name="segmentsPerTier">{{logsearch_service_logs_merge_factor}}</int>
+    </mergePolicyFactory>
 
     <!-- Expert: Merge Scheduler
     The Merge Scheduler in Lucene controls how merges are
@@ -1063,8 +1066,7 @@ this file, see http://wiki.apache.org/solr/SolrConfigXml.
   Admin Handlers - This will register all the standard admin
   RequestHandlers.
   -->
-  <requestHandler name="/admin/"
-                  class="solr.admin.AdminHandlers"/>
+
   <!-- This single handler is equivalent to the following... -->
   <!--
   <requestHandler name="/admin/luke"       class="solr.admin.LukeRequestHandler" />
@@ -1214,7 +1216,7 @@ this file, see http://wiki.apache.org/solr/SolrConfigXml.
   -->
   <searchComponent name="spellcheck" class="solr.SpellCheckComponent">
 
-    <str name="queryAnalyzerFieldType">key_lower_case</str>
+    <str name="queryAnalyzerFieldType">lowercase</str>
 
     <!-- Multiple "Spell Checkers" can be declared and used by this
     component
@@ -1689,7 +1691,7 @@ this file, see http://wiki.apache.org/solr/SolrConfigXml.
       </arr>
     </processor>
     <processor class="solr.AddSchemaFieldsUpdateProcessorFactory">
-      <str name="defaultFieldType">key_lower_case</str>
+      <str name="defaultFieldType">lowercase</str>
       <lst name="typeMapping">
         <str name="valueClass">java.lang.Boolean</str>
         <str name="fieldType">boolean</str>
@@ -1839,7 +1841,6 @@ this file, see http://wiki.apache.org/solr/SolrConfigXml.
   <!--
   <queryParser name="myparser" class="com.mycompany.MyQParserPlugin"/>
   -->
-  <queryParser name="xmlparser" class="solr.ExtendedDismaxQParserPlugin" />
 
   <!-- Function Parsers
 

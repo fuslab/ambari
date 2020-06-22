@@ -16,22 +16,24 @@
 * limitations under the License.
 }}
 
-<div id="serviceConfig">
-  <h2>{{t installer.step7.header}}{{controller.finnalyLoaded}}</h2>
+<div id="serviceConfig" class="wizard-content col-md-9" {{QAAttr "service-configs"}}>
+  <h4 class="step-title" {{QAAttr "step-title"}}>{{t installer.step7.header}}{{controller.finnalyLoaded}}</h4>
+  <p class="step-description">{{t installer.step7.body}}</p>
 
-  <div class="alert alert-info">
-    {{t installer.step7.body}}
+  <div class="panel panel-default">
+    <div class="panel-body">
+      {{#if isConfigsLoaded}}
+        {{view App.ServicesConfigView}}
+      {{else}}
+        {{view App.SpinnerView}}
+      {{/if}}
+    </div>
   </div>
+</div>
 
-  {{#if isConfigsLoaded}}
-    {{view App.ServicesConfigView}}
-  {{else}}
-    {{view App.SpinnerView}}
-  {{/if}}
-
-
+<div class="wizard-footer col-md-12">
   <div class="btn-area">
-    <button type="button" class="btn installer-back-btn" {{bindAttr disabled="App.router.btnClickInProgress"}} {{action back}}>
+    <button type="button" {{QAAttr "wizard-back"}} class="btn btn-default installer-back-btn" {{bindAttr disabled="App.router.btnClickInProgress"}} {{action back}}>
       &larr; {{t common.back}}
       {{#if App.router.backBtnClickInProgress}}
         {{view App.SpinnerView tagName="span" classNames="service-button-spinner"}}
@@ -39,9 +41,9 @@
     </button>
     <div class="pull-right">
       {{#if App.supports.preInstallChecks}}
-        <a class="btn" {{action runPreInstallChecks target="App.router.preInstallChecksController"}} {{bindAttr disabled="isSubmitDisabled"}}><i class="icon-exclamation"></i> {{t installer.step7.preInstallChecks}}</a>
+        <a class="btn btn-default" {{action runPreInstallChecks target="App.router.preInstallChecksController"}} {{bindAttr disabled="isSubmitDisabled"}}><i class="glyphicon glyphicon-exclamation"></i> {{t installer.step7.preInstallChecks}}</a>
       {{/if}}
-      <button type="button" class="btn btn-success" {{bindAttr disabled="isSubmitDisabled"}} {{action submit target="controller"}}>
+      <button type="button" class="btn btn-success" {{QAAttr "wizard-next"}} {{bindAttr disabled="isSubmitDisabled"}} {{action submit target="controller"}}>
         {{#if App.router.nextBtnClickInProgress}}
           {{view App.SpinnerView tagName="span" classNames="service-button-spinner"}}
         {{/if}}

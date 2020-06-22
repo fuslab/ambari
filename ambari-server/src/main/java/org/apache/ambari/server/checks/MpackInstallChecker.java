@@ -17,13 +17,18 @@
  */
 package org.apache.ambari.server.checks;
 
-import com.google.inject.Guice;
-import com.google.inject.Inject;
-import com.google.inject.Injector;
-import com.google.inject.persist.PersistService;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 
 import org.apache.ambari.server.audit.AuditLoggerModule;
 import org.apache.ambari.server.controller.ControllerModule;
+import org.apache.ambari.server.ldap.LdapModule;
 import org.apache.ambari.server.orm.DBAccessor;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -34,14 +39,10 @@ import org.apache.commons.cli.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
+import com.google.inject.Guice;
+import com.google.inject.Inject;
+import com.google.inject.Injector;
+import com.google.inject.persist.PersistService;
 
 
 /**
@@ -203,7 +204,7 @@ public class MpackInstallChecker {
    */
   public static void main(String[] args) throws Exception {
 
-    Injector injector = Guice.createInjector(new ControllerModule(), new MpackCheckerAuditModule());
+    Injector injector = Guice.createInjector(new ControllerModule(), new MpackCheckerAuditModule(), new LdapModule());
     MpackInstallChecker mpackInstallChecker = injector.getInstance(MpackInstallChecker.class);
     MpackContext mpackContext = processArguments(args);
 

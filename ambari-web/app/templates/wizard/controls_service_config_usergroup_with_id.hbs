@@ -18,7 +18,7 @@
 
 {{#if view.isUIDGIDVisible}}
     {{view App.ServiceConfigTextField serviceConfigBinding="view.serviceConfig" class="serviceConfigUGID"}}
-    <label class="serviceConfigUGIDLbl" {{bindAttr for="view.serviceConfig.ugid.name"}}>
+    <label class="serviceConfigUGIDLbl control-label" {{bindAttr for="view.serviceConfig.ugid.name"}}>
         {{view.serviceConfig.ugid.displayName}}
     </label>
     {{view Ember.TextField valueBinding="view.serviceConfig.ugid.value" class="serviceConfigUGID"}}

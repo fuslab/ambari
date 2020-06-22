@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,6 +23,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 import javax.xml.bind.Unmarshaller;
@@ -36,13 +37,16 @@ import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlValue;
 
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
+import org.apache.ambari.server.state.stack.upgrade.AddComponentTask;
 import org.apache.ambari.server.state.stack.upgrade.ClusterGrouping;
+import org.apache.ambari.server.state.stack.upgrade.ClusterGrouping.ExecuteStage;
 import org.apache.ambari.server.state.stack.upgrade.ConfigureTask;
 import org.apache.ambari.server.state.stack.upgrade.CreateAndConfigureTask;
 import org.apache.ambari.server.state.stack.upgrade.Direction;
 import org.apache.ambari.server.state.stack.upgrade.Grouping;
 import org.apache.ambari.server.state.stack.upgrade.ServiceCheckGrouping;
 import org.apache.ambari.server.state.stack.upgrade.Task;
+import org.apache.ambari.server.state.stack.upgrade.Task.Type;
 import org.apache.ambari.server.state.stack.upgrade.UpgradeType;
 import org.apache.commons.collections.CollectionUtils;
 import org.slf4j.Logger;
@@ -57,7 +61,7 @@ public class UpgradePack {
 
   private static final String ALL_VERSIONS = "*";
 
-  private static Logger LOG = LoggerFactory.getLogger(UpgradePack.class);
+  private static final Logger LOG = LoggerFactory.getLogger(UpgradePack.class);
 
   /**
    * Name of the file without the extension, such as upgrade-2.2
@@ -72,7 +76,7 @@ public class UpgradePack {
 
   @XmlElementWrapper(name="order")
   @XmlElement(name="group")
-  private List<Grouping> groups;
+  private List<Grouping> groups = new ArrayList<>();
 
   @XmlElement(name="prerequisite-checks")
   private PrerequisiteChecks prerequisiteChecks;
@@ -97,7 +101,7 @@ public class UpgradePack {
    * {@code true} to allow downgrade, {@code false} to disable downgrade.
    * Tag is optional and can be {@code null}, use {@code isDowngradeAllowed} getter instead.
    */
-  @XmlElement(name = "downgrade-allowed", required = false)
+  @XmlElement(name = "downgrade-allowed", required = false, defaultValue = "true")
   private boolean downgradeAllowed = true;
 
   /**
@@ -107,14 +111,17 @@ public class UpgradePack {
   @XmlElement(name = "skip-service-check-failures")
   private boolean skipServiceCheckFailures = false;
 
-  @XmlTransient
-  private Map<String, List<String>> m_orders = null;
-
   /**
    * Initialized once by {@link #afterUnmarshal(Unmarshaller, Object)}.
    */
   @XmlTransient
   private Map<String, Map<String, ProcessingComponent>> m_process = null;
+
+  /**
+   * A mapping of SERVICE/COMPONENT to any {@link AddComponentTask} instances.
+   */
+  @XmlTransient
+  private final Map<String, AddComponentTask> m_addComponentTasks = new LinkedHashMap<>();
 
   @XmlTransient
   private boolean m_resolvedGroups = false;
@@ -151,6 +158,9 @@ public class UpgradePack {
    * @return the preCheck name, e.g. "CheckDescription"
    */
   public List<String> getPrerequisiteChecks() {
+    if (prerequisiteChecks == null) {
+      return new ArrayList<>();
+    }
     return new ArrayList<>(prerequisiteChecks.checks);
   }
 
@@ -159,6 +169,9 @@ public class UpgradePack {
    * @return the prerequisite check configuration
    */
   public PrerequisiteCheckConfig getPrerequisiteCheckConfig() {
+    if (prerequisiteChecks == null) {
+      return new PrerequisiteCheckConfig();
+    }
     return prerequisiteChecks.configuration;
   }
 
@@ -400,11 +413,7 @@ public class UpgradePack {
   }
 
   private List<Grouping> getDowngradeGroupsForNonrolling() {
-    List<Grouping> list = new ArrayList<>();
-    for (Grouping g : groups) {
-      list.add(g);
-    }
-    return list;
+    return new ArrayList<>(groups);
   }
 
   /**
@@ -413,6 +422,16 @@ public class UpgradePack {
    */
   public Map<String, Map<String, ProcessingComponent>> getTasks() {
     return m_process;
+  }
+
+  /**
+   * Gets a mapping of SERVICE/COMPONENT to {@link AddComponentTask} for this
+   * upgrade pack.
+   *
+   * @return
+   */
+  public Map<String, AddComponentTask> getAddComponentTasks() {
+    return m_addComponentTasks;
   }
 
   /**
@@ -434,6 +453,7 @@ public class UpgradePack {
    */
   void afterUnmarshal(Unmarshaller unmarshaller, Object parent) {
     initializeProcessingComponentMappings();
+    initializeAddComponentTasks();
   }
 
   /**
@@ -462,6 +482,27 @@ public class UpgradePack {
         } else {
           LOG.warn("ProcessingService {} has null amongst it's values (total {} components)",
               svc.name, svc.components.size());
+        }
+      }
+    }
+  }
+
+  /**
+   * Builds a mapping of SERVICE/COMPONENT to {@link AddComponentTask}.
+   */
+  private void initializeAddComponentTasks() {
+    for (Grouping group : groups) {
+      if (ClusterGrouping.class.isInstance(group)) {
+        List<ExecuteStage> executeStages = ((ClusterGrouping) group).executionStages;
+        for (ExecuteStage executeStage : executeStages) {
+          Task task = executeStage.task;
+
+          // keep track of this for later ...
+          if (task.getType() == Type.ADD_COMPONENT) {
+            AddComponentTask addComponentTask = (AddComponentTask) task;
+            m_addComponentTasks.put(addComponentTask.getServiceAndComponentAsString(),
+                addComponentTask);
+          }
         }
       }
     }
@@ -735,4 +776,14 @@ public class UpgradePack {
     private List<Task> tasks = new ArrayList<>();
   }
 
+  /**
+   * @return true if this upgrade pack contains a group with a task that matches the given predicate
+   */
+  public boolean anyGroupTaskMatch(Predicate<Task> taskPredicate) {
+    return getAllGroups().stream()
+      .filter(ClusterGrouping.class::isInstance)
+      .flatMap(group -> ((ClusterGrouping) group).executionStages.stream())
+      .map(executeStage -> executeStage.task)
+      .anyMatch(taskPredicate);
+  }
 }

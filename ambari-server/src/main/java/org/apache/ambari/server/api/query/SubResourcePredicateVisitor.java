@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,18 @@
 package org.apache.ambari.server.api.query;
 
 
+import java.util.LinkedList;
+import java.util.List;
+
 import org.apache.ambari.server.controller.predicate.AlwaysPredicate;
 import org.apache.ambari.server.controller.predicate.ArrayPredicate;
 import org.apache.ambari.server.controller.predicate.CategoryPredicate;
 import org.apache.ambari.server.controller.predicate.ComparisonPredicate;
+import org.apache.ambari.server.controller.predicate.NotPredicate;
 import org.apache.ambari.server.controller.predicate.PredicateVisitor;
 import org.apache.ambari.server.controller.predicate.UnaryPredicate;
-import org.apache.ambari.server.controller.predicate.NotPredicate;
 import org.apache.ambari.server.controller.spi.Predicate;
 import org.apache.ambari.server.controller.utilities.PredicateHelper;
-
-import java.util.LinkedList;
-import java.util.List;
 
 /**
  * A predicate visitor used to extract the sub resource elements from a given predicate
@@ -87,7 +87,7 @@ public class SubResourcePredicateVisitor implements PredicateVisitor {
 
   @Override
   public void acceptArrayPredicate(ArrayPredicate arrayPredicate) {
-    List<Predicate> predicateList = new LinkedList<Predicate>();
+    List<Predicate> predicateList = new LinkedList<>();
 
     Predicate[] predicates = arrayPredicate.getPredicates();
     if (predicates.length > 0) {

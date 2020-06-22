@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,13 @@
 
 package org.apache.ambari.server.controller.metrics.ganglia;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.ambari.server.controller.metrics.ganglia.GangliaMetric;
 import org.junit.Test;
-import static org.junit.Assert.*;
 
 /**
  *
@@ -40,7 +41,7 @@ public class GangliaMetricTest {
   public void testSetDatapointsOfPercentValue() {
     System.out.println("setDatapoints");
     List<GangliaMetric.TemporalMetric> listTemporalMetrics =
-              new ArrayList<GangliaMetric.TemporalMetric>();
+      new ArrayList<>();
     GangliaMetric instance = new GangliaMetric();
     instance.setDs_name("dsName");
     instance.setCluster_name("c1");
@@ -61,7 +62,7 @@ public class GangliaMetricTest {
   public void testSetDatapointsOfgcTimeMillisValue() {
     System.out.println("setDatapoints");
     List<GangliaMetric.TemporalMetric> listTemporalMetrics =
-              new ArrayList<GangliaMetric.TemporalMetric>();
+      new ArrayList<>();
     GangliaMetric instance = new GangliaMetric();
     instance.setDs_name("dsName");
     instance.setCluster_name("c1");
@@ -87,7 +88,7 @@ public class GangliaMetricTest {
     listTemporalMetrics.add(new GangliaMetric.TemporalMetric("0.0", new Long(17)));
     listTemporalMetrics.add(new GangliaMetric.TemporalMetric("0.0", new Long(18)));
     instance.setDatapointsFromList(listTemporalMetrics);
-    System.out.println(instance.toString());
+    System.out.println(instance);
     assertTrue(instance.getDatapoints().length == 11);
   }  
   

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -111,7 +111,7 @@ public class UpgradeGroupEntity {
   }
 
   /**
-   * @param text the item text
+   * @param title the item text
    */
   public void setTitle(String title) {
     groupTitle = title;

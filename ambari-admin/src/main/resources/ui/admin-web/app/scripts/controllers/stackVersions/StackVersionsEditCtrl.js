@@ -34,7 +34,7 @@ angular.module('ambariAdminConsole')
   };
   $scope.defaulfOSRepos = {}; // a copy of initial loaded repo info for "changed" check later
   $scope.isGPLAccepted = false;
-  
+
   $scope.isGPLRepo = function (repository) {
     return repository.Repositories.tags.indexOf('GPL') >= 0;
   };
@@ -66,6 +66,7 @@ angular.module('ambariAdminConsole')
         $scope.defaulfOSRepos[os.OperatingSystems.os_type] = {};
         os.repositories.forEach(function(repo) {
           $scope.defaulfOSRepos[os.OperatingSystems.os_type][repo.Repositories.repo_id] = repo.Repositories.base_url;
+          repo.Repositories.initial_repo_id = repo.Repositories.repo_id;
         });
       });
       $scope.repoVersionFullName = response.repoVersionFullName;
@@ -136,7 +137,7 @@ angular.module('ambariAdminConsole')
   };
 
   $scope.isDeletable = function() {
-    return !($scope.repoStatus == 'current' || $scope.repoStatus == 'installed');
+    return !($scope.repoStatus === 'CURRENT' || $scope.repoStatus === 'INSTALLED');
   };
 
   $scope.disableUnusedOS = function() {
@@ -240,8 +241,8 @@ angular.module('ambariAdminConsole')
     ).then(function() {
         Stack.deleteRepo($scope.upgradeStack.stack_name, $scope.upgradeStack.stack_version, $scope.id).then( function () {
           $location.path('/stackVersions');
-        }).catch(function (data) {
-            Alert.error($t('versions.alerts.versionDeleteError'), data.message);
+        }).catch(function (resp) {
+            Alert.error($t('versions.alerts.versionDeleteError'), resp.data.message);
           });
       });
   };
@@ -331,15 +332,28 @@ angular.module('ambariAdminConsole')
         }
       });
     }
+  };
+
+  $scope.useRedHatCheckbox = function() {
     if ($scope.useRedhatSatellite) {
       ConfirmationModal.show(
-          $t('common.important'),
-          {
-            "url": 'views/modals/BodyForUseRedhatSatellite.html'
-          }
+        $t('versions.useRedhatSatellite.title'),
+        {
+          "url": 'views/modals/BodyForUseRedhatSatellite.html'
+        }
       ).catch(function () {
         $scope.useRedhatSatellite = !$scope.useRedhatSatellite;
       });
+    } else {
+      if ($scope.osList) {
+        $scope.osList.forEach(function(os) {
+          if (os.repositories) {
+            os.repositories.forEach(function(repo) {
+              repo.isEditing = false;
+            })
+          }
+        });
+      }
     }
   };
 

@@ -18,23 +18,28 @@
 
 package org.apache.ambari.server.security.authentication.kerberos;
 
-import junit.framework.Assert;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
+
+import java.util.Collection;
+import java.util.Collections;
+
 import org.apache.ambari.server.configuration.Configuration;
+import org.apache.ambari.server.orm.entities.PrincipalEntity;
+import org.apache.ambari.server.orm.entities.UserAuthenticationEntity;
+import org.apache.ambari.server.orm.entities.UserEntity;
+import org.apache.ambari.server.security.authentication.AmbariUserDetails;
+import org.apache.ambari.server.security.authentication.UserNotFoundException;
 import org.apache.ambari.server.security.authorization.AmbariGrantedAuthority;
-import org.apache.ambari.server.security.authorization.User;
-import org.apache.ambari.server.security.authorization.UserType;
+import org.apache.ambari.server.security.authorization.UserAuthenticationType;
 import org.apache.ambari.server.security.authorization.Users;
 import org.easymock.EasyMockSupport;
 import org.junit.Before;
 import org.junit.Test;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
-import java.util.Collection;
-import java.util.Collections;
-
-import static org.easymock.EasyMock.expect;
+import junit.framework.Assert;
 
 public class AmbariAuthToLocalUserDetailsServiceTest extends EasyMockSupport {
   @Before
@@ -52,15 +57,31 @@ public class AmbariAuthToLocalUserDetailsServiceTest extends EasyMockSupport {
     Configuration configuration = createMock(Configuration.class);
     expect(configuration.getKerberosAuthenticationProperties()).andReturn(properties).once();
 
-    User user = createMock(User.class);
-    expect(user.getUserName()).andReturn("user1").once();
-    expect(user.getUserType()).andReturn(UserType.LDAP).once();
+    PrincipalEntity principal = createMock(PrincipalEntity.class);
+    expect(principal.getPrivileges()).andReturn(Collections.emptySet()).atLeastOnce();
+
+    UserEntity userEntity = createMock(UserEntity.class);
+    expect(userEntity.getUserName()).andReturn("user1").atLeastOnce();
+    expect(userEntity.getUserId()).andReturn(1).atLeastOnce();
+    expect(userEntity.getCreateTime()).andReturn(System.currentTimeMillis()).atLeastOnce();
+    expect(userEntity.getActive()).andReturn(true).atLeastOnce();
+    expect(userEntity.getMemberEntities()).andReturn(Collections.emptySet()).atLeastOnce();
+    expect(userEntity.getAuthenticationEntities()).andReturn(Collections.emptyList()).atLeastOnce();
+    expect(userEntity.getPrincipal()).andReturn(principal).atLeastOnce();
+
+    UserAuthenticationEntity kerberosAuthenticationEntity = createMock(UserAuthenticationEntity.class);
+    expect(kerberosAuthenticationEntity.getAuthenticationType()).andReturn(UserAuthenticationType.KERBEROS).anyTimes();
+    expect(kerberosAuthenticationEntity.getAuthenticationKey()).andReturn("user1@EXAMPLE.COM").anyTimes();
+    expect(kerberosAuthenticationEntity.getUser()).andReturn(userEntity).anyTimes();
 
     Collection<AmbariGrantedAuthority> userAuthorities = Collections.singletonList(createNiceMock(AmbariGrantedAuthority.class));
 
     Users users = createMock(Users.class);
-    expect(users.getUser("user1", UserType.LDAP)).andReturn(user).once();
-    expect(users.getUserAuthorities("user1", UserType.LDAP)).andReturn(userAuthorities).once();
+    expect(users.getUserAuthorities(userEntity)).andReturn(userAuthorities).atLeastOnce();
+    expect(users.getUserAuthenticationEntities(UserAuthenticationType.KERBEROS, "user1@EXAMPLE.COM"))
+        .andReturn(Collections.singleton(kerberosAuthenticationEntity)).atLeastOnce();
+    users.validateLogin(userEntity, "user1");
+    expectLastCall().once();
 
     replayAll();
 
@@ -68,15 +89,18 @@ public class AmbariAuthToLocalUserDetailsServiceTest extends EasyMockSupport {
 
     UserDetails userDetails = userdetailsService.loadUserByUsername("user1@EXAMPLE.COM");
 
-    verifyAll();
-
     Assert.assertNotNull(userDetails);
-    Assert.assertEquals("user1", userDetails.getUsername());
-    Assert.assertEquals(userAuthorities.size(), userDetails.getAuthorities().size());
-    Assert.assertEquals("", userDetails.getPassword());
+    Assert.assertTrue(userDetails instanceof AmbariUserDetails);
+
+    AmbariUserDetails ambariUserDetails = (AmbariUserDetails) userDetails;
+    Assert.assertEquals("user1", ambariUserDetails.getUsername());
+    Assert.assertEquals(Integer.valueOf(1), ambariUserDetails.getUserId());
+    Assert.assertEquals(userAuthorities.size(), ambariUserDetails.getAuthorities().size());
+
+    verifyAll();
   }
 
-  @Test(expected = UsernameNotFoundException.class)
+  @Test(expected = UserNotFoundException.class)
   public void loadUserByUsernameUserNotFound() throws Exception {
     AmbariKerberosAuthenticationProperties properties = new AmbariKerberosAuthenticationProperties();
 
@@ -84,8 +108,9 @@ public class AmbariAuthToLocalUserDetailsServiceTest extends EasyMockSupport {
     expect(configuration.getKerberosAuthenticationProperties()).andReturn(properties).once();
 
     Users users = createMock(Users.class);
-    expect(users.getUser("user1", UserType.LDAP)).andReturn(null).once();
-    expect(users.getUser("user1", UserType.LOCAL)).andReturn(null).once();
+    expect(users.getUserEntity("user1")).andReturn(null).times(2);
+    expect(users.getUserAuthenticationEntities(UserAuthenticationType.KERBEROS, "user1@EXAMPLE.COM"))
+        .andReturn(null).atLeastOnce();
 
     replayAll();
 

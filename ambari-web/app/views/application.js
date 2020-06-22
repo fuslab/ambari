@@ -22,6 +22,10 @@ var App = require('app');
 App.ApplicationView = Em.View.extend({
   templateName: require('templates/application'),
 
+  views: function () {
+    return App.router.get('loggedIn') ? App.router.get('mainViewsController.visibleAmbariViews') : [];
+  }.property('App.router.mainViewsController.visibleAmbariViews.[]', 'App.router.loggedIn'),
+
   didInsertElement: function () {
     // on 'Enter' pressed, trigger modal window primary button if primary button is enabled(green)
     // on 'Esc' pressed, close the modal
@@ -37,5 +41,22 @@ App.ApplicationView = Em.View.extend({
       }
       return true;
     });
-  }
+  },
+
+  /**
+   * Navigation Bar should be initialized after cluster data is loaded
+   */
+  initNavigationBar: function () {
+    if (App.get('router.mainController.isClusterDataLoaded')) {
+      $('body').on('DOMNodeInserted', '.navigation-bar', () => {
+        $('.navigation-bar').navigationBar({
+          fitHeight: true,
+          collapseNavBarClass: 'icon-double-angle-left',
+          expandNavBarClass: 'icon-double-angle-right'
+        });
+        $('body').off('DOMNodeInserted', '.navigation-bar');
+      });
+    }
+  }.observes('App.router.mainController.isClusterDataLoaded')
+
 });

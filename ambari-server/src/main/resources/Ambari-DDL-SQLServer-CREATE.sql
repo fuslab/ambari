@@ -97,6 +97,13 @@ CREATE TABLE clusterconfig (
   CONSTRAINT UQ_config_type_tag UNIQUE (cluster_id, type_name, version_tag),
   CONSTRAINT UQ_config_type_version UNIQUE (cluster_id, type_name, version));
 
+CREATE TABLE ambari_configuration (
+  category_name VARCHAR(100) NOT NULL,
+  property_name VARCHAR(100) NOT NULL,
+  property_value VARCHAR(2048),
+  CONSTRAINT PK_ambari_configuration PRIMARY KEY (category_name, property_name)
+);
+
 CREATE TABLE serviceconfig (
   service_config_id BIGINT NOT NULL,
   cluster_id BIGINT NOT NULL,
@@ -165,7 +172,6 @@ CREATE TABLE repo_version (
   stack_id BIGINT NOT NULL,
   version VARCHAR(255) NOT NULL,
   display_name VARCHAR(128) NOT NULL,
-  repositories VARCHAR(MAX) NOT NULL,
   repo_type VARCHAR(255) DEFAULT 'STANDARD' NOT NULL,
   hidden SMALLINT NOT NULL DEFAULT 0,
   resolved BIT NOT NULL DEFAULT 0,
@@ -178,6 +184,37 @@ CREATE TABLE repo_version (
   CONSTRAINT FK_repoversion_stack_id FOREIGN KEY (stack_id) REFERENCES stack(stack_id),
   CONSTRAINT UQ_repo_version_display_name UNIQUE (display_name),
   CONSTRAINT UQ_repo_version_stack_id UNIQUE (stack_id, version));
+
+CREATE TABLE repo_os (
+  id BIGINT NOT NULL,
+  repo_version_id BIGINT NOT NULL,
+  family VARCHAR(255) NOT NULL DEFAULT '',
+  ambari_managed BIT DEFAULT 1,
+  CONSTRAINT PK_repo_os_id PRIMARY KEY (id),
+  CONSTRAINT FK_repo_os_id_repo_version_id FOREIGN KEY (repo_version_id) REFERENCES repo_version (repo_version_id));
+
+CREATE TABLE repo_definition (
+  id BIGINT NOT NULL,
+  repo_os_id BIGINT,
+  repo_name VARCHAR(255) NOT NULL,
+  repo_id VARCHAR(255) NOT NULL,
+  base_url VARCHAR(MAX) NOT NULL,
+  distribution VARCHAR(MAX),
+  components VARCHAR(MAX),
+  unique_repo BIT DEFAULT 1,
+  mirrors VARCHAR(MAX),
+  CONSTRAINT PK_repo_definition_id PRIMARY KEY (id),
+  CONSTRAINT FK_repo_definition_repo_os_id FOREIGN KEY (repo_os_id) REFERENCES repo_os (id));
+
+CREATE TABLE repo_tags (
+  repo_definition_id BIGINT NOT NULL,
+  tag VARCHAR(255) NOT NULL,
+  CONSTRAINT FK_repo_tag_definition_id FOREIGN KEY (repo_definition_id) REFERENCES repo_definition (id));
+
+CREATE TABLE repo_applicable_services (
+  repo_definition_id BIGINT NOT NULL,
+  service_name VARCHAR(255) NOT NULL,
+  CONSTRAINT FK_repo_app_service_def_id FOREIGN KEY (repo_definition_id) REFERENCES repo_definition (id));
 
 CREATE TABLE servicecomponentdesiredstate (
   id BIGINT NOT NULL,
@@ -202,7 +239,7 @@ CREATE TABLE hostcomponentdesiredstate (
   service_name VARCHAR(255) NOT NULL,
   admin_state VARCHAR(32),
   maintenance_state VARCHAR(32) NOT NULL,
-  security_state VARCHAR(32) NOT NULL DEFAULT 'UNSECURED',
+  blueprint_provisioning_state VARCHAR(255) DEFAULT 'NONE',
   restart_required BIT NOT NULL DEFAULT 0,
   CONSTRAINT PK_hostcomponentdesiredstate PRIMARY KEY CLUSTERED (id),
   CONSTRAINT UQ_hcdesiredstate_name UNIQUE (component_name, service_name, host_id, cluster_id),
@@ -215,10 +252,10 @@ CREATE TABLE hostcomponentstate (
   component_name VARCHAR(255) NOT NULL,
   version VARCHAR(32) NOT NULL DEFAULT 'UNKNOWN',
   current_state VARCHAR(255) NOT NULL,
+  last_live_state VARCHAR(255) NOT NULL DEFAULT 'UNKNOWN',
   host_id BIGINT NOT NULL,
   service_name VARCHAR(255) NOT NULL,
   upgrade_state VARCHAR(32) NOT NULL DEFAULT 'NONE',
-  security_state VARCHAR(32) NOT NULL DEFAULT 'UNSECURED',
   CONSTRAINT PK_hostcomponentstate PRIMARY KEY CLUSTERED (id),
   CONSTRAINT FK_hostcomponentstate_host_id FOREIGN KEY (host_id) REFERENCES hosts (host_id),
   CONSTRAINT hstcomponentstatecomponentname FOREIGN KEY (component_name, service_name, cluster_id) REFERENCES servicecomponentdesiredstate (component_name, service_name, cluster_id));
@@ -243,7 +280,6 @@ CREATE TABLE servicedesiredstate (
   desired_state VARCHAR(255) NOT NULL,
   service_name VARCHAR(255) NOT NULL,
   maintenance_state VARCHAR(32) NOT NULL,
-  security_state VARCHAR(32) NOT NULL DEFAULT 'UNSECURED',
   credential_store_enabled SMALLINT NOT NULL DEFAULT 0,
   CONSTRAINT PK_servicedesiredstate PRIMARY KEY CLUSTERED (cluster_id,service_name),
   CONSTRAINT FK_repo_version_id FOREIGN KEY (desired_repo_version_id) REFERENCES repo_version (repo_version_id),
@@ -264,16 +300,28 @@ CREATE TABLE adminprincipal (
 CREATE TABLE users (
   user_id INTEGER,
   principal_id BIGINT NOT NULL,
-  ldap_user INTEGER NOT NULL DEFAULT 0,
   user_name VARCHAR(255) NOT NULL,
-  user_type VARCHAR(255) NOT NULL DEFAULT 'LOCAL',
-  create_time DATETIME DEFAULT GETDATE(),
-  user_password VARCHAR(255),
   active INTEGER NOT NULL DEFAULT 1,
+  consecutive_failures INTEGER NOT NULL DEFAULT 0,
   active_widget_layouts VARCHAR(1024) DEFAULT NULL,
-  CONSTRAINT PK_users PRIMARY KEY CLUSTERED (user_id),
+  display_name VARCHAR(255) NOT NULL,
+  local_username VARCHAR(255) NOT NULL,
+  create_time BIGINT NOT NULL,
+  version BIGINT NOT NULL DEFAULT 0,
+  CONSTRAINT PK_users PRIMARY KEY (user_id),
   CONSTRAINT FK_users_principal_id FOREIGN KEY (principal_id) REFERENCES adminprincipal(principal_id),
-  CONSTRAINT UNQ_users_0 UNIQUE (user_name, user_type));
+  CONSTRAINT UNQ_users_0 UNIQUE (user_name));
+
+CREATE TABLE user_authentication (
+  user_authentication_id INTEGER,
+  user_id INTEGER NOT NULL,
+  authentication_type VARCHAR(50) NOT NULL,
+  authentication_key VARCHAR(2048),
+  create_time BIGINT NOT NULL,
+  update_time BIGINT NOT NULL,
+  CONSTRAINT PK_user_authentication PRIMARY KEY (user_authentication_id),
+  CONSTRAINT FK_user_authentication_users FOREIGN KEY (user_id) REFERENCES users (user_id)
+);
 
 CREATE TABLE groups (
   group_id INTEGER,
@@ -329,8 +377,10 @@ CREATE TABLE request (
   request_type VARCHAR(255),
   request_schedule_id BIGINT,
   start_time BIGINT NOT NULL,
-  status VARCHAR(255),
+  status VARCHAR(255) NOT NULL DEFAULT 'PENDING',
+  display_status VARCHAR(255) NOT NULL DEFAULT 'PENDING',
   cluster_host_info VARBINARY(MAX) NOT NULL,
+  user_name VARCHAR(255),
   CONSTRAINT PK_request PRIMARY KEY CLUSTERED (request_id),
   CONSTRAINT FK_request_schedule_id FOREIGN KEY (request_schedule_id) REFERENCES requestschedule (schedule_id));
 
@@ -345,6 +395,8 @@ CREATE TABLE stage (
   command_params VARBINARY(MAX),
   host_params VARBINARY(MAX),
   command_execution_type VARCHAR(32) NOT NULL DEFAULT 'STAGE',
+  status VARCHAR(255) NOT NULL DEFAULT 'PENDING',
+  display_status VARCHAR(255) NOT NULL DEFAULT 'PENDING',
   CONSTRAINT PK_stage PRIMARY KEY CLUSTERED (stage_id, request_id),
   CONSTRAINT FK_stage_request_id FOREIGN KEY (request_id) REFERENCES request (request_id));
 
@@ -362,7 +414,7 @@ CREATE TABLE host_role_command (
   start_time BIGINT NOT NULL,
   original_start_time BIGINT NOT NULL,
   end_time BIGINT,
-  status VARCHAR(255),
+  status VARCHAR(255) NOT NULL DEFAULT 'PENDING',
   auto_skip_on_failure SMALLINT DEFAULT 0 NOT NULL,
   std_error VARBINARY(max),
   std_out VARBINARY(max),
@@ -373,6 +425,7 @@ CREATE TABLE host_role_command (
   command_detail VARCHAR(255),
   custom_command_name VARCHAR(255),
   is_background SMALLINT DEFAULT 0 NOT NULL,
+  ops_display_name VARCHAR(255),
   CONSTRAINT PK_host_role_command PRIMARY KEY CLUSTERED (task_id),
   CONSTRAINT FK_host_role_command_host_id FOREIGN KEY (host_id) REFERENCES hosts (host_id),
   CONSTRAINT FK_host_role_command_stage_id FOREIGN KEY (stage_id, request_id) REFERENCES stage (stage_id, request_id));
@@ -703,6 +756,7 @@ CREATE TABLE widget (
   widget_values VARCHAR(4000),
   properties VARCHAR(4000),
   cluster_id BIGINT NOT NULL,
+  tag VARCHAR(255),
   CONSTRAINT PK_widget PRIMARY KEY CLUSTERED (id)
 );
 
@@ -925,12 +979,37 @@ CREATE TABLE kerberos_principal (
   CONSTRAINT PK_kerberos_principal PRIMARY KEY CLUSTERED (principal_name)
 );
 
-CREATE TABLE kerberos_principal_host (
+CREATE TABLE kerberos_keytab (
+  keytab_path VARCHAR(255) NOT NULL,
+  owner_name VARCHAR(255),
+  owner_access VARCHAR(255),
+  group_name VARCHAR(255),
+  group_access VARCHAR(255),
+  is_ambari_keytab SMALLINT NOT NULL DEFAULT 0,
+  write_ambari_jaas SMALLINT NOT NULL DEFAULT 0,
+  CONSTRAINT PK_kerberos_keytab PRIMARY KEY CLUSTERED (keytab_path)
+);
+
+CREATE TABLE kerberos_keytab_principal (
+  kkp_id BIGINT NOT NULL DEFAULT 0,
+  keytab_path VARCHAR(255) NOT NULL,
   principal_name VARCHAR(255) NOT NULL,
-  host_id BIGINT NOT NULL,
-  CONSTRAINT PK_kerberos_principal_host PRIMARY KEY CLUSTERED (principal_name, host_id),
-  CONSTRAINT FK_krb_pr_host_id FOREIGN KEY (host_id) REFERENCES hosts (host_id),
-  CONSTRAINT FK_krb_pr_host_principalname FOREIGN KEY (principal_name) REFERENCES kerberos_principal (principal_name));
+  host_id BIGINT,
+  is_distributed SMALLINT NOT NULL DEFAULT 0,
+  CONSTRAINT PK_kkp PRIMARY KEY CLUSTERED (kkp_id),
+  CONSTRAINT FK_kkp_keytab_path FOREIGN KEY (keytab_path) REFERENCES kerberos_keytab (keytab_path),
+  CONSTRAINT FK_kkp_host_id FOREIGN KEY (host_id) REFERENCES hosts (host_id),
+  CONSTRAINT FK_kkp_principal_name FOREIGN KEY (principal_name) REFERENCES kerberos_principal (principal_name),
+  CONSTRAINT UNI_kkp UNIQUE(keytab_path, principal_name, host_id)
+);
+
+CREATE TABLE kkp_mapping_service (
+  kkp_id BIGINT NOT NULL DEFAULT 0,
+  service_name VARCHAR(255) NOT NULL,
+  component_name VARCHAR(255) NOT NULL,
+  CONSTRAINT PK_kkp_mapping_service PRIMARY KEY CLUSTERED (kkp_id, service_name, component_name),
+  CONSTRAINT FK_kkp_service_principal FOREIGN KEY (kkp_id) REFERENCES kerberos_keytab_principal (kkp_id)
+);
 
 CREATE TABLE kerberos_descriptor
 (
@@ -1063,9 +1142,11 @@ CREATE INDEX idx_alert_notice_state on alert_notice(notify_state);
 BEGIN TRANSACTION
   INSERT INTO ambari_sequences (sequence_name, [sequence_value])
   VALUES
+    ('kkp_id_seq', 0),
     ('cluster_id_seq', 1),
     ('host_id_seq', 0),
     ('user_id_seq', 2),
+    ('user_authentication_id_seq', 2),
     ('group_id_seq', 1),
     ('member_id_seq', 1),
     ('host_role_command_id_seq', 1),
@@ -1089,6 +1170,8 @@ BEGIN TRANSACTION
     ('alert_current_id_seq', 0),
     ('config_id_seq', 11),
     ('repo_version_id_seq', 0),
+    ('repo_os_id_seq', 0),
+    ('repo_definition_id_seq', 0),
     ('host_version_id_seq', 0),
     ('service_config_id_seq', 1),
     ('upgrade_id_seq', 0),
@@ -1143,8 +1226,15 @@ BEGIN TRANSACTION
     (12, 8),
     (13, 8);
 
-  insert into users(user_id, principal_id, user_name, user_password)
-    select 1, 1, 'admin','538916f8943ec225d97a9a86a2c6ec0818c1cd400e09e03b660fdaaec4af29ddbb6f2b1033b81b00';
+  -- Insert the default administrator user.
+  insert into users(user_id, principal_id, user_name, display_name, local_username, create_time)
+    select 1, 1, 'admin', 'Administrator', 'admin', CAST(DATEDIFF(s, '1970-01-01T00:00:00Z', GETDATE()) as BIGINT) * 1000;
+
+  -- Insert the LOCAL authentication data for the default administrator user.
+  -- The authentication_key value is the salted digest of the password: admin
+  insert into user_authentication(user_authentication_id, user_id, authentication_type, authentication_key, create_time, update_time)
+    select 1, 1, 'LOCAL', '538916f8943ec225d97a9a86a2c6ec0818c1cd400e09e03b660fdaaec4af29ddbb6f2b1033b81b00', CAST(DATEDIFF(s, '1970-01-01T00:00:00Z', GETDATE()) as BIGINT) * 1000, CAST(DATEDIFF(s, '1970-01-01T00:00:00Z', GETDATE()) as BIGINT) * 1000;
+
 
   insert into adminpermission(permission_id, permission_name, resource_type_id, permission_label, principal_id, sort_order)
   values
@@ -1200,15 +1290,18 @@ BEGIN TRANSACTION
     SELECT 'CLUSTER.RUN_CUSTOM_COMMAND', 'Perform custom cluster-level actions' UNION ALL
     SELECT 'CLUSTER.MANAGE_AUTO_START', 'Manage service auto-start configuration' UNION ALL
     SELECT 'CLUSTER.MANAGE_ALERT_NOTIFICATIONS', 'Manage alert notifications configuration' UNION ALL
+    SELECT 'CLUSTER.MANAGE_WIDGETS', 'Manage widgets' UNION ALL
     SELECT 'AMBARI.ADD_DELETE_CLUSTERS', 'Create new clusters' UNION ALL
     SELECT 'AMBARI.RENAME_CLUSTER', 'Rename clusters' UNION ALL
     SELECT 'AMBARI.MANAGE_SETTINGS', 'Manage settings' UNION ALL
+    SELECT 'AMBARI.MANAGE_CONFIGURATION', 'Manage ambari configuration' UNION ALL
     SELECT 'AMBARI.MANAGE_USERS', 'Manage users' UNION ALL
     SELECT 'AMBARI.MANAGE_GROUPS', 'Manage groups' UNION ALL
     SELECT 'AMBARI.MANAGE_VIEWS', 'Manage Ambari Views' UNION ALL
     SELECT 'AMBARI.ASSIGN_ROLES', 'Assign roles' UNION ALL
     SELECT 'AMBARI.MANAGE_STACK_VERSIONS', 'Manage stack versions' UNION ALL
     SELECT 'AMBARI.EDIT_STACK_REPOS', 'Edit stack repository URLs' UNION ALL
+    SELECT 'AMBARI.VIEW_STATUS_INFO', 'View status information' UNION ALL
     SELECT 'AMBARI.RUN_CUSTOM_COMMAND', 'Perform custom administrative actions';
 
   -- Set authorizations for View User role
@@ -1313,6 +1406,7 @@ BEGIN TRANSACTION
     SELECT permission_id, 'CLUSTER.VIEW_ALERTS' FROM adminpermission WHERE permission_name='CLUSTER.OPERATOR' UNION ALL
     SELECT permission_id, 'CLUSTER.MANAGE_CREDENTIALS' FROM adminpermission WHERE permission_name='CLUSTER.OPERATOR' UNION ALL
     SELECT permission_id, 'CLUSTER.MANAGE_AUTO_START' FROM adminpermission WHERE permission_name='CLUSTER.OPERATOR' UNION ALL
+    SELECT permission_id, 'CLUSTER.MANAGE_WIDGETS' FROM adminpermission WHERE permission_name='CLUSTER.OPERATOR' UNION ALL
     SELECT permission_id, 'CLUSTER.MANAGE_USER_PERSISTED_DATA' FROM adminpermission WHERE permission_name='CLUSTER.OPERATOR';
 
   -- Set authorizations for Cluster Administrator role
@@ -1358,6 +1452,7 @@ BEGIN TRANSACTION
     SELECT permission_id, 'CLUSTER.MANAGE_USER_PERSISTED_DATA' FROM adminpermission WHERE permission_name='CLUSTER.ADMINISTRATOR' UNION ALL
     SELECT permission_id, 'CLUSTER.MANAGE_AUTO_START' FROM adminpermission WHERE permission_name='CLUSTER.ADMINISTRATOR' UNION ALL
     SELECT permission_id, 'CLUSTER.MANAGE_ALERT_NOTIFICATIONS' FROM adminpermission WHERE permission_name='CLUSTER.ADMINISTRATOR' UNION ALL
+    SELECT permission_id, 'CLUSTER.MANAGE_WIDGETS' FROM adminpermission WHERE permission_name='CLUSTER.ADMINISTRATOR' UNION ALL
     SELECT permission_id, 'CLUSTER.RUN_CUSTOM_COMMAND' FROM adminpermission WHERE permission_name='CLUSTER.ADMINISTRATOR';
 
   -- Set authorizations for Administrator role
@@ -1404,16 +1499,19 @@ BEGIN TRANSACTION
     SELECT permission_id, 'CLUSTER.MANAGE_USER_PERSISTED_DATA' FROM adminpermission WHERE permission_name='AMBARI.ADMINISTRATOR' UNION ALL
     SELECT permission_id, 'CLUSTER.MANAGE_AUTO_START' FROM adminpermission WHERE permission_name='AMBARI.ADMINISTRATOR' UNION ALL
     SELECT permission_id, 'CLUSTER.MANAGE_ALERT_NOTIFICATIONS' FROM adminpermission WHERE permission_name='AMBARI.ADMINISTRATOR' UNION ALL
+    SELECT permission_id, 'CLUSTER.MANAGE_WIDGETS' FROM adminpermission WHERE permission_name='AMBARI.ADMINISTRATOR' UNION ALL
     SELECT permission_id, 'CLUSTER.RUN_CUSTOM_COMMAND' FROM adminpermission WHERE permission_name='AMBARI.ADMINISTRATOR' UNION ALL
     SELECT permission_id, 'AMBARI.ADD_DELETE_CLUSTERS' FROM adminpermission WHERE permission_name='AMBARI.ADMINISTRATOR' UNION ALL
     SELECT permission_id, 'AMBARI.RENAME_CLUSTER' FROM adminpermission WHERE permission_name='AMBARI.ADMINISTRATOR' UNION ALL
     SELECT permission_id, 'AMBARI.MANAGE_SETTINGS' FROM adminpermission WHERE permission_name='AMBARI.ADMINISTRATOR' UNION ALL
+    SELECT permission_id, 'AMBARI.MANAGE_CONFIGURATION' FROM adminpermission WHERE permission_name='AMBARI.ADMINISTRATOR' UNION ALL
     SELECT permission_id, 'AMBARI.MANAGE_USERS' FROM adminpermission WHERE permission_name='AMBARI.ADMINISTRATOR' UNION ALL
     SELECT permission_id, 'AMBARI.MANAGE_GROUPS' FROM adminpermission WHERE permission_name='AMBARI.ADMINISTRATOR' UNION ALL
     SELECT permission_id, 'AMBARI.MANAGE_VIEWS' FROM adminpermission WHERE permission_name='AMBARI.ADMINISTRATOR' UNION ALL
     SELECT permission_id, 'AMBARI.ASSIGN_ROLES' FROM adminpermission WHERE permission_name='AMBARI.ADMINISTRATOR' UNION ALL
     SELECT permission_id, 'AMBARI.MANAGE_STACK_VERSIONS' FROM adminpermission WHERE permission_name='AMBARI.ADMINISTRATOR' UNION ALL
     SELECT permission_id, 'AMBARI.EDIT_STACK_REPOS' FROM adminpermission WHERE permission_name='AMBARI.ADMINISTRATOR' UNION ALL
+    SELECT permission_id, 'AMBARI.VIEW_STATUS_INFO' FROM adminpermission WHERE permission_name='AMBARI.ADMINISTRATOR' UNION ALL
     SELECT permission_id, 'AMBARI.RUN_CUSTOM_COMMAND' FROM adminpermission WHERE permission_name='AMBARI.ADMINISTRATOR';
 
   insert into adminprivilege (privilege_id, permission_id, resource_id, principal_id)

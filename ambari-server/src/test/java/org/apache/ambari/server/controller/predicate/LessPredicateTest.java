@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,14 +17,15 @@
  */
 package org.apache.ambari.server.controller.predicate;
 
-import junit.framework.Assert;
+import java.util.Set;
+
 import org.apache.ambari.server.controller.internal.ResourceImpl;
 import org.apache.ambari.server.controller.spi.Predicate;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.junit.Test;
 
-import java.util.Set;
+import junit.framework.Assert;
 
 /**
  *
@@ -35,7 +36,7 @@ public class LessPredicateTest {
   public void testApply() {
     Resource resource = new ResourceImpl(Resource.Type.HostComponent);
     String propertyId = PropertyHelper.getPropertyId("category1", "foo");
-    Predicate predicate = new LessPredicate<Integer>(propertyId, 10);
+    Predicate predicate = new LessPredicate<>(propertyId, 10);
 
     resource.setProperty(propertyId, 1);
     Assert.assertTrue(predicate.evaluate(resource));
@@ -60,7 +61,7 @@ public class LessPredicateTest {
   @Test
   public void testGetProperties() {
     String propertyId = PropertyHelper.getPropertyId("category1", "foo");
-    LessPredicate predicate = new LessPredicate<Integer>(propertyId, 1);
+    LessPredicate predicate = new LessPredicate<>(propertyId, 1);
 
     Set<String> ids = predicate.getPropertyIds();
 

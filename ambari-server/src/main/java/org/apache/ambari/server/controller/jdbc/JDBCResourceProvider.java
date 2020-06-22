@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,17 +18,6 @@
 
 package org.apache.ambari.server.controller.jdbc;
 
-import org.apache.ambari.server.controller.internal.BaseProvider;
-import org.apache.ambari.server.controller.internal.RequestStatusImpl;
-import org.apache.ambari.server.controller.internal.ResourceImpl;
-import org.apache.ambari.server.controller.predicate.BasePredicate;
-import org.apache.ambari.server.controller.predicate.PredicateVisitorAcceptor;
-import org.apache.ambari.server.controller.spi.*;
-import org.apache.ambari.server.controller.utilities.PredicateHelper;
-import org.apache.ambari.server.controller.utilities.PropertyHelper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
@@ -40,6 +29,26 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+
+import org.apache.ambari.server.controller.internal.BaseProvider;
+import org.apache.ambari.server.controller.internal.RequestStatusImpl;
+import org.apache.ambari.server.controller.internal.ResourceImpl;
+import org.apache.ambari.server.controller.predicate.BasePredicate;
+import org.apache.ambari.server.controller.predicate.PredicateVisitorAcceptor;
+import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
+import org.apache.ambari.server.controller.spi.NoSuchResourceException;
+import org.apache.ambari.server.controller.spi.Predicate;
+import org.apache.ambari.server.controller.spi.Request;
+import org.apache.ambari.server.controller.spi.RequestStatus;
+import org.apache.ambari.server.controller.spi.Resource;
+import org.apache.ambari.server.controller.spi.ResourceAlreadyExistsException;
+import org.apache.ambari.server.controller.spi.ResourceProvider;
+import org.apache.ambari.server.controller.spi.SystemException;
+import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
+import org.apache.ambari.server.controller.utilities.PredicateHelper;
+import org.apache.ambari.server.controller.utilities.PropertyHelper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Generic JDBC based resource provider.
@@ -59,9 +68,9 @@ public class JDBCResourceProvider extends BaseProvider implements ResourceProvid
     /**
      * Key mappings used for joins.
      */
-    private final Map<String, Map<String, String>> importedKeys = new HashMap<String, Map<String, String>>();
+    private final Map<String, Map<String, String>> importedKeys = new HashMap<>();
 
-    protected final static Logger LOG =
+    private static final Logger LOG =
             LoggerFactory.getLogger(JDBCResourceProvider.class);
 
     public JDBCResourceProvider(ConnectionFactory connectionFactory,
@@ -78,7 +87,7 @@ public class JDBCResourceProvider extends BaseProvider implements ResourceProvid
     public Set<Resource> getResources(Request request, Predicate predicate)
         throws SystemException, UnsupportedPropertyException, NoSuchResourceException, NoSuchParentResourceException {
 
-        Set<Resource> resources = new HashSet<Resource>();
+        Set<Resource> resources = new HashSet<>();
         Set<String> propertyIds = getRequestPropertyIds(request, predicate);
 
         // Can't allow these properties with the old schema...
@@ -300,7 +309,7 @@ public class JDBCResourceProvider extends BaseProvider implements ResourceProvid
     private String getSelectSQL(Set<String> propertyIds, Predicate predicate) {
 
         StringBuilder columns = new StringBuilder();
-        Set<String> tableSet = new HashSet<String>();
+        Set<String> tableSet = new HashSet<>();
 
         for (String propertyId : propertyIds) {
             if (columns.length() > 0) {
@@ -435,7 +444,7 @@ public class JDBCResourceProvider extends BaseProvider implements ResourceProvid
   private void getImportedKeys(Connection connection, String table) throws SQLException {
     if (!this.importedKeys.containsKey(table)) {
 
-      Map<String, String> importedKeys = new HashMap<String, String>();
+      Map<String, String> importedKeys = new HashMap<>();
       this.importedKeys.put(table, importedKeys);
 
       DatabaseMetaData metaData = connection.getMetaData();
@@ -477,7 +486,7 @@ public class JDBCResourceProvider extends BaseProvider implements ResourceProvid
      * @return the set of tables
      */
     private static Set<String> getTables(Set<String> propertyIds) {
-        Set<String> tables = new HashSet<String>();
+        Set<String> tables = new HashSet<>();
         for (String propertyId : propertyIds) {
             tables.add(PropertyHelper.getPropertyCategory(propertyId));
         }

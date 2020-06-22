@@ -136,6 +136,21 @@ public class HandleConnectExceptionTest {
     }
 
     @Override
+    protected boolean isHostInMemoryAggregationEnabled() {
+      return false;
+    }
+
+    @Override
+    protected int getHostInMemoryAggregationPort() {
+      return 61888;
+    }
+
+    @Override
+    protected String getHostInMemoryAggregationProtocol() {
+      return "http";
+    }
+
+    @Override
     public boolean emitMetrics(TimelineMetrics metrics) {
       super.init();
       return super.emitMetrics(metrics);
@@ -185,6 +200,21 @@ public class HandleConnectExceptionTest {
     @Override
     protected String getHostname() {
       return "h1";
+    }
+
+    @Override
+    protected boolean isHostInMemoryAggregationEnabled() {
+      return false;
+    }
+
+    @Override
+    protected int getHostInMemoryAggregationPort() {
+      return 0;
+    }
+
+    @Override
+    protected String getHostInMemoryAggregationProtocol() {
+      return "http";
     }
 
     @Override

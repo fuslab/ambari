@@ -882,27 +882,31 @@ describe("App.MainServiceInfoConfigsController", function () {
   });
 
   describe('#abortRequests', function() {
+    var pendingRequest, finishedRequest;
+
     beforeEach(function() {
       mainServiceInfoConfigsController.get('requestsInProgress').clear();
-    });
-    it('should clear requests when abort called', function() {
-      mainServiceInfoConfigsController.trackRequest($.Deferred());
-      mainServiceInfoConfigsController.abortRequests();
-      expect(mainServiceInfoConfigsController.get('requestsInProgress')).to.have.length(0);
-    });
-    it('should abort requests which are not finished', function() {
-      var pendingRequest = {
-        abort: sinon.spy(),
-        readyState: 0,
-        state: sinon.spy(),
-        always: sinon.spy()
-      };
-      var finishedRequest = {
+      finishedRequest = {
         abort: sinon.spy(),
         readyState: 4,
         state: sinon.spy(),
         always: sinon.spy()
       };
+      pendingRequest = {
+        abort: sinon.spy(),
+        readyState: 0,
+        state: sinon.spy(),
+        always: sinon.spy()
+      };
+    });
+
+    it('should clear requests when abort called', function() {
+      mainServiceInfoConfigsController.trackRequest($.Deferred());
+      mainServiceInfoConfigsController.abortRequests();
+      expect(mainServiceInfoConfigsController.get('requestsInProgress')).to.have.length(0);
+    });
+
+    it('should abort requests which are not finished', function() {
       mainServiceInfoConfigsController.trackRequest(pendingRequest);
       mainServiceInfoConfigsController.trackRequest(finishedRequest);
       mainServiceInfoConfigsController.abortRequests();
@@ -996,12 +1000,12 @@ describe("App.MainServiceInfoConfigsController", function () {
 
   describe('#errorsCount', function () {
 
-    it('should ignore configs with widgets (enhanced configs)', function () {
+    it('should ignore configs with isInDefaultTheme=false', function () {
 
       mainServiceInfoConfigsController.reopen({selectedService: Em.Object.create({
         configsWithErrors: Em.A([
-          Em.Object.create({widget: {}}),
-          Em.Object.create({widget: null})
+          Em.Object.create({isInDefaultTheme: true}),
+          Em.Object.create({isInDefaultTheme: null})
         ])
       })});
 

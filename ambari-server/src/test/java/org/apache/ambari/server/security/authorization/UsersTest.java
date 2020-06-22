@@ -18,6 +18,7 @@
 
 package org.apache.ambari.server.security.authorization;
 
+import static org.easymock.EasyMock.anyInt;
 import static org.easymock.EasyMock.anyObject;
 import static org.easymock.EasyMock.anyString;
 import static org.easymock.EasyMock.capture;
@@ -25,18 +26,22 @@ import static org.easymock.EasyMock.eq;
 import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.expectLastCall;
 import static org.easymock.EasyMock.newCapture;
+import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import javax.annotation.Nullable;
 import javax.persistence.EntityManager;
 
 import org.apache.ambari.server.AmbariException;
+import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.hooks.HookContextFactory;
 import org.apache.ambari.server.hooks.HookService;
+import org.apache.ambari.server.ldap.service.AmbariLdapConfigurationProvider;
 import org.apache.ambari.server.orm.DBAccessor;
 import org.apache.ambari.server.orm.dao.MemberDAO;
 import org.apache.ambari.server.orm.dao.PrincipalDAO;
@@ -47,6 +52,7 @@ import org.apache.ambari.server.orm.entities.MemberEntity;
 import org.apache.ambari.server.orm.entities.PermissionEntity;
 import org.apache.ambari.server.orm.entities.PrincipalEntity;
 import org.apache.ambari.server.orm.entities.PrivilegeEntity;
+import org.apache.ambari.server.orm.entities.UserAuthenticationEntity;
 import org.apache.ambari.server.orm.entities.UserEntity;
 import org.apache.ambari.server.state.stack.OsFamily;
 import org.easymock.Capture;
@@ -56,14 +62,15 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 
-
 public class UsersTest extends EasyMockSupport {
 
-  public static final String SERVICEOP_USER_NAME = "serviceopuser";
+  private static final String SERVICEOP_USER_NAME = "serviceopuser";
   private Injector injector;
 
   @Test
@@ -76,7 +83,7 @@ public class UsersTest extends EasyMockSupport {
     expect(userEntity.getPrincipal()).andReturn(userPrincipalEntity).times(1);
 
     UserDAO userDAO = injector.getInstance(UserDAO.class);
-    expect(userDAO.findUserByNameAndType("user1", UserType.LOCAL)).andReturn(userEntity).times(1);
+    expect(userDAO.findUserByName("user1")).andReturn(userEntity).times(1);
 
     PrincipalEntity groupPrincipalEntity = createMock(PrincipalEntity.class);
 
@@ -105,13 +112,13 @@ public class UsersTest extends EasyMockSupport {
     PrivilegeEntity clusterOperatorPrivilegeEntity = createMock(PrivilegeEntity.class);
     expect(clusterOperatorPrivilegeEntity.getPermission()).andReturn(clusterOperatorPrivilegePermissionEntity).times(1);
 
-    List<PrivilegeEntity> privilegeEntities = new ArrayList<PrivilegeEntity>();
+    List<PrivilegeEntity> privilegeEntities = new ArrayList<>();
     privilegeEntities.add(clusterUserPrivilegeEntity);
     privilegeEntities.add(clusterOperatorPrivilegeEntity);
 
     PrivilegeEntity clusterUserViewUserPrivilegeEntity = createMock(PrivilegeEntity.class);
 
-    List<PrivilegeEntity> rolePrivilegeEntities = new ArrayList<PrivilegeEntity>();
+    List<PrivilegeEntity> rolePrivilegeEntities = new ArrayList<>();
     rolePrivilegeEntities.add(clusterUserViewUserPrivilegeEntity);
 
     Capture<? extends List<PrincipalEntity>> principalEntitiesCapture = newCapture();
@@ -125,7 +132,7 @@ public class UsersTest extends EasyMockSupport {
     replayAll();
 
     Users user = injector.getInstance(Users.class);
-    Collection<AmbariGrantedAuthority> authorities = user.getUserAuthorities("user1", UserType.LOCAL);
+    Collection<AmbariGrantedAuthority> authorities = user.getUserAuthorities("user1");
 
     verifyAll();
 
@@ -151,7 +158,7 @@ public class UsersTest extends EasyMockSupport {
   public void testCreateUser_NoDuplicates() throws Exception {
     initForCreateUser(null);
     Users users = injector.getInstance(Users.class);
-    users.createUser(SERVICEOP_USER_NAME, "qwert");
+    users.createUser(SERVICEOP_USER_NAME, SERVICEOP_USER_NAME, SERVICEOP_USER_NAME);
   }
 
   /**
@@ -161,28 +168,102 @@ public class UsersTest extends EasyMockSupport {
   @Test(expected = AmbariException.class)
   public void testCreateUser_Duplicate() throws Exception {
     UserEntity existing = new UserEntity();
-    existing.setUserName(UserName.fromString(SERVICEOP_USER_NAME));
-    existing.setUserType(UserType.LDAP);
+    existing.setUserName(UserName.fromString(SERVICEOP_USER_NAME).toString());
     existing.setUserId(1);
-    existing.setMemberEntities(Collections.<MemberEntity>emptySet());
+    existing.setMemberEntities(Collections.emptySet());
     PrincipalEntity principal = new PrincipalEntity();
-    principal.setPrivileges(Collections.<PrivilegeEntity>emptySet());
+    principal.setPrivileges(Collections.emptySet());
     existing.setPrincipal(principal);
     initForCreateUser(existing);
 
     Users users = injector.getInstance(Users.class);
-    users.createUser(SERVICEOP_USER_NAME, "qwert");
+    users.createUser(SERVICEOP_USER_NAME, SERVICEOP_USER_NAME, SERVICEOP_USER_NAME);
+  }
+
+  @Test
+  public void modifyAuthentication_local_bySameUser() throws AmbariException {
+    // given
+    UserAuthenticationEntity entity = initForModifyAuthentication();
+
+    // when
+    Users users = injector.getInstance(Users.class);
+    users.modifyAuthentication(entity, "hello", "world", true);
+
+    // then
+    assertEquals("world", entity.getAuthenticationKey());
+  }
+
+  @Test(expected = AmbariException.class)
+  public void modifyAuthentication_local_bySameUser_wrongPassword() throws AmbariException {
+    // given
+    UserAuthenticationEntity entity = initForModifyAuthentication();
+
+    // when
+    Users users = injector.getInstance(Users.class);
+    users.modifyAuthentication(entity, "12345", "world", true);
+  }
+
+  @Test
+  public void modifyAuthentication_local_byAdminUser() throws AmbariException {
+    // given
+    UserAuthenticationEntity entity = initForModifyAuthentication();
+
+    // when
+    Users users = injector.getInstance(Users.class);
+    users.modifyAuthentication(entity, "admin1234", "world", false);
+
+    // then
+    assertEquals("world", entity.getAuthenticationKey());
+  }
+
+  @Test(expected = AmbariException.class)
+  public void modifyAuthentication_local_byAdminUser_wrongPassword() throws AmbariException {
+    // given
+    UserAuthenticationEntity entity = initForModifyAuthentication();
+
+    // when
+    Users users = injector.getInstance(Users.class);
+    users.modifyAuthentication(entity, "wrong password", "world", false);
   }
 
   private void initForCreateUser(@Nullable UserEntity existingUser) {
     UserDAO userDao = createStrictMock(UserDAO.class);
-    expect(userDao.findSingleUserByName(anyString())).andReturn(existingUser);
+    expect(userDao.findUserByName(anyString())).andReturn(existingUser);
     userDao.create(anyObject(UserEntity.class));
     expectLastCall();
     EntityManager entityManager = createNiceMock(EntityManager.class);
     expect(entityManager.find(eq(PrincipalEntity.class), EasyMock.anyObject())).andReturn(null);
     replayAll();
     createInjector(userDao, entityManager);
+  }
+
+  private UserAuthenticationEntity initForModifyAuthentication() {
+    UserAuthenticationEntity userEntity = new UserAuthenticationEntity();
+    userEntity.setAuthenticationKey("hello");
+    userEntity.setAuthenticationType(UserAuthenticationType.LOCAL);
+
+    EntityManager manager = mock(EntityManager.class);
+    expect(manager.merge(userEntity)).andReturn(userEntity).once();
+
+    UserDAO dao = createMock(UserDAO.class);
+    UserEntity admin = new UserEntity();
+    admin.setUserId(-1);
+    admin.setUserName("admin");
+    PrincipalEntity principalEntity = new PrincipalEntity();
+    admin.setPrincipal(principalEntity);
+    PrivilegeEntity privilegeEntity = new PrivilegeEntity();
+    principalEntity.setPrivileges(ImmutableSet.of(privilegeEntity));
+    PermissionEntity permissionEntity = new PermissionEntity();
+    privilegeEntity.setPermission(permissionEntity);
+    permissionEntity.setPermissionName(PermissionEntity.AMBARI_ADMINISTRATOR_PERMISSION_NAME);
+    UserAuthenticationEntity adminAuthentication = new UserAuthenticationEntity();
+    admin.setAuthenticationEntities(ImmutableList.of(adminAuthentication));
+    adminAuthentication.setAuthenticationKey("admin1234");
+    expect(dao.findByPK(anyInt())).andReturn(admin).anyTimes();
+
+    createInjector(dao, manager);
+    replayAll();
+    return userEntity;
   }
 
   private void createInjector() {
@@ -199,10 +280,18 @@ public class UsersTest extends EasyMockSupport {
         bind(UserDAO.class).toInstance(mockUserDao);
         bind(MemberDAO.class).toInstance(createMock(MemberDAO.class));
         bind(PrivilegeDAO.class).toInstance(createMock(PrivilegeDAO.class));
-        bind(PasswordEncoder.class).toInstance(createMock(PasswordEncoder.class));
         bind(HookService.class).toInstance(createMock(HookService.class));
         bind(HookContextFactory.class).toInstance(createMock(HookContextFactory.class));
         bind(PrincipalDAO.class).toInstance(createMock(PrincipalDAO.class));
+        bind(Configuration.class).toInstance(createNiceMock(Configuration.class));
+        bind(AmbariLdapConfigurationProvider.class).toInstance(createMock(AmbariLdapConfigurationProvider.class));
+
+        PasswordEncoder nopEncoder = createMock(PasswordEncoder.class);
+        expect(nopEncoder.matches(anyString(), anyString())).andAnswer(
+          () -> Objects.equals(EasyMock.getCurrentArguments()[0], EasyMock.getCurrentArguments()[1])).anyTimes();
+        expect(nopEncoder.encode(anyString())).andAnswer(
+          () -> (String)EasyMock.getCurrentArguments()[0]).anyTimes();
+        bind(PasswordEncoder.class).toInstance(nopEncoder);
       }
     });
   }

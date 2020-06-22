@@ -145,9 +145,8 @@ class HiveServerInteractiveDefault(HiveServerInteractive):
       # We are not doing 'llap' status check done here as part of status check for 'HSI', as 'llap' status
       # check is a heavy weight operation.
 
-      pid_file = format("{hive_pid_dir}/{hive_interactive_pid}")
       # Recursively check all existing gmetad pid files
-      check_process_status(pid_file)
+      check_process_status(status_params.hive_interactive_pid)
 
     def restart_llap(self, env):
       """

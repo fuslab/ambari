@@ -23,19 +23,15 @@ import socket
 import status_params
 from ambari_commons.constants import AMBARI_SUDO_BINARY
 from resource_management.libraries.functions.stack_features import check_stack_feature
-from resource_management.libraries.functions import StackFeature
-from setup_spark import *
-
-import resource_management.libraries.functions
-from resource_management.libraries.functions import conf_select
-from resource_management.libraries.functions import stack_select
-from resource_management.libraries.functions import format
-from resource_management.libraries.functions.get_stack_version import get_stack_version
+from resource_management.libraries.functions.constants import StackFeature
+from resource_management.libraries.functions import conf_select, stack_select
 from resource_management.libraries.functions.version import format_stack_version, get_major_version
+from resource_management.libraries.functions.copy_tarball import get_sysprep_skip_copy_tarballs_hdfs
+from resource_management.libraries.functions.format import format
 from resource_management.libraries.functions.default import default
 from resource_management.libraries.functions import get_kinit_path
 from resource_management.libraries.functions.get_not_managed_resources import get_not_managed_resources
-from resource_management.libraries.functions.copy_tarball import get_sysprep_skip_copy_tarballs_hdfs
+from resource_management.libraries.resources.hdfs_resource import HdfsResource
 from resource_management.libraries.script.script import Script
 
 # a map of the Ambari role to the component name
@@ -57,7 +53,7 @@ tmp_dir = Script.get_tmp_dir()
 
 stack_name = status_params.stack_name
 stack_root = Script.get_stack_root()
-stack_version_unformatted = config['hostLevelParams']['stack_version']
+stack_version_unformatted = config['clusterLevelParams']['stack_version']
 stack_version_formatted = format_stack_version(stack_version_unformatted)
 major_stack_version = get_major_version(stack_version_formatted)
 
@@ -79,7 +75,7 @@ if stack_version_formatted and check_stack_feature(StackFeature.ROLLING_UPGRADE,
 
 spark_daemon_memory = config['configurations']['spark2-env']['spark_daemon_memory']
 spark_thrift_server_conf_file = spark_conf + "/spark-thrift-sparkconf.conf"
-java_home = config['hostLevelParams']['java_home']
+java_home = config['ambariLevelParams']['java_home']
 
 hdfs_user = config['configurations']['hadoop-env']['hdfs_user']
 hdfs_principal_name = config['configurations']['hadoop-env']['hdfs_principal_name']
@@ -131,7 +127,7 @@ spark_env_sh = config['configurations']['spark2-env']['content']
 spark_log4j_properties = config['configurations']['spark2-log4j-properties']['content']
 spark_metrics_properties = config['configurations']['spark2-metrics-properties']['content']
 
-hive_server_host = default("/clusterHostInfo/hive_server_host", [])
+hive_server_host = default("/clusterHostInfo/hive_server_hosts", [])
 is_hive_installed = not len(hive_server_host) == 0
 
 security_enabled = config['configurations']['cluster-env']['security_enabled']
@@ -147,7 +143,7 @@ has_spark_thriftserver = not len(spark_thriftserver_hosts) == 0
 
 # hive-site params
 spark_hive_properties = {
-  'hive.metastore.uris': config['configurations']['hive-site']['hive.metastore.uris']
+  'hive.metastore.uris': default('/configurations/hive-site/hive.metastore.uris', '')
 }
 
 # security settings
@@ -199,7 +195,7 @@ hdfs_resource_ignore_file = "/var/lib/ambari-agent/data/.hdfs_resource_ignore"
 ats_host = set(default("/clusterHostInfo/app_timeline_server_hosts", []))
 has_ats = len(ats_host) > 0
 
-dfs_type = default("/commandParams/dfs_type", "")
+dfs_type = default("/clusterLevelParams/dfs_type", "")
 
 # livy related config
 
@@ -218,6 +214,7 @@ if stack_version_formatted and check_stack_feature(StackFeature.SPARK_LIVY2, sta
   livy2_hdfs_user_dir = format("/user/{livy2_user}")
   livy2_server_pid_file = status_params.livy2_server_pid_file
   livy2_recovery_dir = default("/configurations/livy2-conf/livy.server.recovery.state-store.url", "/livy2-recovery")
+  livy2_recovery_store = default("/configurations/livy2-conf/livy.server.recovery.state-store", "filesystem")
 
   livy2_server_start = format("{livy2_home}/bin/livy-server start")
   livy2_server_stop = format("{livy2_home}/bin/livy-server stop")
@@ -249,7 +246,7 @@ if stack_version_formatted and check_stack_feature(StackFeature.SPARK_LIVY2, sta
   if len(livy2_livyserver_hosts) > 0:
     has_livyserver = True
     if security_enabled:
-      livy2_principal = livy_kerberos_principal.replace('_HOST', config['hostname'].lower())
+      livy2_principal = livy_kerberos_principal.replace('_HOST', config['agentLevelParams']['hostname'].lower())
 
   livy2_livyserver_port = default('configurations/livy2-conf/livy.server.port',8999)
 

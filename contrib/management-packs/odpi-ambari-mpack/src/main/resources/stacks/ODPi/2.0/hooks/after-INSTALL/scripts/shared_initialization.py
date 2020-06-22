@@ -38,9 +38,13 @@ def setup_stack_symlinks(struct_out_file):
   :return:
   """
   import params
+  if params.upgrade_suspended:
+    Logger.warning("Skipping running stack-selector-tool because there is a suspended upgrade")
+    return
+
   # get the packages which the stack-select tool should be used on
-  stack_packages = stack_select.get_packages(stack_select.PACKAGE_SCOPE_INSTALL)
-  if stack_packages is None:
+  stack_select_packages = stack_select.get_packages(stack_select.PACKAGE_SCOPE_INSTALL)
+  if stack_select_packages is None:
     return
 
   json_version = load_version(struct_out_file)
@@ -51,8 +55,9 @@ def setup_stack_symlinks(struct_out_file):
 
   # On parallel command execution this should be executed by a single process at a time.
   with FcntlBasedProcessLock(params.stack_select_lock_file, enabled = params.is_parallel_execution_enabled, skip_fcntl_failures = True):
-    for package in stack_packages:
+    for package in stack_select_packages:
       stack_select.select(package, json_version)
+
 
 def setup_config():
   import params

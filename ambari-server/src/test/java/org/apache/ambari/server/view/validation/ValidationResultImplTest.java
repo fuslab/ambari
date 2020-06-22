@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,10 @@
 
 package org.apache.ambari.server.view.validation;
 
-import junit.framework.Assert;
 import org.apache.ambari.view.validation.ValidationResult;
 import org.junit.Test;
+
+import junit.framework.Assert;
 
 /**
  * ValidationResultImpl tests.

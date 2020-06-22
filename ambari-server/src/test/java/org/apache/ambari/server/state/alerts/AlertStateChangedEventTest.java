@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.ambari.server.H2DatabaseCleaner;
-import org.apache.ambari.server.controller.RootServiceResponseFactory.Services;
+import org.apache.ambari.server.controller.RootService;
 import org.apache.ambari.server.events.AggregateAlertRecalculateEvent;
 import org.apache.ambari.server.events.AlertEvent;
 import org.apache.ambari.server.events.AlertStateChangeEvent;
@@ -119,8 +119,8 @@ public class AlertStateChangedEventTest extends EasyMockSupport {
 
     AlertTargetEntity alertTarget = createNiceMock(AlertTargetEntity.class);
     AlertGroupEntity alertGroup = createMock(AlertGroupEntity.class);
-    List<AlertGroupEntity> groups = new ArrayList<AlertGroupEntity>();
-    Set<AlertTargetEntity> targets = new HashSet<AlertTargetEntity>();
+    List<AlertGroupEntity> groups = new ArrayList<>();
+    Set<AlertTargetEntity> targets = new HashSet<>();
 
     targets.add(alertTarget);
     groups.add(alertGroup);
@@ -136,7 +136,7 @@ public class AlertStateChangedEventTest extends EasyMockSupport {
 
     EasyMock.expect(
         dispatchDao.createNotices((List<AlertNoticeEntity>) EasyMock.anyObject())).andReturn(
-            new ArrayList<AlertNoticeEntity>()).once();
+      new ArrayList<>()).once();
 
     AlertDefinitionEntity definition = getMockAlertDefinition();
 
@@ -171,8 +171,8 @@ public class AlertStateChangedEventTest extends EasyMockSupport {
   public void testAlertNoticeSkippedForTarget() throws Exception {
     AlertTargetEntity alertTarget = createMock(AlertTargetEntity.class);
     AlertGroupEntity alertGroup = createMock(AlertGroupEntity.class);
-    List<AlertGroupEntity> groups = new ArrayList<AlertGroupEntity>();
-    Set<AlertTargetEntity> targets = new HashSet<AlertTargetEntity>();
+    List<AlertGroupEntity> groups = new ArrayList<>();
+    Set<AlertTargetEntity> targets = new HashSet<>();
 
     targets.add(alertTarget);
     groups.add(alertGroup);
@@ -223,8 +223,8 @@ public class AlertStateChangedEventTest extends EasyMockSupport {
   public void testAlertNoticeSkippedForDisabledTarget() throws Exception {
     AlertTargetEntity alertTarget = createMock(AlertTargetEntity.class);
     AlertGroupEntity alertGroup = createMock(AlertGroupEntity.class);
-    List<AlertGroupEntity> groups = new ArrayList<AlertGroupEntity>();
-    Set<AlertTargetEntity> targets = new HashSet<AlertTargetEntity>();
+    List<AlertGroupEntity> groups = new ArrayList<>();
+    Set<AlertTargetEntity> targets = new HashSet<>();
 
     targets.add(alertTarget);
     groups.add(alertGroup);
@@ -384,8 +384,8 @@ public class AlertStateChangedEventTest extends EasyMockSupport {
 
     AlertTargetEntity alertTarget = createNiceMock(AlertTargetEntity.class);
     AlertGroupEntity alertGroup = createMock(AlertGroupEntity.class);
-    List<AlertGroupEntity> groups = new ArrayList<AlertGroupEntity>();
-    Set<AlertTargetEntity> targets = new HashSet<AlertTargetEntity>();
+    List<AlertGroupEntity> groups = new ArrayList<>();
+    Set<AlertTargetEntity> targets = new HashSet<>();
 
     targets.add(alertTarget);
     groups.add(alertGroup);
@@ -433,8 +433,8 @@ public class AlertStateChangedEventTest extends EasyMockSupport {
 
     AlertTargetEntity alertTarget = createNiceMock(AlertTargetEntity.class);
     AlertGroupEntity alertGroup = createMock(AlertGroupEntity.class);
-    List<AlertGroupEntity> groups = new ArrayList<AlertGroupEntity>();
-    Set<AlertTargetEntity> targets = new HashSet<AlertTargetEntity>();
+    List<AlertGroupEntity> groups = new ArrayList<>();
+    Set<AlertTargetEntity> targets = new HashSet<>();
 
     targets.add(alertTarget);
     groups.add(alertGroup);
@@ -484,8 +484,8 @@ public class AlertStateChangedEventTest extends EasyMockSupport {
 
     AlertTargetEntity alertTarget = createNiceMock(AlertTargetEntity.class);
     AlertGroupEntity alertGroup = createMock(AlertGroupEntity.class);
-    List<AlertGroupEntity> groups = new ArrayList<AlertGroupEntity>();
-    Set<AlertTargetEntity> targets = new HashSet<AlertTargetEntity>();
+    List<AlertGroupEntity> groups = new ArrayList<>();
+    Set<AlertTargetEntity> targets = new HashSet<>();
 
     targets.add(alertTarget);
     groups.add(alertGroup);
@@ -501,13 +501,13 @@ public class AlertStateChangedEventTest extends EasyMockSupport {
     // create the definition for the AMBARI service
     AlertDefinitionEntity definition = createNiceMock(AlertDefinitionEntity.class);
     EasyMock.expect(definition.getDefinitionId()).andReturn(1L).anyTimes();
-    EasyMock.expect(definition.getServiceName()).andReturn(Services.AMBARI.name()).anyTimes();
+    EasyMock.expect(definition.getServiceName()).andReturn(RootService.AMBARI.name()).anyTimes();
     EasyMock.expect(definition.getLabel()).andReturn("ambari-foo-alert").anyTimes();
     EasyMock.expect(definition.getDescription()).andReturn("Ambari Foo Alert").anyTimes();
 
     EasyMock.expect(
         dispatchDao.createNotices((List<AlertNoticeEntity>) EasyMock.anyObject())).andReturn(
-            new ArrayList<AlertNoticeEntity>()).once();
+      new ArrayList<>()).once();
 
     AlertCurrentEntity current = getMockedAlertCurrentEntity();
     AlertHistoryEntity history = createNiceMock(AlertHistoryEntity.class);

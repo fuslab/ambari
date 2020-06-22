@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,6 +34,7 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 
+import org.apache.ambari.annotations.ApiIgnore;
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.api.services.serializers.ResultSerializer;
 import org.apache.ambari.server.controller.AmbariManagementController;
@@ -50,6 +51,8 @@ import org.apache.ambari.server.security.authorization.RoleAuthorization;
 import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.utils.RetryHelper;
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.inject.Inject;
 
@@ -62,6 +65,8 @@ import com.google.inject.Inject;
  */
 public class LoggingService extends BaseService {
 
+  private final static Logger LOG = LoggerFactory.getLogger(LoggingService.class);
+
   /**
    * The user of authorizations for which a user must have one of in order to access LogSearch data
    */
@@ -71,7 +76,6 @@ public class LoggingService extends BaseService {
 
   @Inject
   private LoggingRequestHelperFactory helperFactory;
-
 
   private final String clusterName;
 
@@ -84,7 +88,7 @@ public class LoggingService extends BaseService {
     this.controllerFactory = controllerFactory;
   }
 
-  @GET
+  @GET @ApiIgnore // until documented
   @Path("searchEngine")
   @Produces("text/plain")
   public Response getSearchEngine(String body, @Context HttpHeaders headers, @Context UriInfo uri) throws AuthorizationException {
@@ -147,8 +151,7 @@ public class LoggingService extends BaseService {
       uriInfo.getQueryParameters();
 
     Map<String, String> enumeratedQueryParameters =
-      new HashMap<String, String>();
-
+      new HashMap<>();
 
     for (String queryName : queryParameters.keySet()) {
       List<String> queryValue = queryParameters.get(queryName);
@@ -187,7 +190,6 @@ public class LoggingService extends BaseService {
 
         Response.ResponseBuilder builder = Response.status(result.getStatus().getStatusCode()).entity(
           serializer.serialize(result));
-
 
         if (mediaType != null) {
           builder.type(mediaType);
