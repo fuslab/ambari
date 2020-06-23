@@ -4,11 +4,17 @@ mode=all
 
 help()
 {
-	if [ "$1" == "" ]; then
-		echo 'Please enter the mode parameters: all or single'
-		echo 'sh build.sh -a/-s'
-		exit 0;
-	fi
+    echo 'Please enter the mode parameters: --all or --single or --metrics'
+	echo 'sh build.sh -a/-s/-m'
+	exit 0;
+}
+
+usage() 
+{
+   echo usage: "sh build.sh [ -a ] [ --all ] all compile"
+   echo "       sh build.sh [ -s ] [ --single ] compile server and agent"
+   echo "       sh build.sh [ -m ] [ --metrics ] compile metrics and logsearch and infra"
+   echo "       sh build.sh [ -h ] [ --help ] help "
 }
 
 while [ "$1" != "" ]; do
@@ -18,11 +24,13 @@ while [ "$1" != "" ]; do
                                 ;;
         -s | --single )    mode=single
                                 ;;
-        -h | --help )      	help
-			   	exit
+        -m | --metrics)   mode=metrics
+                                ;;
+        -h | --help )      	    help
+			   	            exit
                                 ;;
         * )                     usage
-                                exit 1
+                            exit 1
     esac
     shift
 done
@@ -30,6 +38,25 @@ done
 echo "Run mode: $mode"
 
 mvn versions:set -DnewVersion=2.7.4.0.0
+
+if [ $mode == "metrics" ]; then
+    echo 'Run mode: ' $mode
+    pushd ambari-metrics
+    mvn clean package -Dbuild-rpm -DskipTests
+    popd
+
+    pushd ambari-logsearch
+    mvn -Dbuild-rpm clean package -DskipTests
+    popd
+
+    pushd ambari-infra
+    mvn clean package -Dbuild-rpm -DskipTests -Drat.skip=true
+    popd
+
+    pushd contrib/views
+    mvn clean package rpm:rpm -DskipTests -Drat.skip
+    popd
+fi
 
 if [ $mode == "all" ]; then
 	echo 'Run mode: ' $mode
