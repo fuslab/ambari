@@ -39,6 +39,9 @@ echo "Run mode: $mode"
 
 mvn versions:set -DnewVersion=2.7.4.0.0
 
+echo "set npm registry"
+npm config set registry https://registry.npm.taobao.org
+
 if [ $mode == "metrics" ]; then
     echo 'Run mode: ' $mode
     pushd ambari-metrics
