@@ -1,0 +1,8 @@
+{
+  "general_deps" : {
+    "_comment" : "dependencies for CAI",
+    "CAI-START" : ["ZOOKEEPER_SERVER-START"],
+    "CAI-STOP" : ["ZOOKEEPER_SERVER-STOP"],
+    "CAI_SERVICE_CHECK-SERVICE_CHECK" : ["CAI-START"]
+  }
+}

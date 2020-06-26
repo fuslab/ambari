@@ -1,0 +1,14 @@
+{
+  "ANYSCALE": {
+    "stack_selector": [
+      "anyscale-select",
+      "/usr/bin/anyscale-select",
+      "anyscale-select"
+    ],
+    "conf_selector": [
+      "conf-select",
+      "/usr/bin/conf-select",
+      "conf-select"
+    ]
+  }
+}

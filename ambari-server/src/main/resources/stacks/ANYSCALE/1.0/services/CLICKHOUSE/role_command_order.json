@@ -1,0 +1,8 @@
+{
+  "general_deps" : {
+    "_comment" : "dependencies for clickhouse",
+    "CLICKHOUSE_SERVER-START" : ["ZOOKEEPER_SERVER-START"],
+    "CLICKHOUSE_SERVER-STOP" : ["ZOOKEEPER_SERVER-STOP"],
+    "CLICKHOUSE_SERVICE_CHECK-SERVICE_CHECK" : ["CLICKHOUSE_SERVER-START"]
+  }
+}

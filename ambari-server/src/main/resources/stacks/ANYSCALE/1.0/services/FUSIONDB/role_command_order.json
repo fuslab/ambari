@@ -1,0 +1,8 @@
+{
+  "general_deps" : {
+    "_comment" : "dependencies for FusionDB",
+    "FUSIONDB-START" : ["SPARK2_JOBHISTORYSERVER-START"],
+    "FUSIONDB-STOP" : ["SPARK2_JOBHISTORYSERVER-STOP"],
+    "FUSIONDB_SERVICE_CHECK-SERVICE_CHECK" : ["FUSIONDB-START"]
+  }
+}

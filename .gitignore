@@ -4,7 +4,7 @@
 .idea/
 .iml/
 .DS_Store
-target
+**/target/
 /ambari-server/derby.log
 /ambari-server/pass.txt
 /ambari-web/npm-debug.log
@@ -13,7 +13,7 @@ target
 /ambari-web/node/
 *.pyc
 *.py~
-*.iml
+**/*.iml
 .hg
 .hgignore
 .hgtags
@@ -29,3 +29,6 @@ createDDL.jdbc
 /contrib/views/storm/src/main/resources/ui/node_modules/
 /contrib/views/storm/src/main/resources/ui/public/
 /contrib/views/storm/src/main/resources/ui/npm-debug.log
+/dist
+/build
+ambari_python.egg-info

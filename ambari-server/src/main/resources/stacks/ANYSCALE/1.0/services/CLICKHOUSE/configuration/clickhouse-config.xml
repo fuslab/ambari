@@ -1,0 +1,383 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<!--
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+-->
+<!-- 
+  See https://clickhouse.yandex/docs/en/operations/server_settings/settings/ 
+  See https://clickhouse.yandex/docs/en/operations/settings/settings/
+-->
+<configuration supports_adding_forbidden="true">
+
+  <property>
+    <name>http_port</name>
+    <value>8123</value>
+    <description>
+      The port for connecting to the server over HTTP(s).
+
+      If https_port is specified, openSSL must be configured.
+
+      If http_port is specified, the openSSL configuration is ignored even if it is set.
+
+      This is Default http_port，not yet suppoorted.
+    </description>
+    <value-attributes>
+      <type>int</type>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>tcp_port</name>
+    <value>9000</value>
+    <description>
+      Port for communicating with clients over the TCP protocol.
+
+      See https://clickhouse.yandex/docs/en/operations/server_settings/settings/
+    </description>
+    <value-attributes>
+      <type>int</type>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>interserver_http_host</name>
+    <value>${hostname -f}</value>
+    <description>
+      Hostname that is used by other replicas to request this server.
+      If not specified, than it is determined analoguous to 'hostname -f' command.
+      This setting could be used to switch replication to another network interface.
+    </description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>interserver_http_port</name>
+    <value>9009</value>
+    <description>
+      Port for exchanging data between ClickHouse servers.
+    </description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>listen_host</name>
+    <value>0.0.0.0</value>
+    <description>
+      Listen specified host. use :: (wildcard IPv6 address), if you want to accept connections both with IPv4 and IPv6 from everywhere.
+      <!-- <listen_host>::</listen_host> -->
+      Same for hosts with disabled ipv6:
+      <!-- <listen_host>0.0.0.0</listen_host> -->
+    </description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>max_connections</name>
+    <value>64</value>
+    <description>
+      The maximum number of inbound connections.
+    </description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>keep_alive_timeout</name>
+    <value>3</value>
+    <description>
+      The number of milliseconds that ClickHouse waits for incoming requests before closing the connection.
+    </description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>max_concurrent_queries</name>
+    <value>16</value>
+    <description>
+      The maximum number of simultaneously processed requests.
+    </description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>uncompressed_cache_size</name>
+    <value>8589934592</value>
+    <description>
+      Cache size (in bytes) for uncompressed data used by table engines from the MergeTree family.
+
+      There is one shared cache for the server. Memory is allocated on demand. The cache is used if the option use_uncompressed_cache is enabled.
+
+      The uncompressed cache is advantageous for very short queries in individual cases.
+    </description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>mark_cache_size</name>
+    <value>10737418240</value>
+    <description>
+      Approximate size (in bytes) of the cache of "marks" used by MergeTree family.
+
+      The cache is shared for the server and memory is allocated as needed. The cache size must be at least 5368709120.
+    </description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>path</name>
+    <value>/data/clickhouse</value>
+    <description>
+      Path to data directory, with trailing slash.
+      
+      Default data storage path, if path does not exist, automatically created.
+    </description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>tmp_path</name>
+    <value>/data/clickhouse/tmp/</value>
+    <description>
+      Path to temporary data for processing large queries.
+    </description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>users_config</name>
+    <value>users.xml</value>
+    <description>
+      Path to configuration file with users, access rights, profiles of settings, quotas.
+
+      Path to the file that contains:
+       * User configurations.
+       * Access rights.
+       * Settings profiles.
+       * Quota settings.
+
+      This is users.xml , please check clickhouse-users tab.
+
+      Please not change it，Because it contain users.xml all configuration.
+    </description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>default_profile</name>
+    <value>default</value>
+    <description>
+      Default settings profile.
+
+      Settings profiles are located in the file specified in the parameter user_config.
+
+      This is users.xml , please check clickhouse-users tab.
+    </description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>log_queries</name>
+    <value>1</value>
+    <description>
+      Log Queries:
+
+      Setting up query the logging.
+
+      Queries sent to ClickHouse with this setup are logged according to the rules in the query_log server configuration parameter.
+      ___________________________________________________________________
+      
+      Query Log:
+
+      Setting for logging queries received with the log_queries=1 setting.
+
+      Queries are logged in the ClickHouse table, not in a separate file.
+
+      Use the following parameters to configure logging:
+
+      * database – Name of the database.
+      * table – Name of the table.
+      * partition_by – Sets a custom partitioning key.
+      * flush_interval_milliseconds – Interval for flushing data from memory to the disk.
+     
+      If the table doesn't exist, ClickHouse will create it. If the structure of the query log changed when the ClickHouse server was updated, the table with the old structure is renamed, and a new table is created automatically.
+
+      Not yet suppoorted.
+
+      See https://clickhouse.yandex/docs/en/operations/settings/settings/#settings_settings-log_queries
+    </description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+  
+  <property>
+    <name>default_database</name>
+    <value>default</value>
+    <description>
+      The default database.
+
+      To get a list of databases, use the SHOW DATABASES.
+    </description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>builtin_dictionaries_reload_interval</name>
+    <value>3600</value>
+    <description>
+      The interval in seconds before reloading built-in dictionaries.
+
+      ClickHouse reloads built-in dictionaries every x seconds. This makes it possible to edit dictionaries "on the fly" without restarting the server.
+
+      Default value: 3600.
+    </description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>max_table_size_to_drop</name>
+    <value>0</value>
+    <description>
+      Restriction on deleting tables.
+
+      If the size of a MergeTree type table exceeds max_table_size_to_drop (in bytes), you can't delete it using a DROP query.
+
+      If you still need to delete the table without restarting the ClickHouse server, create the {clickhouse-path}/flags/force_drop_table file and run the DROP query.
+
+      Default value: 50 GB.
+
+      The value 0 means that you can delete all tables without any restrictions.
+    </description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+  
+  <!-- clickhouse log configurations -->
+  <property>
+    <name>clickhouse_logs_config</name>
+    <display-name>clickhouse_logs_config template</display-name>
+    <description>
+      Logging settings.
+
+      Keys:
+
+        * level – Logging level. Acceptable values: trace, debug, information, warning, error.
+        * log – The log file. Contains all the entries according to level.
+        * errorlog – Error log file.
+        * size – Size of the file. Applies to loganderrorlog. Once the file reaches size, ClickHouse archives and renames it, and creates a new log file in its place.
+        * count – The number of archived log files that ClickHouse stores.
+    </description>
+    <value>
+    {
+      "logger": {
+        "level": "trace",
+        "log": "/var/log/clickhouse-server/server.log",
+        "errorlog": "/var/log/clickhouse-server/error.log",
+        "size": "1000M",
+        "count": "10"
+      }
+    }
+    </value>
+    <value-attributes>
+      <type>content</type>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <!-- clickhouse distributed_ddl configurations -->
+  <property>
+    <name>distributed_ddl_config</name>
+    <display-name>distributed_ddl template</display-name>
+    <description>
+      Allow to execute distributed DDL queries (CREATE, DROP, ALTER, RENAME) on cluster.
+      Works only if ZooKeeper is enabled. Comment it if such functionality isn't required.
+
+      Path in ZooKeeper to queue with DDL queries.
+    </description>
+    <value>
+    {
+      "distributed_ddl": {
+        "path": "/clickhouse/task_queue/ddl"
+      }
+    }
+    </value>
+    <value-attributes>
+      <type>content</type>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>include_from</name>
+    <value>/etc/clickhouse-server/conf/metrika.xml</value>
+    <description>
+      If element has 'incl' attribute, then for it's value will be used corresponding substitution from another file.
+
+      By default, path to file with substitutions is /etc/metrika.xml. It could be changed in config in 'include_from' element.
+
+      Values for substitutions are specified in /yandex/name_of_substitution elements in that file.
+    </description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>macros</name>
+    <value>macros</value>
+    <description>
+      Substitutions for parameters of replicated tables.
+      Optional. If you don't use replicated tables, you could omit that.
+
+      Default disable, incl="macros" optional="true".
+      
+      See https://clickhouse.yandex/reference_en.html#Creating%20replicated%20tables
+    </description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>zookeeper</name>
+    <value>zookeeper-servers</value>
+    <description>
+      Configuration of ZooKeeper servers.
+
+      ClickHouse uses ZooKeeper for storing replica metadata when using replicated tables.
+
+      This parameter can be omitted if replicated tables are not used.
+
+      See https://clickhouse.yandex/reference_en.html#Data%20replication
+
+      Default useing enabled，Our tools provide integrated ClickHouse cluster management.
+    </description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>remote_servers</name>
+    <value>clickhouse_remote_servers</value>
+    <description>
+      Configuration of clusters used by the Distributed table engine.
+      
+      See https://clickhouse.yandex/docs/en/table_engines/distributed/#table_engines-distributed
+
+      Default useing clickhouse_remote_servers. 
+
+      Please do not arbitrarily change this configuration as it involves the clickhouse metrika.xml configuration file.
+    </description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+</configuration>

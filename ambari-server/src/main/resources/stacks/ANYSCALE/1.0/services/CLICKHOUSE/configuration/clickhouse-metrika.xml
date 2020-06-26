@@ -1,0 +1,118 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<!--
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+-->
+<!-- Configuration of clusters as in an ordinary server config -->
+<configuration supports_adding_forbidden="true">
+
+  <property>
+    <name>internal_replication</name>
+    <value>true</value>
+    <description>
+      clickhouse server clusters shard_internal_replication.
+    </description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>user_admin</name>
+    <value>admin</value>
+    <description>
+      clickhouse server clusters admin user.
+    </description>
+    <value-attributes>
+      <type>db_user</type>
+      <editable-only-at-install>true</editable-only-at-install>
+      <overridable>false</overridable>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>user_admin_password</name>
+    <value>admin</value>
+    <description>
+      clickhouse server clusters admin user password.
+
+      default user_admin_password = admin.
+    </description>
+    <value-attributes>
+      <type>password</type>
+      <editable-only-at-install>true</editable-only-at-install>
+      <overridable>false</overridable>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>zookeeper_connect</name>
+    <value>node1:2181,master:2181,node2:2181</value>
+    <description>Clickhouse zookeeper connection information.</description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>ck_cluster_name</name>
+    <value>ck_cluster</value>
+    <description>clickhouse server clickhouse_remote_servers cluster name.</description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>macros_replica</name>
+    <value>{ "macros": {"layer":"05", "shard":"02", "replica":"hostname"} }</value>
+    <description>
+      The copy name of this node is useful when creating a replication table. 
+      Each node is different. The entire cluster is unique. 
+      It is recommended to use the host name.
+    </description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>networks</name>
+    <value>{ "ip" : "::/0" }</value>
+    <description>clickhouse server Listening network.</description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>clickhouse_compression</name>
+    <value>
+    {
+      "case": {
+        "min_part_size": "10000000000",
+        "min_part_size_ratio": "0.01",
+        "method": "lz4"
+      }
+    }
+   </value>
+    <description>
+      Uncomment if you want data to be compressed 30-100% better.
+      Don't do that if you just started using ClickHouse. 
+      Method Options：zstd , lz4
+    </description>
+    <value-attributes>
+      <type>content</type>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+  
+</configuration>
