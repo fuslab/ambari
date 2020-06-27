@@ -22,7 +22,7 @@
       <name>CLICKHOUSE</name>
       <displayName>ClickHouse</displayName>
       <comment>Open source distributed column-oriented DBMS.</comment>
-      <version>19.4.0</version>
+      <version>20.3.8.53</version>
       <components>
         <component>
           <name>CLICKHOUSE</name>
